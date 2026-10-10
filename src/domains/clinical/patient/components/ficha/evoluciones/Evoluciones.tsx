@@ -1,6 +1,8 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { FileText, Mic, MicOff, Plus, CheckCircle2, Key, Clock } from 'lucide-react'
 import { Button } from '../../../../../../shared/ui/ui/Button'
+import { useDictado } from '../../../hooks/useDictado'
+import { PLANTILLAS_INTELIGENTES } from './plantillasEvoluciones'
 
 interface NotaEvolucion {
   id: string
@@ -11,59 +13,6 @@ interface NotaEvolucion {
   indicaciones?: string
   firmaHash: string
 }
-
-const PLANTILLAS_INTELIGENTES = [
-  {
-    id: 'control',
-    titulo: 'Control General',
-    texto: 'Paciente asiste a control post-operatorio. Evolución asintomática, tejidos en franca cicatrización.',
-  },
-  {
-    id: 'profilaxis',
-    titulo: 'Profilaxis & Destartraje',
-    texto: 'Se realiza destartraje supragingival con ultrasonido y profilaxis con pasta abrasiva en arcadas superior e inferior.',
-  },
-  {
-    id: 'resina',
-    titulo: 'Restauración Resina',
-    texto: 'Bajo aislamiento absoluto se remueve tejido cariado en pieza {{pieza}}. Acondicionamiento con ácido fosfórico y obturación en resina compuesta.',
-  },
-  {
-    id: 'endo1',
-    titulo: 'Endodoncia Sesión 1',
-    texto: 'Acceso cameral, localización de conductos radiculares, instrumentación rotatoria biomecánica y medicación intraconducto.',
-  },
-  {
-    id: 'exodoncia',
-    titulo: 'Exodoncia Simple',
-    texto: 'Infiltración anestésica local. Sindesmotomía, luxación y avulsión atraumática de pieza {{pieza}}. Hemostasia con gasa compresiva.',
-  },
-  {
-    id: 'urgencia',
-    titulo: 'Urgencia por Dolor',
-    texto: 'Consulta de urgencia por dolor pulsátil. Diagnóstico de pulpitis irreversible. Apertura de urgencia y descompresión pulpar.',
-  },
-  {
-    id: 'oclusal',
-    titulo: 'Ajuste Oclusal',
-    texto: 'Control de puntos prematuros con papel de articular de 40 micras. Desgaste selectivo en céntrica y desoclusión guiada.',
-  },
-  {
-    id: 'cementacion',
-    titulo: 'Cementación Definitiva',
-    texto: 'Prueba estética y biomecánica de estructura. Acondicionamiento de muñón y cementación adhesiva definitiva.',
-  },
-  {
-    id: 'blanqueamiento',
-    titulo: 'Blanqueamiento Dental',
-    texto: 'Aislamiento gingival con barrera fotopolimerizable. Aplicación de peróxido de hidrógeno al 35% en 3 ciclos de 15 minutos.',
-  },
-  {
-    id: 'puntos',
-    titulo: 'Retiro de Sutura',
-    texto: 'Antisepsia local. Se retiran suturas sin complicaciones. Reborde y encía queratinizada sin signos de infección.',
-  },
-]
 
 interface EvolucionesProps {
   nombrePaciente?: string
@@ -88,7 +37,14 @@ export const Evoluciones: React.FC<EvolucionesProps> = ({
   const [nuevaNota, setNuevaNota] = useState('')
   const [motivo, setMotivo] = useState('')
   const [pieza, setPieza] = useState('1.6')
-  const [grabandoVoz, setGrabandoVoz] = useState(false)
+
+  const { iniciarDictado, detenerDictado, estaDictando, textoDictado } = useDictado()
+
+  useEffect(() => {
+    if (textoDictado) {
+      setNuevaNota((prev) => (prev ? `${prev} ${textoDictado}` : textoDictado))
+    }
+  }, [textoDictado])
 
   const aplicarPlantilla = (plantillaTexto: string) => {
     const reemplazado = plantillaTexto
@@ -97,20 +53,6 @@ export const Evoluciones: React.FC<EvolucionesProps> = ({
       .replace(/{{profesional}}/g, profesionalActual)
       .replace(/{{pieza}}/g, pieza)
     setNuevaNota((prev) => (prev ? `${prev}\n${reemplazado}` : reemplazado))
-  }
-
-  const toggleDictadoVoz = () => {
-    const SpeechRecognition =
-      (window as unknown as { SpeechRecognition?: unknown; webkitSpeechRecognition?: unknown })
-        .SpeechRecognition ||
-      (window as unknown as { webkitSpeechRecognition?: unknown }).webkitSpeechRecognition
-
-    if (!SpeechRecognition) {
-      window.alert('El navegador no soporta Web Speech API para dictado por voz.')
-      return
-    }
-
-    setGrabandoVoz((prev) => !prev)
   }
 
   const handleAgregarEvolucion = (e: React.FormEvent) => {
@@ -149,12 +91,13 @@ export const Evoluciones: React.FC<EvolucionesProps> = ({
           <Button
             type="button"
             size="sm"
-            variant={grabandoVoz ? 'primary' : 'secondary'}
-            icon={grabandoVoz ? MicOff : Mic}
-            onClick={toggleDictadoVoz}
-            className={grabandoVoz ? 'animate-pulse' : ''}
+            variant={estaDictando ? 'danger' : 'secondary'}
+            icon={estaDictando ? MicOff : Mic}
+            onClick={() => (estaDictando ? detenerDictado() : iniciarDictado())}
+            className={estaDictando ? 'animate-pulse' : ''}
+            data-testid="btn-dictado-voz"
           >
-            {grabandoVoz ? 'Detener Voz' : 'Dictado por Voz'}
+            {estaDictando ? '⏹️ Detener dictado' : '🎤 Iniciar dictado'}
           </Button>
         </div>
 
