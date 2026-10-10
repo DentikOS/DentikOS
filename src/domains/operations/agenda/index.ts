@@ -8,5 +8,6 @@ export { AgendaWeekView, type AgendaWeekViewProps } from './components/AgendaWee
 export { AgendaMonthView, type AgendaMonthViewProps } from './components/AgendaMonthView'
 export { AgendaNavigation, type AgendaNavigationProps } from './components/AgendaNavigation'
 export { AgendaFilters, type AgendaFiltersProps } from './components/AgendaFilters'
+export { WaitingRoomPanel, type WaitingRoomPanelProps, type PacienteEsperaItem } from './components/WaitingRoomPanel'
 export { PERMISOS_AGENDA, usePermisosAgenda, obtenerPermisosAgenda } from './utils/permisosAgenda'
 export type { Cita } from './schemas/citaSchema'

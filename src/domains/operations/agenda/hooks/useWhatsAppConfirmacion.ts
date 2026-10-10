@@ -77,7 +77,8 @@ export const useWhatsAppConfirmacion = ({
     }
 
     const fechaTxt = cita.fecha ? new Date(cita.fecha + 'T00:00:00').toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' }) : 'su cita'
-    const mensaje = `Hola ${cita.pacienteNombre || 'Paciente'}, te saludamos de DentikOS. Confirmamos tu hora para el ${fechaTxt} a las ${cita.horaInicio || ''} hrs en ${cita.boxAsignado || 'Sillón 1'}. Por favor responde 'Confirmar' a este mensaje.`
+    const doctorTxt = (cita as { doctor?: string }).doctor || 'su profesional tratante'
+    const mensaje = `Estimado(a) ${cita.pacienteNombre || 'Paciente'}:\n\nLe recordamos su atención odontológica programada para ${fechaTxt} a las ${cita.horaInicio || ''} con el/la Dr(a). ${doctorTxt} en DentikOS.\n\nPara coordinar su box clínico, por favor responda:\n1 para Confirmar asistencia\n2 para Solicitar reagendamiento\n\nDentikOS Clinical Gateway • Notificación Asistencial Oficial`
     const url = `https://wa.me/${numLimpio}?text=${encodeURIComponent(mensaje)}`
     window.open(url, '_blank')
   }, [pacientes, alCambiarEstado, dialogAlert])

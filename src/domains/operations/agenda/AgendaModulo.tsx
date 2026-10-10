@@ -15,6 +15,7 @@ import { AgendaDayView } from './components/AgendaDayView'
 import { AgendaWeekView } from './components/AgendaWeekView'
 import { AgendaMonthView } from './components/AgendaMonthView'
 import { AgendaNavigation } from './components/AgendaNavigation'
+import { WaitingRoomPanel } from './components/WaitingRoomPanel'
 import { useAgendaStore } from '../../../app/stores/useAgendaStore'
 import { exportarCitasCSV } from '../../../shared/utils/csvExport'
 import { SILLONES_DENTALES } from './constants/agendaConstants'
@@ -300,6 +301,29 @@ export const AgendaModulo: React.FC<AgendaModuloProps> = memo(({ alSeleccionarPa
           citas={citasDelDia}
           doctoresDisponibles={[]}
           alVerFichaPaciente={funcionVerFicha}
+        />
+      )}
+
+      {currentView === 'waiting_room' && (
+        <WaitingRoomPanel
+          pacientes={citasDelDia
+            .filter((c) => c.estado === 'En sala de espera' || c.estado === 'En Espera')
+            .map((c) => ({
+              id: c.id,
+              citaId: c.id,
+              nombre: c.pacienteNombre || 'Paciente',
+              horaLlegada: c.horaInicio,
+              boxAsignado: c.boxAsignado,
+              doctor: c.doctor,
+              confirmadoWhatsApp: c.confirmacionWhatsApp === 'confirmado' || c.estado === 'Confirmado' || c.estado === 'Confirmada',
+              enAtencion: false
+            }))}
+          totalEnAtencion={citasDelDia.filter((c) => c.estado === 'En atención' || c.estado === 'En Sillón').length}
+          totalCompletadasHoy={citasDelDia.filter((c) => c.estado === 'Completada' || c.estado === 'Atendido').length}
+          onIniciarAtencion={(id) => cambiarEstadoCita(id, 'En atención')}
+          onMarcarNoShow={(id) => cambiarEstadoCita(id, 'No-show')}
+          onAvisarPaciente={(id) => cambiarEstadoCita(id, 'En sala de espera')}
+          onLlamarSiguiente={(id) => cambiarEstadoCita(id, 'En sala de espera')}
         />
       )}
 

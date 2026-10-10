@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react'
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, CalendarDays, List } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, CalendarDays, List, Users } from 'lucide-react'
 import { useAgendaStore, type AgendaViewType } from '../../../../app/stores/useAgendaStore'
 import { obtenerFechaLocalISO } from '../../../../shared/utils/dateUtils'
 
@@ -13,7 +13,8 @@ const VISTAS_CONFIG: { id: AgendaViewType; label: string; icon: React.ReactNode 
   { id: 'day', label: 'Día', icon: <Clock className="w-3.5 h-3.5" /> },
   { id: 'week', label: 'Semana', icon: <CalendarDays className="w-3.5 h-3.5" /> },
   { id: 'month', label: 'Mes', icon: <CalendarIcon className="w-3.5 h-3.5" /> },
-  { id: 'list', label: 'Lista', icon: <List className="w-3.5 h-3.5" /> }
+  { id: 'list', label: 'Lista', icon: <List className="w-3.5 h-3.5" /> },
+  { id: 'waiting_room', label: 'Sala de Espera', icon: <Users className="w-3.5 h-3.5" /> }
 ]
 
 export const AgendaNavigation: React.FC<AgendaNavigationProps> = ({
