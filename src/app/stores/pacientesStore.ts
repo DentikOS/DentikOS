@@ -1,61 +1,136 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 import { pacientesStorageService, type Paciente } from '../../domains/clinical/patient'
+import type { FichaClinica } from '../../domains/clinical/patient/schemas/fichaClinicaSchema'
 import { createLogger } from '../../infrastructure/logging/logger'
 
 const log = createLogger('pacientesStore')
 
 const SEED_PACIENTES_DEMO: Paciente[] = [
-  { id: 1, nombre: 'Camila Silva Morales', rut: '18.452.123-K', telefono: '+56 9 8765 4321', edad: 28, prevision: 'Isapre', alergias: 'Penicilina', email: 'camila.silva@gmail.com', ocupacion: 'Diseñadora' },
-  { id: 2, nombre: 'Carlos Mendoza Vera', rut: '15.321.987-4', telefono: '+56 9 1234 5678', edad: 42, prevision: 'Fonasa', alergias: 'Ninguna', email: 'carlos.mendoza@gmail.com', ocupacion: 'Ingeniero' }
+  { id: 1, nombre: 'Camila Silva Morales', rut: '18.452.123-K', telefono: '+56 9 8765 4321', edad: 28, prevision: 'Isapre', alergias: 'Penicilina', email: 'camila.silva@gmail.com', ocupacion: 'Diseñadora', estado: 'activo' },
+  { id: 2, nombre: 'Carlos Mendoza Vera', rut: '15.321.987-4', telefono: '+56 9 1234 5678', edad: 42, prevision: 'Fonasa', alergias: 'Ninguna', email: 'carlos.mendoza@gmail.com', ocupacion: 'Ingeniero', estado: 'activo' }
 ]
 
 export type PacientesUpdater = Paciente[] | ((prev: Paciente[]) => Paciente[])
+export type PestanaFicha = 'datos' | 'odontograma' | 'periodontograma' | 'evoluciones' | 'recetas' | 'consentimientos' | 'plan-tratamiento'
+
+export interface FiltrosPacientes {
+  estado: string[]
+  doctor: string[]
+  ultimaVisita: string
+  proximaCita: string
+  etiquetas: string[]
+}
 
 export interface PacientesStore {
   pacientes: Paciente[]
+  vistaActual: 'lista' | 'tabla' | 'tarjetas'
+  filtros: FiltrosPacientes
+  seleccion: (string | number)[]
+  fichaActiva: FichaClinica | null
+  pestanaActiva: PestanaFicha
+
   setPacientes: (updater: PacientesUpdater) => void
+  setVista: (vista: 'lista' | 'tabla' | 'tarjetas') => void
+  setFiltros: (filtros: Partial<FiltrosPacientes>) => void
+  toggleSeleccion: (id: string | number) => void
+  seleccionarTodos: () => void
+  limpiarSeleccion: () => void
+
+  abrirFicha: (pacienteId: string | number) => void
+  cerrarFicha: () => void
+  setPestanaActiva: (pestana: PestanaFicha) => void
+  bloquearPaciente: (id: string | number) => void
+  desbloquearPaciente: (id: string | number) => void
   refrescarDesdeSupabase: () => Promise<void>
 }
 
-/**
- * Store global de pacientes (F2-01 — MASTER_ROADMAP).
- * Única fuente de verdad en memoria del listado de pacientes; persiste
- * automáticamente en cada `setPacientes` vía `pacientesStorageService`.
- *
- * F4-02c-2: el storage service maneja la caché internamente (síncrona para
- * lectura, async para escritura). El store simplemente delega.
- *
- * F5-02: método refrescarDesdeSupabase() para sincronización en tiempo real.
- * Lee datos frescos desde Supabase sin escribir (evita loop de sincronización).
- */
-export const usePacientesStore = create<PacientesStore>((set) => ({
-  pacientes: pacientesStorageService.obtenerPacientes(SEED_PACIENTES_DEMO),
+export const usePacientesStore = create<PacientesStore>()(
+  persist(
+    (set, get) => ({
+      pacientes: pacientesStorageService.obtenerPacientes(SEED_PACIENTES_DEMO),
+      vistaActual: 'lista',
+      filtros: { estado: [], doctor: [], ultimaVisita: '', proximaCita: '', etiquetas: [] },
+      seleccion: [],
+      fichaActiva: null,
+      pestanaActiva: 'datos',
 
-  setPacientes: (updater: PacientesUpdater) => set((state) => {
-    const next = typeof updater === 'function' ? updater(state.pacientes) : updater
-    // guardarPacientes retorna Promise en modo Supabase, pero no necesitamos
-    // esperar: la caché ya se actualizó síncronamente dentro del servicio.
-    pacientesStorageService.guardarPacientes(next)
-    return { pacientes: next }
-  }),
+      setPacientes: (updater: PacientesUpdater) => set((state) => {
+        const next = typeof updater === 'function' ? updater(state.pacientes) : updater
+        pacientesStorageService.guardarPacientes(next)
+        return { pacientes: next }
+      }),
 
-  /**
-   * F5-02 / F6-C-d.4: Refresca pacientes desde Supabase SIN escribir de vuelta.
-   * Usado por useRealtimeSync cuando detecta cambios desde otros dispositivos
-   * y al iniciar sesión (criterio #4 del roadmap: miembros de la misma clínica
-   * ven el mismo directorio).
-   */
-  refrescarDesdeSupabase: async (): Promise<void> => {
-    try {
-      if (typeof pacientesStorageService.procesarColaPacientes === 'function') {
-        await pacientesStorageService.procesarColaPacientes().catch((e: unknown) => log.warn('Error procesando cola pacientes:', e))
+      setVista: (vista) => set({ vistaActual: vista }),
+
+      setFiltros: (filtrosParciales) => set((state) => ({
+        filtros: { ...state.filtros, ...filtrosParciales }
+      })),
+
+      toggleSeleccion: (id) => set((state) => ({
+        seleccion: state.seleccion.includes(id)
+          ? state.seleccion.filter((item) => item !== id)
+          : [...state.seleccion, id]
+      })),
+
+      seleccionarTodos: () => set((state) => ({
+        seleccion: state.pacientes.map((p) => p.id)
+      })),
+
+      limpiarSeleccion: () => set({ seleccion: [] }),
+
+      abrirFicha: (pacienteId) => {
+        const paciente = get().pacientes.find((p) => String(p.id) === String(pacienteId))
+        if (paciente) {
+          const ficha: FichaClinica = {
+            id: `ficha-${paciente.id}`,
+            pacienteId: paciente.id,
+            odontograma: [],
+            periodontograma: [],
+            evoluciones: [],
+            recetas: [],
+            consentimientos: [],
+            timeline: [],
+            version: 1
+          }
+          set({ fichaActiva: ficha, pestanaActiva: 'datos' })
+        }
+      },
+
+      cerrarFicha: () => set({ fichaActiva: null }),
+
+      setPestanaActiva: (pestana) => set({ pestanaActiva: pestana }),
+
+      bloquearPaciente: (id) => {
+        get().setPacientes((prev) =>
+          prev.map((p) => (String(p.id) === String(id) ? { ...p, estado: 'bloqueado' } : p))
+        )
+      },
+
+      desbloquearPaciente: (id) => {
+        get().setPacientes((prev) =>
+          prev.map((p) => (String(p.id) === String(id) ? { ...p, estado: 'activo' } : p))
+        )
+      },
+
+      refrescarDesdeSupabase: async (): Promise<void> => {
+        try {
+          if (typeof pacientesStorageService.procesarColaPacientes === 'function') {
+            await pacientesStorageService.procesarColaPacientes().catch((e: unknown) => log.warn('Error procesando cola:', e))
+          }
+          const datos = await pacientesStorageService.sincronizarDesdeSupabase()
+          if (Array.isArray(datos)) set({ pacientes: datos })
+        } catch (e: unknown) {
+          log.error('Error refrescarDesdeSupabase:', e)
+        }
       }
-      const datos = await pacientesStorageService.sincronizarDesdeSupabase()
-      if (Array.isArray(datos)) {
-        set({ pacientes: datos })
-      }
-    } catch (e: unknown) {
-      log.error('Error refrescarDesdeSupabase:', e)
+    }),
+    {
+      name: 'dentikos_pacientes_store_v2',
+      partialize: (state) => ({
+        vistaActual: state.vistaActual,
+        filtros: state.filtros
+      })
     }
-  }
-}))
+  )
+)

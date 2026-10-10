@@ -62,7 +62,37 @@ export const pacienteSchema = z.object({
   fechaIngreso: z.string().nullable().optional(),
 
   // F3-06: campo agregado en migración v1 → v2
-  notas: z.string().nullable().optional()
+  notas: z.string().nullable().optional(),
+
+  // BP06: Nuevos campos demográficos, clínicos y administrativos
+  nombreCompleto: z.string().optional(),
+  fechaNacimiento: z.string().optional(),
+  sexo: z.enum(['masculino', 'femenino', 'otro']).optional(),
+  telefonoSecundario: z.string().optional(),
+  comuna: z.string().optional(),
+  region: z.string().optional(),
+  alergiasSeveras: z.array(z.string()).optional(),
+  enfermedadesCronicas: z.array(z.string()).optional(),
+  medicamentosActuales: z.array(z.string()).optional(),
+  antecedentesQuirurgicos: z.string().optional(),
+  embarazo: z.boolean().optional(),
+  lactancia: z.boolean().optional(),
+  anticoagulantes: z.boolean().optional(),
+  estado: z.enum(['activo', 'inactivo', 'bloqueado', 'nuevo']).optional(),
+  fechaCreacion: z.string().optional(),
+  fechaUltimaVisita: z.string().optional(),
+  diasSinVisita: z.number().optional(),
+  tutorLegal: z.object({
+    nombre: z.string(),
+    rut: z.string(),
+    relacion: z.string(),
+    telefono: z.string()
+  }).optional(),
+  doctorTratanteId: z.string().optional(),
+  etiquetas: z.array(z.string()).optional(),
+  notasAdmin: z.string().optional(),
+  clinicaId: z.string().optional(),
+  version: z.number().optional()
 }).passthrough()
 
 export type Paciente = z.infer<typeof pacienteSchema>
