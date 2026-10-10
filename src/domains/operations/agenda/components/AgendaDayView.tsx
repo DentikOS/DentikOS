@@ -5,6 +5,7 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import type { Cita } from '../schemas/citaSchema'
 import { AppointmentCard } from './AppointmentCard'
+import { usePermisosAgenda } from '../utils/permisosAgenda'
 
 export interface AgendaDayViewProps {
   appointments: Cita[]
@@ -28,9 +29,11 @@ const DraggableCard: React.FC<{
   appointment: Cita
   onClick?: () => void
   onWhatsAppClick?: (e: React.MouseEvent) => void
-}> = ({ appointment, onClick, onWhatsAppClick }) => {
+  draggable?: boolean
+}> = ({ appointment, onClick, onWhatsAppClick, draggable = true }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: String(appointment.id)
+    id: String(appointment.id),
+    disabled: !draggable
   })
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -43,8 +46,8 @@ const DraggableCard: React.FC<{
       <AppointmentCard
         appointment={appointment}
         onClick={onClick}
-        draggable
-        dragHandleProps={{ ...attributes, ...listeners }}
+        draggable={draggable}
+        dragHandleProps={draggable ? { ...attributes, ...listeners } : undefined}
         onWhatsAppClick={onWhatsAppClick}
       />
     </div>
@@ -63,6 +66,7 @@ export const AgendaDayView: React.FC<AgendaDayViewProps> = ({
   onAppointmentMove,
   onWhatsAppClick
 }) => {
+  const permisos = usePermisosAgenda()
   const [activeDragId, setActiveDragId] = useState<string | null>(null)
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
 
@@ -154,7 +158,7 @@ export const AgendaDayView: React.FC<AgendaDayViewProps> = ({
                   return (
                     <div
                       key={`${hora}-${col.id}`}
-                      onClick={() => onSlotClick?.(currentDateIso, hora, col.titulo)}
+                      onClick={() => permisos.crearCitas && onSlotClick?.(currentDateIso, hora, col.titulo)}
                       className="p-1.5 border-r border-surface-border last:border-r-0 relative group min-h-[76px] flex flex-col gap-1.5 cursor-pointer"
                     >
                       {haySobrecupo && (
@@ -170,11 +174,12 @@ export const AgendaDayView: React.FC<AgendaDayViewProps> = ({
                             appointment={cita}
                             onClick={() => onAppointmentClick?.(cita)}
                             onWhatsAppClick={() => onWhatsAppClick?.(cita)}
+                            draggable={permisos.dragAndDrop}
                           />
                         </div>
                       ))}
 
-                      {citasEnSlot.length === 0 && (
+                      {citasEnSlot.length === 0 && permisos.crearCitas && (
                         <div className="h-full w-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                           <span className="flex items-center gap-1 text-[11px] font-semibold text-slate-400 hover:text-[#B88E3A]">
                             <Plus className="w-3 h-3" /> Agendar {hora}

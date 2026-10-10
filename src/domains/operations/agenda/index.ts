@@ -7,4 +7,6 @@ export { AgendaDayView, type AgendaDayViewProps } from './components/AgendaDayVi
 export { AgendaWeekView, type AgendaWeekViewProps } from './components/AgendaWeekView'
 export { AgendaMonthView, type AgendaMonthViewProps } from './components/AgendaMonthView'
 export { AgendaNavigation, type AgendaNavigationProps } from './components/AgendaNavigation'
+export { AgendaFilters, type AgendaFiltersProps } from './components/AgendaFilters'
+export { PERMISOS_AGENDA, usePermisosAgenda, obtenerPermisosAgenda } from './utils/permisosAgenda'
 export type { Cita } from './schemas/citaSchema'
