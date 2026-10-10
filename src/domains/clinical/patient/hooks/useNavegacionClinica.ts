@@ -6,7 +6,7 @@
  *
  * Contrato:
  * - Usa SIEMPRE la lista completa de pacientes del store (no la filtrada
- *   del DirectorioPacientes) para que navegación ← → recorra todos los
+ *   del PacientesListado) para que navegación ← → recorra todos los
  *   pacientes disponibles.
  * - El orden de navegación es alfabético por nombre (predecible).
  * - El hook es idempotente: si el paciente actual no está en la lista
