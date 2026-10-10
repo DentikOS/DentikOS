@@ -34,4 +34,12 @@ describe('PlanTratamiento BP06', () => {
       expect.objectContaining({ id: 'fase-urgencias' }),
     ]))
   })
+
+
+  it('muestra mensaje cuando el odontograma no tiene patologías', async () => {
+    const { useOdontogramaStore } = await import('../../../../../../app/stores/odontogramaStore')
+    useOdontogramaStore.getState().setOdontograma({ piezas: [] })
+    render(<PlanTratamiento />)
+    expect(screen.getByText('No hay patologías registradas')).toBeInTheDocument()
+  })
 })
