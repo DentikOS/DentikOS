@@ -12,3 +12,4 @@ export { fichaClinicaSchema, type FichaClinica } from './schemas/fichaClinicaSch
 export { usePacientesStore } from '../../../app/stores/pacientesStore'
 export { FichaPacienteModulo as FichaPaciente } from './FichaPacienteModulo'
 export { DirectorioPacientes } from './components/DirectorioPacientes'
+export { PacientesListado } from './components/listado/PacientesListado'

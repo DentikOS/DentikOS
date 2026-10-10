@@ -108,8 +108,11 @@ export const useMetricasClinicas = ({
 
     // 5. Alertas activas (clínica)
     const alertasActivas: AlertaClinica[] = []
-    if (paciente?.alergias && paciente.alergias.trim() && paciente.alergias !== 'Ninguna') {
-      alertasActivas.push({ tipo: 'alergia', texto: paciente.alergias })
+    const alergiasTexto = Array.isArray(paciente?.alergias)
+      ? paciente.alergias.join(', ')
+      : (paciente?.alergias || '')
+    if (alergiasTexto.trim() && alergiasTexto !== 'Ninguna') {
+      alertasActivas.push({ tipo: 'alergia', texto: alergiasTexto })
     }
     if (paciente?.enfermedades && paciente.enfermedades.trim()) {
       alertasActivas.push({ tipo: 'enfermedad', texto: paciente.enfermedades })

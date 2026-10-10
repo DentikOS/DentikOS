@@ -46,7 +46,7 @@ export const pacienteSchema = z.object({
   peso: z.union([z.string(), z.number()]).nullable().optional(),
 
   // Campos de anamnesis clínica (se completan progresivamente en la Ficha)
-  alergias: z.string().nullable().optional(),
+  alergias: z.union([z.string(), z.array(z.string())]).nullable().optional(),
   enfermedades: z.string().nullable().optional(),
   medicamentos: z.string().nullable().optional(),
   habitos: z.string().nullable().optional(),
