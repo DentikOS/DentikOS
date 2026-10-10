@@ -12,6 +12,7 @@ import { Evoluciones } from './evoluciones/Evoluciones'
 import { Recetas } from './recetas/Recetas'
 import { Consentimientos } from './consentimientos/Consentimientos'
 import { PlanTratamiento } from './plan-tratamiento/PlanTratamiento'
+import { Timeline } from './Timeline'
 import { ModoQuirurgico } from './ModoQuirurgico'
 
 export interface FichaClinicaProps {
@@ -28,10 +29,11 @@ const TABS_FICHA = [
   { id: 'datos', label: 'Datos Paciente', icon: User },
   { id: 'odontograma', label: 'Odontograma', icon: Activity },
   { id: 'periodontograma', label: 'Periodontograma', icon: Activity },
-  { id: 'evoluciones', label: 'Evoluciones', icon: Clock },
+  { id: 'evoluciones', label: 'Evoluciones', icon: FileText },
   { id: 'recetas', label: 'Recetas', icon: Pill },
   { id: 'consentimientos', label: 'Consentimientos', icon: Shield },
   { id: 'plan-tratamiento', label: 'Plan Tratamiento', icon: Layers },
+  { id: 'timeline', label: 'Timeline', icon: Clock },
 ] as const
 
 type PestanaId = (typeof TABS_FICHA)[number]['id']
@@ -60,7 +62,7 @@ export const FichaClinica: React.FC<FichaClinicaProps> = ({
     pacientes[0]
 
   const pestanaActual: PestanaId =
-    (pestanaActivaStore as PestanaId) in { datos: 1, odontograma: 1, periodontograma: 1, evoluciones: 1, recetas: 1, consentimientos: 1, 'plan-tratamiento': 1 }
+    (pestanaActivaStore as PestanaId) in { datos: 1, odontograma: 1, periodontograma: 1, evoluciones: 1, recetas: 1, consentimientos: 1, 'plan-tratamiento': 1, timeline: 1 }
       ? (pestanaActivaStore as PestanaId)
       : 'datos'
 
@@ -175,6 +177,7 @@ export const FichaClinica: React.FC<FichaClinicaProps> = ({
             onGenerarPresupuesto={onGenerarPresupuesto}
           />
         )}
+        {pestanaActual === 'timeline' && <Timeline pacienteId={pacienteFinal.id} />}
       </div>
     </div>
   )
