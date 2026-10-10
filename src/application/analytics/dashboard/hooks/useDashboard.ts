@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import {
-  calcularResumenJornada,
-  calcularMetricasAvanzadas
-} from '../utils/dashboardCalculations'
+import { obtenerFechaLocalISO } from '../../../../shared/utils/dateUtils'
+import { calcularMetricasAgenda, calcularTendenciasCitas } from '../utils/agendaCalculations'
+import { calcularMetricasFinanzas } from '../utils/finanzasCalculations'
+import { calcularMetricasClinicas } from '../utils/clinicasCalculations'
 import { agendaStorageService } from '../../../../domains/operations/agenda'
 import {
   obtenerTodosLosPagosDashboard,
@@ -85,23 +85,34 @@ export const useDashboard = (
   }, [cargarDatos])
 
   const resumen = useMemo(() => {
-    return calcularResumenJornada(
-      pacientes,
-      citas,
-      pagos,
-      presupuestos
-    ) as ResumenJornada
+    const hoyIso = obtenerFechaLocalISO()
+    const agenda = calcularMetricasAgenda(citas, hoyIso)
+    const finanzas = calcularMetricasFinanzas(pagos, presupuestos, hoyIso)
+    return {
+      totalPacientes: pacientes.length,
+      citasHoyCount: agenda.citasHoy.length,
+      ...agenda,
+      ...finanzas
+    } as ResumenJornada
   }, [pacientes, citas, pagos, presupuestos])
 
   const metricasAvanzadas = useMemo(() => {
-    return calcularMetricasAvanzadas(
+    const tendenciaCitas7Dias = calcularTendenciasCitas(citas, 7)
+    const tendenciaCitas30Dias = calcularTendenciasCitas(citas, 30)
+    const { alertas, tareas } = calcularMetricasClinicas(
       citas,
       pagos,
       presupuestos,
       evoluciones,
       recetas,
       certificados
-    ) as MetricasAvanzadasDashboard
+    )
+    return {
+      tendenciaCitas7Dias,
+      tendenciaCitas30Dias,
+      alertas,
+      tareas
+    } as MetricasAvanzadasDashboard
   }, [citas, pagos, presupuestos, evoluciones, recetas, certificados])
 
   return {
