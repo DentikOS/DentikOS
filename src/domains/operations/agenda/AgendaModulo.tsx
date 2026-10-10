@@ -11,6 +11,8 @@ import { ModalNuevaCita } from './components/ModalNuevaCita'
 import { ModalNuevoBloqueo } from './components/ModalNuevoBloqueo'
 import { AgendaListView } from './components/AgendaListView'
 import { AgendaProfesionalView } from './components/AgendaProfesionalView'
+import { AgendaDayView } from './components/AgendaDayView'
+import { useAgendaStore } from '../../../app/stores/useAgendaStore'
 import { exportarCitasCSV } from '../../../shared/utils/csvExport'
 import { SILLONES_DENTALES } from './constants/agendaConstants'
 import { usePacientesStore } from '../../../app/stores/pacientesStore'
@@ -219,6 +221,24 @@ export const AgendaModulo: React.FC<AgendaModuloProps> = memo(({ alSeleccionarPa
             })}
           </div>
         </div>
+      )}
+
+      {vista === 'day' && (
+        <AgendaDayView
+          appointments={citasDelDia}
+          currentDateIso={fechaSeleccionada}
+          selectedDoctor={doctorFiltro}
+          selectedBox={boxFiltro}
+          onAppointmentClick={(cita) => funcionVerFicha(cita)}
+          onSlotClick={() => setModalNuevaCitaAbierto(true)}
+          onAppointmentMove={(id, nuevaHora, col) => {
+            const citaExistente = citas.find((c) => String(c.id) === String(id))
+            if (citaExistente) {
+              guardarCita({ ...citaExistente, horaInicio: nuevaHora, ...(col ? { doctor: col } : {}) })
+            }
+          }}
+          onWhatsAppClick={enviarWhatsAppConfirmacion}
+        />
       )}
 
       {vista === 'lista' && (
