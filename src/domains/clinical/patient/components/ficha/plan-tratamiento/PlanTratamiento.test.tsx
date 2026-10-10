@@ -42,4 +42,11 @@ describe('PlanTratamiento BP06', () => {
     render(<PlanTratamiento />)
     expect(screen.getByText('No hay patologías registradas')).toBeInTheDocument()
   })
+
+  it('abre el modal de nuevo presupuesto al hacer click en Generar presupuesto inferior', () => {
+    render(<PlanTratamiento nombrePaciente="María Valenzuela" />)
+    const btnBottom = screen.getByTestId('btn-generar-presupuesto-bottom')
+    fireEvent.click(btnBottom)
+    expect(screen.getByTestId('modal-nuevo-presupuesto')).toBeInTheDocument()
+  })
 })

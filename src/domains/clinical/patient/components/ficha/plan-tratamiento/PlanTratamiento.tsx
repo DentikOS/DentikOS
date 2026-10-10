@@ -145,11 +145,33 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
         })}
       </div>
 
+      <div className="mt-6 pt-6 border-t border-surface flex justify-between items-center flex-wrap gap-4" data-testid="seccion-total-presupuesto-plan">
+        <div>
+          <p className="text-sm text-graphite-600 dark:text-graphite-400">Total estimado:</p>
+          <p className="text-2xl font-bold font-mono text-primary">${totalPlan.toLocaleString('es-CL')}</p>
+        </div>
+        <button
+          type="button"
+          onClick={handleGenerarPresupuesto}
+          className="px-6 py-3 bg-gradient-to-r from-[#E5C378] to-[#B88E3A] text-[#070B14] font-semibold rounded-lg hover:brightness-105 cursor-pointer"
+          data-testid="btn-generar-presupuesto-bottom"
+        >
+          ✨ Generar presupuesto
+        </button>
+      </div>
+
       {mostrarDerivacion && (
         <FichaDerivacionModal
           nombrePaciente={nombrePaciente}
           onCerrar={() => setMostrarDerivacion(false)}
           onDerivar={(d) => window.alert(`Derivación emitida a ${d.especialidad} (${d.prioridad}).`)}
+        />
+      )}
+
+      {modalPresupuestoAbierto && (
+        <ModalNuevoPresupuesto
+          pacienteNombre={nombrePaciente}
+          onCerrar={() => setModalPresupuestoAbierto(false)}
         />
       )}
     </div>
