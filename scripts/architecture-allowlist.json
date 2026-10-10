@@ -27,7 +27,6 @@
     "src/shared/hooks/useAuth.js": 191,
     "src/domains/clinical/patient/services/pacientesStorageService.ts": 310,
     "src/domains/operations/agenda/services/agendaStorageService.ts": 379,
-    "src/shared/hooks/useDataMigration.js": 269,
     "src/domains/billing/budget/services/presupuestosStorageService.js": 462,
     "src/domains/billing/payment/services/pagosStorageService.js": 321,
     "src/domains/billing/cash-register/services/finanzasStorageService.js": 295,
