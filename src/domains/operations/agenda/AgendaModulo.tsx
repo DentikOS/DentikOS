@@ -11,6 +11,14 @@ import { ModalNuevaCita } from './components/ModalNuevaCita'
 import { ModalNuevoBloqueo } from './components/ModalNuevoBloqueo'
 import { AgendaListView } from './components/AgendaListView'
 import { AgendaProfesionalView } from './components/AgendaProfesionalView'
+import { AgendaDayView } from './components/AgendaDayView'
+import { AgendaWeekView } from './components/AgendaWeekView'
+import { AgendaMonthView } from './components/AgendaMonthView'
+import { AgendaNavigation } from './components/AgendaNavigation'
+import { WaitingRoomPanel } from './components/WaitingRoomPanel'
+import { AgendaQuirurgica } from './components/AgendaQuirurgica'
+import { useAgendaStore } from '../../../app/stores/useAgendaStore'
+import { useThemeStore } from '../../../app/stores/useThemeStore'
 import { exportarCitasCSV } from '../../../shared/utils/csvExport'
 import { SILLONES_DENTALES } from './constants/agendaConstants'
 import { usePacientesStore } from '../../../app/stores/pacientesStore'
@@ -43,6 +51,10 @@ export const AgendaModulo: React.FC<AgendaModuloProps> = memo(({ alSeleccionarPa
     cambiarEstadoCita,
     enviarWhatsAppConfirmacion
   } = useAgenda(pacientesProp)
+
+  const currentView = useAgendaStore((state) => state.currentView)
+  const setStoreView = useAgendaStore((state) => state.setView)
+  const theme = useThemeStore((state) => state.theme)
 
   // F7-27: Estado de vista de agenda
   const [vista, setVista] = useState<string>('box')
@@ -95,6 +107,15 @@ export const AgendaModulo: React.FC<AgendaModuloProps> = memo(({ alSeleccionarPa
     }
   }
 
+  if (theme === 'surgical') {
+    return (
+      <AgendaQuirurgica
+        citas={citasDelDia}
+        onAbrirFicha={funcionVerFicha}
+      />
+    )
+  }
+
   const boxesAMostrar = boxFiltro === 'Todos'
     ? SILLONES_DENTALES
     : SILLONES_DENTALES.filter(b => b.nombre === boxFiltro)
@@ -129,6 +150,12 @@ export const AgendaModulo: React.FC<AgendaModuloProps> = memo(({ alSeleccionarPa
         }
       />
 
+      {/* Navegación temporal y de vistas */}
+      <AgendaNavigation
+        currentDateIso={fechaSeleccionada}
+        onDateChange={(nuevaFecha) => setFechaSeleccionada(nuevaFecha)}
+      />
+
       {/* Selector de Fecha + Filtro por Box/Doctor */}
       <AgendaViewSelector
         fechaSeleccionadaIso={fechaSeleccionada}
@@ -139,7 +166,12 @@ export const AgendaModulo: React.FC<AgendaModuloProps> = memo(({ alSeleccionarPa
         setDoctorFiltro={setDoctorFiltro}
         doctoresDisponibles={[]}
         vista={vista}
-        setVista={setVista}
+        setVista={(v) => {
+          setVista(v)
+          if (v === 'day' || v === 'week' || v === 'month' || v === 'list') {
+            setStoreView(v)
+          }
+        }}
         onExportarCSV={handleExportarCSV}
         onBusquedaChange={setBusqueda}
       />
@@ -165,7 +197,7 @@ export const AgendaModulo: React.FC<AgendaModuloProps> = memo(({ alSeleccionarPa
       <AgendaSummaryCards citas={citasDelDia} />
 
       {/* F7-27: Renderizado condicional de vistas de agenda */}
-      {vista === 'box' && (
+      {(vista === 'box' && currentView !== 'week' && currentView !== 'month' && currentView !== 'waiting_room' && currentView !== 'day') && (
         <div className="bg-canvas dark:bg-graphite-950 surgical:bg-graphite-300 border border-surface rounded-xl p-4 md:p-6" role="region" aria-label="Parrilla de sillones dentales">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
             {boxesAMostrar.map(box => {
@@ -221,6 +253,53 @@ export const AgendaModulo: React.FC<AgendaModuloProps> = memo(({ alSeleccionarPa
         </div>
       )}
 
+      {((currentView === 'day' && vista !== 'box' && vista !== 'lista' && vista !== 'profesional') || vista === 'day') && (
+        <AgendaDayView
+          appointments={citasDelDia}
+          currentDateIso={fechaSeleccionada}
+          selectedDoctor={doctorFiltro}
+          selectedBox={boxFiltro}
+          onAppointmentClick={(cita) => funcionVerFicha(cita)}
+          onSlotClick={() => setModalNuevaCitaAbierto(true)}
+          onAppointmentMove={(id, nuevaHora, col) => {
+            const citaExistente = citas.find((c) => String(c.id) === String(id))
+            if (citaExistente) {
+              guardarCita({ ...citaExistente, horaInicio: nuevaHora, ...(col ? { doctor: col } : {}) })
+            }
+          }}
+          onWhatsAppClick={enviarWhatsAppConfirmacion}
+        />
+      )}
+
+      {(currentView === 'week' || vista === 'week') && (
+        <AgendaWeekView
+          appointments={citas}
+          currentDateIso={fechaSeleccionada}
+          onAppointmentClick={(cita) => funcionVerFicha(cita)}
+          onDayClick={(iso) => {
+            setFechaSeleccionada(iso)
+            setStoreView('day')
+            setVista('day')
+          }}
+          onNewAppointment={(iso) => {
+            setFechaSeleccionada(iso)
+            setModalNuevaCitaAbierto(true)
+          }}
+        />
+      )}
+
+      {(currentView === 'month' || vista === 'month') && (
+        <AgendaMonthView
+          appointments={citas}
+          currentDateIso={fechaSeleccionada}
+          onDayClick={(iso) => {
+            setFechaSeleccionada(iso)
+            setStoreView('day')
+            setVista('day')
+          }}
+        />
+      )}
+
       {vista === 'lista' && (
         <AgendaListView
           citas={citasDelDia}
@@ -234,6 +313,29 @@ export const AgendaModulo: React.FC<AgendaModuloProps> = memo(({ alSeleccionarPa
           citas={citasDelDia}
           doctoresDisponibles={[]}
           alVerFichaPaciente={funcionVerFicha}
+        />
+      )}
+
+      {currentView === 'waiting_room' && (
+        <WaitingRoomPanel
+          pacientes={citasDelDia
+            .filter((c) => c.estado === 'En sala de espera' || c.estado === 'En Espera')
+            .map((c) => ({
+              id: c.id,
+              citaId: c.id,
+              nombre: c.pacienteNombre || 'Paciente',
+              horaLlegada: c.horaInicio,
+              boxAsignado: c.boxAsignado,
+              doctor: c.doctor,
+              confirmadoWhatsApp: c.confirmacionWhatsApp === 'confirmado' || c.estado === 'Confirmado' || c.estado === 'Confirmada',
+              enAtencion: false
+            }))}
+          totalEnAtencion={citasDelDia.filter((c) => c.estado === 'En atención' || c.estado === 'En Sillón').length}
+          totalCompletadasHoy={citasDelDia.filter((c) => c.estado === 'Completada' || c.estado === 'Atendido').length}
+          onIniciarAtencion={(id) => cambiarEstadoCita(id, 'En atención')}
+          onMarcarNoShow={(id) => cambiarEstadoCita(id, 'No-show')}
+          onAvisarPaciente={(id) => cambiarEstadoCita(id, 'En sala de espera')}
+          onLlamarSiguiente={(id) => cambiarEstadoCita(id, 'En sala de espera')}
         />
       )}
 

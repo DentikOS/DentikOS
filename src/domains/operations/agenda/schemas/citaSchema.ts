@@ -49,13 +49,15 @@ export const citaSchema = z.object({
   esBloqueo: z.boolean().optional(),
   motivoBloqueo: z.string().optional(),
 
-  // Campos de recurrencia (F7-27)
-  recurrencia: z.enum(['ninguna', 'semanal', 'mensual', 'anual']).optional(),
+  // Campos de recurrencia (BP05 & F7-27)
+  recurrencia: z.enum(['ninguna', 'diario', 'semanal', 'quincenal', 'mensual', 'anual', 'personalizado']).optional(),
   frecuencia: z.number().int().positive().optional(), // cada X semanas/meses/años
   diaSemana: z.number().int().min(0).max(6).optional(), // 0-6 para recurrencia semanal
   diaMes: z.number().int().min(1).max(31).optional(), // 1-31 para recurrencia mensual
   fechaFin: z.string().optional(), // hasta cuándo repetir (YYYY-MM-DD)
   citaPadreId: z.union([z.number(), z.string()]).nullable().optional(), // ID de la cita original (para citas recurrentes)
+  recurrence_group_id: z.string().optional(),
+  confirmation_status: z.string().optional(),
 }).passthrough()
 
 export type Cita = z.infer<typeof citaSchema>

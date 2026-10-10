@@ -122,6 +122,7 @@ export const AgendaViewSelector: React.FC<AgendaViewSelectorProps> = memo(({
             className="p-2 border rounded-xl bg-graphite-50 dark:bg-graphite-950 surgical:bg-white border-surface font-bold text-xs text-graphite-900 dark:text-graphite-50 surgical:text-black"
             aria-label="Seleccionar vista de agenda"
           >
+            <option value="day">Vista Día (Timeline)</option>
             <option value="box">Por Box</option>
             <option value="lista">Lista</option>
             <option value="profesional">Por Profesional</option>

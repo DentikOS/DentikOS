@@ -3,6 +3,7 @@ import {
   SILLONES_DENTALES,
   BOXES_DENTALES,
   TIPOS_BLOQUEO_AGENDA,
+  TIPOS_BLOQUEO,
   ESTADOS_CITA,
   ESTADOS_CITA_GOLD,
   TRATAMIENTOS_RAPIDOS
@@ -22,5 +23,16 @@ describe('agendaConstants', () => {
 
   it('contiene tratamientos rapidos predefinidos', () => {
     expect(TRATAMIENTOS_RAPIDOS.length).toBeGreaterThan(0)
+  })
+
+  it('contiene los 6 tipos oficiales de bloqueo de BP05', () => {
+    expect(Object.keys(TIPOS_BLOQUEO)).toEqual([
+      'ALMUERZO',
+      'PROCEDIMIENTO_LARGO',
+      'VACACIONES',
+      'MANTENIMIENTO',
+      'CAPACITACION',
+      'PERSONALIZADO'
+    ])
   })
 })
