@@ -1,5 +1,5 @@
 import React, { memo } from 'react'
-import { Calendar, DollarSign, Users, Armchair, TrendingUp, Sparkles } from 'lucide-react'
+import { DollarSign, Users, Armchair, TrendingUp, Sparkles } from 'lucide-react'
 import type { ResumenJornada } from '../hooks/useDashboard'
 
 export interface DashboardKpiCardsProps {

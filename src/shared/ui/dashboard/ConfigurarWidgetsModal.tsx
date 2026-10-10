@@ -1,5 +1,5 @@
 import React from 'react'
-import { X, Check } from 'lucide-react'
+import { X } from 'lucide-react'
 import { useDashboardStore } from '../../../app/stores/useDashboardStore'
 import { WIDGET_CONFIG, WIDGETS_POR_ROL } from '../../../application/analytics/dashboard/constants/dashboardConstants'
 import type { WidgetType } from '../../types/dashboardTypes'
