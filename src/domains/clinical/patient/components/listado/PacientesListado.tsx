@@ -20,8 +20,8 @@ import { VistaTarjetas } from './VistaTarjetas'
 import { PacientesAccionesMasivas } from './PacientesAccionesMasivas'
 
 export interface PacientesListadoProps {
-  alSeleccionarPaciente: (paciente: Paciente) => void
-  alEliminarPaciente: (id: string | number) => Promise<boolean> | boolean
+  alSeleccionarPaciente?: (paciente: Paciente) => void
+  alEliminarPaciente?: (id: string | number) => Promise<boolean> | boolean
   alPacienteCreado?: (nuevoPaciente: NuevoPacienteFormData | Paciente) => void
 }
 
@@ -32,6 +32,7 @@ export const PacientesListado: React.FC<PacientesListadoProps> = memo(({
 }) => {
   const pacientes = usePacientesStore((s) => s.pacientes)
   const setPacientes = usePacientesStore((s) => s.setPacientes)
+  const setPacienteActivo = usePacientesStore((s) => s.setPacienteActivo)
   const vistaActual = usePacientesStore((s) => s.vistaActual)
   const filtros = usePacientesStore((s) => s.filtros)
 
@@ -57,9 +58,22 @@ export const PacientesListado: React.FC<PacientesListadoProps> = memo(({
     refrescar,
   } = usePapelera()
 
+  const handleSeleccionar = (paciente: Paciente) => {
+    if (alSeleccionarPaciente) {
+      alSeleccionarPaciente(paciente)
+    } else {
+      setPacienteActivo(paciente)
+    }
+  }
+
   const handleEliminarConPapelera = async (id: string | number): Promise<void> => {
-    const exito = await alEliminarPaciente(id)
-    if (exito) {
+    if (alEliminarPaciente) {
+      const exito = await alEliminarPaciente(id)
+      if (exito) {
+        await refrescar()
+      }
+    } else {
+      setPacientes((prev) => prev.filter((p) => String(p.id) !== String(id)))
       await refrescar()
     }
   }
@@ -158,19 +172,19 @@ export const PacientesListado: React.FC<PacientesListadoProps> = memo(({
       ) : vistaActual === 'tabla' ? (
         <VistaTabla
           pacientes={pacientesFiltrados}
-          alSeleccionarPaciente={alSeleccionarPaciente}
+          alSeleccionarPaciente={handleSeleccionar}
           alEliminarPaciente={handleEliminarConPapelera}
         />
       ) : vistaActual === 'tarjetas' ? (
         <VistaTarjetas
           pacientes={pacientesFiltrados}
-          alSeleccionarPaciente={alSeleccionarPaciente}
+          alSeleccionarPaciente={handleSeleccionar}
           alEliminarPaciente={handleEliminarConPapelera}
         />
       ) : (
         <VistaLista
           pacientes={pacientesFiltrados}
-          alSeleccionarPaciente={alSeleccionarPaciente}
+          alSeleccionarPaciente={handleSeleccionar}
           alEliminarPaciente={handleEliminarConPapelera}
         />
       )}

@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { pacientesStorageService, type Paciente } from '../../domains/clinical/patient'
+import { pacientesStorageService } from '../../domains/clinical/patient/services/pacientesStorageService'
+import type { Paciente } from '../../domains/clinical/patient/schemas/pacienteSchema'
 import type { FichaClinica } from '../../domains/clinical/patient/schemas/fichaClinicaSchema'
 import { createLogger } from '../../infrastructure/logging/logger'
 
@@ -24,6 +25,7 @@ export interface FiltrosPacientes {
 
 export interface PacientesStore {
   pacientes: Paciente[]
+  pacienteActivo: Paciente | null
   vistaActual: 'lista' | 'tabla' | 'tarjetas'
   filtros: FiltrosPacientes
   seleccion: (string | number)[]
@@ -31,6 +33,7 @@ export interface PacientesStore {
   pestanaActiva: PestanaFicha
 
   setPacientes: (updater: PacientesUpdater) => void
+  setPacienteActivo: (paciente: Paciente | null) => void
   setVista: (vista: 'lista' | 'tabla' | 'tarjetas') => void
   setFiltros: (filtros: Partial<FiltrosPacientes>) => void
   toggleSeleccion: (id: string | number) => void
@@ -49,6 +52,7 @@ export const usePacientesStore = create<PacientesStore>()(
   persist(
     (set, get) => ({
       pacientes: pacientesStorageService.obtenerPacientes(SEED_PACIENTES_DEMO),
+      pacienteActivo: null,
       vistaActual: 'lista',
       filtros: { estado: [], doctor: [], ultimaVisita: '', proximaCita: '', etiquetas: [] },
       seleccion: [],
@@ -60,6 +64,14 @@ export const usePacientesStore = create<PacientesStore>()(
         pacientesStorageService.guardarPacientes(next)
         return { pacientes: next }
       }),
+
+      setPacienteActivo: (paciente: Paciente | null) => {
+        if (paciente) {
+          get().abrirFicha(paciente.id)
+        } else {
+          get().cerrarFicha()
+        }
+      },
 
       setVista: (vista) => set({ vistaActual: vista }),
 
@@ -93,11 +105,11 @@ export const usePacientesStore = create<PacientesStore>()(
             timeline: [],
             version: 1
           }
-          set({ fichaActiva: ficha, pestanaActiva: 'datos' })
+          set({ fichaActiva: ficha, pacienteActivo: paciente, pestanaActiva: 'datos' })
         }
       },
 
-      cerrarFicha: () => set({ fichaActiva: null }),
+      cerrarFicha: () => set({ fichaActiva: null, pacienteActivo: null }),
 
       setPestanaActiva: (pestana) => set({ pestanaActiva: pestana }),
 

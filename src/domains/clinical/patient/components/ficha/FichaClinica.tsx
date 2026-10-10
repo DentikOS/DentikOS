@@ -15,11 +15,13 @@ import { PlanTratamiento } from './plan-tratamiento/PlanTratamiento'
 import { ModoQuirurgico } from './ModoQuirurgico'
 
 export interface FichaClinicaProps {
-  paciente: Paciente
-  alActualizarPaciente?: (datos: Partial<Paciente>) => void
+  paciente?: Paciente
+  pacienteId?: string | number
+  alActualizarPaciente?: (datos: Partial<Paciente> | Paciente) => void
   alEliminarPaciente?: (id: string | number) => void
   alVolver?: () => void
   onGenerarPresupuesto?: (fases: unknown) => void
+  navegacionClinica?: unknown
 }
 
 const TABS_FICHA = [
@@ -36,24 +38,51 @@ type PestanaId = (typeof TABS_FICHA)[number]['id']
 
 export const FichaClinica: React.FC<FichaClinicaProps> = ({
   paciente,
+  pacienteId,
   alActualizarPaciente,
   alEliminarPaciente,
   alVolver,
   onGenerarPresupuesto,
 }) => {
+  const pacientes = usePacientesStore((s) => s.pacientes)
+  const pacienteActivoStore = usePacientesStore((s) => s.pacienteActivo)
+  const cerrarFicha = usePacientesStore((s) => s.cerrarFicha)
   const pestanaActivaStore = usePacientesStore((s) => s.pestanaActiva)
   const setPestanaActivaStore = usePacientesStore((s) => s.setPestanaActiva)
 
   const [modoQuirurgicoActivo, setModoQuirurgicoActivo] = useState(false)
   const [modoPresentacionActivo, setModoPresentacionActivo] = useState(false)
 
+  const pacienteFinal: Paciente =
+    paciente ||
+    (pacienteId ? pacientes.find((p) => String(p.id) === String(pacienteId)) : null) ||
+    pacienteActivoStore ||
+    pacientes[0]
+
   const pestanaActual: PestanaId =
     (pestanaActivaStore as PestanaId) in { datos: 1, odontograma: 1, periodontograma: 1, evoluciones: 1, recetas: 1, consentimientos: 1, 'plan-tratamiento': 1 }
       ? (pestanaActivaStore as PestanaId)
       : 'datos'
 
-  if (modoQuirurgicoActivo) {
-    return <ModoQuirurgico paciente={paciente} onSalir={() => setModoQuirurgicoActivo(false)} />
+  const handleVolver = () => {
+    if (alVolver) {
+      alVolver()
+    } else {
+      cerrarFicha()
+    }
+  }
+
+  if (modoQuirurgicoActivo && pacienteFinal) {
+    return <ModoQuirurgico paciente={pacienteFinal} onSalir={() => setModoQuirurgicoActivo(false)} />
+  }
+
+  if (!pacienteFinal) {
+    return (
+      <div className="p-8 text-center text-sm text-gray-500">
+        No se encontró información del paciente.{' '}
+        <Button onClick={handleVolver} variant="secondary">Volver</Button>
+      </div>
+    )
   }
 
   return (
@@ -63,18 +92,16 @@ export const FichaClinica: React.FC<FichaClinicaProps> = ({
     >
       {/* Barra de Navegación Superior */}
       <div className="flex items-center justify-between gap-3 pb-2 border-b border-surface">
-        {alVolver && (
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            icon={ArrowLeft}
-            onClick={alVolver}
-            data-testid="btn-volver-pacientes"
-          >
-            Volver a Pacientes
-          </Button>
-        )}
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          icon={ArrowLeft}
+          onClick={handleVolver}
+          data-testid="btn-volver-pacientes"
+        >
+          Volver a Pacientes
+        </Button>
 
         <div className="flex items-center gap-2">
           {alEliminarPaciente && (
@@ -84,7 +111,10 @@ export const FichaClinica: React.FC<FichaClinicaProps> = ({
               variant="ghost"
               icon={Trash2}
               className="text-clinical-error hover:bg-clinical-error/10"
-              onClick={() => alEliminarPaciente(paciente.id)}
+              onClick={() => {
+                alEliminarPaciente(pacienteFinal.id)
+                cerrarFicha()
+              }}
             >
               Eliminar Paciente
             </Button>
@@ -94,7 +124,7 @@ export const FichaClinica: React.FC<FichaClinicaProps> = ({
 
       {/* Encabezado Fijo con Alertas Críticas */}
       <AlertasCriticasHeader
-        paciente={paciente}
+        paciente={pacienteFinal}
         onModoQuirurgico={() => setModoQuirurgicoActivo(true)}
         onModoPresentacion={() => setModoPresentacionActivo((p) => !p)}
       />
@@ -126,7 +156,7 @@ export const FichaClinica: React.FC<FichaClinicaProps> = ({
       <div className="pt-2">
         {pestanaActual === 'datos' && (
           <DatosPaciente
-            paciente={paciente}
+            paciente={pacienteFinal}
             onGuardar={(datos) => alActualizarPaciente?.(datos)}
           />
         )}
@@ -134,14 +164,14 @@ export const FichaClinica: React.FC<FichaClinicaProps> = ({
         {pestanaActual === 'periodontograma' && <Periodontograma />}
         {pestanaActual === 'evoluciones' && (
           <Evoluciones
-            nombrePaciente={paciente.nombreCompleto || paciente.nombre}
+            nombrePaciente={pacienteFinal.nombreCompleto || pacienteFinal.nombre}
           />
         )}
-        {pestanaActual === 'recetas' && <Recetas paciente={paciente} />}
-        {pestanaActual === 'consentimientos' && <Consentimientos paciente={paciente} />}
+        {pestanaActual === 'recetas' && <Recetas paciente={pacienteFinal} />}
+        {pestanaActual === 'consentimientos' && <Consentimientos paciente={pacienteFinal} />}
         {pestanaActual === 'plan-tratamiento' && (
           <PlanTratamiento
-            nombrePaciente={paciente.nombreCompleto || paciente.nombre}
+            nombrePaciente={pacienteFinal.nombreCompleto || pacienteFinal.nombre}
             onGenerarPresupuesto={onGenerarPresupuesto}
           />
         )}

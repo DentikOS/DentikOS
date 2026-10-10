@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { Presupuesto, Pago } from '../../domains/billing/budget/schemas/presupuestoSchema'
 
-interface PresupuestosState {
+export interface PresupuestosState {
   presupuestos: Presupuesto[]
   presupuestoActivo: Presupuesto | null
   vistaActual: 'simplificada' | 'detallada'
