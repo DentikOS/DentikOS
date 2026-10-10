@@ -32,6 +32,17 @@ export const TIPOS_BLOQUEO_AGENDA: readonly TipoBloqueoAgenda[] = [
 ]
 
 export const ESTADOS_CITA: Record<string, EstadoCitaConfig> = {
+  // 8 Estados oficiales BP05
+  PENDIENTE: { id: 'Pendiente', label: 'Pendiente', color: 'bg-amber-100 text-amber-900 border-amber-300' },
+  CONFIRMADA: { id: 'Confirmada', label: 'Confirmada', color: 'bg-teal-100 text-teal-900 border-teal-400' },
+  EN_SALA_ESPERA: { id: 'En sala de espera', label: 'En sala de espera', color: 'bg-sky-100 text-sky-900 border-sky-400' },
+  EN_ATENCION: { id: 'En atención', label: 'En atención', color: 'bg-purple-100 text-purple-900 border-purple-400' },
+  COMPLETADA: { id: 'Completada', label: 'Completada', color: 'bg-emerald-100 text-emerald-900 border-emerald-400' },
+  CANCELADA: { id: 'Cancelada', label: 'Cancelada', color: 'bg-rose-100 text-rose-900 border-rose-400' },
+  NO_SHOW: { id: 'No-show', label: 'No-show', color: 'bg-slate-100 text-slate-800 border-slate-400' },
+  REAGENDADA: { id: 'Reagendada', label: 'Reagendada', color: 'bg-orange-100 text-orange-900 border-orange-400' },
+
+  // Retrocompatibilidad con estados anteriores
   AGENDADO: { id: 'Agendado', label: 'Agendado', color: 'bg-blue-100 text-blue-800' },
   CONFIRMADO: { id: 'Confirmado', label: 'Confirmado', color: 'bg-emerald-100 text-emerald-800' },
   SALA_ESPERA: { id: 'En Espera', label: 'En Sala de Espera', color: 'bg-amber-100 text-amber-900' },
@@ -40,8 +51,37 @@ export const ESTADOS_CITA: Record<string, EstadoCitaConfig> = {
   ANULADO: { id: 'Anulado', label: 'Anulado', color: 'bg-red-100 text-red-800' }
 }
 
-export const ESTADOS_CITA_GOLD: readonly EstadoCitaConfig[] = Object.values(ESTADOS_CITA)
-export const ESTADOS_CITA_WORLD_CLASS = ESTADOS_CITA_GOLD
+export const ESTADO_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+  Pendiente: { bg: '#FEF3C7', text: '#92400E', border: '#D97706' },
+  Confirmada: { bg: '#D1FAE5', text: '#065F46', border: '#0D9488' },
+  'En sala de espera': { bg: '#DBEAFE', text: '#1E40AF', border: '#0284C7' },
+  'En atención': { bg: '#EDE9FE', text: '#6D28D9', border: '#7C3AED' },
+  Completada: { bg: '#D1FAE5', text: '#065F46', border: '#0D9488' },
+  Cancelada: { bg: '#FEE2E2', text: '#991B1B', border: '#E11D48' },
+  'No-show': { bg: '#E2E8F0', text: '#334155', border: '#475569' },
+  Reagendada: { bg: '#FFEDD5', text: '#9A3412', border: '#EA580C' }
+}
+
+export const ESTADOS_CITA_GOLD: readonly EstadoCitaConfig[] = [
+  ESTADOS_CITA.AGENDADO,
+  ESTADOS_CITA.CONFIRMADO,
+  ESTADOS_CITA.SALA_ESPERA,
+  ESTADOS_CITA.EN_SILLON,
+  ESTADOS_CITA.ATENDIDO,
+  ESTADOS_CITA.ANULADO
+]
+
+export const ESTADOS_CITA_CORE: readonly EstadoCitaConfig[] = [
+  ESTADOS_CITA.PENDIENTE,
+  ESTADOS_CITA.CONFIRMADA,
+  ESTADOS_CITA.EN_SALA_ESPERA,
+  ESTADOS_CITA.EN_ATENCION,
+  ESTADOS_CITA.COMPLETADA,
+  ESTADOS_CITA.CANCELADA,
+  ESTADOS_CITA.NO_SHOW,
+  ESTADOS_CITA.REAGENDADA
+]
+export const ESTADOS_CITA_WORLD_CLASS = ESTADOS_CITA_CORE
 
 export const TRATAMIENTOS_RAPIDOS: readonly string[] = [
   'Evaluación / Diagnóstico Inicial',

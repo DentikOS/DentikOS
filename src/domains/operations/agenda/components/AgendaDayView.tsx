@@ -86,13 +86,20 @@ export const AgendaDayView: React.FC<AgendaDayViewProps> = ({
     return [{ id: 'col-default', titulo: selectedDoctor !== 'Todos' ? selectedDoctor : 'Agenda General', tipo: 'default' }]
   }, [doctors, boxes, selectedDoctor, selectedBox])
 
+  const [pendingMove, setPendingMove] = useState<{ appointment: Cita; newTime: string; newCol?: string } | null>(null)
+
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
     setActiveDragId(null)
     if (!over || active.id === over.id || !onAppointmentMove) return
     const targetData = over.data?.current as { hora?: string; columnaId?: string } | undefined
     if (targetData?.hora) {
-      onAppointmentMove(String(active.id), targetData.hora, targetData.columnaId)
+      const cita = appointments.find((c) => String(c.id) === String(active.id))
+      if (cita) {
+        setPendingMove({ appointment: cita, newTime: targetData.hora, newCol: targetData.columnaId })
+      } else {
+        onAppointmentMove(String(active.id), targetData.hora, targetData.columnaId)
+      }
     }
   }
 
@@ -190,6 +197,42 @@ export const AgendaDayView: React.FC<AgendaDayViewProps> = ({
           </div>
         ) : null}
       </DragOverlay>
+
+      {pendingMove && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+          <div className="w-full max-w-sm bg-surface border border-surface-border rounded-2xl shadow-xl p-5 space-y-4">
+            <h3 className="font-bold text-base text-[#0F172A] dark:text-white">Mover cita</h3>
+            <p className="text-xs text-slate-500">¿Mover cita de {pendingMove.appointment.pacienteNombre || 'Paciente'}?</p>
+            <div className="p-3 rounded-xl bg-surface-muted text-xs space-y-1">
+              <p><strong>De:</strong> {pendingMove.appointment.horaInicio} ({pendingMove.appointment.boxAsignado || 'Box 1'})</p>
+              <p><strong>A:</strong> {pendingMove.newTime} {pendingMove.newCol ? `(${pendingMove.newCol})` : ''}</p>
+            </div>
+            <label className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300 cursor-pointer">
+              <input type="checkbox" defaultChecked className="rounded text-[#B88E3A]" />
+              <span>Notificar al paciente por WhatsApp</span>
+            </label>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setPendingMove(null)}
+                className="px-3 py-1.5 rounded-xl text-xs font-semibold hover:bg-surface-muted text-slate-600 cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onAppointmentMove?.(pendingMove.appointment.id, pendingMove.newTime, pendingMove.newCol)
+                  setPendingMove(null)
+                }}
+                className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-[#B88E3A] hover:bg-[#a07a30] text-white transition-colors cursor-pointer"
+              >
+                Confirmar movimiento
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </DndContext>
   )
 }
