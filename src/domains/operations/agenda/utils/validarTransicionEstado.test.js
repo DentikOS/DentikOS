@@ -18,4 +18,9 @@ describe('validarTransicionEstado (BP05 §03)', () => {
   it('permite la misma transición de estado (idempotencia)', () => {
     expect(validarTransicion('Confirmada', 'Confirmada')).toBe(true)
   })
+
+  it('exporta matriz completa de transiciones permitidas', () => {
+    expect(TRANSICIONES_PERMITIDAS.Pendiente).toContain('Confirmada')
+    expect(TRANSICIONES_PERMITIDAS.Completada).toEqual([])
+  })
 })

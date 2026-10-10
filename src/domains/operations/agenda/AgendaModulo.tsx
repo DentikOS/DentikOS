@@ -16,7 +16,9 @@ import { AgendaWeekView } from './components/AgendaWeekView'
 import { AgendaMonthView } from './components/AgendaMonthView'
 import { AgendaNavigation } from './components/AgendaNavigation'
 import { WaitingRoomPanel } from './components/WaitingRoomPanel'
+import { AgendaQuirurgica } from './components/AgendaQuirurgica'
 import { useAgendaStore } from '../../../app/stores/useAgendaStore'
+import { useThemeStore } from '../../../app/stores/useThemeStore'
 import { exportarCitasCSV } from '../../../shared/utils/csvExport'
 import { SILLONES_DENTALES } from './constants/agendaConstants'
 import { usePacientesStore } from '../../../app/stores/pacientesStore'
@@ -52,6 +54,7 @@ export const AgendaModulo: React.FC<AgendaModuloProps> = memo(({ alSeleccionarPa
 
   const currentView = useAgendaStore((state) => state.currentView)
   const setStoreView = useAgendaStore((state) => state.setView)
+  const theme = useThemeStore((state) => state.theme)
 
   // F7-27: Estado de vista de agenda
   const [vista, setVista] = useState<string>('box')
@@ -102,6 +105,15 @@ export const AgendaModulo: React.FC<AgendaModuloProps> = memo(({ alSeleccionarPa
         alVerFichaPaciente(pacienteParaNavegar)
       }
     }
+  }
+
+  if (theme === 'surgical') {
+    return (
+      <AgendaQuirurgica
+        citas={citasDelDia}
+        onAbrirFicha={funcionVerFicha}
+      />
+    )
   }
 
   const boxesAMostrar = boxFiltro === 'Todos'

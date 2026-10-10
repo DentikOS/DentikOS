@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react'
-import { Plus, AlertTriangle, Users } from 'lucide-react'
+import { Plus, AlertTriangle } from 'lucide-react'
 import { DndContext, type DragEndEvent, DragOverlay, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'

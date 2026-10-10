@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useCallback } from 'react'
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, CalendarDays, List, Users } from 'lucide-react'
 import { useAgendaStore, type AgendaViewType } from '../../../../app/stores/useAgendaStore'
 import { obtenerFechaLocalISO } from '../../../../shared/utils/dateUtils'
@@ -24,25 +24,25 @@ export const AgendaNavigation: React.FC<AgendaNavigationProps> = ({
   const currentView = useAgendaStore((state) => state.currentView)
   const setView = useAgendaStore((state) => state.setView)
 
-  const handleAnterior = () => {
+  const handleAnterior = useCallback(() => {
     const d = new Date(currentDateIso + 'T00:00:00')
     if (currentView === 'month') d.setMonth(d.getMonth() - 1)
     else if (currentView === 'week') d.setDate(d.getDate() - 7)
     else d.setDate(d.getDate() - 1)
     onDateChange(obtenerFechaLocalISO(d))
-  }
+  }, [currentDateIso, currentView, onDateChange])
 
-  const handleSiguiente = () => {
+  const handleSiguiente = useCallback(() => {
     const d = new Date(currentDateIso + 'T00:00:00')
     if (currentView === 'month') d.setMonth(d.getMonth() + 1)
     else if (currentView === 'week') d.setDate(d.getDate() + 7)
     else d.setDate(d.getDate() + 1)
     onDateChange(obtenerFechaLocalISO(d))
-  }
+  }, [currentDateIso, currentView, onDateChange])
 
-  const handleHoy = () => {
+  const handleHoy = useCallback(() => {
     onDateChange(obtenerFechaLocalISO())
-  }
+  }, [onDateChange])
 
   // Atajos de teclado: 't' -> hoy, ArrowLeft / ArrowRight
   useEffect(() => {
@@ -54,7 +54,7 @@ export const AgendaNavigation: React.FC<AgendaNavigationProps> = ({
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [currentDateIso, currentView])
+  }, [handleHoy, handleAnterior, handleSiguiente])
 
   return (
     <div className="bg-surface p-3 border border-surface-border rounded-2xl flex items-center justify-between flex-wrap gap-3 shadow-xs">
