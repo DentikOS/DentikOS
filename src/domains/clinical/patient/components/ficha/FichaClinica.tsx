@@ -1,0 +1,151 @@
+import React, { useState } from 'react'
+import { ArrowLeft, Trash2, User, Activity, Clock, Shield, Pill, Layers, FileText } from 'lucide-react'
+import { Button } from '../../../../../shared/ui/ui/Button'
+import { usePacientesStore } from '../../../../../app/stores/pacientesStore'
+import type { Paciente } from '../../schemas/pacienteSchema'
+
+import { AlertasCriticasHeader } from './AlertasCriticasHeader'
+import { DatosPaciente } from './DatosPaciente'
+import { Odontograma } from './odontograma/Odontograma'
+import { Periodontograma } from './periodontograma/Periodontograma'
+import { Evoluciones } from './evoluciones/Evoluciones'
+import { Recetas } from './recetas/Recetas'
+import { Consentimientos } from './consentimientos/Consentimientos'
+import { PlanTratamiento } from './plan-tratamiento/PlanTratamiento'
+import { ModoQuirurgico } from './ModoQuirurgico'
+
+export interface FichaClinicaProps {
+  paciente: Paciente
+  alActualizarPaciente?: (datos: Partial<Paciente>) => void
+  alEliminarPaciente?: (id: string | number) => void
+  alVolver?: () => void
+  onGenerarPresupuesto?: (fases: unknown) => void
+}
+
+const TABS_FICHA = [
+  { id: 'datos', label: 'Datos Paciente', icon: User },
+  { id: 'odontograma', label: 'Odontograma', icon: Activity },
+  { id: 'periodontograma', label: 'Periodontograma', icon: Activity },
+  { id: 'evoluciones', label: 'Evoluciones', icon: Clock },
+  { id: 'recetas', label: 'Recetas', icon: Pill },
+  { id: 'consentimientos', label: 'Consentimientos', icon: Shield },
+  { id: 'plan-tratamiento', label: 'Plan Tratamiento', icon: Layers },
+] as const
+
+type PestanaId = (typeof TABS_FICHA)[number]['id']
+
+export const FichaClinica: React.FC<FichaClinicaProps> = ({
+  paciente,
+  alActualizarPaciente,
+  alEliminarPaciente,
+  alVolver,
+  onGenerarPresupuesto,
+}) => {
+  const pestanaActivaStore = usePacientesStore((s) => s.pestanaActiva)
+  const setPestanaActivaStore = usePacientesStore((s) => s.setPestanaActiva)
+
+  const [modoQuirurgicoActivo, setModoQuirurgicoActivo] = useState(false)
+  const [modoPresentacionActivo, setModoPresentacionActivo] = useState(false)
+
+  const pestanaActual: PestanaId =
+    (pestanaActivaStore as PestanaId) in { datos: 1, odontograma: 1, periodontograma: 1, evoluciones: 1, recetas: 1, consentimientos: 1, 'plan-tratamiento': 1 }
+      ? (pestanaActivaStore as PestanaId)
+      : 'datos'
+
+  if (modoQuirurgicoActivo) {
+    return <ModoQuirurgico paciente={paciente} onSalir={() => setModoQuirurgicoActivo(false)} />
+  }
+
+  return (
+    <div
+      className={`space-y-4 pb-12 ${modoPresentacionActivo ? 'p-6 bg-surface max-w-5xl mx-auto' : ''}`}
+      data-testid="ficha-clinica-bp06"
+    >
+      {/* Barra de Navegación Superior */}
+      <div className="flex items-center justify-between gap-3 pb-2 border-b border-surface">
+        {alVolver && (
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            icon={ArrowLeft}
+            onClick={alVolver}
+            data-testid="btn-volver-pacientes"
+          >
+            Volver a Pacientes
+          </Button>
+        )}
+
+        <div className="flex items-center gap-2">
+          {alEliminarPaciente && (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              icon={Trash2}
+              className="text-clinical-error hover:bg-clinical-error/10"
+              onClick={() => alEliminarPaciente(paciente.id)}
+            >
+              Eliminar Paciente
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Encabezado Fijo con Alertas Críticas */}
+      <AlertasCriticasHeader
+        paciente={paciente}
+        onModoQuirurgico={() => setModoQuirurgicoActivo(true)}
+        onModoPresentacion={() => setModoPresentacionActivo((p) => !p)}
+      />
+
+      {/* Pestañas de la Ficha Clínica */}
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-2 border-b border-surface">
+        {TABS_FICHA.map((tab) => {
+          const Icon = tab.icon
+          const isActiva = pestanaActual === tab.id
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setPestanaActivaStore(tab.id)}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                isActiva
+                  ? 'bg-primary text-white shadow-xs'
+                  : 'bg-surface border border-surface hover:bg-surface-hover text-graphite-600 dark:text-graphite-300'
+              }`}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              <span>{tab.label}</span>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Renderizado de la Pestaña Activa */}
+      <div className="pt-2">
+        {pestanaActual === 'datos' && (
+          <DatosPaciente
+            paciente={paciente}
+            onGuardar={(datos) => alActualizarPaciente?.(datos)}
+          />
+        )}
+        {pestanaActual === 'odontograma' && <Odontograma />}
+        {pestanaActual === 'periodontograma' && <Periodontograma />}
+        {pestanaActual === 'evoluciones' && (
+          <Evoluciones
+            nombrePaciente={paciente.nombreCompleto || paciente.nombre}
+          />
+        )}
+        {pestanaActual === 'recetas' && <Recetas paciente={paciente} />}
+        {pestanaActual === 'consentimientos' && <Consentimientos paciente={paciente} />}
+        {pestanaActual === 'plan-tratamiento' && (
+          <PlanTratamiento
+            nombrePaciente={paciente.nombreCompleto || paciente.nombre}
+            onGenerarPresupuesto={onGenerarPresupuesto}
+          />
+        )}
+      </div>
+    </div>
+  )
+}
