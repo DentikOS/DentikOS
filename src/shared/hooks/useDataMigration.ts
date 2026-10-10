@@ -5,32 +5,18 @@
  * 1. El usuario está autenticado con Supabase (VITE_USE_SUPABASE=true)
  * 2. Hay datos en localStorage pendientes de migrar
  * 3. La migración no se ha ejecutado aún en esta sesión
- *
- * IMPORTANTE: usa variable de módulo (no useRef) para el lock de ejecución.
- * Esto es necesario porque React.StrictMode ejecuta useEffect dos veces en
- * desarrollo, y useRef se resetea entre las dos ejecuciones. Con variable
- * de módulo, el lock persiste entre ambas ejecuciones.
- *
- * Flujo de migración:
- * 1. Migrar pacientes (F4-02c-2)
- * 2. Migrar citas (F4-02c-3) — solo citas cuyos pacientes ya fueron migrados
- * 3. Sincronizar caché de pacientes y citas desde Supabase
  */
 import { useEffect } from 'react'
 import { supabase, USE_SUPABASE } from '../../infrastructure/supabase/supabaseClient'
-import { migratePacientesToSupabase, verificarPacientesPendientes } from '../../infrastructure/supabase/migrations/migratePacientesToSupabase'
-import { migrateCitasToSupabase, verificarCitasPendientes } from '../../infrastructure/supabase/migrations/migrateCitasToSupabase'
-import { migratePresupuestosToSupabase, verificarPresupuestosPendientes } from '../../infrastructure/supabase/migrations/migratePresupuestosToSupabase'
-import { migratePagosToSupabase, verificarPagosPendientes } from '../../infrastructure/supabase/migrations/migratePagosToSupabase'
-import { migrateMovimientosFinancierosToSupabase, verificarMovimientosPendientes } from '../../infrastructure/supabase/migrations/migrateMovimientosFinancierosToSupabase'
-import { migrateDatosClinicosToSupabase, verificarDatosClinicosPendientes } from '../../infrastructure/supabase/migrations/migrateDatosClinicosToSupabase'
-import { usePacientesStore } from '../../app/stores/pacientesStore'
-import { pacientesStorageService } from '../../domains/clinical/patient'
-import { agendaStorageService } from '../../domains/operations/agenda'
-import { presupuestosStorageService } from '../../domains/billing/budget/services/presupuestosStorageService'
-import { pagosStorageService } from '../../domains/billing/payment/services/pagosStorageService'
-import { finanzasStorageService } from '../../domains/billing/cash-register/services/finanzasStorageService'
 import { createLogger } from '../../infrastructure/logging/logger'
+import {
+  verificarTodosLosDatosPendientes,
+  puedeIniciarMigracion
+} from '../utils/dataMigrationValidation'
+import {
+  sincronizarCacheSupabase,
+  ejecutarPasosMigracion
+} from '../utils/dataMigrationUtils'
 
 const log = createLogger('useDataMigration')
 
@@ -38,74 +24,35 @@ const log = createLogger('useDataMigration')
 let migracionEnProgreso = false
 let migracionCompletada = false
 
-/**
- * Hook que ejecuta la migración de datos al primer login con Supabase.
- * Debe usarse en App.jsx o en el componente raíz autenticado.
- *
- * @param userProfile - Perfil del usuario autenticado (de sesionStore)
- */
 export const useDataMigration = (userProfile: unknown): void => {
   useEffect(() => {
-    // Solo ejecutar si:
-    // 1. Supabase está activo
-    // 2. Hay usuario autenticado
-    // 3. No hay migración en progreso
-    // 4. No se ha completado aún en esta sesión
-    if (!USE_SUPABASE || !supabase || !userProfile) {
-      return
-    }
-
-    if (migracionEnProgreso || migracionCompletada) {
+    if (!puedeIniciarMigracion(USE_SUPABASE, !!supabase, userProfile, migracionEnProgreso, migracionCompletada)) {
       return
     }
 
     const ejecutarMigracion = async (): Promise<void> => {
       if (!supabase) return
-      // Marcar lock ANTES de hacer cualquier operación async
-      // para que la segunda ejecución de StrictMode no entre
       migracionEnProgreso = true
 
       try {
-        // Verificar si hay datos pendientes de migrar
-        const pacientesPendientes = verificarPacientesPendientes()
-        const citasPendientes = verificarCitasPendientes()
-        const presupuestosPendientes = verificarPresupuestosPendientes()
-        const pagosPendientes = verificarPagosPendientes()
-        const movimientosPendientes = verificarMovimientosPendientes()
-        const datosClinicosPendientes = verificarDatosClinicosPendientes()
+        const pendientes = verificarTodosLosDatosPendientes()
 
-        const totalPendientes = pacientesPendientes.pendientes + 
-          citasPendientes.pendientes + 
-          presupuestosPendientes.pendientes + 
-          pagosPendientes.globalesPendientes + 
-          movimientosPendientes.pendientes + 
-          datosClinicosPendientes.conDatos
-
-        if (totalPendientes === 0) {
+        if (pendientes.total === 0) {
           log.info('No hay datos pendientes de migrar')
-
-          // Aunque no haya migración, sincronizar desde Supabase para asegurar
-          // que la caché tenga los datos más recientes (útil en multi-dispositivo)
-          await pacientesStorageService.sincronizarDesdeSupabase()
-          await agendaStorageService.sincronizarDesdeSupabase()
-
-          const pacientesActualizados = pacientesStorageService.obtenerPacientes([])
-          usePacientesStore.setState({ pacientes: pacientesActualizados })
-
+          await sincronizarCacheSupabase()
           migracionCompletada = true
           return
         }
 
-        log.info(`Migrando ${totalPendientes} registros a Supabase...`, {
-          pacientes: pacientesPendientes.pendientes,
-          citas: citasPendientes.pendientes,
-          presupuestos: presupuestosPendientes.pendientes,
-          pagos: pagosPendientes.globalesPendientes,
-          movimientos: movimientosPendientes.pendientes,
-          datosClinicos: datosClinicosPendientes.conDatos
+        log.info(`Migrando ${pendientes.total} registros a Supabase...`, {
+          pacientes: pendientes.pacientes.pendientes,
+          citas: pendientes.citas.pendientes,
+          presupuestos: pendientes.presupuestos.pendientes,
+          pagos: pendientes.pagos.globalesPendientes,
+          movimientos: pendientes.movimientos.pendientes,
+          datosClinicos: pendientes.datosClinicos.conDatos
         })
 
-        // Obtener el user_id del usuario autenticado
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) {
           log.error('No se pudo obtener user_id de Supabase')
@@ -113,153 +60,15 @@ export const useDataMigration = (userProfile: unknown): void => {
           return
         }
 
-        // ═══════════════════════════════════════════════════
-        // PASO 1: Migrar pacientes (F4-02c-2)
-        // ═══════════════════════════════════════════════════
-        if (pacientesPendientes.pendientes > 0) {
-          log.info(`Paso 1: Migrando ${pacientesPendientes.pendientes} pacientes...`)
-
-          const resultadoPacientes = await migratePacientesToSupabase(user.id)
-
-          log.info('Resultado migración pacientes:', {
-            migrados: resultadoPacientes.migrados,
-            omitidos: resultadoPacientes.omitidos,
-            errores: resultadoPacientes.errores.length,
-            success: resultadoPacientes.success
-          })
-
-          if (resultadoPacientes.errores.length > 0) {
-            log.error('Errores en migración de pacientes:', resultadoPacientes.errores)
-          }
-        }
-
-        // ═══════════════════════════════════════════════════
-        // PASO 2: Migrar citas (F4-02c-3)
-        // ═══════════════════════════════════════════════════
-        if (citasPendientes.pendientes > 0) {
-          log.info(`Paso 2: Migrando ${citasPendientes.pendientes} citas...`)
-
-          if (citasPendientes.sinPacienteMigrado > 0) {
-            log.warn(`${citasPendientes.sinPacienteMigrado} citas omitidas: paciente no migrado aún`)
-          }
-
-          const resultadoCitas = await migrateCitasToSupabase(user.id)
-
-          log.info('Resultado migración citas:', {
-            migradas: resultadoCitas.migradas,
-            omitidas: resultadoCitas.omitidas,
-            errores: resultadoCitas.errores.length,
-            success: resultadoCitas.success
-          })
-
-          if (resultadoCitas.errores.length > 0) {
-            log.error('Errores en migración de citas:', resultadoCitas.errores)
-          }
-        }
-
-        // ═══════════════════════════════════════════════════
-        // PASO 3: Migrar presupuestos (F4-02c-4)
-        // ═══════════════════════════════════════════════════
-        if (presupuestosPendientes.pendientes > 0) {
-          log.info(`Paso 3: Migrando ${presupuestosPendientes.pendientes} presupuestos...`)
-
-          const resultadoPresupuestos = await migratePresupuestosToSupabase(user.id)
-
-          log.info('Resultado migración presupuestos:', {
-            migrados: resultadoPresupuestos.migrados,
-            itemsMigrados: resultadoPresupuestos.itemsMigrados,
-            omitidos: resultadoPresupuestos.omitidos,
-            errores: resultadoPresupuestos.errores.length,
-            success: resultadoPresupuestos.success
-          })
-
-          if (resultadoPresupuestos.errores.length > 0) {
-            log.error('Errores en migración de presupuestos:', resultadoPresupuestos.errores)
-          }
-        }
-
-        // ═══════════════════════════════════════════════════
-        // PASO 4: Migrar pagos y movimientos financieros (F4-02c-5)
-        // ═══════════════════════════════════════════════════
-        if (pagosPendientes.globalesPendientes > 0) {
-          log.info(`Paso 4a: Migrando ${pagosPendientes.globalesPendientes} pagos globales...`)
-
-          const resultadoPagos = await migratePagosToSupabase(user.id)
-
-          log.info('Resultado migración pagos:', {
-            migrados: resultadoPagos.migrados,
-            abonosMigrados: resultadoPagos.abonosMigrados,
-            omitidos: resultadoPagos.omitidos,
-            errores: resultadoPagos.errores.length,
-            success: resultadoPagos.success
-          })
-
-          if (resultadoPagos.errores.length > 0) {
-            log.error('Errores en migración de pagos:', resultadoPagos.errores)
-          }
-        }
-
-        if (movimientosPendientes.pendientes > 0) {
-          log.info(`Paso 4b: Migrando ${movimientosPendientes.pendientes} movimientos financieros...`)
-
-          const resultadoMovimientos = await migrateMovimientosFinancierosToSupabase(user.id)
-
-          log.info('Resultado migración movimientos:', {
-            migrados: resultadoMovimientos.migrados,
-            omitidos: resultadoMovimientos.omitidos,
-            errores: resultadoMovimientos.errores.length,
-            success: resultadoMovimientos.success
-          })
-
-          if (resultadoMovimientos.errores.length > 0) {
-            log.error('Errores en migración de movimientos:', resultadoMovimientos.errores)
-          }
-        }
-
-        // ═══════════════════════════════════════════════════
-        // PASO 5: Migrar datos clínicos (F4-02c-6)
-        // ═══════════════════════════════════════════════════
-        if (datosClinicosPendientes.conDatos > 0) {
-          log.info(`Paso 5: Migrando datos clínicos de ${datosClinicosPendientes.conDatos} pacientes...`)
-
-          const resultadoDatosClinicos = await migrateDatosClinicosToSupabase(user.id)
-
-          log.info('Resultado migración datos clínicos:', {
-            evolucionesMigradas: resultadoDatosClinicos.evolucionesMigradas,
-            recetasMigradas: resultadoDatosClinicos.recetasMigradas,
-            otrosMigrados: resultadoDatosClinicos.otrosMigrados,
-            errores: resultadoDatosClinicos.errores.length,
-            success: resultadoDatosClinicos.success
-          })
-
-          if (resultadoDatosClinicos.errores.length > 0) {
-            log.error('Errores en migración de datos clínicos:', resultadoDatosClinicos.errores)
-          }
-        }
-
-        // ═══════════════════════════════════════════════════
-        // PASO 6: Sincronizar caché desde Supabase
-        // ═══════════════════════════════════════════════════
-        log.info('Paso 6: Sincronizando caché desde Supabase...')
-
-        await pacientesStorageService.sincronizarDesdeSupabase()
-        await agendaStorageService.sincronizarDesdeSupabase()
-        await presupuestosStorageService.sincronizarDesdeSupabase()
-        await pagosStorageService.sincronizarDesdeSupabase()
-        await finanzasStorageService.sincronizarDesdeSupabase()
-
-        // Actualizar stores con datos migrados
-        const pacientesActualizados = pacientesStorageService.obtenerPacientes([])
-        usePacientesStore.setState({ pacientes: pacientesActualizados })
+        await ejecutarPasosMigracion(user.id, pendientes)
+        await sincronizarCacheSupabase()
 
         log.info('Migración completada y caché sincronizada')
-
         migracionCompletada = true
       } catch (error: unknown) {
         log.error('Error inesperado durante la migración:', error)
-        migracionEnProgreso = false // Permitir reintentar si hubo error
+        migracionEnProgreso = false
       } finally {
-        // Liberar el lock de "en progreso" pero mantener "completada"
         migracionEnProgreso = false
       }
     }
