@@ -17,17 +17,15 @@ import { GripVertical } from 'lucide-react'
 import type { WidgetConfig, QuickResumeData } from '../../types/dashboardTypes'
 import type { Cita } from '../../../domains/operations/agenda/schemas/citaSchema'
 import type { Paciente } from '../../../domains/clinical/patient/schemas/pacienteSchema'
-import {
-  WidgetAgenda,
-  WidgetPacientesRecientes,
-  WidgetSalaEspera,
-  WidgetAlertasClinicas,
-  WidgetEsterilizacion,
-  WidgetInventarioCritico,
-  WidgetPagosPendientes,
-  WidgetComunicaciones,
-  WidgetQuickResume
-} from './widgets'
+import { WidgetAgenda } from './widgets/WidgetAgenda'
+import { WidgetPacientesRecientes } from './widgets/WidgetPacientesRecientes'
+import { WidgetSalaEspera } from './widgets/WidgetSalaEspera'
+import { WidgetAlertasClinicas } from './widgets/WidgetAlertasClinicas'
+import { WidgetEsterilizacion } from './widgets/WidgetEsterilizacion'
+import { WidgetInventarioCritico } from './widgets/WidgetInventarioCritico'
+import { WidgetPagosPendientes } from './widgets/WidgetPagosPendientes'
+import { WidgetComunicaciones } from './widgets/WidgetComunicaciones'
+import { WidgetQuickResume } from './widgets/WidgetQuickResume'
 
 export interface DashboardWidgetsGridProps {
   widgets: WidgetConfig[]
