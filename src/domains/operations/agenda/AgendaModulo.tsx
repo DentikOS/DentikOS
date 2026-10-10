@@ -12,6 +12,9 @@ import { ModalNuevoBloqueo } from './components/ModalNuevoBloqueo'
 import { AgendaListView } from './components/AgendaListView'
 import { AgendaProfesionalView } from './components/AgendaProfesionalView'
 import { AgendaDayView } from './components/AgendaDayView'
+import { AgendaWeekView } from './components/AgendaWeekView'
+import { AgendaMonthView } from './components/AgendaMonthView'
+import { AgendaNavigation } from './components/AgendaNavigation'
 import { useAgendaStore } from '../../../app/stores/useAgendaStore'
 import { exportarCitasCSV } from '../../../shared/utils/csvExport'
 import { SILLONES_DENTALES } from './constants/agendaConstants'
@@ -45,6 +48,9 @@ export const AgendaModulo: React.FC<AgendaModuloProps> = memo(({ alSeleccionarPa
     cambiarEstadoCita,
     enviarWhatsAppConfirmacion
   } = useAgenda(pacientesProp)
+
+  const currentView = useAgendaStore((state) => state.currentView)
+  const setStoreView = useAgendaStore((state) => state.setView)
 
   // F7-27: Estado de vista de agenda
   const [vista, setVista] = useState<string>('box')
@@ -131,6 +137,12 @@ export const AgendaModulo: React.FC<AgendaModuloProps> = memo(({ alSeleccionarPa
         }
       />
 
+      {/* Navegación temporal y de vistas */}
+      <AgendaNavigation
+        currentDateIso={fechaSeleccionada}
+        onDateChange={(nuevaFecha) => setFechaSeleccionada(nuevaFecha)}
+      />
+
       {/* Selector de Fecha + Filtro por Box/Doctor */}
       <AgendaViewSelector
         fechaSeleccionadaIso={fechaSeleccionada}
@@ -141,7 +153,12 @@ export const AgendaModulo: React.FC<AgendaModuloProps> = memo(({ alSeleccionarPa
         setDoctorFiltro={setDoctorFiltro}
         doctoresDisponibles={[]}
         vista={vista}
-        setVista={setVista}
+        setVista={(v) => {
+          setVista(v)
+          if (v === 'day' || v === 'week' || v === 'month' || v === 'list') {
+            setStoreView(v)
+          }
+        }}
         onExportarCSV={handleExportarCSV}
         onBusquedaChange={setBusqueda}
       />
@@ -223,7 +240,7 @@ export const AgendaModulo: React.FC<AgendaModuloProps> = memo(({ alSeleccionarPa
         </div>
       )}
 
-      {vista === 'day' && (
+      {((currentView === 'day' && vista !== 'box' && vista !== 'lista' && vista !== 'profesional') || vista === 'day') && (
         <AgendaDayView
           appointments={citasDelDia}
           currentDateIso={fechaSeleccionada}
@@ -238,6 +255,35 @@ export const AgendaModulo: React.FC<AgendaModuloProps> = memo(({ alSeleccionarPa
             }
           }}
           onWhatsAppClick={enviarWhatsAppConfirmacion}
+        />
+      )}
+
+      {(currentView === 'week' || vista === 'week') && (
+        <AgendaWeekView
+          appointments={citas}
+          currentDateIso={fechaSeleccionada}
+          onAppointmentClick={(cita) => funcionVerFicha(cita)}
+          onDayClick={(iso) => {
+            setFechaSeleccionada(iso)
+            setStoreView('day')
+            setVista('day')
+          }}
+          onNewAppointment={(iso) => {
+            setFechaSeleccionada(iso)
+            setModalNuevaCitaAbierto(true)
+          }}
+        />
+      )}
+
+      {(currentView === 'month' || vista === 'month') && (
+        <AgendaMonthView
+          appointments={citas}
+          currentDateIso={fechaSeleccionada}
+          onDayClick={(iso) => {
+            setFechaSeleccionada(iso)
+            setStoreView('day')
+            setVista('day')
+          }}
         />
       )}
 
