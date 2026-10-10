@@ -31,6 +31,15 @@ export const TIPOS_BLOQUEO_AGENDA: readonly TipoBloqueoAgenda[] = [
   { id: 'urgencia_reserva', label: 'Reserva Exclusiva Urgencias', color: 'bg-purple-100 text-purple-900' }
 ]
 
+export const TIPOS_BLOQUEO = {
+  ALMUERZO: { id: 'almuerzo', label: 'Horario de Almuerzo', color: '#64748B', icon: 'Utensils' },
+  PROCEDIMIENTO_LARGO: { id: 'procedimiento_largo', label: 'Procedimiento Largo', color: '#7C3AED', icon: 'Clock' },
+  VACACIONES: { id: 'vacaciones', label: 'Vacaciones / Ausencia', color: '#0284C7', icon: 'Palmtree' },
+  MANTENIMIENTO: { id: 'mantenimiento', label: 'Mantenimiento', color: '#D97706', icon: 'Wrench' },
+  CAPACITACION: { id: 'capacitacion', label: 'Capacitación', color: '#0D9488', icon: 'GraduationCap' },
+  PERSONALIZADO: { id: 'personalizado', label: 'Personalizado', color: '#94A3B8', icon: 'Calendar' }
+} as const
+
 export const ESTADOS_CITA: Record<string, EstadoCitaConfig> = {
   // 8 Estados oficiales BP05
   PENDIENTE: { id: 'Pendiente', label: 'Pendiente', color: 'bg-amber-100 text-amber-900 border-amber-300' },

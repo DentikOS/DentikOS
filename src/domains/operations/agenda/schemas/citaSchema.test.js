@@ -181,4 +181,20 @@ describe('validarListaCitas (F2-04b)', () => {
     expect(validarListaCitas(undefined).valido).toBe(false)
     expect(validarListaCitas('no es array').valido).toBe(false)
   })
+
+  it('acepta los 5 patrones de recurrencia de BP05 y recurrence_group_id', () => {
+    const patrones = ['diario', 'semanal', 'quincenal', 'mensual', 'personalizado']
+    patrones.forEach((patron) => {
+      const cita = {
+        id: `rec-${patron}`,
+        fecha: '2026-08-12',
+        horaInicio: '10:00',
+        estado: 'Pendiente',
+        recurrencia: patron,
+        recurrence_group_id: 'group-uuid-123'
+      }
+      const resultado = citaSchema.safeParse(cita)
+      expect(resultado.success).toBe(true)
+    })
+  })
 })
