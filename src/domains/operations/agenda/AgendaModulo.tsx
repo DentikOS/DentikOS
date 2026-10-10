@@ -197,7 +197,7 @@ export const AgendaModulo: React.FC<AgendaModuloProps> = memo(({ alSeleccionarPa
       <AgendaSummaryCards citas={citasDelDia} />
 
       {/* F7-27: Renderizado condicional de vistas de agenda */}
-      {vista === 'box' && (
+      {(vista === 'box' && currentView !== 'week' && currentView !== 'month' && currentView !== 'waiting_room' && currentView !== 'day') && (
         <div className="bg-canvas dark:bg-graphite-950 surgical:bg-graphite-300 border border-surface rounded-xl p-4 md:p-6" role="region" aria-label="Parrilla de sillones dentales">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
             {boxesAMostrar.map(box => {

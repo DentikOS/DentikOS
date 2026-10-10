@@ -52,7 +52,7 @@ export const AgendaMonthView: React.FC<AgendaMonthViewProps> = ({
   }, [currentDateIso])
 
   return (
-    <div className="bg-surface border border-surface-border rounded-2xl overflow-hidden shadow-xs flex flex-col">
+    <div className="bg-surface border border-surface-border rounded-2xl overflow-hidden shadow-xs flex flex-col" role="region" aria-label="Calendario mensual">
       {/* Cabecera del mes */}
       <div className="p-3 border-b border-surface-border bg-surface-muted/30 flex items-center justify-between">
         <h3 className="font-bold text-sm text-[#0F172A] dark:text-white capitalize">

@@ -43,7 +43,7 @@ export const AgendaWeekView: React.FC<AgendaWeekViewProps> = ({
   }, [currentDateIso])
 
   return (
-    <div className="bg-surface border border-surface-border rounded-2xl overflow-hidden shadow-xs flex flex-col">
+    <div className="bg-surface border border-surface-border rounded-2xl overflow-hidden shadow-xs flex flex-col" role="region" aria-label="Calendario semanal">
       {/* Grid de 7 columnas */}
       <div className="grid grid-cols-1 sm:grid-cols-7 divide-y sm:divide-y-0 sm:divide-x divide-surface-border min-h-[500px]">
         {diasSemana.map((dia) => {
