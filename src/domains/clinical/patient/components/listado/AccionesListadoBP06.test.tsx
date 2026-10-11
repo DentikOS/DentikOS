@@ -6,6 +6,7 @@ import { VistaTabla } from './VistaTabla'
 import { VistaLista } from './VistaLista'
 import { timelineService } from '../../services/timelineService'
 import { useSesionStore } from '../../../../../app/stores/sesionStore'
+import { usePacientesStore } from '../../../../../app/stores/pacientesStore'
 import type { Paciente } from '../../schemas/pacienteSchema'
 
 const mockPacienteActivo: Paciente = {
@@ -178,5 +179,56 @@ describe('Acciones Rápidas y Menú Contextual (BP06 §01 + §05 + §06)', () =>
     expect(screen.getByText('Sin asignar')).toBeInTheDocument()
     unmount()
   })
+
+  it('WS-F: Cambiar doctor tratante abre modal, actualiza doctor y registra en Timeline', () => {
+    render(
+      <AccionesFilaPaciente
+        paciente={mockPacienteActivo}
+        alSeleccionarPaciente={vi.fn()}
+      />
+    )
+
+    fireEvent.click(screen.getByTestId('btn-menu-contextual-pac-1'))
+    fireEvent.click(screen.getByText('Cambiar doctor tratante'))
+
+    expect(screen.getByTestId('modal-cambiar-doctor-pac-1')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Confirmar Reasignación'))
+
+    const eventos = timelineService.obtenerTimeline('pac-1')
+    expect(eventos.some((e) => e.titulo.includes('Paciente reasignado a'))).toBe(true)
+  })
+
+  it('WS-F: Ver documentos adjuntos activa la pestaña recetas-consentimientos y selecciona paciente', () => {
+    const alSeleccionar = vi.fn()
+    render(
+      <AccionesFilaPaciente
+        paciente={mockPacienteActivo}
+        alSeleccionarPaciente={alSeleccionar}
+      />
+    )
+
+    fireEvent.click(screen.getByTestId('btn-menu-contextual-pac-1'))
+    fireEvent.click(screen.getByText('Ver documentos adjuntos'))
+
+    expect(usePacientesStore.getState().pestanaActiva).toBe('recetas-consentimientos')
+    expect(alSeleccionar).toHaveBeenCalledWith(mockPacienteActivo)
+  })
+
+  it('WS-G: Menú contextual con portal se cierra al presionar ESC', () => {
+    render(
+      <AccionesFilaPaciente
+        paciente={mockPacienteActivo}
+        alSeleccionarPaciente={vi.fn()}
+      />
+    )
+
+    const btn = screen.getByTestId('btn-menu-contextual-pac-1')
+    fireEvent.click(btn)
+    expect(screen.getByTestId('menu-dropdown-pac-1')).toBeInTheDocument()
+
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(screen.queryByTestId('menu-dropdown-pac-1')).not.toBeInTheDocument()
+  })
 })
+
 
