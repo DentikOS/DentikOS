@@ -32,4 +32,11 @@ describe('ModalNuevoPresupuesto BP07', () => {
       expect.objectContaining({ estado: 'borrador' })
     )
   })
+
+  it('aplica bonificación automática de convenio FONASA o ISAPRE', () => {
+    render(<ModalNuevoPresupuesto onCerrar={vi.fn()} />)
+    const select = screen.getByRole('combobox')
+    fireEvent.change(select, { target: { value: 'fonasa' } })
+    expect(screen.getByText(/Descuento Convenio:/i)).toHaveTextContent('15%')
+  })
 })
