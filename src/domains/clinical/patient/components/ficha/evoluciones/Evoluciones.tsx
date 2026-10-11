@@ -3,6 +3,7 @@ import { FileText, Mic, MicOff, Plus, CheckCircle2, Key, Clock } from 'lucide-re
 import { Button } from '../../../../../../shared/ui/ui/Button'
 import { useDictado } from '../../../hooks/useDictado'
 import { PLANTILLAS_INTELIGENTES } from './plantillasEvoluciones'
+import { fichasClinicasStorageService } from '../../../services/fichasClinicasStorageService'
 
 interface NotaEvolucion {
   id: string
@@ -17,11 +18,13 @@ interface NotaEvolucion {
 interface EvolucionesProps {
   nombrePaciente?: string
   profesionalActual?: string
+  pacienteId?: string
 }
 
 export const Evoluciones: React.FC<EvolucionesProps> = ({
   nombrePaciente = 'Paciente',
   profesionalActual = 'Dr. Tratante',
+  pacienteId,
 }) => {
   const [evoluciones, setEvoluciones] = useState<NotaEvolucion[]>([
     {
@@ -41,6 +44,15 @@ export const Evoluciones: React.FC<EvolucionesProps> = ({
   const { iniciarDictado, detenerDictado, estaDictando, textoDictado } = useDictado()
 
   useEffect(() => {
+    if (!pacienteId) return
+    fichasClinicasStorageService.obtenerFichaClinica(pacienteId).then((ficha) => {
+      if (ficha?.evoluciones && Array.isArray(ficha.evoluciones) && ficha.evoluciones.length > 0) {
+        setEvoluciones(ficha.evoluciones as NotaEvolucion[])
+      }
+    })
+  }, [pacienteId])
+
+  useEffect(() => {
     if (textoDictado) {
       setNuevaNota((prev) => (prev ? `${prev} ${textoDictado}` : textoDictado))
     }
@@ -55,7 +67,7 @@ export const Evoluciones: React.FC<EvolucionesProps> = ({
     setNuevaNota((prev) => (prev ? `${prev}\n${reemplazado}` : reemplazado))
   }
 
-  const handleAgregarEvolucion = (e: React.FormEvent) => {
+  const handleAgregarEvolucion = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!nuevaNota.trim()) return
 
@@ -72,9 +84,13 @@ export const Evoluciones: React.FC<EvolucionesProps> = ({
       firmaHash: `SHA256:${randomHash}`,
     }
 
-    setEvoluciones([nueva, ...evoluciones])
+    const actualizadas = [nueva, ...evoluciones]
+    setEvoluciones(actualizadas)
     setNuevaNota('')
     setMotivo('')
+    if (pacienteId) {
+      await fichasClinicasStorageService.guardarSeccionFicha(pacienteId, 'evoluciones', actualizadas)
+    }
   }
 
   return (

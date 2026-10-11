@@ -215,6 +215,7 @@ export const FichaClinica: React.FC<FichaClinicaProps> = ({
         {pestanaActual === 'evoluciones' && (
           <Evoluciones
             nombrePaciente={pacienteFinal.nombreCompleto || pacienteFinal.nombre}
+            pacienteId={String(pacienteFinal.id)}
           />
         )}
         {pestanaActual === 'presupuestos' && (
