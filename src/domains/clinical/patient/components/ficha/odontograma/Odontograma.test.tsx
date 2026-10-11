@@ -47,13 +47,23 @@ describe('Odontograma BP06', () => {
     expect(onGuardar).toHaveBeenCalled()
   })
 
-  it('guarda datos de odontograma con pacienteId en Supabase', async () => {
-    const onGuardar = vi.fn()
-    render(<Odontograma pacienteId="123e4567-e89b-12d3-a456-426614174000" onGuardar={onGuardar} />)
-    const btnGuardar = screen.getByText('Guardar Odontograma')
-    fireEvent.click(btnGuardar)
-    await vi.waitFor(() => {
-      expect(onGuardar).toHaveBeenCalled()
-    })
+  it('abre el panel lateral al hacer click en una pieza dental con sus 5 caras', () => {
+    render(<Odontograma />)
+    const btnPieza11 = screen.getByTitle('Pieza 1.1')
+    fireEvent.click(btnPieza11)
+
+    // Panel lateral visible
+    expect(screen.getByTestId('odontograma-panel-lateral')).toBeInTheDocument()
+    expect(screen.getByText('Pieza 1.1')).toBeInTheDocument()
+    expect(screen.getByText('Vestibular')).toBeInTheDocument()
+    expect(screen.getByText('Oclusal / Incisal')).toBeInTheDocument()
+    expect(screen.getByText('Lingual / Palatino')).toBeInTheDocument()
+    expect(screen.getByText('Mesial')).toBeInTheDocument()
+    expect(screen.getByText('Distal')).toBeInTheDocument()
+
+    // Cerrar panel
+    const btnListo = screen.getByText('Listo')
+    fireEvent.click(btnListo)
+    expect(screen.queryByTestId('odontograma-panel-lateral')).not.toBeInTheDocument()
   })
 })

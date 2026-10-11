@@ -3,6 +3,7 @@ import { Sparkles, Save, RotateCcw, Check } from 'lucide-react'
 import { Button } from '../../../../../../shared/ui/ui/Button'
 import { OdontogramaPieza, type CaraDental } from './OdontogramaPieza'
 import { OdontogramaPanel } from './OdontogramaPanel'
+import { OdontogramaPanelLateral } from './OdontogramaPanelLateral'
 import { OdontogramaSlider } from './OdontogramaSlider'
 import { fichasClinicasStorageService } from '../../../services/fichasClinicasStorageService'
 import { useOdontogramaStore } from '../../../../../../app/stores/odontogramaStore'
@@ -28,6 +29,8 @@ export const Odontograma: React.FC<OdontogramaProps> = ({ pacienteId, onGuardar 
   const [progresoTemporal, setProgresoTemporal] = useState<number>(100)
   const [mostrarTemporales, setMostrarTemporales] = useState<boolean>(false)
   const [guardado, setGuardado] = useState<boolean>(false)
+
+  const [piezaSeleccionada, setPiezaSeleccionada] = useState<string | null>(null)
 
   // Estado de las caras de cada pieza
   const [piezasData, setPiezasData] = useState<
@@ -63,19 +66,7 @@ export const Odontograma: React.FC<OdontogramaProps> = ({ pacienteId, onGuardar 
   }
 
   const handleSeleccionarPieza = (pieza: string | number) => {
-    const key = String(pieza)
-    setPiezasData((prev) => {
-      const actual = prev[key] || {
-        caras: { vestibular: 'sano', lingual: 'sano', mesial: 'sano', distal: 'sano', oclusal: 'sano' },
-      }
-      return {
-        ...prev,
-        [key]: {
-          ...actual,
-          estadoGeneral: actual.estadoGeneral === estadoActivo ? undefined : estadoActivo,
-        },
-      }
-    })
+    setPiezaSeleccionada(String(pieza))
   }
 
   const handleLimpiar = () => {
@@ -214,6 +205,27 @@ export const Odontograma: React.FC<OdontogramaProps> = ({ pacienteId, onGuardar 
       <OdontogramaPanel
         estadoSeleccionado={estadoActivo}
         onSeleccionarEstado={setEstadoActivo}
+      />
+
+      {/* Panel Lateral de Pieza con 5 Caras */}
+      <OdontogramaPanelLateral
+        pieza={piezaSeleccionada}
+        datos={piezaSeleccionada ? piezasData[piezaSeleccionada] : undefined}
+        onCerrar={() => setPiezaSeleccionada(null)}
+        onActualizarCara={(cara, estado) => {
+          if (!piezaSeleccionada) return
+          setPiezasData((prev) => {
+            const act = prev[piezaSeleccionada] || { caras: { vestibular: 'sano', lingual: 'sano', mesial: 'sano', distal: 'sano', oclusal: 'sano' } }
+            return { ...prev, [piezaSeleccionada]: { ...act, caras: { ...act.caras, [cara]: estado } } }
+          })
+        }}
+        onActualizarEstadoGeneral={(estado) => {
+          if (!piezaSeleccionada) return
+          setPiezasData((prev) => {
+            const act = prev[piezaSeleccionada] || { caras: { vestibular: 'sano', lingual: 'sano', mesial: 'sano', distal: 'sano', oclusal: 'sano' } }
+            return { ...prev, [piezaSeleccionada]: { ...act, estadoGeneral: estado } }
+          })
+        }}
       />
     </div>
   )
