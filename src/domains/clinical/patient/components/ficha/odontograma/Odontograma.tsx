@@ -31,6 +31,7 @@ export const Odontograma: React.FC<OdontogramaProps> = ({ pacienteId, onGuardar 
   const [guardado, setGuardado] = useState<boolean>(false)
 
   const [piezaSeleccionada, setPiezaSeleccionada] = useState<string | null>(null)
+  const [panelAbierto, setPanelAbierto] = useState<boolean>(false)
 
   // Estado de las caras de cada pieza
   const [piezasData, setPiezasData] = useState<
@@ -65,9 +66,12 @@ export const Odontograma: React.FC<OdontogramaProps> = ({ pacienteId, onGuardar 
     })
   }
 
-  const handleSeleccionarPieza = (pieza: string | number) => {
+  const handlePiezaClick = (pieza: string | number) => {
     setPiezaSeleccionada(String(pieza))
+    setPanelAbierto(true)
   }
+
+  const handleSeleccionarPieza = handlePiezaClick
 
   const handleLimpiar = () => {
     if (window.confirm('¿Deseas reiniciar el odontograma a estado sano?')) {
@@ -93,6 +97,7 @@ export const Odontograma: React.FC<OdontogramaProps> = ({ pacienteId, onGuardar 
               }
             }
             estadoGeneral={piezasData[num]?.estadoGeneral}
+            onClick={handlePiezaClick}
             onSeleccionarCara={handleSeleccionarCara}
             onSeleccionarPieza={handleSeleccionarPieza}
           />
@@ -115,6 +120,7 @@ export const Odontograma: React.FC<OdontogramaProps> = ({ pacienteId, onGuardar 
               }
             }
             estadoGeneral={piezasData[num]?.estadoGeneral}
+            onClick={handlePiezaClick}
             onSeleccionarCara={handleSeleccionarCara}
             onSeleccionarPieza={handleSeleccionarPieza}
           />
@@ -210,8 +216,17 @@ export const Odontograma: React.FC<OdontogramaProps> = ({ pacienteId, onGuardar 
       {/* Panel Lateral de Pieza con 5 Caras */}
       <OdontogramaPanelLateral
         pieza={piezaSeleccionada}
+        piezaId={piezaSeleccionada}
+        abierto={panelAbierto}
         datos={piezaSeleccionada ? piezasData[piezaSeleccionada] : undefined}
-        onCerrar={() => setPiezaSeleccionada(null)}
+        onCerrar={() => {
+          setPanelAbierto(false)
+          setPiezaSeleccionada(null)
+        }}
+        onGuardar={(datosPieza) => {
+          if (!piezaSeleccionada) return
+          setPiezasData((prev) => ({ ...prev, [piezaSeleccionada]: datosPieza }))
+        }}
         onActualizarCara={(cara, estado) => {
           if (!piezaSeleccionada) return
           setPiezasData((prev) => {

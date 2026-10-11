@@ -6,11 +6,14 @@ import type { CaraDental } from './OdontogramaPieza'
 import { ESTADOS_ODONTOGRAMA } from './OdontogramaPanel'
 
 interface OdontogramaPanelLateralProps {
-  pieza: string | null
+  pieza?: string | null
+  piezaId?: string | null
+  abierto?: boolean
   datos?: { caras: Record<CaraDental, string>; estadoGeneral?: string }
   onCerrar: () => void
-  onActualizarCara: (cara: CaraDental, estado: string) => void
-  onActualizarEstadoGeneral: (estado: string | undefined) => void
+  onActualizarCara?: (cara: CaraDental, estado: string) => void
+  onActualizarEstadoGeneral?: (estado: string | undefined) => void
+  onGuardar?: (datos: { caras: Record<CaraDental, string>; estadoGeneral?: string }) => void
 }
 
 const CARAS_INFO: { id: CaraDental; label: string }[] = [
@@ -23,14 +26,18 @@ const CARAS_INFO: { id: CaraDental; label: string }[] = [
 
 export const OdontogramaPanelLateral: React.FC<OdontogramaPanelLateralProps> = ({
   pieza,
+  piezaId,
+  abierto,
   datos,
   onCerrar,
-  onActualizarCara,
-  onActualizarEstadoGeneral,
+  onActualizarCara = () => {},
+  onActualizarEstadoGeneral = () => {},
+  onGuardar,
 }) => {
   const [caraActiva, setCaraActiva] = useState<CaraDental>('oclusal')
 
-  if (!pieza) return null
+  const piezaEfectiva = piezaId || pieza
+  if (abierto === false || !piezaEfectiva) return null
 
   const caras = datos?.caras || {
     vestibular: 'sano',
@@ -56,7 +63,7 @@ export const OdontogramaPanelLateral: React.FC<OdontogramaPanelLateralProps> = (
           <div className="p-4 border-b border-graphite-200 dark:border-graphite-800 flex items-center justify-between bg-graphite-50 dark:bg-graphite-950">
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-xl font-bold font-mono text-primary">Pieza {pieza}</span>
+                <span className="text-xl font-bold font-mono text-primary">Pieza {piezaEfectiva}</span>
                 {estadoGeneral && (
                   <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 font-medium">
                     {ESTADOS_ODONTOGRAMA.find((e) => e.id === estadoGeneral)?.nombre || estadoGeneral}
@@ -175,7 +182,10 @@ export const OdontogramaPanelLateral: React.FC<OdontogramaPanelLateralProps> = (
                 size="sm"
                 variant="primary"
                 icon={Check}
-                onClick={onCerrar}
+                onClick={() => {
+                  onGuardar?.(datos || { caras, estadoGeneral })
+                  onCerrar()
+                }}
               >
                 Listo
               </Button>

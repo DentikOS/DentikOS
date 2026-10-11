@@ -14,6 +14,7 @@ interface OdontogramaPiezaProps {
   caras: Record<CaraDental, string>
   estadoGeneral?: string
   caraSeleccionada?: CaraDental | null
+  onClick?: (numero: string | number) => void
   onSeleccionarCara: (numero: string | number, cara: CaraDental) => void
   onSeleccionarPieza: (numero: string | number) => void
 }
@@ -36,6 +37,7 @@ export const OdontogramaPieza: React.FC<OdontogramaPiezaProps> = ({
   esTemporal = false,
   caras,
   estadoGeneral,
+  onClick,
   onSeleccionarCara,
   onSeleccionarPieza,
 }) => {
@@ -46,17 +48,26 @@ export const OdontogramaPieza: React.FC<OdontogramaPiezaProps> = ({
 
   const esAusente = estadoGeneral === 'ausente'
 
+  const handleClickPieza = () => {
+    onSeleccionarPieza(numero)
+    onClick?.(numero)
+  }
+
   return (
     <div
-      className={`inline-flex flex-col items-center p-1.5 rounded-xl transition-all ${
+      className={`inline-flex flex-col items-center p-1.5 rounded-xl transition-all cursor-pointer hover:bg-surface-hover/60 ${
         esTemporal ? 'scale-90 opacity-90' : ''
       }`}
+      onClick={handleClickPieza}
       data-testid={`pieza-dental-${numero}`}
     >
       {/* Etiqueta número de pieza */}
       <button
         type="button"
-        onClick={() => onSeleccionarPieza(numero)}
+        onClick={(e) => {
+          e.stopPropagation()
+          handleClickPieza()
+        }}
         className="text-[11px] font-bold font-mono text-graphite-700 dark:text-graphite-300 hover:text-primary mb-1 cursor-pointer"
         title={`Pieza ${numero}`}
       >
