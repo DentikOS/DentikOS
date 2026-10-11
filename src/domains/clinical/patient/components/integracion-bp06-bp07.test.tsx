@@ -50,8 +50,8 @@ describe('Integración BP06 + BP07 — Navegación y componentes nuevos', () => 
     expect(screen.getByTestId('ficha-clinica-bp06')).toBeInTheDocument()
     expect(screen.getByText('Odontograma')).toBeInTheDocument()
     expect(screen.getByText('Periodontograma')).toBeInTheDocument()
-    expect(screen.getByText('Plan Tratamiento')).toBeInTheDocument()
-    expect(screen.getByText('Timeline')).toBeInTheDocument()
+    expect(screen.getByText('Presupuestos + Plan Tratamiento')).toBeInTheDocument()
+    expect(screen.getByText('Timeline / Historial')).toBeInTheDocument()
   })
 
   it('usePresupuestosStore conecta con planes de tratamiento clínicos', () => {

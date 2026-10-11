@@ -170,6 +170,7 @@ export const FichaClinica: React.FC<FichaClinicaProps> = ({
         paciente={pacienteFinal}
         onModoQuirurgico={() => setModoQuirurgicoActivo(true)}
         onModoPresentacion={() => setModoPresentacionActivo((p) => !p)}
+        onResponderEmbarazo={(emb) => alActualizarPaciente?.({ ...pacienteFinal, embarazo: emb })}
       />
 
       {/* 8 Pestañas exactas según BP06 §09 */}

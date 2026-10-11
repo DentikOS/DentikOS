@@ -33,9 +33,9 @@ export const ResumenEjecutivo: React.FC<ResumenEjecutivoProps> = ({ paciente, on
           </div>
           <div className="mt-3 space-y-1">
             <p className="text-xs font-semibold text-graphite-900 dark:text-graphite-50">
-              {paciente.ultimaVisita || '15 Sep 2026'}
+              {String(paciente.ultimaVisita || '15 Sep 2026')}
             </p>
-            <p className="text-xs text-graphite-500">Dr. {paciente.doctorTratante || 'Martínez'}</p>
+            <p className="text-xs text-graphite-500">Dr. {String(paciente.doctorTratante || 'Martínez')}</p>
             <p className="text-[11px] text-graphite-400 italic">Motivo: Control periodontal y limpieza</p>
           </div>
         </div>
@@ -105,7 +105,7 @@ export const ResumenEjecutivo: React.FC<ResumenEjecutivoProps> = ({ paciente, on
           </div>
           <div className="mt-3 space-y-1">
             <p className="text-xs font-semibold text-graphite-900 dark:text-graphite-50">
-              {paciente.proximaCita || '22 Oct 2026 10:00'}
+              {String(paciente.proximaCita || '22 Oct 2026 10:00')}
             </p>
             <p className="text-[11px] text-graphite-500">Box 2 · Sillón Quirúrgico</p>
           </div>

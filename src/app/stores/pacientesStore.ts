@@ -13,7 +13,19 @@ const SEED_PACIENTES_DEMO: Paciente[] = [
 ]
 
 export type PacientesUpdater = Paciente[] | ((prev: Paciente[]) => Paciente[])
-export type PestanaFicha = 'datos' | 'odontograma' | 'periodontograma' | 'evoluciones' | 'recetas' | 'consentimientos' | 'plan-tratamiento' | 'adjuntos' | 'timeline'
+export type PestanaFicha =
+  | 'datos'
+  | 'odontograma'
+  | 'periodontograma'
+  | 'evoluciones'
+  | 'recetas'
+  | 'consentimientos'
+  | 'plan-tratamiento'
+  | 'adjuntos'
+  | 'timeline'
+  | 'resumen-ejecutivo'
+  | 'presupuestos'
+  | 'recetas-consentimientos'
 
 export interface FiltrosPacientes {
   estado: string[]

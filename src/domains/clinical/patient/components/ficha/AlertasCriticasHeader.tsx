@@ -1,18 +1,24 @@
 import React from 'react'
 import { AlertTriangle, ShieldAlert, HeartPulse, Baby, Eye, Activity } from 'lucide-react'
 import { Button } from '../../../../../shared/ui/ui/Button'
+import {
+  debePreguntarEmbarazo,
+  validarAnticoagulantesCirugia,
+} from '../../services/validacionesCruzadasClinicas'
 import type { Paciente } from '../../schemas/pacienteSchema'
 
 interface AlertasCriticasHeaderProps {
   paciente: Paciente
   onModoQuirurgico?: () => void
   onModoPresentacion?: () => void
+  onResponderEmbarazo?: (embarazo: boolean) => void
 }
 
 export const AlertasCriticasHeader: React.FC<AlertasCriticasHeaderProps> = ({
   paciente,
   onModoQuirurgico,
   onModoPresentacion,
+  onResponderEmbarazo,
 }) => {
   const textoAlergias =
     Array.isArray(paciente.alergiasSeveras) && paciente.alergiasSeveras.length > 0
@@ -29,12 +35,18 @@ export const AlertasCriticasHeader: React.FC<AlertasCriticasHeaderProps> = ({
   const tieneCronicas =
     Array.isArray(paciente.enfermedadesCronicas) && paciente.enfermedadesCronicas.length > 0
 
+  const alertaCirugia = validarAnticoagulantesCirugia(
+    tieneAnticoagulantes,
+    Boolean((paciente as any).proximoTratamientoQuirurgico || (paciente as any).alertaCirugia)
+  )
+
   const hayAlertasCriticas =
     tieneAlergiasSeveras ||
     tieneAnticoagulantes ||
     tieneEmbarazo ||
     tieneLactancia ||
-    tieneCronicas
+    tieneCronicas ||
+    debePreguntarEmbarazo(paciente)
 
   return (
     <div
@@ -47,7 +59,7 @@ export const AlertasCriticasHeader: React.FC<AlertasCriticasHeaderProps> = ({
             👤 {paciente.nombreCompleto || paciente.nombre || 'Paciente'} {paciente.edad ? `· ${paciente.edad} años` : ''} · RUT: {paciente.rut || 'Sin RUT'}
           </span>
           <span className="text-xs text-graphite-500">
-            Última visita: {paciente.ultimaVisita || '15 Sep 2026'} · Próxima cita: {paciente.proximaCita || '22 Oct 2026 10:00'} · Dr. tratante: {paciente.doctorTratante || 'Dr. Martínez'}
+            Última visita: {String(paciente.ultimaVisita || '15 Sep 2026')} · Próxima cita: {String(paciente.proximaCita || '22 Oct 2026 10:00')} · Dr. tratante: {String(paciente.doctorTratante || 'Dr. Martínez')}
           </span>
         </div>
 
@@ -104,6 +116,43 @@ export const AlertasCriticasHeader: React.FC<AlertasCriticasHeaderProps> = ({
                 Crónicas: {paciente.enfermedadesCronicas?.join(', ')}
               </span>
             )}
+
+            {alertaCirugia.alertaQuirurgica && (
+              <span
+                data-testid="badge-alerta-quirurgica"
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-[#E11D48]/20 text-[#E11D48] text-xs font-black border border-[#E11D48]/50 animate-pulse"
+              >
+                <AlertTriangle className="w-4 h-4 text-[#E11D48]" />
+                {alertaCirugia.mensaje}
+              </span>
+            )}
+          </div>
+        )}
+
+        {debePreguntarEmbarazo(paciente) && (
+          <div
+            data-testid="banner-pregunta-embarazo"
+            className="mt-3 p-2.5 bg-purple-500/10 border border-purple-500/30 rounded-xl flex items-center justify-between gap-2 text-xs"
+          >
+            <span className="font-semibold text-purple-700 dark:text-purple-300">
+              ⚠️ Paciente en rango fértil (12-55 años): ¿Se encuentra actualmente en embarazo o lactancia?
+            </span>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => onResponderEmbarazo?.(true)}
+                className="px-2.5 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold text-xs"
+              >
+                Sí
+              </button>
+              <button
+                type="button"
+                onClick={() => onResponderEmbarazo?.(false)}
+                className="px-2.5 py-1 bg-surface border border-surface hover:bg-surface-hover text-graphite-700 rounded-lg font-bold text-xs"
+              >
+                No
+              </button>
+            </div>
           </div>
         )}
       </div>

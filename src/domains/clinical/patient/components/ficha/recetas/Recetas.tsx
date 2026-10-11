@@ -8,6 +8,8 @@ import { recetasPDFService } from '../../../services/recetasPDFService'
 import { VisorPDF } from '../shared/VisorPDF'
 import { ModalConfirmarDescargaPDF } from '../shared/ModalConfirmarDescargaPDF'
 import { RecetaMedicamentosForm, type MedicamentoItem } from './RecetaMedicamentosForm'
+import { validarAlergiasMedicamentos } from '../../../services/validacionesCruzadasClinicas'
+import { sonarAlerta220Hz } from '../../../utils/alertaSonido'
 import type { Paciente } from '../../../schemas/pacienteSchema'
 
 interface RecetasProps { paciente: Paciente; profesional?: string }
@@ -46,14 +48,17 @@ export const Recetas: React.FC<RecetasProps> = ({
     setSugerencias(null)
   }
 
-  const tieneAlertaPenicilina = Boolean(
-    (Array.isArray(paciente.alergias) && paciente.alergias.some((a: string) => a.toLowerCase().includes('penicil'))) ||
-    (typeof paciente.alergias === 'string' && paciente.alergias.toLowerCase().includes('penicil'))
+  const validacionAlergia = validarAlergiasMedicamentos(
+    medicamentos.map((m) => m.nombre).filter(Boolean),
+    paciente.alergiasSeveras?.length ? paciente.alergiasSeveras : (paciente.alergias as any)
   )
+  const hayConflictoFarmaco = validacionAlergia.contraindicado
 
-  const hayConflictoFarmaco =
-    tieneAlertaPenicilina &&
-    medicamentos.some((m) => ['amoxicilina', 'ampicilina', 'penicilina'].some((p) => m.nombre.toLowerCase().includes(p)))
+  useEffect(() => {
+    if (hayConflictoFarmaco) {
+      sonarAlerta220Hz()
+    }
+  }, [hayConflictoFarmaco])
 
   const handleAgregarMedicamento = () => setMedicamentos((prev) => [...prev, { nombre: '', dosis: '', frecuencia: '', duracion: '' }])
   const handleUpdateMed = (index: number, campo: keyof MedicamentoItem, valor: string) => {
@@ -66,7 +71,8 @@ export const Recetas: React.FC<RecetasProps> = ({
     if (medicamentos.length === 0 || !medicamentos[0].nombre) return
 
     if (hayConflictoFarmaco) {
-      window.alert('Bloqueo de Seguridad: Medicamento contraindicado por alergia severa del paciente.')
+      sonarAlerta220Hz()
+      window.alert(validacionAlergia.mensaje || 'Bloqueo de Seguridad: Medicamento contraindicado por alergia severa del paciente.')
       return
     }
 

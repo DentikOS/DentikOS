@@ -84,9 +84,11 @@ describe('Flujo Clínico E2E de Persistencia BP06 + BP07', () => {
     // Alerta severa en header
     expect(screen.getByTestId('badge-alergia-severa')).toBeInTheDocument()
 
-    // Cambiar a pestaña Fotos & RX
-    const btnAdjuntos = screen.getByRole('button', { name: /Fotos & RX/i })
-    fireEvent.click(btnAdjuntos)
+    // Cambiar a pestaña Recetas + Consentimientos + Docs
+    const btnDocs = screen.getByRole('button', { name: /Recetas \+ Consentimientos \+ Docs/i })
+    fireEvent.click(btnDocs)
+    const subtabFotos = screen.getByTestId('subtab-adjuntos')
+    fireEvent.click(subtabFotos)
     await waitFor(() => {
       expect(screen.getByTestId('adjuntos-section')).toBeInTheDocument()
     })

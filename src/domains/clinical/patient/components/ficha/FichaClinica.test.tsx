@@ -60,4 +60,19 @@ describe('FichaClinica BP06', () => {
     fireEvent.click(screen.getByTestId('btn-volver-pacientes'))
     expect(alVolver).toHaveBeenCalled()
   })
+
+  it('pregunta por embarazo/lactancia a paciente femenina en edad fértil si no está registrado', () => {
+    const pacienteFemenina: Paciente = {
+      ...mockPaciente,
+      sexo: 'femenino',
+      edad: 28,
+      embarazo: undefined,
+    }
+    const alActualizar = vi.fn()
+    render(<FichaClinica paciente={pacienteFemenina} alActualizarPaciente={alActualizar} />)
+    expect(screen.getByTestId('banner-pregunta-embarazo')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Sí' }))
+    expect(alActualizar).toHaveBeenCalledWith(expect.objectContaining({ embarazo: true }))
+  })
 })
+
