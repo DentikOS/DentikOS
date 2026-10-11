@@ -9,7 +9,7 @@ describe('Odontograma BP06', () => {
     expect(screen.getByTestId('odontograma-completo-bp06')).toBeInTheDocument()
     expect(screen.getByTestId('pieza-dental-1.1')).toBeInTheDocument()
     expect(screen.getByTestId('pieza-dental-4.8')).toBeInTheDocument()
-    expect(screen.getByTestId('odontograma-panel-estados')).toBeInTheDocument()
+    expect(screen.queryByTestId('odontograma-panel-estados')).not.toBeInTheDocument()
   })
 
   it('permite alternar la dentición temporal con el checkbox', () => {

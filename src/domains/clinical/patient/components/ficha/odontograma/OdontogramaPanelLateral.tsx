@@ -4,6 +4,7 @@ import { X, Check, ShieldAlert } from 'lucide-react'
 import { Button } from '../../../../../../shared/ui/ui/Button'
 import type { CaraDental } from './OdontogramaPieza'
 import { ESTADOS_ODONTOGRAMA } from './OdontogramaPanel'
+import { sonarDoblePulso680_850Hz } from '../../../utils/alertaSonido'
 
 interface OdontogramaPanelLateralProps {
   pieza?: string | null
@@ -183,6 +184,7 @@ export const OdontogramaPanelLateral: React.FC<OdontogramaPanelLateralProps> = (
                 variant="primary"
                 icon={Check}
                 onClick={() => {
+                  sonarDoblePulso680_850Hz()
                   onGuardar?.(datos || { caras, estadoGeneral })
                   onCerrar()
                 }}

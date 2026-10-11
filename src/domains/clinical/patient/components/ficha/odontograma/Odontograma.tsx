@@ -207,12 +207,6 @@ export const Odontograma: React.FC<OdontogramaProps> = ({ pacienteId, onGuardar 
         </div>
       </div>
 
-      {/* Panel de 17 Estados */}
-      <OdontogramaPanel
-        estadoSeleccionado={estadoActivo}
-        onSeleccionarEstado={setEstadoActivo}
-      />
-
       {/* Panel Lateral de Pieza con 5 Caras */}
       <OdontogramaPanelLateral
         pieza={piezaSeleccionada}
