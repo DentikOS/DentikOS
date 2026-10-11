@@ -99,7 +99,7 @@ export const ModalNuevoPaciente: React.FC<ModalNuevoPacienteProps> = memo(({ alG
     e.preventDefault()
     
     // Validación final antes de guardar
-    if (!nuevoPaciente.nombre || !nuevoPaciente.rut) return
+    if (!nuevoPaciente.nombre || !nuevoPaciente.rut || !nuevoPaciente.telefono) return
     if (!rutValido || errorRut) return
 
     setEnviando(true)
@@ -115,7 +115,13 @@ export const ModalNuevoPaciente: React.FC<ModalNuevoPacienteProps> = memo(({ alG
     setEnviando(false)
   }
 
-  const puedeGuardar = Boolean(nuevoPaciente.nombre && nuevoPaciente.rut && rutValido && !errorRut)
+  const puedeGuardar = Boolean(
+    nuevoPaciente.nombre.trim() &&
+    nuevoPaciente.rut.trim() &&
+    nuevoPaciente.telefono?.trim() &&
+    rutValido &&
+    !errorRut
+  )
 
   return (
     <Modal
@@ -165,8 +171,10 @@ export const ModalNuevoPaciente: React.FC<ModalNuevoPacienteProps> = memo(({ alG
           </div>
           <div>
             <Input
-              label="Teléfono"
+              data-testid="paciente-telefono"
+              label="Teléfono *"
               type="text"
+              required
               value={nuevoPaciente.telefono || ''}
               onChange={(e) => actualizarCampo('telefono', e.target.value)}
               placeholder="+56 9 1234 5678"

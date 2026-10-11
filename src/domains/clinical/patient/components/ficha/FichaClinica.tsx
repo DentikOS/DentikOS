@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { ArrowLeft, Trash2, User, Activity, Clock, Shield, Pill, Layers, FileText } from 'lucide-react'
 import { Button } from '../../../../../shared/ui/ui/Button'
 import { usePacientesStore } from '../../../../../app/stores/pacientesStore'
@@ -38,6 +38,26 @@ const TABS_FICHA = [
 
 type PestanaId = (typeof TABS_FICHA)[number]['id']
 
+const sonarAlerta220Hz = () => {
+  try {
+    const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+    if (!AudioCtx) return
+    const ctx = new AudioCtx()
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.type = 'sine'
+    osc.frequency.setValueAtTime(220, ctx.currentTime)
+    gain.gain.setValueAtTime(0.08, ctx.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35)
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+    osc.start()
+    osc.stop(ctx.currentTime + 0.35)
+  } catch {
+    // Audio context bloqueado en autoplay o testing
+  }
+}
+
 export const FichaClinica: React.FC<FichaClinicaProps> = ({
   paciente,
   pacienteId,
@@ -60,6 +80,27 @@ export const FichaClinica: React.FC<FichaClinicaProps> = ({
     (pacienteId ? pacientes.find((p) => String(p.id) === String(pacienteId)) : null) ||
     pacienteActivoStore ||
     pacientes[0]
+
+  useEffect(() => {
+    const tieneAlergias = Boolean(
+      (Array.isArray(pacienteFinal?.alergiasSeveras) && pacienteFinal.alergiasSeveras.length > 0) ||
+      (typeof pacienteFinal?.alergias === 'string' && pacienteFinal.alergias.trim())
+    )
+    if (tieneAlergias) {
+      sonarAlerta220Hz()
+    }
+  }, [pacienteFinal?.id])
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (modoQuirurgicoActivo) setModoQuirurgicoActivo(false)
+        if (modoPresentacionActivo) setModoPresentacionActivo(false)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [modoQuirurgicoActivo, modoPresentacionActivo])
 
   const pestanaActual: PestanaId =
     (pestanaActivaStore as PestanaId) in { datos: 1, odontograma: 1, periodontograma: 1, evoluciones: 1, recetas: 1, consentimientos: 1, 'plan-tratamiento': 1, timeline: 1 }

@@ -14,8 +14,15 @@ export const AlertasCriticasHeader: React.FC<AlertasCriticasHeaderProps> = ({
   onModoQuirurgico,
   onModoPresentacion,
 }) => {
-  const tieneAlergiasSeveras =
+  const textoAlergias =
     Array.isArray(paciente.alergiasSeveras) && paciente.alergiasSeveras.length > 0
+      ? paciente.alergiasSeveras.join(', ')
+      : Array.isArray(paciente.alergias)
+      ? paciente.alergias.join(', ')
+      : typeof paciente.alergias === 'string' && paciente.alergias.trim()
+      ? paciente.alergias.trim()
+      : ''
+  const tieneAlergiasSeveras = Boolean(textoAlergias)
   const tieneAnticoagulantes = Boolean(paciente.anticoagulantes)
   const tieneEmbarazo = Boolean(paciente.embarazo)
   const tieneLactancia = Boolean(paciente.lactancia)
@@ -49,9 +56,12 @@ export const AlertasCriticasHeader: React.FC<AlertasCriticasHeaderProps> = ({
         {hayAlertasCriticas && (
           <div className="flex flex-wrap gap-2 mt-2">
             {tieneAlergiasSeveras && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-rose-500/15 text-rose-600 dark:text-rose-400 text-xs font-bold border border-rose-500/30 animate-pulse">
+              <span
+                data-testid="badge-alergia-severa"
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-rose-500/15 text-rose-600 dark:text-rose-400 text-xs font-bold border border-rose-500/30 animate-pulse"
+              >
                 <ShieldAlert className="w-4 h-4" />
-                Alergias Severas: {paciente.alergiasSeveras?.join(', ')}
+                Alergias Severas: {textoAlergias}
               </span>
             )}
 

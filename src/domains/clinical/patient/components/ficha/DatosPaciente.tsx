@@ -4,12 +4,15 @@ import { Button } from '../../../../../shared/ui/ui/Button'
 import { Input } from '../../../../../shared/ui/ui/Input'
 import type { Paciente } from '../../schemas/pacienteSchema'
 
+import { useRBAC } from '../../../../../shared/hooks/useRBAC'
+
 interface DatosPacienteProps {
   paciente: Paciente
   onGuardar: (datosActualizados: Partial<Paciente>) => void
 }
 
 export const DatosPaciente: React.FC<DatosPacienteProps> = ({ paciente, onGuardar }) => {
+  const { esAdmin } = useRBAC()
   const [formData, setFormData] = useState<Partial<Paciente>>({
     nombreCompleto: paciente.nombreCompleto || paciente.nombre,
     rut: paciente.rut,
@@ -23,6 +26,9 @@ export const DatosPaciente: React.FC<DatosPacienteProps> = ({ paciente, onGuarda
     region: paciente.region,
     ocupacion: paciente.ocupacion,
     prevision: paciente.prevision,
+    estado: paciente.estado || 'activo',
+    notasAdmin: paciente.notasAdmin || '',
+    alergias: paciente.alergias || '',
     antecedentesQuirurgicos: paciente.antecedentesQuirurgicos,
     embarazo: paciente.embarazo,
     lactancia: paciente.lactancia,
@@ -167,6 +173,39 @@ export const DatosPaciente: React.FC<DatosPacienteProps> = ({ paciente, onGuarda
               <option value="otro">Otro Convenio</option>
             </select>
           </div>
+
+          <div>
+            <label className="block font-semibold mb-1 text-graphite-700 dark:text-graphite-300">
+              Estado del Paciente
+            </label>
+            <select
+              data-testid="select-estado-paciente"
+              value={formData.estado || 'activo'}
+              onChange={(e) => handleChange('estado', e.target.value)}
+              className="w-full h-10 px-3 bg-surface border border-surface rounded-xl text-xs focus:ring-1 focus:ring-primary capitalize"
+            >
+              <option value="activo">Activo</option>
+              <option value="nuevo">Nuevo</option>
+              <option value="inactivo">Inactivo</option>
+              <option value="bloqueado">Bloqueado (Solo Admin)</option>
+            </select>
+          </div>
+
+          {formData.estado === 'bloqueado' && (
+            <div className="col-span-full">
+              <label className="block font-semibold mb-1 text-rose-600">
+                Motivo de Bloqueo * (Requerido)
+              </label>
+              <Input
+                data-testid="input-motivo-bloqueo"
+                type="text"
+                required
+                value={formData.notasAdmin || ''}
+                onChange={(e) => handleChange('notasAdmin', e.target.value)}
+                placeholder="Indique el motivo por el cual se bloquea al paciente..."
+              />
+            </div>
+          )}
         </div>
       </div>
 
@@ -177,6 +216,19 @@ export const DatosPaciente: React.FC<DatosPacienteProps> = ({ paciente, onGuarda
           <h3 className="text-sm font-bold text-graphite-900 dark:text-graphite-50">
             Antecedentes Médicos & Quirúrgicos
           </h3>
+        </div>
+
+        <div className="mb-4 text-xs">
+          <label className="block font-semibold mb-1 text-rose-600 dark:text-rose-400">
+            Alergias Conocidas (Alerta Médica Severa)
+          </label>
+          <Input
+            data-testid="input-alergias-paciente"
+            type="text"
+            value={Array.isArray(formData.alergias) ? formData.alergias.join(', ') : (formData.alergias || '')}
+            onChange={(e) => handleChange('alergias', e.target.value)}
+            placeholder="Ej: Penicilina, Látex, AINEs, Ninguna..."
+          />
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs mb-4">

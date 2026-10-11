@@ -1,12 +1,16 @@
 import React, { useMemo } from 'react'
 import { Users, UserCheck, Sparkles, AlertTriangle } from 'lucide-react'
 import type { Paciente } from '../../schemas/pacienteSchema'
+import { usePacientesStore } from '../../../../../app/stores/pacientesStore'
 
 interface PacientesKPIsProps {
   pacientes: Paciente[]
 }
 
 export const PacientesKPIs: React.FC<PacientesKPIsProps> = ({ pacientes }) => {
+  const setFiltros = usePacientesStore((s) => s.setFiltros)
+  const filtros = usePacientesStore((s) => s.filtros)
+
   const kpis = useMemo(() => {
     const total = pacientes.length
     const activos = pacientes.filter(p => p.estado === 'activo' || !p.estado).length
@@ -30,6 +34,8 @@ export const PacientesKPIs: React.FC<PacientesKPIsProps> = ({ pacientes }) => {
         valor: total,
         icono: Users,
         color: 'text-primary bg-primary/10 border-primary/20',
+        activo: filtros.estado.length === 0,
+        onClick: () => setFiltros({ estado: [] }),
       },
       {
         id: 'activos',
@@ -37,6 +43,8 @@ export const PacientesKPIs: React.FC<PacientesKPIsProps> = ({ pacientes }) => {
         valor: activos,
         icono: UserCheck,
         color: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20',
+        activo: filtros.estado.includes('activo'),
+        onClick: () => setFiltros({ estado: ['activo'] }),
       },
       {
         id: 'nuevos',
@@ -44,6 +52,8 @@ export const PacientesKPIs: React.FC<PacientesKPIsProps> = ({ pacientes }) => {
         valor: nuevos,
         icono: Sparkles,
         color: 'text-amber-500 bg-amber-500/10 border-amber-500/20',
+        activo: filtros.estado.includes('nuevo'),
+        onClick: () => setFiltros({ estado: ['nuevo'] }),
       },
       {
         id: 'alertas',
@@ -51,9 +61,11 @@ export const PacientesKPIs: React.FC<PacientesKPIsProps> = ({ pacientes }) => {
         valor: conAlertas,
         icono: AlertTriangle,
         color: 'text-rose-500 bg-rose-500/10 border-rose-500/20',
+        activo: false,
+        onClick: () => setFiltros({ estado: [] }),
       },
     ]
-  }, [pacientes])
+  }, [pacientes, filtros.estado, setFiltros])
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6" data-testid="pacientes-kpis">
@@ -62,7 +74,13 @@ export const PacientesKPIs: React.FC<PacientesKPIsProps> = ({ pacientes }) => {
         return (
           <div
             key={kpi.id}
-            className="flex items-center gap-3 p-3.5 bg-surface/80 backdrop-blur-sm border border-surface rounded-xl shadow-xs"
+            onClick={kpi.onClick}
+            role="button"
+            tabIndex={0}
+            data-testid={`kpi-card-${kpi.id}`}
+            className={`flex items-center gap-3 p-3.5 bg-surface/80 backdrop-blur-sm border rounded-xl shadow-xs cursor-pointer transition-all hover:scale-[1.01] ${
+              kpi.activo ? 'border-primary ring-1 ring-primary/40' : 'border-surface hover:border-primary/40'
+            }`}
           >
             <div className={`p-2 rounded-lg border ${kpi.color}`}>
               <Icon className="w-5 h-5" />
