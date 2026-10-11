@@ -97,20 +97,36 @@ export const usePresupuestosStore = create<PresupuestosState>()(
       },
 
       generarDesdePlanTratamiento: (pacienteId, pacienteNombre, items) => {
-        const total = (items as Array<{ costo?: number; valor?: number }>).reduce(
-          (sum, it) => sum + (it.costo || it.valor || 0),
-          0
-        )
-        return get().crearPresupuesto({
+        const itemsNormalizados = (items as Array<Record<string, any>>).map((it, idx) => {
+          const cantidad = Number(it.cantidad) || 1
+          const precioUnitario = Number(it.precioUnitario || it.costo || it.valor || 0)
+          const descuento = Number(it.descuento || 0)
+          const subtotal = Number(it.subtotal) || Math.max(0, cantidad * precioUnitario - descuento)
+          return {
+            id: it.id || `it-plan-${idx}-${Date.now()}`,
+            codigoPrestacion: it.codigoPrestacion || `PREST-${it.pieza || 'GEN'}`,
+            nombrePrestacion: it.nombrePrestacion || it.descripcion || 'Procedimiento Clínico',
+            cantidad,
+            precioUnitario,
+            descuento,
+            subtotal,
+            faseClinica: (it.faseClinica || 'estabilizacion').toLowerCase(),
+          }
+        })
+
+        const total = itemsNormalizados.reduce((sum, it) => sum + (it.subtotal || 0), 0)
+        const nuevo = get().crearPresupuesto({
           pacienteId,
           pacienteNombre,
-          items: items as Presupuesto['items'],
+          items: itemsNormalizados as Presupuesto['items'],
           totalBruto: total,
           totalAPagar: total,
           total,
           montoTotal: total,
           estado: 'borrador',
         })
+        set({ presupuestoActivo: nuevo })
+        return nuevo
       },
     }),
     {

@@ -7,9 +7,17 @@ export interface EventoTimeline {
   detalles?: string
 }
 
+const eventosExtra: Record<string, EventoTimeline[]> = {}
+
 export const timelineService = {
+  agregarEvento: (pacienteId: string | number, evento: EventoTimeline) => {
+    const key = String(pacienteId)
+    eventosExtra[key] = [evento, ...(eventosExtra[key] || [])]
+  },
   obtenerTimeline: (pacienteId: string | number): EventoTimeline[] => {
+    const extra = eventosExtra[String(pacienteId)] || []
     return [
+      ...extra,
       {
         id: `tl-1-${pacienteId}`,
         fecha: new Date(Date.now() - 2 * 24 * 3600 * 1000).toISOString(),

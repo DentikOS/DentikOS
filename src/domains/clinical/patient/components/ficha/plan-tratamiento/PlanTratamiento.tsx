@@ -6,6 +6,8 @@ import { useOdontogramaStore } from '../../../../../../app/stores/odontogramaSto
 import { usePresupuestosStore } from '../../../../../../app/stores/usePresupuestosStore'
 import { usePacientesStore } from '../../../../../../app/stores/usePacientesStore'
 import { ModalNuevoPresupuesto } from '../../../../../billing/budget/components/modal/ModalNuevoPresupuesto'
+import { timelineService } from '../../../services/timelineService'
+import { presupuestosStorageService } from '../../../../../billing/budget/services/presupuestosStorageService'
 import {
   generarFasesDesdeOdontograma,
   type FasePlan,
@@ -58,6 +60,8 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
         nombrePrestacion: p.descripcion,
         cantidad: 1,
         precioUnitario: p.costo,
+        subtotal: p.costo,
+        descuento: 0,
         faseClinica: f.id.replace('fase-', ''),
       }))
     )
@@ -170,7 +174,23 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
 
       {modalPresupuestoAbierto && (
         <ModalNuevoPresupuesto
+          pacienteId={usePacientesStore.getState().pacienteActivo?.id || 'pac-1'}
           pacienteNombre={nombrePaciente}
+          pacienteRut={usePacientesStore.getState().pacienteActivo?.rut || '12.345.678-9'}
+          onGuardar={async (presupuesto) => {
+            usePresupuestosStore.getState().actualizarPresupuesto(presupuesto.id, presupuesto)
+            await presupuestosStorageService.guardarPresupuesto(presupuesto as any)
+            const pid = usePacientesStore.getState().pacienteActivo?.id || 'pac-1'
+            timelineService.agregarEvento(pid, {
+              id: `tl-pres-${Date.now()}`,
+              fecha: new Date().toISOString(),
+              tipo: 'presupuesto',
+              titulo: `Presupuesto ${presupuesto.folio || 'generado'} en estado BORRADOR`,
+              detalles: `Total: $${(presupuesto.totalAPagar || 0).toLocaleString('es-CL')} · ${(presupuesto.items || []).length} prestaciones`,
+            })
+            onGenerarPresupuesto?.(fases)
+            setModalPresupuestoAbierto(false)
+          }}
           onCerrar={() => setModalPresupuestoAbierto(false)}
         />
       )}
