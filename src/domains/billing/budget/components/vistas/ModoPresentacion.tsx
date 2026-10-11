@@ -14,13 +14,31 @@ export const ModoPresentacion: React.FC<ModoPresentacionProps> = ({
   onAprobar,
   onSalir,
 }) => {
-  // Salida con ESC
+  // Fullscreen API & Salida con ESC
   useEffect(() => {
+    try {
+      if (document.documentElement.requestFullscreen && !document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {})
+      }
+    } catch {
+      // Fullscreen not supported or blocked in iframe
+    }
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onSalir()
     }
     window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      try {
+        if (document.exitFullscreen && document.fullscreenElement) {
+          document.exitFullscreen().catch(() => {})
+        }
+      } catch {
+        // Ignorar
+      }
+    }
   }, [onSalir])
 
   const total = presupuesto.totalAPagar || presupuesto.total || presupuesto.montoTotal || 0

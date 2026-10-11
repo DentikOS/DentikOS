@@ -10,7 +10,24 @@ export const PacientesAccionesMasivas: React.FC = () => {
   if (seleccion.length === 0) return null
 
   const handleExportarSeleccion = () => {
-    window.alert(`Exportando ${seleccion.length} pacientes seleccionados.`)
+    const todos = usePacientesStore.getState().pacientes
+    const seleccionados = todos.filter((p) => seleccion.includes(String(p.id)))
+    const lineas = [
+      'Nombre,RUT,Telefono,Email,Estado',
+      ...seleccionados.map(
+        (p) =>
+          `"${p.nombre || p.nombreCompleto || ''}","${p.rut}","${p.telefono || ''}","${p.email || ''}","${p.estado || 'activo'}"`
+      ),
+    ]
+    const blob = new Blob([lineas.join('\n')], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `pacientes_export_${Date.now()}.csv`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
   }
 
   return (

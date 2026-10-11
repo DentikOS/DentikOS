@@ -1,5 +1,5 @@
-import React, { memo } from 'react'
-import { FileText, Trash2, AlertCircle } from 'lucide-react'
+import React, { memo, useState } from 'react'
+import { FileText, Trash2, AlertCircle, MoreVertical, Printer } from 'lucide-react'
 import { Button } from '../../../../../shared/ui/ui/Button'
 import { Badge } from '../../../../../shared/ui/ui/Badge'
 import { usePacientesStore } from '../../../../../app/stores/pacientesStore'
@@ -16,6 +16,7 @@ export const VistaTabla: React.FC<VistaTablaProps> = memo(({
   alSeleccionarPaciente,
   alEliminarPaciente,
 }) => {
+  const [menuAbiertoId, setMenuAbiertoId] = useState<string | null>(null)
   const seleccion = usePacientesStore((s) => s.seleccion)
   const toggleSeleccion = usePacientesStore((s) => s.toggleSeleccion)
   const seleccionarTodos = usePacientesStore((s) => s.seleccionarTodos)
@@ -140,7 +141,7 @@ export const VistaTabla: React.FC<VistaTablaProps> = memo(({
                     : '—'}
                 </td>
                 <td className="p-3 text-right">
-                  <div className="flex items-center justify-end gap-1">
+                  <div className="flex items-center justify-end gap-1 relative">
                     <Button
                       data-testid={`btn-ficha-${p.id}`}
                       onClick={() => alSeleccionarPaciente(p)}
@@ -149,15 +150,41 @@ export const VistaTabla: React.FC<VistaTablaProps> = memo(({
                       icon={FileText}
                       title="Ver ficha"
                     />
-                    <Button
-                      data-testid={`btn-eliminar-${p.id}`}
-                      onClick={() => alEliminarPaciente(p.id)}
-                      size="sm"
-                      variant="ghost"
-                      icon={Trash2}
-                      className="text-clinical-error hover:bg-clinical-error/10"
-                      aria-label="Eliminar paciente"
-                    />
+                    <div className="relative">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        icon={MoreVertical}
+                        onClick={() => setMenuAbiertoId(menuAbiertoId === idStr ? null : idStr)}
+                        data-testid={`btn-menu-contextual-${p.id}`}
+                        aria-label="Más opciones"
+                      />
+                      {menuAbiertoId === idStr && (
+                        <div
+                          className="absolute right-0 top-full mt-1 z-30 w-48 bg-surface border border-surface rounded-xl shadow-xl py-1 text-left text-xs"
+                          data-testid={`menu-dropdown-${p.id}`}
+                        >
+                          <button
+                            onClick={() => { setMenuAbiertoId(null); alSeleccionarPaciente(p) }}
+                            className="w-full px-3 py-1.5 hover:bg-surface-hover flex items-center gap-2 text-graphite-700 dark:text-graphite-200"
+                          >
+                            <FileText className="w-3.5 h-3.5" /> Ver datos completos
+                          </button>
+                          <button
+                            onClick={() => { setMenuAbiertoId(null); window.print() }}
+                            className="w-full px-3 py-1.5 hover:bg-surface-hover flex items-center gap-2 text-graphite-700 dark:text-graphite-200"
+                          >
+                            <Printer className="w-3.5 h-3.5" /> Imprimir resumen
+                          </button>
+                          <button
+                            onClick={() => { setMenuAbiertoId(null); alEliminarPaciente(p.id) }}
+                            className="w-full px-3 py-1.5 hover:bg-rose-500/10 text-rose-600 flex items-center gap-2"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" /> Eliminar paciente
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </td>
               </tr>

@@ -13,8 +13,15 @@ export const ModoQuirurgico: React.FC<ModoQuirurgicoProps> = ({ paciente, onSali
 
   useEffect(() => {
     const timer = setInterval(() => setSegundos((s) => s + 1), 1000)
-    return () => clearInterval(timer)
-  }, [])
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onSalir()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      clearInterval(timer)
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [onSalir])
 
   const minutos = Math.floor(segundos / 60)
   const segRestantes = segundos % 60
