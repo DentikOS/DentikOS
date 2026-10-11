@@ -1,226 +1,183 @@
-import React, { useState } from 'react'
-import { Activity, AlertCircle, Save, Info } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { Activity, Save, Check, FileText } from 'lucide-react'
 import { Button } from '../../../../../../shared/ui/ui/Button'
+import { fichasClinicasStorageService } from '../../../services/fichasClinicasStorageService'
 
-interface PuntoSondaje {
-  mv: number
-  v: number
-  dv: number
-  ml: number
-  l: number
-  dl: number
+export interface CodigoEPBDef {
+  codigo: '0' | '1' | '2' | '3' | '4' | '*'
+  titulo: string
+  criterio: string
+  color: string
 }
 
-interface PuntoSangrado {
-  mv: boolean
-  v: boolean
-  dv: boolean
-  ml: boolean
-  l: boolean
-  dl: boolean
+export const CODIGOS_EPB: CodigoEPBDef[] = [
+  { codigo: '0', titulo: 'Sano', criterio: 'Profundidad <3.5mm, sin cálculo ni sangrado', color: 'bg-emerald-500 text-white' },
+  { codigo: '1', titulo: 'Sangrado', criterio: 'Profundidad <3.5mm, sin cálculo, CON sangrado', color: 'bg-yellow-500 text-slate-900' },
+  { codigo: '2', titulo: 'Cálculo', criterio: 'Profundidad <3.5mm, CON cálculo / márgenes', color: 'bg-amber-500 text-white' },
+  { codigo: '3', titulo: 'Bolsa Leve/Mod', criterio: 'Profundidad 3.5mm - 5.5mm', color: 'bg-orange-500 text-white' },
+  { codigo: '4', titulo: 'Bolsa Severa', criterio: 'Profundidad >5.5mm', color: 'bg-rose-600 text-white' },
+  { codigo: '*', titulo: 'Furcación', criterio: 'Compromiso furcación Grado 2-3 / Movilidad', color: 'bg-purple-600 text-white' },
+]
+
+export const SEXTANTES_CONFIG = [
+  { id: 'S1', nombre: 'Sextante 1: Sup. Derecho', piezas: '18 - 14' },
+  { id: 'S2', nombre: 'Sextante 2: Sup. Anterior', piezas: '13 - 23' },
+  { id: 'S3', nombre: 'Sextante 3: Sup. Izquierdo', piezas: '24 - 28' },
+  { id: 'S4', nombre: 'Sextante 4: Inf. Izquierdo', piezas: '38 - 34' },
+  { id: 'S5', nombre: 'Sextante 5: Inf. Anterior', piezas: '33 - 43' },
+  { id: 'S6', nombre: 'Sextante 6: Inf. Derecho', piezas: '44 - 48' },
+]
+
+interface PeriodontogramaProps {
+  pacienteId?: string
+  onGuardar?: (datos: { sextantes: Record<string, string>; observaciones: string }) => void
 }
 
-interface DatosPeriodontogramaPieza {
-  sondaje: PuntoSondaje
-  sangrado: PuntoSangrado
-  movilidad: 'ninguna' | 'grado1' | 'grado2' | 'grado3'
-  recesion: number
-}
-
-const PIEZAS_SEXTANTES = ['1.6', '1.1', '2.6', '3.6', '3.1', '4.6']
-
-export const Periodontograma: React.FC = () => {
-  const [datos, setDatos] = useState<Record<string, DatosPeriodontogramaPieza>>({
-    '1.6': {
-      sondaje: { mv: 2, v: 2, dv: 3, ml: 2, l: 3, dl: 2 },
-      sangrado: { mv: false, v: false, dv: true, ml: false, l: false, dl: false },
-      movilidad: 'ninguna',
-      recesion: 0,
-    },
-    '1.1': {
-      sondaje: { mv: 1, v: 2, dv: 2, ml: 2, l: 2, dl: 1 },
-      sangrado: { mv: false, v: false, dv: false, ml: false, l: false, dl: false },
-      movilidad: 'ninguna',
-      recesion: 0,
-    },
-    '2.6': {
-      sondaje: { mv: 4, v: 3, dv: 5, ml: 3, l: 4, dl: 4 },
-      sangrado: { mv: true, v: false, dv: true, ml: false, l: true, dl: false },
-      movilidad: 'grado1',
-      recesion: 1,
-    },
+export const Periodontograma: React.FC<PeriodontogramaProps> = ({ pacienteId, onGuardar }) => {
+  const [sextantes, setSextantes] = useState<Record<string, string>>({
+    S1: '0', S2: '0', S3: '0', S4: '0', S5: '0', S6: '0',
   })
+  const [observaciones, setObservaciones] = useState<string>('')
+  const [guardado, setGuardado] = useState(false)
 
-  const [piezaActiva, setPiezaActiva] = useState<string>('2.6')
+  useEffect(() => {
+    if (!pacienteId) return
+    fichasClinicasStorageService.obtenerFichaClinica(pacienteId).then((ficha) => {
+      if (ficha?.periodontograma && typeof ficha.periodontograma === 'object') {
+        const p = ficha.periodontograma as { sextantes?: Record<string, string>; observaciones?: string }
+        if (p.sextantes) setSextantes(p.sextantes)
+        if (p.observaciones) setObservaciones(p.observaciones)
+      }
+    })
+  }, [pacienteId])
 
-  const piezaActual = datos[piezaActiva] || {
-    sondaje: { mv: 2, v: 2, dv: 2, ml: 2, l: 2, dl: 2 },
-    sangrado: { mv: false, v: false, dv: false, ml: false, l: false, dl: false },
-    movilidad: 'ninguna',
-    recesion: 0,
+  const handleSeleccionarCodigo = (sextanteId: string, codigo: string) => {
+    setSextantes((prev) => ({ ...prev, [sextanteId]: codigo }))
   }
 
-  const handleUpdateSondaje = (punto: keyof PuntoSondaje, valor: number) => {
-    setDatos((prev) => ({
-      ...prev,
-      [piezaActiva]: {
-        ...piezaActual,
-        sondaje: { ...piezaActual.sondaje, [punto]: Math.max(0, Math.min(12, valor)) },
-      },
-    }))
-  }
-
-  const handleToggleSangrado = (punto: keyof PuntoSangrado) => {
-    setDatos((prev) => ({
-      ...prev,
-      [piezaActiva]: {
-        ...piezaActual,
-        sangrado: { ...piezaActual.sangrado, [punto]: !piezaActual.sangrado[punto] },
-      },
-    }))
-  }
-
-  const getHeatmapColor = (profundidad: number) => {
-    if (profundidad >= 5) return 'bg-rose-500 text-white font-bold'
-    if (profundidad >= 4) return 'bg-amber-400 text-graphite-900 font-semibold'
-    return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
+  const handleGuardar = async () => {
+    const payload = { sextantes, observaciones, fecha: new Date().toISOString() }
+    if (pacienteId) {
+      await fichasClinicasStorageService.guardarSeccionFicha(pacienteId, 'periodontograma', payload)
+    }
+    onGuardar?.(payload)
+    setGuardado(true)
+    setTimeout(() => setGuardado(false), 2000)
   }
 
   return (
-    <div className="space-y-4" data-testid="periodontograma-bp06">
-      {/* Header EPB */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 bg-surface/90 border border-surface rounded-2xl">
+    <div className="space-y-5" data-testid="periodontograma-bp06">
+      {/* Encabezado */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 bg-surface/90 border border-surface rounded-2xl shadow-xs">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-xl bg-primary/10 text-primary">
             <Activity className="w-5 h-5" />
           </div>
           <div>
             <h3 className="text-sm font-bold text-graphite-900 dark:text-graphite-50">
-              Examen Periodontal Básico (EPB / Periodontograma)
+              Examen Periodontal Básico (EPB por 6 Sextantes)
             </h3>
             <p className="text-xs text-graphite-500">
-              Sondaje en 6 sitios, sangrado BOP, recesión y movilidad dental.
+              Evaluación estandarizada por sextantes: Códigos 0 a 4 y * para furcaciones.
             </p>
           </div>
         </div>
 
-        <Button type="button" size="sm" variant="primary" icon={Save}>
-          Guardar EPB
+        <Button
+          type="button"
+          size="sm"
+          variant="primary"
+          icon={guardado ? Check : Save}
+          onClick={handleGuardar}
+          data-testid="btn-guardar-epb"
+        >
+          {guardado ? 'Guardado en Supabase' : 'Guardar EPB'}
         </Button>
       </div>
 
-      {/* Selector de piezas índice por sextante */}
-      <div className="p-4 bg-surface/80 border border-surface rounded-2xl">
-        <p className="text-xs font-semibold text-graphite-600 dark:text-graphite-400 mb-2">
-          Piezas de Referencia por Sextante:
-        </p>
-        <div className="flex items-center gap-2 flex-wrap">
-          {PIEZAS_SEXTANTES.map((num) => (
-            <button
-              key={num}
-              type="button"
-              onClick={() => setPiezaActiva(num)}
-              className={`px-3 py-1.5 rounded-xl font-mono text-xs font-bold transition-all ${
-                piezaActiva === num
-                  ? 'bg-primary text-white shadow-xs'
-                  : 'bg-surface border border-surface hover:bg-surface-hover text-graphite-700 dark:text-graphite-300'
-              }`}
+      {/* Grid de los 6 Sextantes */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" data-testid="grid-sextantes-epb">
+        {SEXTANTES_CONFIG.map((s) => {
+          const codigoActual = sextantes[s.id] || '0'
+          const codigoDef = CODIGOS_EPB.find((c) => c.codigo === codigoActual)
+
+          return (
+            <div
+              key={s.id}
+              className="p-4 bg-surface/90 border border-surface rounded-2xl space-y-3 shadow-xs"
+              data-testid={`card-sextante-${s.id}`}
             >
-              Pieza {num}
-            </button>
-          ))}
-        </div>
+              <div className="flex items-center justify-between pb-2 border-b border-surface">
+                <div>
+                  <h4 className="text-xs font-bold text-graphite-900 dark:text-graphite-50">{s.nombre}</h4>
+                  <p className="text-[11px] font-mono text-graphite-400">Piezas: {s.piezas}</p>
+                </div>
+                <span className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold ${codigoDef?.color}`}>
+                  Cód. {codigoActual}
+                </span>
+              </div>
+
+              {/* Botonera de Códigos 0, 1, 2, 3, 4, * */}
+              <div className="grid grid-cols-6 gap-1.5">
+                {CODIGOS_EPB.map((c) => {
+                  const isSeleccionado = codigoActual === c.codigo
+                  return (
+                    <button
+                      key={c.codigo}
+                      type="button"
+                      onClick={() => handleSeleccionarCodigo(s.id, c.codigo)}
+                      className={`h-9 rounded-xl font-mono text-xs font-bold transition-all border ${
+                        isSeleccionado
+                          ? `${c.color} border-transparent shadow-xs scale-105`
+                          : 'bg-surface border-surface text-graphite-600 hover:bg-surface-hover dark:text-graphite-300'
+                      }`}
+                      title={c.criterio}
+                      data-testid={`btn-codigo-${s.id}-${c.codigo}`}
+                    >
+                      {c.codigo}
+                    </button>
+                  )
+                })}
+              </div>
+
+              <p className="text-[11px] text-graphite-500 truncate" title={codigoDef?.criterio}>
+                {codigoDef?.titulo}: {codigoDef?.criterio}
+              </p>
+            </div>
+          )
+        })}
       </div>
 
-      {/* Panel de registro de la pieza activa */}
-      <div className="p-5 bg-surface/90 border border-surface rounded-2xl space-y-5">
-        <div className="flex items-center justify-between pb-3 border-b border-surface">
-          <span className="text-sm font-bold text-graphite-900 dark:text-graphite-50">
-            Registro Clínico — Pieza {piezaActiva}
-          </span>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-graphite-500">Movilidad:</span>
-            <select
-              value={piezaActual.movilidad}
-              onChange={(e) =>
-                setDatos((prev) => ({
-                  ...prev,
-                  [piezaActiva]: {
-                    ...piezaActual,
-                    movilidad: e.target.value as DatosPeriodontogramaPieza['movilidad'],
-                  },
-                }))
-              }
-              className="text-xs bg-surface border border-surface rounded-lg px-2 py-1"
-            >
-              <option value="ninguna">Grado 0 (Fisiológica)</option>
-              <option value="grado1">Grado 1 (Horizontal &lt;1mm)</option>
-              <option value="grado2">Grado 2 (Horizontal &gt;1mm)</option>
-              <option value="grado3">Grado 3 (Vertical)</option>
-            </select>
-          </div>
+      {/* Observaciones y Piezas Críticas */}
+      <div className="p-4 bg-surface/90 border border-surface rounded-2xl space-y-2 shadow-xs">
+        <div className="flex items-center gap-2">
+          <FileText className="w-4 h-4 text-primary" />
+          <h4 className="text-xs font-bold text-graphite-900 dark:text-graphite-50">
+            Cuadro de Observaciones & Piezas Críticas
+          </h4>
         </div>
+        <textarea
+          data-testid="textarea-epb-observaciones"
+          rows={3}
+          value={observaciones}
+          onChange={(e) => setObservaciones(e.target.value)}
+          placeholder="Anote aquí piezas con furcación crítica, recesiones severas, supuración o necesidad de periodontograma completo..."
+          className="w-full p-3 bg-surface border border-surface rounded-xl text-xs focus:ring-1 focus:ring-primary resize-none"
+        />
+      </div>
 
-        {/* 6 Sitios de Sondaje (MV, V, DV, ML, L, DL) */}
-        <div>
-          <p className="text-xs font-bold text-graphite-700 dark:text-graphite-300 mb-2">
-            Profundidad de Sondaje (mm) y Sangrado al Sondaje (BOP):
-          </p>
-          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-            {(['mv', 'v', 'dv', 'ml', 'l', 'dl'] as (keyof PuntoSondaje)[]).map((sitio) => {
-              const valor = piezaActual.sondaje[sitio]
-              const sangra = piezaActual.sangrado[sitio]
-
-              return (
-                <div
-                  key={sitio}
-                  className={`p-3 rounded-xl border border-surface text-center flex flex-col justify-between items-center ${getHeatmapColor(
-                    valor
-                  )}`}
-                >
-                  <span className="text-[10px] uppercase font-mono font-bold tracking-wider opacity-80">
-                    {sitio}
-                  </span>
-
-                  <div className="my-1">
-                    <input
-                      type="number"
-                      min={0}
-                      max={12}
-                      value={valor}
-                      onChange={(e) => handleUpdateSondaje(sitio, Number(e.target.value))}
-                      className="w-12 text-center text-sm font-bold bg-white/40 dark:bg-black/30 rounded-lg p-1 border-0"
-                    />
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => handleToggleSangrado(sitio)}
-                    className={`text-[10px] px-2 py-0.5 rounded-full font-bold transition-all ${
-                      sangra
-                        ? 'bg-rose-600 text-white shadow-xs'
-                        : 'bg-black/10 dark:bg-white/10 text-graphite-700 dark:text-graphite-200'
-                    }`}
-                  >
-                    {sangra ? 'BOP (+)' : 'BOP (-)'}
-                  </button>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* Leyenda de Mapa de Calor */}
-        <div className="flex items-center gap-4 text-xs text-graphite-500 pt-2 border-t border-surface flex-wrap">
-          <span className="flex items-center gap-1 font-medium">
-            <span className="w-3 h-3 rounded-full bg-emerald-500" /> &le; 3mm Normal
-          </span>
-          <span className="flex items-center gap-1 font-medium">
-            <span className="w-3 h-3 rounded-full bg-amber-400" /> 4mm Bolsa Leve
-          </span>
-          <span className="flex items-center gap-1 font-medium">
-            <span className="w-3 h-3 rounded-full bg-rose-500" /> &ge; 5mm Bolsa Severa
-          </span>
+      {/* Leyenda Clínica EPB */}
+      <div className="p-4 bg-surface/60 border border-surface rounded-2xl text-xs space-y-2">
+        <p className="font-bold text-graphite-700 dark:text-graphite-300">Criterios Oficiales EPB:</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 text-[11px] text-graphite-500">
+          {CODIGOS_EPB.map((c) => (
+            <div key={c.codigo} className="flex items-center gap-2">
+              <span className={`w-4 h-4 rounded text-center leading-4 font-mono font-bold text-[10px] ${c.color}`}>
+                {c.codigo}
+              </span>
+              <span>{c.criterio}</span>
+            </div>
+          ))}
         </div>
       </div>
     </div>

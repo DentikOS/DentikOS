@@ -204,7 +204,7 @@ export const FichaClinica: React.FC<FichaClinicaProps> = ({
           />
         )}
         {pestanaActual === 'odontograma' && <Odontograma pacienteId={String(pacienteFinal.id)} />}
-        {pestanaActual === 'periodontograma' && <Periodontograma />}
+        {pestanaActual === 'periodontograma' && <Periodontograma pacienteId={String(pacienteFinal.id)} />}
         {pestanaActual === 'evoluciones' && (
           <Evoluciones
             nombrePaciente={pacienteFinal.nombreCompleto || pacienteFinal.nombre}
