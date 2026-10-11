@@ -11,18 +11,28 @@ export interface PlantillaConsentimiento {
 
 export const PLANTILLAS_CONSENTIMIENTO: readonly PlantillaConsentimiento[] = [
   {
-    id: 'cirugia_exodoncia',
-    nombre: 'Consentimiento para Cirugía Bucal / Exodoncia',
-    texto: 'Declaro haber sido informado/a adecuadamente sobre la necesidad de realizar la exodoncia/cirugía bucal. Se me han explicado los riesgos potenciales (hemorragia, infección, alveolitis, parestesia temporal/definitiva) y acepto de manera voluntaria la realización del procedimiento.'
+    id: 'general',
+    nombre: 'Consentimiento General de Tratamiento',
+    texto: 'Autorizo la realización del examen clínico y plan de tratamiento odontológico de acuerdo con la Ley 20.584 de Derechos y Deberes del Paciente.'
   },
   {
-    id: 'endodoncia',
-    nombre: 'Consentimiento para Tratamiento de Conducto (Endodoncia)',
-    texto: 'Declaro comprender la naturaleza del tratamiento endodóntico para conservar la pieza dental. Comprendo que puede requerirse más de una sesión y que existen riesgos de fractura de instrumento, sobreobturación o dolor post-tratamiento temporal.'
+    id: 'anestesia',
+    nombre: 'Consentimiento de Anestesia Local',
+    texto: 'Autorizo la administración de anestésicos locales habiendo sido informado sobre su necesidad y eventuales riesgos secundarios menores transitorios.'
   },
   {
-    id: 'implante',
-    nombre: 'Consentimiento para Implantología Oral',
-    texto: 'Autorizo la colocación de implante(s) osteointegrados. Acepto cumplir estrictamente las normas de higiene y controles peri-implantarios, comprendiendo que el consumo de tabaco o mala higiene reducen la tasa de éxito.'
+    id: 'exodoncia',
+    nombre: 'Consentimiento de Exodoncia Simple',
+    texto: 'Autorizo la extracción de la pieza dentaria indicada y declaro haber recibido instrucciones de cuidados postoperatorios y riesgos de complicaciones.'
+  },
+  {
+    id: 'radiografias',
+    nombre: 'Consentimiento de Radiografías',
+    texto: 'Autorizo la toma de exámenes radiográficos intraorales y extraorales bajo principios de radioprotección ALARA para fines diagnósticos.'
+  },
+  {
+    id: 'menor',
+    nombre: 'Consentimiento de Tratamiento en Menor',
+    texto: 'Como padre, madre o tutor legal responsable, autorizo la atención odontológica y procedimientos clínicos en el paciente menor de 18 años.'
   }
 ]

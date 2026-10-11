@@ -1,25 +1,21 @@
-import React, { useState } from 'react'
-import { FileCheck, Shield, PenTool, Image, Type, Upload, CheckCircle2 } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { FileCheck, Shield, PenTool, Type, MessageSquare, CheckCircle2, UserCheck, Smartphone } from 'lucide-react'
 import { Button } from '../../../../../../shared/ui/ui/Button'
+import { PLANTILLAS_CONSENTIMIENTO } from '../../../constants/plantillasConsentimiento'
+import { fichasClinicasStorageService } from '../../../services/fichasClinicasStorageService'
 import type { Paciente } from '../../../schemas/pacienteSchema'
 
-const CONSENTIMIENTOS_CORE = [
-  { id: 'cirugia', titulo: 'Cirugía Bucal y Exodoncia' },
-  { id: 'endo', titulo: 'Endodoncia & Terapia Pulpar' },
-  { id: 'implantes', titulo: 'Implantología Oral Oseointegrada' },
-  { id: 'orto', titulo: 'Ortodoncia & Alineadores Invisibles' },
-  { id: 'general', titulo: 'Odontología General & Rehabilitación Oral' },
-]
+export type ModoFirmaConsentimiento = 'canvas' | 'tipografica' | 'otp' | 'presencial'
 
-type ModoFirma = 'canvas' | 'imagen' | 'tipografica' | 'escaneada'
-
-interface ConsentimientoFirmado {
+export interface ConsentimientoFirmado {
   id: string
+  plantillaId: string
   tipo: string
+  textoLegal: string
   fecha: string
   firmante: string
   esTutor: boolean
-  modoFirma: ModoFirma
+  modoFirma: ModoFirmaConsentimiento
   hashForense: string
 }
 
@@ -28,209 +24,212 @@ interface ConsentimientosProps {
 }
 
 export const Consentimientos: React.FC<ConsentimientosProps> = ({ paciente }) => {
-  const [consentimientoSeleccionado, setConsentimientoSeleccionado] = useState(
-    CONSENTIMIENTOS_CORE[0].id
-  )
-  const [modoFirma, setModoFirma] = useState<ModoFirma>('tipografica')
+  const [plantillaSeleccionada, setPlantillaSeleccionada] = useState(PLANTILLAS_CONSENTIMIENTO[0].id)
+  const [modoFirma, setModoFirma] = useState<ModoFirmaConsentimiento>('tipografica')
   const [firmaTipografica, setFirmaTipografica] = useState('')
+  const [otpCodigo, setOtpCodigo] = useState('')
+  const [nombreTutor, setNombreTutor] = useState(paciente.tutorLegal?.nombre || '')
   const [firmados, setFirmados] = useState<ConsentimientoFirmado[]>([])
 
-  // Determinar si aplica tutor legal (menor de 18 o con tutor)
-  const esMenorDeEdad = Boolean(
-    paciente.tutorLegal?.nombre || (paciente.edad && Number(paciente.edad) < 18)
-  )
-  const nombreFirmante = esMenorDeEdad
-    ? paciente.tutorLegal?.nombre || 'Tutor Legal'
-    : paciente.nombreCompleto || paciente.nombre
+  const esMenor = Boolean((paciente.edad && Number(paciente.edad) < 18) || paciente.tutorLegal?.nombre)
+  const firmanteEfectivo = esMenor ? nombreTutor.trim() : (paciente.nombreCompleto || paciente.nombre)
 
-  const handleFirmar = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (!paciente.id) return
+    fichasClinicasStorageService.obtenerFichaClinica(String(paciente.id)).then((ficha) => {
+      if (ficha?.consentimientos && Array.isArray(ficha.consentimientos)) {
+        setFirmados(ficha.consentimientos as ConsentimientoFirmado[])
+      }
+    })
+  }, [paciente.id])
+
+  const plantillaActual = PLANTILLAS_CONSENTIMIENTO.find((p) => p.id === plantillaSeleccionada) || PLANTILLAS_CONSENTIMIENTO[0]
+
+  const handleFirmar = async (e: React.FormEvent) => {
     e.preventDefault()
-
+    if (esMenor && !nombreTutor.trim()) {
+      window.alert('Tutor legal obligatorio para pacientes menores de 18 años.')
+      return
+    }
     const randomHash = Array.from(crypto.getRandomValues(new Uint8Array(16)))
-      .map((b) => b.toString(16).padStart(2, '0'))
-      .join('')
-
-    const tipoObj = CONSENTIMIENTOS_CORE.find((c) => c.id === consentimientoSeleccionado)
+      .map((b) => b.toString(16).padStart(2, '0')).join('')
 
     const nuevo: ConsentimientoFirmado = {
       id: crypto.randomUUID(),
-      tipo: tipoObj?.titulo || 'Consentimiento Informado',
+      plantillaId: plantillaActual.id,
+      tipo: plantillaActual.nombre,
+      textoLegal: plantillaActual.texto,
       fecha: new Date().toISOString(),
-      firmante: nombreFirmante,
-      esTutor: esMenorDeEdad,
+      firmante: firmanteEfectivo || 'Firmante Registrado',
+      esTutor: esMenor,
       modoFirma,
       hashForense: `SHA256:CONS-${randomHash.toUpperCase()}`,
     }
 
-    setFirmados([nuevo, ...firmados])
+    const nuevosDocs = [nuevo, ...firmados]
+    setFirmados(nuevosDocs)
     setFirmaTipografica('')
+    setOtpCodigo('')
+
+    if (paciente.id) {
+      await fichasClinicasStorageService.guardarSeccionFicha(String(paciente.id), 'consentimientos', nuevosDocs)
+    }
   }
 
   return (
     <div className="space-y-6" data-testid="consentimientos-bp06">
-      {/* Selector de los 5 Consentimientos CORE */}
       <div className="p-4 bg-surface/90 border border-surface rounded-2xl">
         <div className="flex items-center gap-2 mb-3">
           <Shield className="w-5 h-5 text-primary" />
-          <h3 className="text-sm font-bold text-graphite-900 dark:text-graphite-50">
-            5 Consentimientos Informados CORE
-          </h3>
+          <h3 className="text-sm font-bold text-graphite-900 dark:text-graphite-50">5 Plantillas Legales CORE (Ley 20.584)</h3>
         </div>
-
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-          {CONSENTIMIENTOS_CORE.map((c) => (
+          {PLANTILLAS_CONSENTIMIENTO.map((p) => (
             <button
-              key={c.id}
+              key={p.id}
               type="button"
-              onClick={() => setConsentimientoSeleccionado(c.id)}
-              className={`p-3 rounded-xl text-left text-xs font-semibold transition-all border ${
-                consentimientoSeleccionado === c.id
-                  ? 'bg-primary/10 border-primary text-primary shadow-xs'
-                  : 'bg-surface border-surface hover:bg-surface-hover text-graphite-700 dark:text-graphite-300'
+              onClick={() => setPlantillaSeleccionada(p.id)}
+              className={`p-3 rounded-xl text-left text-xs font-semibold border transition-all ${
+                plantillaSeleccionada === p.id ? 'bg-primary/10 border-primary text-primary' : 'bg-surface border-surface text-graphite-700 dark:text-graphite-300'
               }`}
             >
-              {c.titulo}
+              {p.nombre}
             </button>
           ))}
         </div>
+        <div className="mt-3 p-3 bg-surface rounded-xl border border-surface text-xs text-graphite-600 dark:text-graphite-300 italic">
+          &ldquo;{plantillaActual.texto}&rdquo;
+        </div>
       </div>
 
-      {/* Editor y 4 Modos de Firma */}
-      <form
-        onSubmit={handleFirmar}
-        className="p-5 bg-surface/90 border border-surface rounded-2xl space-y-4 shadow-xs"
-      >
-        <div className="flex items-center justify-between pb-2 border-b border-surface">
+      <form onSubmit={handleFirmar} className="p-5 bg-surface/90 border border-surface rounded-2xl space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-surface">
           <div>
-            <h4 className="text-xs font-bold text-graphite-900 dark:text-graphite-50">
-              Protocolo de Firma Digital del Paciente
-            </h4>
+            <h4 className="text-xs font-bold text-graphite-900 dark:text-graphite-50">Protocolo de Firma Digital Certificada</h4>
             <p className="text-[11px] text-graphite-500">
-              Firmante legal:{' '}
+              Firmante:{' '}
               <span className="font-semibold text-graphite-800 dark:text-graphite-200">
-                {nombreFirmante} {esMenorDeEdad && '(Tutor Legal Responsable)'}
+                {firmanteEfectivo} {esMenor && '(Tutor Legal Responsable)'}
               </span>
             </p>
           </div>
 
-          {/* Selector de los 4 Modos de Firma */}
-          <div className="flex items-center p-1 bg-surface-hover rounded-xl text-xs">
+          <div className="flex items-center p-1 bg-surface-hover rounded-xl text-xs gap-1">
             <button
               type="button"
               onClick={() => setModoFirma('tipografica')}
-              className={`p-1.5 rounded-lg flex items-center gap-1 ${
-                modoFirma === 'tipografica' ? 'bg-primary text-white' : 'text-graphite-500'
-              }`}
+              className={`p-1.5 rounded-lg flex items-center gap-1 ${modoFirma === 'tipografica' ? 'bg-primary text-white' : 'text-graphite-500'}`}
               title="Firma Tipográfica"
             >
-              <Type className="w-3.5 h-3.5" />
+              <Type className="w-3.5 h-3.5" /> <span className="hidden sm:inline text-[11px]">Tipográfica</span>
             </button>
             <button
               type="button"
               onClick={() => setModoFirma('canvas')}
-              className={`p-1.5 rounded-lg flex items-center gap-1 ${
-                modoFirma === 'canvas' ? 'bg-primary text-white' : 'text-graphite-500'
-              }`}
-              title="Trazo / Canvas"
+              className={`p-1.5 rounded-lg flex items-center gap-1 ${modoFirma === 'canvas' ? 'bg-primary text-white' : 'text-graphite-500'}`}
+              title="Trazado Táctil"
             >
-              <PenTool className="w-3.5 h-3.5" />
+              <PenTool className="w-3.5 h-3.5" /> <span className="hidden sm:inline text-[11px]">Trazado</span>
             </button>
             <button
               type="button"
-              onClick={() => setModoFirma('imagen')}
-              className={`p-1.5 rounded-lg flex items-center gap-1 ${
-                modoFirma === 'imagen' ? 'bg-primary text-white' : 'text-graphite-500'
-              }`}
-              title="Imagen de Firma"
+              onClick={() => setModoFirma('otp')}
+              className={`p-1.5 rounded-lg flex items-center gap-1 ${modoFirma === 'otp' ? 'bg-primary text-white' : 'text-graphite-500'}`}
+              title="Código SMS/WhatsApp"
             >
-              <Image className="w-3.5 h-3.5" />
+              <Smartphone className="w-3.5 h-3.5" /> <span className="hidden sm:inline text-[11px]">OTP</span>
             </button>
             <button
               type="button"
-              onClick={() => setModoFirma('escaneada')}
-              className={`p-1.5 rounded-lg flex items-center gap-1 ${
-                modoFirma === 'escaneada' ? 'bg-primary text-white' : 'text-graphite-500'
-              }`}
-              title="Documento Escaneado"
+              onClick={() => setModoFirma('presencial')}
+              className={`p-1.5 rounded-lg flex items-center gap-1 ${modoFirma === 'presencial' ? 'bg-primary text-white' : 'text-graphite-500'}`}
+              title="Presencial en Tablet"
             >
-              <Upload className="w-3.5 h-3.5" />
+              <UserCheck className="w-3.5 h-3.5" /> <span className="hidden sm:inline text-[11px]">Presencial</span>
             </button>
           </div>
         </div>
 
-        {/* Área del modo de firma activo */}
+        {esMenor && (
+          <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+            <label className="block text-xs font-semibold text-amber-900 dark:text-amber-200 mb-1">
+              Nombre de Tutor Legal (Requerido para menores de 18 años):
+            </label>
+            <input
+              type="text"
+              required
+              placeholder="Ej: Padre/Madre/Tutor legal autorizado"
+              value={nombreTutor}
+              onChange={(e) => setNombreTutor(e.target.value)}
+              className="w-full p-2 bg-surface border border-surface rounded-lg text-xs"
+              data-testid="input-tutor-legal"
+            />
+          </div>
+        )}
+
         <div className="p-4 rounded-xl border border-dashed border-graphite-300 dark:border-graphite-700 bg-surface/50 text-center">
           {modoFirma === 'tipografica' && (
             <div className="space-y-2 max-w-md mx-auto">
               <input
                 type="text"
-                placeholder={`Escribe el nombre para firma tipográfica: ${nombreFirmante}`}
+                placeholder={`Escriba su nombre completo: ${firmanteEfectivo}`}
                 value={firmaTipografica}
                 onChange={(e) => setFirmaTipografica(e.target.value)}
-                className="w-full p-2 bg-surface border border-surface rounded-lg text-xs text-center font-serif text-base"
+                className="w-full p-2 bg-surface border border-surface rounded-lg text-center text-sm font-serif"
+                data-testid="input-firma-tipografica"
               />
-              <p className="text-[10px] text-graphite-400">
-                Se generará firma certificada legal con esteganografía forense
-              </p>
+              <p className="text-[10px] text-graphite-400">Certificación legal con hash criptográfico SHA-256</p>
             </div>
           )}
 
           {modoFirma === 'canvas' && (
-            <div className="py-6 text-xs text-graphite-400 flex flex-col items-center gap-2">
+            <div className="py-4 text-xs text-graphite-500 flex flex-col items-center gap-2">
               <PenTool className="w-6 h-6 text-primary" />
-              <span>Dibuja tu firma sobre la pantalla o touchpad (Trazo Quirúrgico)</span>
+              <span>Dibuja tu firma sobre la pantalla o touchpad (Trazado táctil activo)</span>
             </div>
           )}
 
-          {modoFirma === 'imagen' && (
-            <div className="py-6 text-xs text-graphite-400 flex flex-col items-center gap-2">
-              <Image className="w-6 h-6 text-primary" />
-              <span>Arrastra o sube una imagen PNG/JPG con la firma manuscrita</span>
+          {modoFirma === 'otp' && (
+            <div className="space-y-2 max-w-xs mx-auto">
+              <input
+                type="text"
+                placeholder="Código OTP (6 dígitos) recibido por WhatsApp/SMS"
+                value={otpCodigo}
+                onChange={(e) => setOtpCodigo(e.target.value)}
+                className="w-full p-2 bg-surface border border-surface rounded-lg text-center font-mono text-sm tracking-widest"
+              />
+              <p className="text-[10px] text-graphite-400">Código de un solo uso enviado al móvil del paciente</p>
             </div>
           )}
 
-          {modoFirma === 'escaneada' && (
-            <div className="py-6 text-xs text-graphite-400 flex flex-col items-center gap-2">
-              <Upload className="w-6 h-6 text-primary" />
-              <span>Sube el documento PDF físico firmado y escaneado</span>
+          {modoFirma === 'presencial' && (
+            <div className="py-4 text-xs text-graphite-500 flex flex-col items-center gap-2">
+              <UserCheck className="w-6 h-6 text-emerald-500" />
+              <span>Verificación y firma presencial en box clínico con testigo acreditado</span>
             </div>
           )}
         </div>
 
         <div className="flex items-center justify-between pt-2">
-          <span className="text-[11px] text-graphite-400 font-mono">
-            Cumple Ley 20.584 y Estándar Forense SHA-256
-          </span>
-          <Button type="submit" variant="primary" icon={CheckCircle2}>
-            Firmar Consentimiento
-          </Button>
+          <span className="text-[11px] text-graphite-400 font-mono">Cumple Ley 20.584 y Hash Forense SHA-256</span>
+          <Button type="submit" variant="primary" icon={CheckCircle2}>Firmar Consentimiento</Button>
         </div>
       </form>
 
-      {/* Historial de Consentimientos Firmados */}
       {firmados.length > 0 && (
-        <div className="space-y-3">
+        <div className="space-y-3" data-testid="consentimientos-firmados-lista">
           <h4 className="text-xs font-bold text-graphite-500 uppercase tracking-wider">
             Consentimientos Legalmente Firmados ({firmados.length})
           </h4>
           {firmados.map((doc) => (
-            <div
-              key={doc.id}
-              className="p-4 bg-surface/90 border border-surface rounded-2xl flex items-center justify-between gap-4 shadow-xs"
-            >
+            <div key={doc.id} className="p-4 bg-surface/90 border border-surface rounded-2xl flex items-center justify-between gap-4 shadow-xs">
               <div>
-                <span className="text-xs font-bold text-graphite-900 dark:text-graphite-50">
-                  {doc.tipo}
-                </span>
+                <span className="text-xs font-bold text-graphite-900 dark:text-graphite-50">{doc.tipo}</span>
                 <p className="text-[11px] text-graphite-500 mt-0.5">
-                  Firmado por: {doc.firmante} &bull; Modo: {doc.modoFirma} &bull;{' '}
-                  {new Date(doc.fecha).toLocaleDateString()}
+                  Firmado por: {doc.firmante} &bull; Modo: {doc.modoFirma} &bull; {new Date(doc.fecha).toLocaleDateString()}
                 </p>
-                <p className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 mt-0.5">
-                  {doc.hashForense}
-                </p>
+                <p className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 mt-0.5">{doc.hashForense}</p>
               </div>
-
               <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600">
                 <FileCheck className="w-6 h-6" />
               </div>
