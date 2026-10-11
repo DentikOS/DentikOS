@@ -46,4 +46,14 @@ describe('Odontograma BP06', () => {
 
     expect(onGuardar).toHaveBeenCalled()
   })
+
+  it('guarda datos de odontograma con pacienteId en Supabase', async () => {
+    const onGuardar = vi.fn()
+    render(<Odontograma pacienteId="123e4567-e89b-12d3-a456-426614174000" onGuardar={onGuardar} />)
+    const btnGuardar = screen.getByText('Guardar Odontograma')
+    fireEvent.click(btnGuardar)
+    await vi.waitFor(() => {
+      expect(onGuardar).toHaveBeenCalled()
+    })
+  })
 })

@@ -203,7 +203,7 @@ export const FichaClinica: React.FC<FichaClinicaProps> = ({
             onGuardar={(datos) => alActualizarPaciente?.(datos)}
           />
         )}
-        {pestanaActual === 'odontograma' && <Odontograma />}
+        {pestanaActual === 'odontograma' && <Odontograma pacienteId={String(pacienteFinal.id)} />}
         {pestanaActual === 'periodontograma' && <Periodontograma />}
         {pestanaActual === 'evoluciones' && (
           <Evoluciones

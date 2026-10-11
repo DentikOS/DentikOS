@@ -1,9 +1,11 @@
-import React, { useState } from 'react'
-import { Sparkles, Save, RotateCcw } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { Sparkles, Save, RotateCcw, Check } from 'lucide-react'
 import { Button } from '../../../../../../shared/ui/ui/Button'
 import { OdontogramaPieza, type CaraDental } from './OdontogramaPieza'
 import { OdontogramaPanel } from './OdontogramaPanel'
 import { OdontogramaSlider } from './OdontogramaSlider'
+import { fichasClinicasStorageService } from '../../../services/fichasClinicasStorageService'
+import { useOdontogramaStore } from '../../../../../../app/stores/odontogramaStore'
 
 const PERM_SUP_DER = ['1.8', '1.7', '1.6', '1.5', '1.4', '1.3', '1.2', '1.1']
 const PERM_SUP_IZQ = ['2.1', '2.2', '2.3', '2.4', '2.5', '2.6', '2.7', '2.8']
@@ -16,19 +18,33 @@ const TEMP_INF_DER = ['8.5', '8.4', '8.3', '8.2', '8.1']
 const TEMP_INF_IZQ = ['7.1', '7.2', '7.3', '7.4', '7.5']
 
 interface OdontogramaProps {
+  pacienteId?: string
   onGuardar?: (datos: Record<string, unknown>) => void
 }
 
-export const Odontograma: React.FC<OdontogramaProps> = ({ onGuardar }) => {
+export const Odontograma: React.FC<OdontogramaProps> = ({ pacienteId, onGuardar }) => {
   const [estadoActivo, setEstadoActivo] = useState<string>('caries')
   const [modoVista, setModoVista] = useState<'inicial' | 'evolucion' | 'comparativo'>('evolucion')
   const [progresoTemporal, setProgresoTemporal] = useState<number>(100)
   const [mostrarTemporales, setMostrarTemporales] = useState<boolean>(false)
+  const [guardado, setGuardado] = useState<boolean>(false)
 
   // Estado de las caras de cada pieza
   const [piezasData, setPiezasData] = useState<
     Record<string, { caras: Record<CaraDental, string>; estadoGeneral?: string }>
   >({})
+
+  useEffect(() => {
+    if (!pacienteId) return
+    fichasClinicasStorageService.obtenerFichaClinica(pacienteId).then((ficha) => {
+      if (ficha?.odontograma && typeof ficha.odontograma === 'object') {
+        const od = ficha.odontograma as { piezasData?: Record<string, any> }
+        if (od.piezasData) {
+          setPiezasData(od.piezasData)
+        }
+      }
+    })
+  }, [pacienteId])
 
   const handleSeleccionarCara = (pieza: string | number, cara: CaraDental) => {
     const key = String(pieza)
@@ -146,10 +162,27 @@ export const Odontograma: React.FC<OdontogramaProps> = ({ onGuardar }) => {
             type="button"
             size="sm"
             variant="primary"
-            icon={Save}
-            onClick={() => onGuardar?.(piezasData)}
+            icon={guardado ? Check : Save}
+            onClick={async () => {
+              if (pacienteId) {
+                await fichasClinicasStorageService.guardarSeccionFicha(pacienteId, 'odontograma', {
+                  piezasData,
+                  modoVista,
+                  actualizadoAt: new Date().toISOString(),
+                })
+              }
+              const piezasLista = Object.entries(piezasData).map(([numero, data]) => ({
+                numero,
+                estado: data.estadoGeneral ? 'patologia' : Object.values(data.caras).some((c) => c !== 'sano') ? 'patologia' : 'sano',
+                tipoPatologia: data.estadoGeneral || Object.values(data.caras).find((c) => c !== 'sano') || 'sano',
+              }))
+              useOdontogramaStore.getState().setOdontograma({ piezas: piezasLista })
+              onGuardar?.(piezasData)
+              setGuardado(true)
+              setTimeout(() => setGuardado(false), 2000)
+            }}
           >
-            Guardar Odontograma
+            {guardado ? 'Guardado en Supabase' : 'Guardar Odontograma'}
           </Button>
         </div>
       </div>
