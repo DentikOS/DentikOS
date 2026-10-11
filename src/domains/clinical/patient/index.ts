@@ -17,3 +17,7 @@ export {
   evolucionesStorageService,
   type EvolucionClinicaLocal,
 } from './services/evolucionesStorageService'
+export {
+  fichasClinicasStorageService,
+  type FichaClinicaRecord,
+} from './services/fichasClinicasStorageService'
