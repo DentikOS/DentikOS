@@ -6,6 +6,7 @@ import { fichasClinicasStorageService } from '../../../services/fichasClinicasSt
 import type { Paciente } from '../../../schemas/pacienteSchema'
 
 import { VisorPDF } from '../shared/VisorPDF'
+import { ModalConfirmarDescargaPDF } from '../shared/ModalConfirmarDescargaPDF'
 
 export type ModoFirmaConsentimiento = 'canvas' | 'tipografica' | 'otp' | 'presencial'
 
@@ -26,6 +27,7 @@ export const Consentimientos: React.FC<ConsentimientosProps> = ({ paciente }) =>
   const [nombreTutor, setNombreTutor] = useState(paciente.tutorLegal?.nombre || '')
   const [firmados, setFirmados] = useState<ConsentimientoFirmado[]>([])
   const [docParaVer, setDocParaVer] = useState<ConsentimientoFirmado | null>(null)
+  const [docRecienFirmado, setDocRecienFirmado] = useState<ConsentimientoFirmado | null>(null)
 
   const esMenor = Boolean((paciente.edad && Number(paciente.edad) < 18) || paciente.tutorLegal?.nombre)
   const firmanteEfectivo = esMenor ? nombreTutor.trim() : (paciente.nombreCompleto || paciente.nombre)
@@ -61,6 +63,7 @@ export const Consentimientos: React.FC<ConsentimientosProps> = ({ paciente }) =>
     setFirmados(nuevosDocs)
     setFirmaTipografica('')
     setOtpCodigo('')
+    setDocRecienFirmado(nuevo)
 
     if (paciente.id) {
       await fichasClinicasStorageService.guardarSeccionFicha(String(paciente.id), 'consentimientos', nuevosDocs)
@@ -228,6 +231,15 @@ export const Consentimientos: React.FC<ConsentimientosProps> = ({ paciente }) =>
           hashForense={docParaVer.hashForense}
           contenidoTexto={docParaVer.textoLegal}
           onCerrar={() => setDocParaVer(null)}
+        />
+      )}
+      {docRecienFirmado && (
+        <ModalConfirmarDescargaPDF
+          isOpen={Boolean(docRecienFirmado)}
+          titulo="Consentimiento informado guardado exitosamente"
+          onDescargar={() => { setDocParaVer(docRecienFirmado); setDocRecienFirmado(null) }}
+          onVerLista={() => setDocRecienFirmado(null)}
+          onCerrar={() => setDocRecienFirmado(null)}
         />
       )}
     </div>
