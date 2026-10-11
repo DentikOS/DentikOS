@@ -23,13 +23,18 @@ describe('FichaClinica BP06', () => {
     })
   })
 
-  it('renderiza la ficha con encabezado de alertas críticas y pestañas', () => {
+  it('renderiza la ficha con encabezado de alertas críticas y 8 pestañas exactas', () => {
     render(<FichaClinica paciente={mockPaciente} />)
     expect(screen.getByTestId('ficha-clinica-bp06')).toBeInTheDocument()
     expect(screen.getByTestId('alertas-criticas-header')).toBeInTheDocument()
-    expect(screen.getByText('Datos Paciente')).toBeInTheDocument()
+    expect(screen.getByText('Resumen Ejecutivo')).toBeInTheDocument()
+    expect(screen.getByText('Datos del paciente')).toBeInTheDocument()
     expect(screen.getByText('Odontograma')).toBeInTheDocument()
-    expect(screen.getByText('Plan Tratamiento')).toBeInTheDocument()
+    expect(screen.getByText('Periodontograma')).toBeInTheDocument()
+    expect(screen.getByText('Evoluciones')).toBeInTheDocument()
+    expect(screen.getByText('Presupuestos + Plan Tratamiento')).toBeInTheDocument()
+    expect(screen.getByText('Recetas + Consentimientos + Docs')).toBeInTheDocument()
+    expect(screen.getByText('Timeline / Historial')).toBeInTheDocument()
   })
 
   it('permite cambiar a la pestaña Odontograma', () => {

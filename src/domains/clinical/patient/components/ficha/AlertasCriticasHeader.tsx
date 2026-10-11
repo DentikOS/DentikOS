@@ -42,8 +42,17 @@ export const AlertasCriticasHeader: React.FC<AlertasCriticasHeaderProps> = ({
       data-testid="alertas-criticas-header"
     >
       <div className="flex-1">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs font-bold uppercase tracking-wider text-graphite-500">
+        <div className="flex items-center gap-2 flex-wrap mb-1">
+          <span className="text-sm font-extrabold text-graphite-900 dark:text-graphite-50">
+            👤 {paciente.nombreCompleto || paciente.nombre || 'Paciente'} {paciente.edad ? `· ${paciente.edad} años` : ''} · RUT: {paciente.rut || 'Sin RUT'}
+          </span>
+          <span className="text-xs text-graphite-500">
+            Última visita: {paciente.ultimaVisita || '15 Sep 2026'} · Próxima cita: {paciente.proximaCita || '22 Oct 2026 10:00'} · Dr. tratante: {paciente.doctorTratante || 'Dr. Martínez'}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2 flex-wrap mt-1">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-graphite-500">
             Alertas Críticas
           </span>
           {!hayAlertasCriticas && (
@@ -58,17 +67,20 @@ export const AlertasCriticasHeader: React.FC<AlertasCriticasHeaderProps> = ({
             {tieneAlergiasSeveras && (
               <span
                 data-testid="badge-alergia-severa"
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-rose-500/15 text-rose-600 dark:text-rose-400 text-xs font-bold border border-rose-500/30 animate-pulse"
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-[#E11D48]/15 text-[#E11D48] text-xs font-black border border-[#E11D48]/40 animate-pulse"
               >
-                <ShieldAlert className="w-4 h-4" />
-                Alergias Severas: {textoAlergias}
+                <ShieldAlert className="w-4 h-4 text-[#E11D48]" />
+                ⚠️ ALERGIA SEVERA: {textoAlergias}
               </span>
             )}
 
             {tieneAnticoagulantes && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400 text-xs font-bold border border-amber-500/30">
-                <HeartPulse className="w-4 h-4" />
-                Anticoagulantes Activos
+              <span
+                data-testid="badge-anticoagulantes"
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-[#E11D48]/15 text-[#E11D48] text-xs font-black border border-[#E11D48]/40"
+              >
+                <HeartPulse className="w-4 h-4 text-[#E11D48]" />
+                ⚠️ Anticoagulantes
               </span>
             )}
 
