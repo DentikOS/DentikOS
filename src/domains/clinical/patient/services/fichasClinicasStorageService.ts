@@ -24,6 +24,7 @@ export interface FichaClinicaRecord {
   recetas: unknown[]
   consentimientos: unknown[]
   plan_tratamiento: unknown
+  adjuntos?: unknown[]
   timeline: unknown[]
   version?: number
   updated_at?: string
@@ -36,6 +37,7 @@ const FICHA_VACIA: Omit<FichaClinicaRecord, 'paciente_id' | 'clinica_id'> = {
   recetas: [],
   consentimientos: [],
   plan_tratamiento: {},
+  adjuntos: [],
   timeline: [],
   version: 1,
 }

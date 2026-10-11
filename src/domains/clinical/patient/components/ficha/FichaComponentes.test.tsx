@@ -24,11 +24,12 @@ const mockPaciente: Paciente = {
 }
 
 describe('Componentes Clínicos BP06', () => {
-  it('renderiza Periodontograma EPB con los 6 sitios de sondaje', () => {
+  it('renderiza Periodontograma EPB con los 6 sextantes', () => {
     render(<Periodontograma />)
     expect(screen.getByTestId('periodontograma-bp06')).toBeInTheDocument()
     expect(screen.getByText(/Examen Periodontal Básico/i)).toBeInTheDocument()
-    expect(screen.getAllByText('BOP (+)').length).toBeGreaterThan(0)
+    expect(screen.getByTestId('grid-sextantes-epb')).toBeInTheDocument()
+    expect(screen.getByText('Sextante 1: Sup. Derecho')).toBeInTheDocument()
   })
 
   it('renderiza Evoluciones con 10 plantillas inteligentes y permite agregar nota', () => {

@@ -105,7 +105,7 @@ export const FichaClinica: React.FC<FichaClinicaProps> = ({
   }, [modoQuirurgicoActivo, modoPresentacionActivo])
 
   const pestanaActual: PestanaId =
-    (pestanaActivaStore as PestanaId) in { datos: 1, odontograma: 1, periodontograma: 1, evoluciones: 1, recetas: 1, consentimientos: 1, 'plan-tratamiento': 1, timeline: 1 }
+    (pestanaActivaStore as PestanaId) in { datos: 1, odontograma: 1, periodontograma: 1, evoluciones: 1, recetas: 1, consentimientos: 1, 'plan-tratamiento': 1, adjuntos: 1, timeline: 1 }
       ? (pestanaActivaStore as PestanaId)
       : 'datos'
 
