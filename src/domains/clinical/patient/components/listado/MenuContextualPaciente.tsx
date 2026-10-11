@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useEffect, useState } from 'react'
+import React, { useLayoutEffect, useEffect, useState, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import {
   FileText,
@@ -46,34 +46,52 @@ export const MenuContextualPaciente: React.FC<MenuContextualPacienteProps> = ({
   onBloquear,
 }) => {
   const { esAdmin, rol } = useRBAC()
+  const menuRef = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState({ top: 0, left: 0 })
 
   useLayoutEffect(() => {
     if (!isOpen) return
     if (!triggerRef?.current) return
     const rect = triggerRef.current.getBoundingClientRect()
-    const menuWidth = 224 // w-56
-    const menuHeight = 350
+    const menuWidth = menuRef.current?.offsetWidth || 224 // w-56
+    const menuHeight = menuRef.current?.offsetHeight || 320
     const padding = 8
 
+    // 1. Posicionamiento: justo debajo del botón
     let top = rect.bottom + 4
-    let left = rect.right - menuWidth
 
-    // Detección colisión vertical: si no cabe abajo, abrir hacia arriba
-    if (top + menuHeight > window.innerHeight && rect.top - menuHeight > 0) {
-      top = Math.max(padding, rect.top - menuHeight - 4)
+    // 2. Colisión vertical: SOLO si no cabe hacia abajo
+    if (rect.bottom + menuHeight > window.innerHeight) {
+      if (rect.top - menuHeight - 4 >= 0) {
+        top = rect.top - menuHeight - 4
+      } else {
+        top = Math.max(padding, window.innerHeight - menuHeight - padding)
+      }
     }
+
+    // 3. Alinear el borde derecho del menú al borde derecho del botón
+    let left = rect.right - menuWidth
 
     // Detección colisión horizontal
     if (left < padding) {
-      left = Math.max(padding, rect.left)
+      left = padding
     }
     if (left + menuWidth > window.innerWidth - padding) {
-      left = Math.max(padding, window.innerWidth - menuWidth - padding)
+      left = window.innerWidth - menuWidth - padding
     }
 
     setPos({ top, left })
   }, [isOpen, triggerRef])
+
+  // Cerrar el menú al hacer scroll de la página (para evitar desanclaje)
+  useEffect(() => {
+    if (!isOpen) return
+    const handleScroll = () => {
+      onClose()
+    }
+    window.addEventListener('scroll', handleScroll, true)
+    return () => window.removeEventListener('scroll', handleScroll, true)
+  }, [isOpen, onClose])
 
   useEffect(() => {
     if (!isOpen) return
@@ -104,6 +122,7 @@ export const MenuContextualPaciente: React.FC<MenuContextualPacienteProps> = ({
         aria-hidden="true"
       />
       <div
+        ref={menuRef}
         style={{
           position: 'fixed',
           top: `${pos.top}px`,

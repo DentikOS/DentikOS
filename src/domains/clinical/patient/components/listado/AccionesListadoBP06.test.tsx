@@ -229,6 +229,22 @@ describe('Acciones Rápidas y Menú Contextual (BP06 §01 + §05 + §06)', () =>
     fireEvent.keyDown(window, { key: 'Escape' })
     expect(screen.queryByTestId('menu-dropdown-pac-1')).not.toBeInTheDocument()
   })
+
+  it('FIX-2: Menú contextual con portal se cierra al hacer scroll', () => {
+    render(
+      <AccionesFilaPaciente
+        paciente={mockPacienteActivo}
+        alSeleccionarPaciente={vi.fn()}
+      />
+    )
+
+    const btn = screen.getByTestId('btn-menu-contextual-pac-1')
+    fireEvent.click(btn)
+    expect(screen.getByTestId('menu-dropdown-pac-1')).toBeInTheDocument()
+
+    fireEvent.scroll(window)
+    expect(screen.queryByTestId('menu-dropdown-pac-1')).not.toBeInTheDocument()
+  })
 })
 
 
