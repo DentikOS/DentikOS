@@ -4,13 +4,14 @@ import { usePresupuestos } from './hooks/usePresupuestos'
 import { PresupuestosSummaryCards } from './components/PresupuestosSummaryCards'
 import { TablaPresupuestosGlobales } from './components/TablaPresupuestosGlobales'
 import { ModalNuevoPresupuesto } from './components/ModalNuevoPresupuesto'
+import { ModalRegistrarPago } from './components/ModalRegistrarPago'
 import { DocumentoPresupuestoImprimible, type UserProfilePresupuesto } from './components/DocumentoPresupuestoImprimible'
 import { usePacientesStore } from '../../../app/stores/pacientesStore'
 import { usePrestacionesStore } from '../../../app/stores/prestacionesStore'
 import { useSesionStore } from '../../../app/stores/sesionStore'
 import { useAppDialog } from '../../../shared/hooks/useAppDialog'
 import { ClipboardList } from 'lucide-react'
-import type { PresupuestoLocal } from './services/presupuestosStorageService'
+import { presupuestosStorageService, type PresupuestoLocal } from './services/presupuestosStorageService'
 import type { PacienteFormRef, PrestacionFormRef } from './components/CamposFormularioPresupuesto'
 
 export interface PresupuestosModuloProps {
@@ -33,6 +34,7 @@ export const PresupuestosModulo: React.FC<PresupuestosModuloProps> = memo(({
   const [modalAbierto, setModalAbierto] = useState<boolean>(false)
   const { alert: dialogAlert } = useAppDialog()
   const [presupuestoVerDocumento, setPresupuestoVerDocumento] = useState<PresupuestoLocal | null>(null)
+  const [presupuestoParaPago, setPresupuestoParaPago] = useState<PresupuestoLocal | null>(null)
 
   const {
     presupuestos,
@@ -127,6 +129,7 @@ export const PresupuestosModulo: React.FC<PresupuestosModuloProps> = memo(({
             onVerFichaPaciente={handleVerFichaPaciente}
             onVerDocumento={setPresupuestoVerDocumento}
             onEliminar={eliminarPresupuesto}
+            onRegistrarPago={(p) => setPresupuestoParaPago(p)}
           />
         </>
       )}
@@ -137,6 +140,28 @@ export const PresupuestosModulo: React.FC<PresupuestosModuloProps> = memo(({
           prestaciones={prestaciones}
           alGuardar={agregarPresupuesto}
           alCerrar={() => setModalAbierto(false)}
+        />
+      )}
+
+      {presupuestoParaPago && (
+        <ModalRegistrarPago
+          saldoPendiente={Math.max(0, (presupuestoParaPago.montoTotal || 0) - (presupuestoParaPago.montoAbonado || 0))}
+          totalPresupuesto={presupuestoParaPago.montoTotal || 0}
+          folioPresupuesto={presupuestoParaPago.folio}
+          pacienteNombre={presupuestoParaPago.pacienteNombre}
+          onRegistrarPago={async (pago) => {
+            const nuevoAbonado = (presupuestoParaPago.montoAbonado || 0) + pago.monto
+            await presupuestosStorageService.guardarPresupuesto({
+              ...presupuestoParaPago,
+              montoAbonado: nuevoAbonado,
+              estado: nuevoAbonado >= (presupuestoParaPago.montoTotal || 0) ? 'Completado' : presupuestoParaPago.estado,
+            })
+            setPresupuestoParaPago(null)
+            if (setActiveSection) {
+              setActiveSection('Pagos')
+            }
+          }}
+          onCerrar={() => setPresupuestoParaPago(null)}
         />
       )}
     </div>

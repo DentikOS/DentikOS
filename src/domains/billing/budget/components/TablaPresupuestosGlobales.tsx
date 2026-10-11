@@ -13,6 +13,7 @@ export interface TablaPresupuestosGlobalesProps {
     pacienteId: string | number,
     items?: PresupuestoItemLocal[]
   ) => void
+  onRegistrarPago?: (presupuesto: PresupuestoLocal) => void
 }
 
 export const TablaPresupuestosGlobales: React.FC<TablaPresupuestosGlobalesProps> = memo(({
@@ -20,7 +21,8 @@ export const TablaPresupuestosGlobales: React.FC<TablaPresupuestosGlobalesProps>
   onCambiarEstado,
   onVerFichaPaciente,
   onVerDocumento,
-  onEliminar
+  onEliminar,
+  onRegistrarPago
 }) => {
   if (presupuestos.length === 0) {
     return (
@@ -105,6 +107,17 @@ export const TablaPresupuestosGlobales: React.FC<TablaPresupuestosGlobalesProps>
                 </td>
 
                 <td className="p-3 text-right print:hidden space-x-1 whitespace-nowrap">
+                  {(p.estado === 'en-curso' || p.estado === 'EnTratamiento' || p.estado === 'Aprobado') && onRegistrarPago && (
+                    <button
+                      type="button"
+                      onClick={() => onRegistrarPago(p)}
+                      className="p-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold rounded-lg transition-micro cursor-pointer"
+                      title="Registrar pago"
+                      data-testid={`btn-registrar-pago-${p.id}`}
+                    >
+                      💰 Registrar pago
+                    </button>
+                  )}
                   <button
                     onClick={() => onVerDocumento(p)}
                     className="p-1.5 bg-primary hover:bg-champagne-600 dark:bg-gold-satin dark:hover:bg-primary text-white dark:text-graphite-950 surgical:bg-black surgical:text-white text-[10px] font-bold rounded-lg transition-micro cursor-pointer"
