@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { Presupuesto, Pago } from '../../domains/billing/budget/schemas/presupuestoSchema'
+import { timelineService } from '../../domains/clinical/patient/services/timelineService'
 
 export interface PresupuestosState {
   presupuestos: Presupuesto[]
@@ -16,6 +17,7 @@ export interface PresupuestosState {
   cambiarEstado: (id: string | number, estado: string) => void
   registrarPago: (presupuestoId: string | number, pago: Omit<Pago, 'id'>) => void
   generarDesdePlanTratamiento: (pacienteId: string | number, pacienteNombre: string, items: unknown[]) => Presupuesto
+  verificarVencidos: () => void
 }
 
 export const usePresupuestosStore = create<PresupuestosState>()(
@@ -80,6 +82,16 @@ export const usePresupuestosStore = create<PresupuestosState>()(
         }
 
         get().actualizarPresupuesto(id, updates)
+
+        if (presupuesto.pacienteId) {
+          timelineService.agregarEvento(presupuesto.pacienteId, {
+            id: `tl-trans-${Date.now()}`,
+            fecha: new Date().toISOString(),
+            tipo: 'presupuesto',
+            titulo: `Presupuesto ${presupuesto.folio || presupuesto.id} cambió a ${estado.toUpperCase()}`,
+            detalles: `Estado actualizado a ${estado}`,
+          })
+        }
       },
 
       registrarPago: (presupuestoId, pago) => {
@@ -93,6 +105,28 @@ export const usePresupuestosStore = create<PresupuestosState>()(
         get().actualizarPresupuesto(presupuestoId, {
           montoAbonado: nuevoAbonado,
           estado: nuevoEstado,
+        })
+
+        if (presupuesto.pacienteId) {
+          timelineService.agregarEvento(presupuesto.pacienteId, {
+            id: `tl-pago-${Date.now()}`,
+            fecha: new Date().toISOString(),
+            tipo: 'pago',
+            titulo: `Pago de $${Number(pago.monto).toLocaleString('es-CL')} · ${(pago as any).medioPago || 'Efectivo'}`,
+            profesional: (pago as any).recibidoPor || 'Clínica',
+            detalles: `Saldo restante: $${Math.max(0, totalPagar - nuevoAbonado).toLocaleString('es-CL')} · Estado: ${nuevoEstado.toUpperCase()}`,
+          })
+        }
+      },
+
+      verificarVencidos: () => {
+        const ahora = Date.now()
+        get().presupuestos.forEach((p) => {
+          if (p.estado === 'enviado' && p.fechaVencimiento) {
+            if (new Date(p.fechaVencimiento).getTime() < ahora) {
+              get().cambiarEstado(p.id, 'vencido')
+            }
+          }
         })
       },
 

@@ -7,31 +7,26 @@ import type { PresupuestoLocal } from '../services/presupuestosStorageService'
 
 const log = createLogger('DocumentoPresupuestoImprimible')
 
-const PERMANENTE_SUPERIOR = [
-  '1.8', '1.7', '1.6', '1.5', '1.4', '1.3', '1.2', '1.1',
-  '2.1', '2.2', '2.3', '2.4', '2.5', '2.6', '2.7', '2.8'
-]
-const PERMANENTE_INFERIOR = [
-  '4.8', '4.7', '4.6', '4.5', '4.4', '4.3', '4.2', '4.1',
-  '3.1', '3.2', '3.3', '3.4', '3.5', '3.6', '3.7', '3.8'
-]
+const PERMANENTE_SUPERIOR = ['1.8','1.7','1.6','1.5','1.4','1.3','1.2','1.1','2.1','2.2','2.3','2.4','2.5','2.6','2.7','2.8']
+const PERMANENTE_INFERIOR = ['4.8','4.7','4.6','4.5','4.4','4.3','4.2','4.1','3.1','3.2','3.3','3.4','3.5','3.6','3.7','3.8']
 
 export interface UserProfilePresupuesto {
-  nombreCompleto?: string
-  especialidad?: string
-  rut?: string
-  [key: string]: unknown
+  nombreCompleto?: string; especialidad?: string; rut?: string; [key: string]: unknown
 }
 
 export interface DocumentoPresupuestoImprimibleProps {
   presupuesto: PresupuestoLocal | null
   userProfile?: UserProfilePresupuesto | null
+  onCambiarEstado?: (nuevoEstado: string) => void
+  onRegistrarPago?: () => void
   alCerrar: () => void
 }
 
 export const DocumentoPresupuestoImprimible: React.FC<DocumentoPresupuestoImprimibleProps> = memo(({
   presupuesto,
   userProfile,
+  onCambiarEstado,
+  onRegistrarPago,
   alCerrar
 }) => {
   const [odontogramaInicial, setOdontogramaInicial] = useState<Record<string, unknown>>({})
@@ -63,22 +58,54 @@ export const DocumentoPresupuestoImprimible: React.FC<DocumentoPresupuestoImprim
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center print:hidden bg-gray-50 p-4 border rounded-2xl">
+      <div className="flex justify-between items-center print:hidden bg-gray-50 dark:bg-graphite-900 p-4 border border-graphite-200 dark:border-graphite-800 rounded-2xl flex-wrap gap-2">
         <button
           onClick={alCerrar}
-          className="text-xs font-bold text-gray-600 hover:text-black bg-white px-3 py-2 rounded-xl border border-gray-300 cursor-pointer"
+          className="text-xs font-bold text-gray-600 dark:text-gray-300 hover:text-black bg-white dark:bg-graphite-800 px-3 py-2 rounded-xl border border-gray-300 dark:border-graphite-700 cursor-pointer"
         >
           ← Volver al Panel
         </button>
 
-        <button
-          onClick={() => window.print()}
-          className="bg-black text-white text-xs font-bold px-5 py-2.5 rounded-xl hover:bg-gray-800 transition-colors shadow-xs cursor-pointer flex items-center gap-2"
-        >
-          <span className="inline-flex items-center gap-1">
-            <Printer size={14} />Imprimir Presupuesto (Letter)
-          </span>
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {presupuesto.estado === 'borrador' && (
+            <button
+              onClick={() => onCambiarEstado?.('enviado')}
+              className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl text-xs transition-colors cursor-pointer"
+            >
+              Enviar al paciente
+            </button>
+          )}
+          {presupuesto.estado === 'enviado' && (
+            <>
+              <button
+                onClick={() => onCambiarEstado?.('aprobado')}
+                className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl text-xs transition-colors cursor-pointer"
+              >
+                Aprobar verbal
+              </button>
+              <button
+                onClick={() => onCambiarEstado?.('rechazado')}
+                className="px-3 py-2 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-xl text-xs transition-colors cursor-pointer"
+              >
+                Rechazar
+              </button>
+            </>
+          )}
+          {(presupuesto.estado === 'aprobado' || presupuesto.estado === 'en-curso') && saldoPendiente > 0 && (
+            <button
+              onClick={onRegistrarPago}
+              className="px-3 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold rounded-xl text-xs transition-colors cursor-pointer"
+            >
+              Registrar pago
+            </button>
+          )}
+          <button
+            onClick={() => window.print()}
+            className="bg-black text-white text-xs font-bold px-4 py-2 rounded-xl hover:bg-gray-800 transition-colors shadow-xs cursor-pointer flex items-center gap-1"
+          >
+            <Printer size={14} /> Imprimir (Letter)
+          </button>
+        </div>
       </div>
 
       {/* Hoja de Impresión Letter */}

@@ -1,47 +1,58 @@
 import { usePresupuestosStore } from '../../../../app/stores/presupuestosStore'
 import type { Presupuesto } from '../schemas/presupuestoSchema'
+import {
+  TRANSICIONES_VALIDAS,
+  puedeTransicionar,
+  verificarVencimiento,
+  transicionPorPago,
+  type EstadoPresupuesto,
+} from '../utils/transicionesEstado'
+import { timelineService } from '../../../clinical/patient/services/timelineService'
 
-export type EstadoPresupuesto =
-  | 'borrador'
-  | 'enviado'
-  | 'aprobado'
-  | 'en-curso'
-  | 'completado'
-  | 'rechazado'
-  | 'vencido'
-
-export const TRANSICIONES_VALIDAS: Record<EstadoPresupuesto, EstadoPresupuesto[]> = {
-  borrador: ['enviado', 'rechazado'],
-  enviado: ['aprobado', 'rechazado', 'vencido'],
-  aprobado: ['en-curso', 'rechazado'],
-  'en-curso': ['completado', 'rechazado'],
-  completado: [],
-  rechazado: ['borrador'],
-  vencido: ['borrador'],
-}
+export { TRANSICIONES_VALIDAS, puedeTransicionar, type EstadoPresupuesto }
 
 export const useEstadosPresupuesto = () => {
   const cambiarEstadoStore = usePresupuestosStore((s) => s.cambiarEstado)
   const actualizarPresupuestoStore = usePresupuestosStore((s) => s.actualizarPresupuesto)
+  const presupuestos = usePresupuestosStore((s) => s.presupuestos)
 
-  const puedeTransicionar = (estadoActual: EstadoPresupuesto, nuevoEstado: EstadoPresupuesto): boolean => {
-    return TRANSICIONES_VALIDAS[estadoActual]?.includes(nuevoEstado) ?? false
+  const cambiarEstado = (presupuestoId: string | number, nuevoEstado: EstadoPresupuesto, autor = 'Profesional Clínico') => {
+    const p = presupuestos.find((item) => String(item.id) === String(presupuestoId))
+    if (!p) return false
+
+    const estadoActual = (p.estado || 'borrador') as EstadoPresupuesto
+    if (!puedeTransicionar(estadoActual, nuevoEstado)) {
+      return false
+    }
+
+    cambiarEstadoStore(presupuestoId, nuevoEstado)
+    if (p.pacienteId) {
+      timelineService.agregarEvento(p.pacienteId, {
+        id: `tl-trans-${Date.now()}`,
+        fecha: new Date().toISOString(),
+        tipo: 'presupuesto',
+        titulo: `Presupuesto ${p.folio || p.id} cambió a ${nuevoEstado.toUpperCase()}`,
+        profesional: autor,
+        detalles: `Transición de ${estadoActual} a ${nuevoEstado}`,
+      })
+    }
+    return true
   }
 
   const enviarPresupuesto = (presupuesto: Presupuesto) => {
-    cambiarEstadoStore(presupuesto.id, 'enviado')
+    cambiarEstado(presupuesto.id, 'enviado')
   }
 
   const aprobarPresupuesto = (presupuesto: Presupuesto) => {
-    cambiarEstadoStore(presupuesto.id, 'aprobado')
+    cambiarEstado(presupuesto.id, 'aprobado')
   }
 
   const iniciarTratamiento = (presupuesto: Presupuesto) => {
-    cambiarEstadoStore(presupuesto.id, 'en-curso')
+    cambiarEstado(presupuesto.id, 'en-curso')
   }
 
   const completarPresupuesto = (presupuesto: Presupuesto) => {
-    cambiarEstadoStore(presupuesto.id, 'completado')
+    cambiarEstado(presupuesto.id, 'completado')
   }
 
   const rechazarPresupuesto = (presupuesto: Presupuesto, motivo?: string) => {
@@ -49,36 +60,46 @@ export const useEstadosPresupuesto = () => {
       estado: 'rechazado',
       observacion: motivo ? `Rechazado: ${motivo}` : 'Presupuesto rechazado por el paciente.',
     })
-  }
-
-  const procesarPagoAutomatico = (
-    presupuesto: Presupuesto,
-    montoPago: number
-  ) => {
-    const total = presupuesto.totalAPagar || presupuesto.total || presupuesto.montoTotal || 0
-    const abonadoPrevio = presupuesto.montoAbonado || 0
-    const nuevoAbonado = abonadoPrevio + montoPago
-
-    if (nuevoAbonado >= total) {
-      actualizarPresupuestoStore(presupuesto.id, {
-        montoAbonado: nuevoAbonado,
-        estado: 'completado',
-      })
-    } else if (nuevoAbonado > 0) {
-      actualizarPresupuestoStore(presupuesto.id, {
-        montoAbonado: nuevoAbonado,
-        estado: 'en-curso',
+    if (presupuesto.pacienteId) {
+      timelineService.agregarEvento(presupuesto.pacienteId, {
+        id: `tl-rech-${Date.now()}`,
+        fecha: new Date().toISOString(),
+        tipo: 'presupuesto',
+        titulo: `Presupuesto ${presupuesto.folio || presupuesto.id} RECHAZADO`,
+        detalles: motivo || 'Rechazado por el paciente',
       })
     }
   }
 
+  const procesarPagoAutomatico = (presupuesto: Presupuesto, montoPago: number) => {
+    const total = presupuesto.totalAPagar || presupuesto.total || presupuesto.montoTotal || 0
+    const abonadoPrevio = presupuesto.montoAbonado || 0
+    const nuevoAbonado = abonadoPrevio + montoPago
+    const nuevoEstado = transicionPorPago(total, nuevoAbonado)
+
+    actualizarPresupuestoStore(presupuesto.id, {
+      montoAbonado: nuevoAbonado,
+      estado: nuevoEstado,
+    })
+  }
+
+  const verificarYMarcarVencidos = () => {
+    presupuestos.forEach((p) => {
+      if (p.estado === 'enviado' && verificarVencimiento(p.fechaVencimiento)) {
+        cambiarEstadoStore(p.id, 'vencido')
+      }
+    })
+  }
+
   return {
     puedeTransicionar,
+    cambiarEstado,
     enviarPresupuesto,
     aprobarPresupuesto,
     iniciarTratamiento,
     completarPresupuesto,
     rechazarPresupuesto,
     procesarPagoAutomatico,
+    verificarYMarcarVencidos,
   }
 }

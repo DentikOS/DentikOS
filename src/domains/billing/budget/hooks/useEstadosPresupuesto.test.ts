@@ -56,6 +56,32 @@ describe('useEstadosPresupuesto & Esteganografía (BP07)', () => {
     expect(p.estado).toBe('completado')
   })
 
+  it('procesa pago parcial y transiciona a en-curso', () => {
+    const { result } = renderHook(() => useEstadosPresupuesto())
+    act(() => {
+      result.current.procesarPagoAutomatico(mockPresupuesto, 50000)
+    })
+    const p = usePresupuestosStore.getState().presupuestos[0]
+    expect(p.montoAbonado).toBe(50000)
+    expect(p.estado).toBe('en-curso')
+  })
+
+  it('marca presupuestos enviados como vencidos al pasar fecha de validez', () => {
+    const pVencido: Presupuesto = {
+      ...mockPresupuesto,
+      id: 'pres-vencido',
+      estado: 'enviado',
+      fechaVencimiento: new Date(Date.now() - 86400000).toISOString(),
+    }
+    usePresupuestosStore.setState({ presupuestos: [pVencido] })
+
+    const { result } = renderHook(() => useEstadosPresupuesto())
+    act(() => {
+      result.current.verificarYMarcarVencidos()
+    })
+    expect(usePresupuestosStore.getState().presupuestos[0].estado).toBe('vencido')
+  })
+
   it('genera hash y payload de esteganografía forense', () => {
     const hash = generarHashForense({
       documentoId: 'P-001',
