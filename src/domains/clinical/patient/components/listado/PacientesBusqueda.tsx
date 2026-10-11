@@ -124,7 +124,7 @@ export const PacientesBusqueda: React.FC<PacientesBusquedaProps> = ({
       {mostrarFiltros && (
         <div className="p-3 bg-surface/90 border border-surface rounded-xl flex flex-wrap items-center gap-3 text-xs">
           <span className="font-semibold text-graphite-700 dark:text-graphite-300">Estado:</span>
-          {['todos', 'activo', 'nuevo', 'bloqueado', 'inactivo'].map((est) => (
+          {['todos', 'activo', 'nuevo', 'bloqueado', 'inactivo', 'desactivado'].map((est) => (
             <button
               key={est}
               type="button"

@@ -78,7 +78,7 @@ export const pacienteSchema = z.object({
   embarazo: z.boolean().optional(),
   lactancia: z.boolean().optional(),
   anticoagulantes: z.boolean().optional(),
-  estado: z.enum(['activo', 'inactivo', 'bloqueado', 'nuevo']).optional(),
+  estado: z.enum(['activo', 'inactivo', 'bloqueado', 'nuevo', 'desactivado']).optional(),
   fechaCreacion: z.string().optional(),
   fechaUltimaVisita: z.string().optional(),
   diasSinVisita: z.number().optional(),
