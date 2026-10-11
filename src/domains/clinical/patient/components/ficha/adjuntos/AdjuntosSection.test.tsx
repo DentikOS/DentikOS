@@ -70,4 +70,34 @@ describe('AdjuntosSection (BP06 §07)', () => {
     fireEvent.click(btnTodos)
     expect(screen.getByText('Panorámica Inicial')).toBeInTheDocument()
   })
+
+  it('permite mover adjunto a papelera y visualizarlo en el filtro papelera', async () => {
+    render(<AdjuntosSection paciente={PACIENTE_MOCK} />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Panorámica Inicial')).toBeInTheDocument()
+    })
+
+    const btnEliminar = screen.getByTitle('Mover a papelera')
+    fireEvent.click(btnEliminar)
+
+    await waitFor(() => {
+      expect(fichasClinicasStorageService.guardarSeccionFicha).toHaveBeenCalledWith(
+        'pac-123',
+        'adjuntos',
+        expect.arrayContaining([
+          expect.objectContaining({ id: 'adj-1', estado: 'deleted' })
+        ])
+      )
+    })
+
+    // Cambiar a filtro papelera
+    const btnPapelera = screen.getByTestId('btn-filtro-papelera')
+    fireEvent.click(btnPapelera)
+
+    await waitFor(() => {
+      expect(screen.getByText('Panorámica Inicial')).toBeInTheDocument()
+      expect(screen.getByTitle('Restaurar de papelera')).toBeInTheDocument()
+    })
+  })
 })
