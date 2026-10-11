@@ -6,7 +6,7 @@ import type { LucideIcon } from 'lucide-react'
 import {
   Calendar, LayoutDashboard, Users, Siren, Mail,
   FlaskConical, Package, BarChart3,
-  Pill, Settings, CreditCard, DollarSign
+  Pill, Settings
 } from 'lucide-react'
 import { PERMISOS } from './rbacConstants'
 import type { Permiso } from './rbacConstantsBase'
@@ -51,8 +51,6 @@ export const SECCIONES_SIDEBAR: SidebarSeccion[] = [
     label: 'GESTIÓN FINANCIERA', // Categoría 03
     categoria: 'FINANZAS',
     items: [
-      { name: 'Presupuestos', icon: DollarSign, slug: 'presupuestos', permisoRequerido: PERMISOS.VER_PRESUPUESTOS },
-      { name: 'Pagos', icon: CreditCard, slug: 'pagos', permisoRequerido: PERMISOS.VER_PAGOS, counterKey: 'pagosVencidos', counterVariant: 'error' },
       { name: 'Reportes', icon: BarChart3, slug: 'reportes', permisoRequerido: PERMISOS.VER_REPORTES },
     ],
   },
