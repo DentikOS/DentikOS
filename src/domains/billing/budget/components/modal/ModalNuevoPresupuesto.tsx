@@ -97,10 +97,12 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = ({
     } as unknown as Presupuesto
 
     timelineService.agregarEvento(String(pacienteId), {
+      id: crypto.randomUUID(),
+      fecha: new Date().toISOString(),
       tipo: 'presupuesto',
       titulo: `Presupuesto creado (${folio})`,
-      descripcion: `Presupuesto emitido en estado BORRADOR por $${totalPagar.toLocaleString('es-CL')}.`,
-      detalles: { folio, total: totalPagar, items: items.length },
+      profesional: autorizadoPor.trim() || 'Profesional tratante',
+      detalles: `Presupuesto emitido en estado BORRADOR por $${totalPagar.toLocaleString('es-CL')}.`,
     })
 
     onGuardar?.(nuevoPresupuesto)

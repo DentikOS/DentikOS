@@ -91,7 +91,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
           className="block text-xs font-semibold text-graphite-700 dark:text-graphite-300 uppercase mb-1.5"
         >
           {label}
-          {required && <span className="text-clinical-error ml-1" aria-hidden="true">*</span>}
+          {required && <span className="text-[#E11D48] text-clinical-error required-asterisk ml-1" aria-hidden="true">*</span>}
         </label>
       )}
 
