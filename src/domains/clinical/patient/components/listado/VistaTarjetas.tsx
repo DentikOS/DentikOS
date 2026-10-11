@@ -2,6 +2,7 @@ import React, { memo } from 'react'
 import { Badge } from '../../../../../shared/ui/ui/Badge'
 import { usePacientesStore } from '../../../../../app/stores/pacientesStore'
 import { AccionesFilaPaciente } from './AccionesFilaPaciente'
+import { formatearDoctorTratante } from '../../utils/formatearDoctor'
 import type { Paciente } from '../../schemas/pacienteSchema'
 
 interface VistaTarjetasProps {
@@ -44,6 +45,7 @@ export const VistaTarjetas: React.FC<VistaTarjetasProps> = memo(({
           ? new Date(p.fechaUltimaVisita).toLocaleDateString('es-CL')
           : (p.ultimaVisita ? String(p.ultimaVisita) : '—')
         const proximaCitaTexto = p.proximaCita ? String(p.proximaCita) : 'Sin próxima cita'
+        const { texto: docTexto, asignado: docAsignado } = formatearDoctorTratante(p.doctorTratante, p.doctorTratanteId)
 
         return (
           <div
@@ -81,7 +83,7 @@ export const VistaTarjetas: React.FC<VistaTarjetasProps> = memo(({
                 />
               </div>
 
-              <div className="flex items-center gap-2 mb-3">
+              <div className="flex items-center gap-2 mb-2 flex-wrap">
                 <Badge
                   size="sm"
                   variant={
@@ -96,7 +98,25 @@ export const VistaTarjetas: React.FC<VistaTarjetasProps> = memo(({
                 >
                   {estado}
                 </Badge>
+                <span className="text-[11px]">
+                  <span className={docAsignado ? 'text-graphite-600 dark:text-graphite-300' : 'text-[#94A3B8] italic'}>
+                    {docTexto}
+                  </span>
+                </span>
               </div>
+
+              {Array.isArray(p.etiquetas) && p.etiquetas.length > 0 && (
+                <div className="flex flex-wrap gap-1 mb-2">
+                  {p.etiquetas.map((etiq, idx) => (
+                    <span
+                      key={idx}
+                      className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-primary/10 text-primary border border-primary/20"
+                    >
+                      {etiq}
+                    </span>
+                  ))}
+                </div>
+              )}
 
               <div className="text-[11px] text-graphite-500 space-y-0.5 mb-2">
                 <p>Última: {ultimaVisitaTexto}</p>

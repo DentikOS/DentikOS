@@ -6,6 +6,7 @@ import { BotonLlamarPopover } from './BotonLlamarPopover'
 import { AccionesFilaPaciente } from './AccionesFilaPaciente'
 import { SelectorColumnasTabla } from './SelectorColumnasTabla'
 import { ejecutarClickToEmail } from '../../utils/clickToEmail'
+import { formatearDoctorTratante } from '../../utils/formatearDoctor'
 import type { Paciente } from '../../schemas/pacienteSchema'
 
 interface VistaTablaProps {
@@ -122,6 +123,7 @@ export const VistaTabla: React.FC<VistaTablaProps> = memo(({
                 : (p.ultimaVisita ? String(p.ultimaVisita) : '—')
               const proximaCita = p.proximaCita ? String(p.proximaCita) : '—'
               const tieneAlergias = Boolean(p.alergias || p.alergiasSeveras)
+              const { texto: docTexto, asignado: docAsignado } = formatearDoctorTratante(p.doctorTratante, p.doctorTratanteId)
 
               return (
                 <tr
@@ -159,7 +161,11 @@ export const VistaTabla: React.FC<VistaTablaProps> = memo(({
 
                   {/* Opcionales */}
                   {columnasVisibles.doctorTratante && (
-                    <td className="p-2.5 text-graphite-600 dark:text-graphite-300">Dr. {String(p.doctorTratante || 'Tratante')}</td>
+                    <td className="p-2.5">
+                      <span className={docAsignado ? 'text-graphite-600 dark:text-graphite-300' : 'text-[#94A3B8] italic'}>
+                        {docTexto}
+                      </span>
+                    </td>
                   )}
                   {columnasVisibles.tratamientosActivos && (
                     <td className="p-2.5 text-graphite-600 dark:text-graphite-300">{p.tratamientosActivos ? String(p.tratamientosActivos) : 'Sin tratamientos'}</td>
@@ -184,7 +190,26 @@ export const VistaTabla: React.FC<VistaTablaProps> = memo(({
                     </td>
                   )}
                   {columnasVisibles.etiquetas && (
-                    <td className="p-2.5 text-graphite-500">{p.etiquetas ? String(p.etiquetas) : '—'}</td>
+                    <td className="p-2.5">
+                      {Array.isArray(p.etiquetas) && p.etiquetas.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {p.etiquetas.map((etiq, idx) => (
+                            <span
+                              key={idx}
+                              className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-primary/10 text-primary border border-primary/20"
+                            >
+                              {etiq}
+                            </span>
+                          ))}
+                        </div>
+                      ) : p.etiquetas ? (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-primary/10 text-primary border border-primary/20">
+                          {String(p.etiquetas)}
+                        </span>
+                      ) : (
+                        <span className="text-graphite-400">—</span>
+                      )}
+                    </td>
                   )}
                   {columnasVisibles.prevision && (
                     <td className="p-2.5 uppercase text-[11px]">{p.prevision || 'Particular'}</td>

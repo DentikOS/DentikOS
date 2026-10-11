@@ -2,6 +2,7 @@ import React, { memo } from 'react'
 import { Badge } from '../../../../../shared/ui/ui/Badge'
 import { usePacientesStore } from '../../../../../app/stores/pacientesStore'
 import { AccionesFilaPaciente } from './AccionesFilaPaciente'
+import { formatearDoctorTratante } from '../../utils/formatearDoctor'
 import type { Paciente } from '../../schemas/pacienteSchema'
 
 interface VistaListaProps {
@@ -36,7 +37,7 @@ export const VistaLista: React.FC<VistaListaProps> = memo(({
           ? new Date(p.fechaUltimaVisita).toLocaleDateString('es-CL')
           : (p.ultimaVisita ? String(p.ultimaVisita) : '—')
         const proximaCitaTexto = p.proximaCita ? String(p.proximaCita) : 'Sin cita próxima'
-        const doctorTratanteTexto = p.doctorTratante ? String(p.doctorTratante) : 'Dr. Tratante'
+        const { texto: docTexto, asignado: docAsignado } = formatearDoctorTratante(p.doctorTratante, p.doctorTratanteId)
 
         return (
           <div
@@ -99,7 +100,9 @@ export const VistaLista: React.FC<VistaListaProps> = memo(({
                     {estado}
                   </Badge>
                   <span className="text-graphite-400">·</span>
-                  <span>Dr. {doctorTratanteTexto}</span>
+                  <span className={docAsignado ? 'text-graphite-600 dark:text-graphite-300' : 'text-[#94A3B8] italic'}>
+                    {docTexto}
+                  </span>
                 </div>
               </div>
             </div>

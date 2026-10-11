@@ -154,4 +154,29 @@ describe('Acciones Rápidas y Menú Contextual (BP06 §01 + §05 + §06)', () =>
     expect(screen.queryByLabelText(/Eliminar/i)).not.toBeInTheDocument()
     expect(screen.queryByTestId('btn-eliminar-pac-1')).not.toBeInTheDocument()
   })
+
+  it('WS-E: renderiza doctor tratante real o "Sin asignar" sin placeholder duplicado', () => {
+    const pacienteSinDoc: Paciente = {
+      id: 'pac-sin-doc',
+      nombre: 'Pedro Pascal',
+      rut: '12.345.678-5',
+      doctorTratante: undefined,
+    }
+    const { unmount } = render(
+      <VistaLista
+        pacientes={[mockPacienteActivo, pacienteSinDoc]}
+        alSeleccionarPaciente={vi.fn()}
+      />
+    )
+
+    // Doctor real mostrado
+    expect(screen.getByText('Martínez')).toBeInTheDocument()
+    expect(screen.queryByText(/Dr\. Dr/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Dr\. Tratante/i)).not.toBeInTheDocument()
+
+    // Sin asignar mostrado
+    expect(screen.getByText('Sin asignar')).toBeInTheDocument()
+    unmount()
+  })
 })
+
