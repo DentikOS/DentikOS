@@ -27,26 +27,9 @@ export interface ModalNuevoPacienteProps {
   pacientes?: Array<Partial<Paciente> & { rut?: string; [key: string]: unknown }>
 }
 
-/**
- * Modal para crear nuevo paciente (F2-02).
- * F6-G: agregada validación de RUT en tiempo real con feedback visual.
- *
- * @param alGuardar - Callback al guardar paciente
- * @param alCerrar - Callback al cerrar modal
- * @param pacientes - Lista de pacientes existentes (para verificar duplicados)
- */
 export const ModalNuevoPaciente: React.FC<ModalNuevoPacienteProps> = memo(({ alGuardar, alCerrar, pacientes = [] }) => {
   const [nuevoPaciente, setNuevoPaciente] = useState<NuevoPacienteFormData>({
-    nombre: '',
-    rut: '',
-    telefono: '',
-    edad: '',
-    prevision: 'Fonasa',
-    alergias: '',
-    email: '',
-    direccion: '',
-    ocupacion: '',
-    contactoEmergencia: ''
+    nombre: '', rut: '', telefono: '', edad: '', prevision: 'Fonasa', alergias: '', email: '', direccion: '', ocupacion: '', contactoEmergencia: ''
   })
   const [errorRut, setErrorRut] = useState<string>('')
   const [rutValido, setRutValido] = useState<boolean>(false)
@@ -99,7 +82,7 @@ export const ModalNuevoPaciente: React.FC<ModalNuevoPacienteProps> = memo(({ alG
     e.preventDefault()
     
     // Validación final antes de guardar
-    if (!nuevoPaciente.nombre || !nuevoPaciente.rut) return
+    if (!nuevoPaciente.nombre || !nuevoPaciente.rut || !nuevoPaciente.telefono) return
     if (!rutValido || errorRut) return
 
     setEnviando(true)
@@ -115,7 +98,13 @@ export const ModalNuevoPaciente: React.FC<ModalNuevoPacienteProps> = memo(({ alG
     setEnviando(false)
   }
 
-  const puedeGuardar = Boolean(nuevoPaciente.nombre && nuevoPaciente.rut && rutValido && !errorRut)
+  const puedeGuardar = Boolean(
+    nuevoPaciente.nombre.trim() &&
+    nuevoPaciente.rut.trim() &&
+    nuevoPaciente.telefono?.trim() &&
+    rutValido &&
+    !errorRut
+  )
 
   return (
     <Modal
@@ -137,7 +126,9 @@ export const ModalNuevoPaciente: React.FC<ModalNuevoPacienteProps> = memo(({ alG
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block font-semibold text-gray-600 dark:text-graphite-400 uppercase mb-1">RUT *</label>
+            <label className="block font-semibold text-gray-600 dark:text-graphite-400 uppercase mb-1">
+              RUT <span className="text-[#E11D48] required-asterisk">*</span>
+            </label>
             <input
               data-testid="paciente-rut"
               type="text"
@@ -165,8 +156,10 @@ export const ModalNuevoPaciente: React.FC<ModalNuevoPacienteProps> = memo(({ alG
           </div>
           <div>
             <Input
+              data-testid="paciente-telefono"
               label="Teléfono"
               type="text"
+              required
               value={nuevoPaciente.telefono || ''}
               onChange={(e) => actualizarCampo('telefono', e.target.value)}
               placeholder="+56 9 1234 5678"

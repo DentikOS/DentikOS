@@ -85,7 +85,7 @@ describe('Sidebar - Matriz de Permisos Blueprint 02', () => {
 
     render(<Sidebar activeSection="Dashboard" setActiveSection={vi.fn()} />)
 
-    expect(screen.getByTestId('sidebar-menu-pagos')).toBeInTheDocument()
+    expect(screen.queryByTestId('sidebar-menu-pagos')).not.toBeInTheDocument()
     expect(screen.getByTestId('sidebar-menu-vademecum')).toBeInTheDocument()
     expect(screen.queryByTestId('sidebar-menu-admin')).not.toBeInTheDocument()
     expect(screen.queryByTestId('sidebar-menu-presupuestos')).not.toBeInTheDocument()

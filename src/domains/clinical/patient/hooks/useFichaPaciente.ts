@@ -84,7 +84,7 @@ export const useFichaPaciente = (
   const [fichaData, setFichaData] = useState<FichaDataState>({
     motivoConsulta: (paciente as unknown as Record<string, string>).motivoConsulta || '',
     anamnesisProxima: (paciente as unknown as Record<string, string>).anamnesisProxima || '',
-    alergias: paciente.alergias || '',
+    alergias: Array.isArray(paciente.alergias) ? paciente.alergias.join(', ') : (paciente.alergias || ''),
     enfermedades: (paciente as unknown as Record<string, string>).enfermedades || '',
     medicamentos: (paciente as unknown as Record<string, string>).medicamentos || '',
     habitos: (paciente as unknown as Record<string, string>).habitos || '',

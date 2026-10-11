@@ -16,8 +16,8 @@ import { CargandoModulo } from './shared/ui/CargandoModulo'
 import { ErrorBoundary } from './shared/ui/ErrorBoundary' // F6-01
 import { ToastContainer } from './shared/ui/ToastContainer'
 import { AppDialogProvider } from './shared/ui/AppDialogProvider'
+import { useAppDialog } from './shared/hooks/useAppDialog'
 import { TopBar } from './shared/ui/TopBar'
-import { usePacientesStore } from './app/stores/pacientesStore'
 import { usePrestacionesStore } from './app/stores/prestacionesStore'
 import { useSesionStore } from './app/stores/sesionStore'
 import { useDataMigration } from './shared/hooks/useDataMigration'
@@ -39,8 +39,8 @@ import { CommandPalette } from './shared/ui/CommandPalette'
 
 // Módulos de uso diario — carga eager (Public API, Constitución v3.0.0)
 import { Agenda as AgendaModulo } from './domains/operations/agenda'
-import { FichaPaciente, DirectorioPacientes } from './domains/clinical/patient'
-import { usePacientesActions } from './domains/clinical/patient/hooks/usePacientesActions'
+import { usePresupuestosStore } from './app/stores/usePresupuestosStore'
+import { usePacientesStore } from './app/stores/usePacientesStore'
 import { useSessionGuard } from './shared/hooks/useSessionGuard'
 import { DashboardModulo } from './application/analytics/dashboard'
 import { createLogger } from './infrastructure/logging/logger'
@@ -53,6 +53,8 @@ const log = createLogger('App')
 
 // (F2-05) — resto de los módulos vía React.lazy: no se descargan en el
 // bundle inicial, solo cuando el usuario navega a esa sección por primera vez.
+const PacientesListado = lazy(() => import('./domains/clinical/patient').then(m => ({ default: m.PacientesListado })))
+const FichaClinica = lazy(() => import('./domains/clinical/patient').then(m => ({ default: m.FichaClinica })))
 const FinanzasModulo = lazy(() => import('./domains/billing/cash-register').then(m => ({ default: m.FinanzasModulo })))
 const InventarioModulo = lazy(() => import('./domains/operations/inventory').then(m => ({ default: m.InventarioModulo })))
 const UrgenciasGesModulo = lazy(() => import('./domains/clinical/emergency-ges').then(m => ({ default: m.UrgenciasGesModulo })))
@@ -94,25 +96,9 @@ interface PresupuestosModuloProps {
   setActiveSection: (seccion: string) => void
 }
 
-interface FichaPacienteProps {
-  paciente: Paciente
-  alActualizarPaciente: (paciente: Paciente) => void
-  alEliminarPaciente: (idPaciente: string | number) => void
-  alVolver: () => void
-  navegacionClinica?: unknown
-}
-
-interface DirectorioPacientesProps {
-  alSeleccionarPaciente: (paciente: Paciente | null) => void
-  alEliminarPaciente: (idPaciente: string | number) => void
-  alPacienteCreado: (paciente: Paciente) => void
-}
-
 const Dashboard = DashboardModulo as React.ComponentType<DashboardModuloProps>
 const Agenda = AgendaModulo as React.ComponentType<AgendaModuloProps>
 const Presupuestos = PresupuestosModulo as React.ComponentType<PresupuestosModuloProps>
-const Ficha = FichaPaciente as React.ComponentType<FichaPacienteProps>
-const Directorio = DirectorioPacientes as React.ComponentType<DirectorioPacientesProps>
 
 export const App: React.FC = () => {
   // F7-36 FASE 1 (Commit 1.5f): repo tenant-aware para paciente seleccionado (PHI).
@@ -158,6 +144,7 @@ export const App: React.FC = () => {
 
   const userProfile = useSesionStore((state: unknown) => (state as SesionStoreState).userProfile)
   const loginStore = useSesionStore((state: unknown) => (state as SesionStoreState).login)
+  const pacienteActivo = usePacientesStore((s) => s.pacienteActivo)
   const bootstrapNecesario = useBootstrapDetection(userProfile) // F7-11b
   // F7-11: Detectar invitación pendiente en URL hash
   const invitacionPendiente = useInvitacionHash()
@@ -366,12 +353,19 @@ export const App: React.FC = () => {
   useEffect(() => {
     const refrescarDesdeStorage = (usePrestacionesStore.getState() as { refrescarDesdeStorage: () => void }).refrescarDesdeStorage
 
+    const handleNavegarSeccion = (e: Event) => {
+      const customEvent = e as CustomEvent<string>
+      if (customEvent.detail) setActiveSection(customEvent.detail)
+    }
+
     window.addEventListener('storage', refrescarDesdeStorage)
     window.addEventListener('arancel_actualizado', refrescarDesdeStorage)
+    window.addEventListener('navegar_seccion', handleNavegarSeccion)
 
     return () => {
       window.removeEventListener('storage', refrescarDesdeStorage)
       window.removeEventListener('arancel_actualizado', refrescarDesdeStorage)
+      window.removeEventListener('navegar_seccion', handleNavegarSeccion)
     }
   }, [])
 
@@ -448,18 +442,28 @@ export const App: React.FC = () => {
     logoutStore()
   }
 
-  const handleActualizarPaciente = (pacienteActualizado: Paciente): void => {
+  const handleActualizarPaciente = (datos: Partial<Paciente> | Paciente): void => {
+    const pacienteActualizado: Paciente = { ...(pacienteSeleccionado || {}), ...datos } as Paciente
     const nuevaLista = pacientes.map(p => p.id === pacienteActualizado.id ? pacienteActualizado : p)
     setPacientes(nuevaLista)
     setPacienteSeleccionado(pacienteActualizado)
   }
 
-  const { handleEliminarPaciente } = usePacientesActions(
-    pacientes,
-    setPacientes,
-    pacienteSeleccionado,
-    setPacienteSeleccionado
-  )
+  const { confirm } = useAppDialog()
+  const handleEliminarPaciente = async (idPaciente: string | number): Promise<boolean> => {
+    const confirmado = await confirm({
+      title: 'Eliminar paciente',
+      description: '¿Estás seguro de eliminar este paciente? El paciente se archivará y podrá ser restaurado por un administrador.',
+      variant: 'danger',
+      confirmText: 'Eliminar'
+    })
+    if (!confirmado) return false
+    usePacientesStore.getState().setPacientes((prev) => prev.filter((p) => String(p.id) !== String(idPaciente)))
+    if (pacienteSeleccionado && String(pacienteSeleccionado.id) === String(idPaciente)) {
+      setPacienteSeleccionado(null)
+    }
+    return true
+  }
 
   // F7-11b: Pantalla de verificación mientras se determina bootstrapNecesario
   if (bootstrapNecesario === null && userProfile) return <VerificandoCuenta />
@@ -600,20 +604,30 @@ export const App: React.FC = () => {
               {activeSection === 'Vademécum' && <AdminVademecumModulo />}
 
               {activeSection === 'Pacientes' && (
-                <ErrorBoundary modulo="pacientes" onReset={() => { setPacienteSeleccionado(null); setActiveSection('Dashboard') }}>
-                  {pacienteSeleccionado ? (
-                    <Ficha
-                      paciente={pacienteSeleccionado}
+                <ErrorBoundary modulo="pacientes" onReset={() => { setPacienteSeleccionado(null); usePacientesStore.getState().cerrarFicha(); setActiveSection('Dashboard') }}>
+                  {(pacienteSeleccionado || pacienteActivo) ? (
+                    <FichaClinica
+                      paciente={(pacienteSeleccionado || pacienteActivo)!}
+                      pacienteId={(pacienteSeleccionado || pacienteActivo)?.id}
                       alActualizarPaciente={handleActualizarPaciente}
                       alEliminarPaciente={handleEliminarPaciente}
-                      alVolver={() => setPacienteSeleccionado(null)}
+                      alVolver={() => {
+                        setPacienteSeleccionado(null)
+                        usePacientesStore.getState().cerrarFicha()
+                      }}
                       navegacionClinica={navegacionClinica} /* F7-26 */
                     />
                   ) : (
-                    <Directorio
-                      alSeleccionarPaciente={setPacienteSeleccionado}
+                    <PacientesListado
+                      alSeleccionarPaciente={(p) => {
+                        setPacienteSeleccionado(p)
+                        usePacientesStore.getState().setPacienteActivo(p)
+                      }}
                       alEliminarPaciente={handleEliminarPaciente}
-                      alPacienteCreado={setPacienteSeleccionado}
+                      alPacienteCreado={(p) => {
+                        setPacienteSeleccionado(p as Paciente)
+                        usePacientesStore.getState().setPacienteActivo(p as Paciente)
+                      }}
                     />
                   )}
                 </ErrorBoundary>
