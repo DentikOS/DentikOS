@@ -39,7 +39,6 @@ import { CommandPalette } from './shared/ui/CommandPalette'
 
 // Módulos de uso diario — carga eager (Public API, Constitución v3.0.0)
 import { Agenda as AgendaModulo } from './domains/operations/agenda'
-import { PacientesListado, FichaClinica } from './domains/clinical/patient'
 import { usePresupuestosStore } from './app/stores/usePresupuestosStore'
 import { usePacientesStore } from './app/stores/usePacientesStore'
 import { useSessionGuard } from './shared/hooks/useSessionGuard'
@@ -54,6 +53,8 @@ const log = createLogger('App')
 
 // (F2-05) — resto de los módulos vía React.lazy: no se descargan en el
 // bundle inicial, solo cuando el usuario navega a esa sección por primera vez.
+const PacientesListado = lazy(() => import('./domains/clinical/patient').then(m => ({ default: m.PacientesListado })))
+const FichaClinica = lazy(() => import('./domains/clinical/patient').then(m => ({ default: m.FichaClinica })))
 const FinanzasModulo = lazy(() => import('./domains/billing/cash-register').then(m => ({ default: m.FinanzasModulo })))
 const InventarioModulo = lazy(() => import('./domains/operations/inventory').then(m => ({ default: m.InventarioModulo })))
 const UrgenciasGesModulo = lazy(() => import('./domains/clinical/emergency-ges').then(m => ({ default: m.UrgenciasGesModulo })))
