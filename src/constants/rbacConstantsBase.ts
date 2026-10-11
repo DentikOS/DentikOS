@@ -21,6 +21,8 @@ export type Rol = typeof ROLES[keyof typeof ROLES]
 export const PERMISOS = {
   // Módulos críticos (visibilidad en Sidebar)
   VER_FINANZAS: 'ver_finanzas',
+  VER_PRESUPUESTOS: 'ver_presupuestos',
+  VER_PAGOS: 'ver_pagos',
   VER_REPORTES: 'ver_reportes',
   VER_CONFIGURACION: 'ver_configuracion',
   VER_INVENTARIO: 'ver_inventario',

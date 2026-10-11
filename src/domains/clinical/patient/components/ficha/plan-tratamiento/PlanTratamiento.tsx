@@ -19,11 +19,13 @@ export type { FasePlan, ProcedimientoPlan }
 interface PlanTratamientoProps {
   nombrePaciente?: string
   onGenerarPresupuesto?: (fases: FasePlan[]) => void
+  setActiveSection?: (section: string) => void
 }
 
 export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
   nombrePaciente = 'Paciente',
   onGenerarPresupuesto,
+  setActiveSection,
 }) => {
   const odontograma = useOdontogramaStore((s) => s.odontograma)
   const [fases, setFases] = useState<FasePlan[]>(() =>
@@ -154,14 +156,30 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
           <p className="text-sm text-graphite-600 dark:text-graphite-400">Total estimado:</p>
           <p className="text-2xl font-bold font-mono text-primary">${totalPlan.toLocaleString('es-CL')}</p>
         </div>
-        <button
-          type="button"
-          onClick={handleGenerarPresupuesto}
-          className="px-6 py-3 bg-gradient-to-r from-[#E5C378] to-[#B88E3A] text-[#070B14] font-semibold rounded-lg hover:brightness-105 cursor-pointer"
-          data-testid="btn-generar-presupuesto-bottom"
-        >
-          ✨ Generar presupuesto
-        </button>
+        <div className="flex items-center gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              if (setActiveSection) {
+                setActiveSection('Presupuestos')
+              } else {
+                window.dispatchEvent(new CustomEvent('navegar_seccion', { detail: 'Presupuestos' }))
+              }
+            }}
+            data-testid="btn-ver-todos-presupuestos"
+          >
+            📋 Ver todos los presupuestos
+          </Button>
+          <button
+            type="button"
+            onClick={handleGenerarPresupuesto}
+            className="px-6 py-3 bg-gradient-to-r from-[#E5C378] to-[#B88E3A] text-[#070B14] font-semibold rounded-lg hover:brightness-105 cursor-pointer"
+            data-testid="btn-generar-presupuesto-bottom"
+          >
+            ✨ Generar presupuesto
+          </button>
+        </div>
       </div>
 
       {mostrarDerivacion && (

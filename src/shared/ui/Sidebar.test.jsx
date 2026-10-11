@@ -88,7 +88,7 @@ describe('Sidebar - Matriz de Permisos Blueprint 02', () => {
     expect(screen.getByTestId('sidebar-menu-pagos')).toBeInTheDocument()
     expect(screen.getByTestId('sidebar-menu-vademecum')).toBeInTheDocument()
     expect(screen.queryByTestId('sidebar-menu-admin')).not.toBeInTheDocument()
-    expect(screen.queryByTestId('sidebar-menu-presupuestos')).not.toBeInTheDocument()
+    expect(screen.getByTestId('sidebar-menu-presupuestos')).toBeInTheDocument()
   })
 
   it('Toggle de colapso: botón visible y conmuta modo del store', () => {

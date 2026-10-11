@@ -352,12 +352,19 @@ export const App: React.FC = () => {
   useEffect(() => {
     const refrescarDesdeStorage = (usePrestacionesStore.getState() as { refrescarDesdeStorage: () => void }).refrescarDesdeStorage
 
+    const handleNavegarSeccion = (e: Event) => {
+      const customEvent = e as CustomEvent<string>
+      if (customEvent.detail) setActiveSection(customEvent.detail)
+    }
+
     window.addEventListener('storage', refrescarDesdeStorage)
     window.addEventListener('arancel_actualizado', refrescarDesdeStorage)
+    window.addEventListener('navegar_seccion', handleNavegarSeccion)
 
     return () => {
       window.removeEventListener('storage', refrescarDesdeStorage)
       window.removeEventListener('arancel_actualizado', refrescarDesdeStorage)
+      window.removeEventListener('navegar_seccion', handleNavegarSeccion)
     }
   }, [])
 
