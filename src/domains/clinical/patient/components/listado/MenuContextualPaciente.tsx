@@ -1,4 +1,5 @@
-import React from 'react'
+import React, { useLayoutEffect, useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   FileText,
   Printer,
@@ -11,16 +12,18 @@ import {
   ShieldAlert,
 } from 'lucide-react'
 import { useRBAC } from '../../../../../shared/hooks/useRBAC'
-import { notificationService } from '../../../../../infrastructure/notification/notificationService'
 import type { Paciente } from '../../schemas/pacienteSchema'
 
 export interface MenuContextualPacienteProps {
   paciente: Paciente
   isOpen: boolean
+  triggerRef?: React.RefObject<HTMLElement | null>
   onClose: () => void
   onEditar?: (p: Paciente) => void
   onImprimir?: (p: Paciente) => void
   onExportar?: (p: Paciente) => void
+  onDerivar?: (p: Paciente) => void
+  onAsignarEtiqueta?: (p: Paciente) => void
   onCambiarDoctor?: (p: Paciente) => void
   onVerDocumentos?: (p: Paciente) => void
   onDesactivar?: (p: Paciente) => void
@@ -30,16 +33,60 @@ export interface MenuContextualPacienteProps {
 export const MenuContextualPaciente: React.FC<MenuContextualPacienteProps> = ({
   paciente,
   isOpen,
+  triggerRef,
   onClose,
   onEditar,
   onImprimir,
   onExportar,
+  onDerivar,
+  onAsignarEtiqueta,
   onCambiarDoctor,
   onVerDocumentos,
   onDesactivar,
   onBloquear,
 }) => {
   const { esAdmin, rol } = useRBAC()
+  const [pos, setPos] = useState({ top: 0, left: 0 })
+
+  useLayoutEffect(() => {
+    if (!isOpen) return
+    if (!triggerRef?.current) return
+    const rect = triggerRef.current.getBoundingClientRect()
+    const menuWidth = 224 // w-56
+    const menuHeight = 350
+    const padding = 8
+
+    let top = rect.bottom + 4
+    let left = rect.right - menuWidth
+
+    // Detección colisión vertical: si no cabe abajo, abrir hacia arriba
+    if (top + menuHeight > window.innerHeight && rect.top - menuHeight > 0) {
+      top = Math.max(padding, rect.top - menuHeight - 4)
+    }
+
+    // Detección colisión horizontal
+    if (left < padding) {
+      left = Math.max(padding, rect.left)
+    }
+    if (left + menuWidth > window.innerWidth - padding) {
+      left = Math.max(padding, window.innerWidth - menuWidth - padding)
+    }
+
+    setPos({ top, left })
+  }, [isOpen, triggerRef])
+
+  useEffect(() => {
+    if (!isOpen) return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose()
+        triggerRef?.current?.focus()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen, onClose, triggerRef])
+
   if (!isOpen) return null
 
   const ejecutarAccion = (fn?: (p: Paciente) => void) => {
@@ -47,18 +94,23 @@ export const MenuContextualPaciente: React.FC<MenuContextualPacienteProps> = ({
     if (fn) fn(paciente)
   }
 
-  const handleProximaSesion = (nombre: string) => {
-    onClose()
-    notificationService.mostrar(`${nombre}: Disponible en próxima sesión`, { tipo: 'info' })
-  }
-
   const puedeEditar = esAdmin || rol === 'recepcion'
 
-  return (
+  const menuContent = (
     <>
-      <div className="fixed inset-0 z-40" onClick={onClose} />
       <div
-        className="absolute right-0 top-full mt-1.5 z-50 w-56 bg-surface border border-surface rounded-2xl shadow-xl py-1.5 text-xs text-graphite-700 dark:text-graphite-200 animate-in fade-in zoom-in-95 duration-100 backdrop-blur-md"
+        className="fixed inset-0 z-[9998] bg-transparent"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+      <div
+        style={{
+          position: 'fixed',
+          top: `${pos.top}px`,
+          left: `${pos.left}px`,
+          zIndex: 9999,
+        }}
+        className="w-56 bg-surface border border-surface rounded-2xl shadow-2xl py-1.5 text-xs text-graphite-700 dark:text-graphite-200 animate-in fade-in zoom-in-95 duration-100 backdrop-blur-md"
         data-testid={`menu-dropdown-${paciente.id}`}
         onClick={(e) => e.stopPropagation()}
       >
@@ -78,11 +130,7 @@ export const MenuContextualPaciente: React.FC<MenuContextualPacienteProps> = ({
         {/* 2. Imprimir ficha resumen */}
         <button
           type="button"
-          onClick={() => {
-            onClose()
-            if (onImprimir) onImprimir(paciente)
-            else window.print()
-          }}
+          onClick={() => ejecutarAccion(onImprimir)}
           className="w-full px-3.5 py-2 hover:bg-surface-hover flex items-center gap-2 text-left cursor-pointer"
         >
           <Printer className="w-4 h-4 text-graphite-500" />
@@ -102,7 +150,7 @@ export const MenuContextualPaciente: React.FC<MenuContextualPacienteProps> = ({
         {/* 4. Crear ficha de derivación */}
         <button
           type="button"
-          onClick={() => handleProximaSesion('Ficha de derivación')}
+          onClick={() => ejecutarAccion(onDerivar)}
           className="w-full px-3.5 py-2 hover:bg-surface-hover flex items-center gap-2 text-left cursor-pointer"
         >
           <Share2 className="w-4 h-4 text-graphite-400" />
@@ -112,7 +160,7 @@ export const MenuContextualPaciente: React.FC<MenuContextualPacienteProps> = ({
         {/* 5. Asignar etiqueta */}
         <button
           type="button"
-          onClick={() => handleProximaSesion('Asignar etiquetas')}
+          onClick={() => ejecutarAccion(onAsignarEtiqueta)}
           className="w-full px-3.5 py-2 hover:bg-surface-hover flex items-center gap-2 text-left cursor-pointer"
         >
           <Tag className="w-4 h-4 text-graphite-400" />
@@ -165,4 +213,8 @@ export const MenuContextualPaciente: React.FC<MenuContextualPacienteProps> = ({
       </div>
     </>
   )
+
+  return typeof document !== 'undefined'
+    ? createPortal(menuContent, document.body)
+    : menuContent
 }
