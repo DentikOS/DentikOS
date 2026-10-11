@@ -8,6 +8,7 @@
  * - aria-modal, role="dialog", aria-labelledby
  */
 import React, { useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import { Icon } from '../Icon'
 
@@ -114,6 +115,7 @@ export const Modal: React.FC<ModalProps> = ({
   }, [isOpen, onClose, closeOnEscape])
 
   if (!isOpen) return null
+  if (typeof document === 'undefined') return null
 
   const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (closeOnOverlayClick && e.target === e.currentTarget) {
@@ -127,7 +129,7 @@ export const Modal: React.FC<ModalProps> = ({
       ? `modal-title-${title.toLowerCase().replace(/\s+/g, '-')}`
       : undefined
 
-  return (
+  return createPortal(
     <div
       className={`fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm ${zIndex} flex items-center justify-center p-4 animate-in fade-in duration-200`}
       onClick={handleOverlayClick}
@@ -166,7 +168,8 @@ export const Modal: React.FC<ModalProps> = ({
           {children}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 

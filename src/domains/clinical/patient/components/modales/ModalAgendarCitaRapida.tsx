@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, memo } from 'react'
 import { CalendarPlus, X, CheckCircle2, TriangleAlert, Calendar } from 'lucide-react'
 import { Modal } from '../../../../../shared/ui/ui/Modal'
 import { Button } from '../../../../../shared/ui/ui/Button'
@@ -8,9 +8,7 @@ import { usePrestacionesStore } from '../../../../../app/stores/prestacionesStor
 import { useAgendaStore } from '../../../../../app/stores/useAgendaStore'
 import { agendaStorageService } from '../../../../operations/agenda/services/agendaStorageService'
 import { timelineService } from '../../services/timelineService'
-import {
-  BOXES_CITA_RAPIDA, PRESTACIONES_DEFAULT_RAPIDAS, obtenerFechaMananaISO, sumarMinutosHora,
-} from './agendarCitaRapida.helpers'
+import { BOXES_CITA_RAPIDA, PRESTACIONES_DEFAULT_RAPIDAS, obtenerFechaMananaISO, sumarMinutosHora } from './agendarCitaRapida.helpers'
 import type { Paciente } from '../../schemas/pacienteSchema'
 import type { Cita } from '../../../../operations/agenda/schemas/citaSchema'
 
@@ -22,7 +20,7 @@ export interface ModalAgendarCitaRapidaProps {
   onCitaCreada?: (cita: Cita) => void
 }
 
-export const ModalAgendarCitaRapida: React.FC<ModalAgendarCitaRapidaProps> = ({
+export const ModalAgendarCitaRapida: React.FC<ModalAgendarCitaRapidaProps> = memo(({
   paciente, doctorTratante, isOpen, onClose, onCitaCreada,
 }) => {
   const { doctores } = useDoctoresClinica()
@@ -146,4 +144,6 @@ export const ModalAgendarCitaRapida: React.FC<ModalAgendarCitaRapidaProps> = ({
       )}
     </Modal>
   )
-}
+})
+
+ModalAgendarCitaRapida.displayName = 'ModalAgendarCitaRapida'

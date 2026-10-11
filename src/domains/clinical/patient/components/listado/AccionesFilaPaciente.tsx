@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { FileText, CalendarPlus, MoreVertical, TriangleAlert } from 'lucide-react'
 import { useRBAC } from '../../../../../shared/hooks/useRBAC'
 import { notificationService } from '../../../../../infrastructure/notification/notificationService'
@@ -138,7 +139,7 @@ export const AccionesFilaPaciente: React.FC<AccionesFilaPacienteProps> = ({
         />
       )}
 
-      {modalDerivacionAbierto && (
+      {modalDerivacionAbierto && typeof document !== 'undefined' && createPortal(
         <FichaDerivacionModal
           nombrePaciente={paciente.nombre || paciente.nombreCompleto || 'Paciente'}
           onCerrar={() => setModalDerivacionAbierto(false)}
@@ -153,7 +154,8 @@ export const AccionesFilaPaciente: React.FC<AccionesFilaPacienteProps> = ({
             notificationService.mostrar('Ficha de derivación emitida con éxito', { tipo: 'success' })
             setModalDerivacionAbierto(false)
           }}
-        />
+        />,
+        document.body
       )}
 
       {modalEtiquetasAbierto && (

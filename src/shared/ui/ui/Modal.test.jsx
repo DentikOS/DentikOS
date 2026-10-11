@@ -68,17 +68,17 @@ describe('Modal (F7-25)', () => {
 
   describe('overlay click', () => {
     it('cierra al hacer click en el overlay (fuera del modal)', () => {
-      const { container } = render(<Modal {...defaultProps}>Contenido</Modal>)
-      const overlay = container.firstChild
+      render(<Modal {...defaultProps}>Contenido</Modal>)
+      const overlay = screen.getByRole('presentation')
       fireEvent.click(overlay)
       expect(defaultProps.onClose).toHaveBeenCalledTimes(1)
     })
 
     it('NO cierra cuando closeOnOverlayClick=false', () => {
-      const { container } = render(
+      render(
         <Modal {...defaultProps} closeOnOverlayClick={false}>Contenido</Modal>
       )
-      const overlay = container.firstChild
+      const overlay = screen.getByRole('presentation')
       fireEvent.click(overlay)
       expect(defaultProps.onClose).not.toHaveBeenCalled()
     })
