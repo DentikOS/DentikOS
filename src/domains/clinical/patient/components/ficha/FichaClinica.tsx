@@ -14,6 +14,7 @@ import { Consentimientos } from './consentimientos/Consentimientos'
 import { PlanTratamiento } from './plan-tratamiento/PlanTratamiento'
 import { Timeline } from './Timeline'
 import { ModoQuirurgico } from './ModoQuirurgico'
+import { ModoPresentacion } from './ModoPresentacion'
 import { AdjuntosSection } from './adjuntos/AdjuntosSection'
 
 export interface FichaClinicaProps {
@@ -127,9 +128,18 @@ export const FichaClinica: React.FC<FichaClinicaProps> = ({
     )
   }
 
+  if (modoPresentacionActivo) {
+    return (
+      <ModoPresentacion
+        paciente={pacienteFinal}
+        onSalir={() => setModoPresentacionActivo(false)}
+      />
+    )
+  }
+
   return (
     <div
-      className={`space-y-4 pb-12 ${modoPresentacionActivo ? 'p-6 bg-surface max-w-5xl mx-auto' : ''}`}
+      className="space-y-4 pb-12"
       data-testid="ficha-clinica-bp06"
     >
       {/* Barra de Navegación Superior */}

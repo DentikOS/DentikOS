@@ -55,18 +55,18 @@ export const ModoPresentacion: React.FC<ModoPresentacionProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-graphite-950/95 text-white p-6 sm:p-12 overflow-y-auto flex flex-col justify-between backdrop-blur-lg animate-in fade-in duration-200"
+      className="fullscreen-mode fixed inset-0 z-[9999] w-screen h-screen bg-graphite-950 text-white p-8 sm:p-14 overflow-y-auto flex flex-col justify-between backdrop-blur-xl animate-in fade-in duration-200"
       data-testid="modo-presentacion-presupuesto"
     >
       {/* Header Presentación */}
-      <div className="flex items-center justify-between pb-6 border-b border-white/10">
-        <div className="flex items-center gap-3">
-          <Sparkles className="w-8 h-8 text-gold-satin animate-pulse" />
+      <div className="flex items-center justify-between pb-8 border-b border-white/10">
+        <div className="flex items-center gap-4">
+          <Sparkles className="w-10 h-10 text-gold-satin animate-pulse" />
           <div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+            <h1 className="text-3xl sm:text-5xl font-black tracking-tight text-white">
               Propuesta Clínica & Plan de Tratamiento
             </h1>
-            <p className="text-xs sm:text-sm text-graphite-400 mt-0.5">
+            <p className="text-lg sm:text-2xl text-graphite-400 mt-1 font-medium">
               Paciente: {presupuesto.pacienteNombre} &bull; Folio: {presupuesto.folio}
             </p>
           </div>
@@ -75,10 +75,11 @@ export const ModoPresentacion: React.FC<ModoPresentacionProps> = ({
         <button
           type="button"
           onClick={onSalir}
-          className="p-3 rounded-2xl bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
+          className="min-h-[64px] min-w-[64px] px-6 rounded-2xl bg-white/10 hover:bg-rose-600/80 text-white font-extrabold text-base flex items-center justify-center gap-2 transition-colors cursor-pointer border border-white/20 active:scale-95 shadow-xl"
           aria-label="Cerrar presentación (ESC)"
         >
-          <X className="w-6 h-6" />
+          <X className="w-7 h-7" />
+          <span className="hidden sm:inline">Salir (ESC)</span>
         </button>
       </div>
 
@@ -130,27 +131,27 @@ export const ModoPresentacion: React.FC<ModoPresentacionProps> = ({
           <button
             type="button"
             onClick={handleWhatsApp}
-            className="flex-1 sm:flex-initial px-5 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition-colors"
+            className="flex-1 sm:flex-initial min-h-[64px] px-6 rounded-2xl bg-emerald-600 hover:bg-emerald-500 font-bold text-sm flex items-center justify-center gap-2 cursor-pointer transition-colors shadow-lg"
           >
-            <MessageSquare className="w-4 h-4" /> Enviar WhatsApp
+            <MessageSquare className="w-5 h-5" /> Enviar WhatsApp
           </button>
 
           <button
             type="button"
             onClick={() => window.print()}
-            className="flex-1 sm:flex-initial px-5 py-3 rounded-2xl bg-white/10 hover:bg-white/20 font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition-colors"
+            className="flex-1 sm:flex-initial min-h-[64px] px-6 rounded-2xl bg-white/10 hover:bg-white/20 font-bold text-sm flex items-center justify-center gap-2 cursor-pointer transition-colors border border-white/20"
           >
-            <FileDown className="w-4 h-4" /> Descargar PDF
+            <FileDown className="w-5 h-5" /> Descargar PDF
           </button>
 
           {onAprobar && (
             <button
               type="button"
               onClick={onAprobar}
-              className="flex-1 sm:flex-initial px-6 py-3 rounded-2xl bg-primary hover:bg-primary/90 font-extrabold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-lg transition-transform active:scale-95"
+              className="flex-1 sm:flex-initial min-h-[64px] px-8 rounded-2xl bg-primary hover:bg-primary/90 font-extrabold text-base flex items-center justify-center gap-2 cursor-pointer shadow-xl transition-transform active:scale-95"
               data-testid="btn-aprobar-presentacion"
             >
-              <CheckCircle2 className="w-4 h-4" /> Aprobar Plan
+              <CheckCircle2 className="w-5 h-5" /> Aprobar Plan
             </button>
           )}
         </div>
