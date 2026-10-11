@@ -45,6 +45,7 @@ export interface PacientesStore {
   setPestanaActiva: (pestana: PestanaFicha) => void
   bloquearPaciente: (id: string | number) => void
   desbloquearPaciente: (id: string | number) => void
+  actualizarPaciente: (id: string | number, updates: Partial<Paciente>) => void
   refrescarDesdeSupabase: () => Promise<void>
 }
 
@@ -123,6 +124,19 @@ export const usePacientesStore = create<PacientesStore>()(
         get().setPacientes((prev) =>
           prev.map((p) => (String(p.id) === String(id) ? { ...p, estado: 'activo' } : p))
         )
+      },
+
+      actualizarPaciente: (id, updates) => {
+        set((state) => {
+          const nuevos = state.pacientes.map((p) =>
+            String(p.id) === String(id) ? { ...p, ...updates } : p
+          )
+          const activo = state.pacienteActivo && String(state.pacienteActivo.id) === String(id)
+            ? { ...state.pacienteActivo, ...updates }
+            : state.pacienteActivo
+          pacientesStorageService.guardarPacientes(nuevos)
+          return { pacientes: nuevos, pacienteActivo: activo }
+        })
       },
 
       refrescarDesdeSupabase: async (): Promise<void> => {

@@ -77,11 +77,8 @@ export const FichaClinica: React.FC<FichaClinicaProps> = ({
   const [modoQuirurgicoActivo, setModoQuirurgicoActivo] = useState(false)
   const [modoPresentacionActivo, setModoPresentacionActivo] = useState(false)
 
-  const pacienteFinal: Paciente =
-    paciente ||
-    (pacienteId ? pacientes.find((p) => String(p.id) === String(pacienteId)) : null) ||
-    pacienteActivoStore ||
-    pacientes[0]
+  const pacienteStore = (pacienteId ? pacientes.find((p) => String(p.id) === String(pacienteId)) : null) || pacienteActivoStore
+  const pacienteFinal: Paciente = pacienteStore || paciente || pacientes[0]
 
   useEffect(() => {
     const tieneAlergias = Boolean(
@@ -91,7 +88,7 @@ export const FichaClinica: React.FC<FichaClinicaProps> = ({
     if (tieneAlergias) {
       sonarAlerta220Hz()
     }
-  }, [pacienteFinal?.id])
+  }, [pacienteFinal?.id, pacienteFinal?.alergias, pacienteFinal?.anticoagulantes])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

@@ -1,10 +1,10 @@
-import React, { useState } from 'react'
-import { User, Phone, Mail, MapPin, ShieldAlert, HeartPulse, Users2, Save } from 'lucide-react'
+import React, { useState, useRef, useEffect } from 'react'
+import { User, Phone, Mail, MapPin, ShieldAlert, HeartPulse, Users2, Save, Loader2, CheckCircle, AlertCircle } from 'lucide-react'
 import { Button } from '../../../../../shared/ui/ui/Button'
 import { Input } from '../../../../../shared/ui/ui/Input'
 import type { Paciente } from '../../schemas/pacienteSchema'
-
 import { useRBAC } from '../../../../../shared/hooks/useRBAC'
+import { usePacientesStore } from '../../../../../app/stores/pacientesStore'
 
 interface DatosPacienteProps {
   paciente: Paciente
@@ -36,17 +36,49 @@ export const DatosPaciente: React.FC<DatosPacienteProps> = ({ paciente, onGuarda
     tutorLegal: paciente.tutorLegal,
   })
 
-  const [guardadoExitoso, setGuardadoExitoso] = useState(false)
+  const [estadoSincronizacion, setEstadoSincronizacion] = useState<'inactivo' | 'guardando' | 'guardado' | 'error'>('inactivo')
+  const debounceRef = useRef<NodeJS.Timeout | null>(null)
 
-  const handleChange = (campo: keyof Paciente, valor: unknown) => {
-    setFormData((prev) => ({ ...prev, [campo]: valor }))
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+    }
+  }, [])
+
+  const guardarOptimista = async (actualizaciones: Partial<Paciente>) => {
+    setEstadoSincronizacion('guardando')
+    try {
+      if (paciente?.id) {
+        usePacientesStore.getState().actualizarPaciente(paciente.id, actualizaciones)
+      }
+      await onGuardar(actualizaciones)
+      setEstadoSincronizacion('guardado')
+      setTimeout(() => setEstadoSincronizacion('inactivo'), 2000)
+    } catch {
+      setEstadoSincronizacion('error')
+      setTimeout(() => setEstadoSincronizacion('inactivo'), 3000)
+    }
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleChange = (campo: keyof Paciente, valor: unknown, esInmediato = false) => {
+    setFormData((prev) => {
+      const nuevo = { ...prev, [campo]: valor }
+      if (esInmediato) {
+        guardarOptimista(nuevo)
+      } else {
+        if (debounceRef.current) clearTimeout(debounceRef.current)
+        debounceRef.current = setTimeout(() => {
+          guardarOptimista(nuevo)
+        }, 500)
+      }
+      return nuevo
+    })
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    onGuardar(formData)
-    setGuardadoExitoso(true)
-    setTimeout(() => setGuardadoExitoso(false), 2500)
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    await guardarOptimista(formData)
   }
 
   return (
@@ -236,7 +268,7 @@ export const DatosPaciente: React.FC<DatosPacienteProps> = ({ paciente, onGuarda
             <input
               type="checkbox"
               checked={Boolean(formData.anticoagulantes)}
-              onChange={(e) => handleChange('anticoagulantes', e.target.checked)}
+              onChange={(e) => handleChange('anticoagulantes', e.target.checked, true)}
               className="w-4 h-4 rounded text-primary focus:ring-primary"
             />
             <span className="font-semibold text-graphite-700 dark:text-graphite-200">
@@ -248,7 +280,7 @@ export const DatosPaciente: React.FC<DatosPacienteProps> = ({ paciente, onGuarda
             <input
               type="checkbox"
               checked={Boolean(formData.embarazo)}
-              onChange={(e) => handleChange('embarazo', e.target.checked)}
+              onChange={(e) => handleChange('embarazo', e.target.checked, true)}
               className="w-4 h-4 rounded text-primary focus:ring-primary"
             />
             <span className="font-semibold text-graphite-700 dark:text-graphite-200">
@@ -260,7 +292,7 @@ export const DatosPaciente: React.FC<DatosPacienteProps> = ({ paciente, onGuarda
             <input
               type="checkbox"
               checked={Boolean(formData.lactancia)}
-              onChange={(e) => handleChange('lactancia', e.target.checked)}
+              onChange={(e) => handleChange('lactancia', e.target.checked, true)}
               className="w-4 h-4 rounded text-primary focus:ring-primary"
             />
             <span className="font-semibold text-graphite-700 dark:text-graphite-200">
@@ -351,11 +383,21 @@ export const DatosPaciente: React.FC<DatosPacienteProps> = ({ paciente, onGuarda
         </div>
       </div>
 
-      {/* Botón de guardado */}
+      {/* Botón de guardado y feedback */}
       <div className="flex items-center justify-end gap-3 pt-2">
-        {guardadoExitoso && (
-          <span className="text-xs text-emerald-600 font-semibold animate-in fade-in">
-            ¡Datos actualizados con éxito!
+        {estadoSincronizacion === 'guardando' && (
+          <span className="flex items-center gap-1.5 text-xs text-primary font-semibold animate-pulse" data-testid="indicador-guardando">
+            <Loader2 className="w-3.5 h-3.5 animate-spin" /> Guardando...
+          </span>
+        )}
+        {estadoSincronizacion === 'guardado' && (
+          <span className="flex items-center gap-1.5 text-xs text-emerald-600 font-semibold" data-testid="indicador-guardado">
+            <CheckCircle className="w-3.5 h-3.5" /> Guardado ✓
+          </span>
+        )}
+        {estadoSincronizacion === 'error' && (
+          <span className="flex items-center gap-1.5 text-xs text-rose-600 font-semibold" data-testid="indicador-error">
+            <AlertCircle className="w-3.5 h-3.5" /> Error al guardar
           </span>
         )}
         <Button type="submit" variant="primary" icon={Save}>
