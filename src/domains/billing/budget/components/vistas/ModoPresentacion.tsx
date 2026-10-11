@@ -55,7 +55,7 @@ export const ModoPresentacion: React.FC<ModoPresentacionProps> = ({
 
   return (
     <div
-      className="fullscreen-mode fixed inset-0 z-[9999] w-screen h-screen bg-graphite-950 text-white p-8 sm:p-14 overflow-y-auto flex flex-col justify-between backdrop-blur-xl animate-in fade-in duration-200"
+      className="fullscreen-mode fixed inset-0 z-[9999] bg-graphite-950 text-white overflow-y-auto p-8 flex flex-col justify-between backdrop-blur-xl animate-in fade-in duration-200"
       data-testid="modo-presentacion-presupuesto"
     >
       {/* Header Presentación */}

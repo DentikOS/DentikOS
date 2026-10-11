@@ -120,3 +120,24 @@
 .required-asterisk {
   color: #E11D48 !important;
 }
+
+/* Modo Presentación - Fullscreen real */
+.fullscreen-mode {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 9999 !important;
+  background: #0F172A !important;
+}
+
+.fullscreen-mode * {
+  font-size: 1.2em;
+}
+
+.fullscreen-mode button {
+  min-width: 64px;
+  min-height: 64px;
+  font-size: 1.5em;
+}
