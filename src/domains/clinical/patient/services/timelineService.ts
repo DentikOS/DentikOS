@@ -1,7 +1,7 @@
 export interface EventoTimeline {
   id: string
   fecha: string
-  tipo: 'evolucion' | 'pago' | 'consentimiento' | 'receta' | 'cita' | 'presupuesto'
+  tipo: 'evolucion' | 'pago' | 'consentimiento' | 'receta' | 'cita' | 'presupuesto' | 'llamada' | 'email' | 'admin' | string
   titulo: string
   profesional?: string
   detalles?: string
