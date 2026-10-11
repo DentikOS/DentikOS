@@ -23,14 +23,20 @@ describe('ModalNuevoPresupuesto BP07', () => {
     expect(screen.getByTestId('presupuesto-vista-simplificada')).toBeInTheDocument()
   })
 
-  it('crea el presupuesto y llama a onGuardar', () => {
+  it('crea el presupuesto y llama a onGuardar con boton Guardar presupuesto', () => {
     const onGuardar = vi.fn()
     render(<ModalNuevoPresupuesto onGuardar={onGuardar} onCerrar={vi.fn()} />)
 
-    fireEvent.click(screen.getByText('Crear Presupuesto'))
+    fireEvent.click(screen.getByTestId('btn-guardar-presupuesto'))
     expect(onGuardar).toHaveBeenCalledWith(
       expect.objectContaining({ estado: 'borrador' })
     )
+  })
+
+  it('abre modal para configurar cuota', () => {
+    render(<ModalNuevoPresupuesto onCerrar={vi.fn()} />)
+    fireEvent.click(screen.getByTestId('btn-configurar-cuota'))
+    expect(screen.getByTestId('modal-configurar-cuotas')).toBeInTheDocument()
   })
 
   it('aplica bonificación automática de convenio FONASA o ISAPRE', () => {

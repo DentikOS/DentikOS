@@ -1,8 +1,11 @@
 import React, { useState, useMemo } from 'react'
-import { X, Plus, Trash2, Layers, List, DollarSign } from 'lucide-react'
+import { X, Layers, List, DollarSign, Calendar } from 'lucide-react'
 import { Button } from '../../../../../shared/ui/ui/Button'
 import { usePresupuestosStore } from '../../../../../app/stores/usePresupuestosStore'
+import { timelineService } from '../../../../clinical/patient/services/timelineService'
 import type { Presupuesto, ItemPresupuesto } from '../../schemas/presupuestoSchema'
+import { ModalConfigurarCuotas, type PlanCuotasConfig } from './ModalConfigurarCuotas'
+import { ModalPresupuestoItemsView } from './ModalPresupuestoItemsView'
 
 interface ModalNuevoPresupuestoProps {
   pacienteId?: string | number
@@ -34,6 +37,8 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = ({
   const [motivoDescuento, setMotivoDescuento] = useState('')
   const [autorizadoPor, setAutorizadoPor] = useState('')
   const [descuentoManualPct, setDescuentoManualPct] = useState(0)
+  const [showConfigCuotas, setShowConfigCuotas] = useState(false)
+  const [planCuotas, setPlanCuotas] = useState<PlanCuotasConfig | null>(null)
 
   const presupuestoActivo = usePresupuestosStore((s) => s.presupuestoActivo)
   const [items, setItems] = useState<ItemPresupuesto[]>(() => {
@@ -48,26 +53,18 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = ({
   const descuentoTotalPct = Math.min(100, descuentoConvenioPct + descuentoManualPct)
 
   const handleAgregarItem = (fase: ItemPresupuesto['faseClinica'] = 'estabilizacion') => {
-    setItems((prev) => [
-      ...prev,
-      { id: crypto.randomUUID(), nombrePrestacion: 'Nueva Prestación Clínica', cantidad: 1, precioUnitario: 30000, descuento: 0, subtotal: 30000, faseClinica: fase },
-    ])
+    setItems((prev) => [...prev, { id: crypto.randomUUID(), nombrePrestacion: 'Nueva Prestación Clínica', cantidad: 1, precioUnitario: 30000, descuento: 0, subtotal: 30000, faseClinica: fase }])
   }
 
   const handleEliminarItem = (id: string | number) => setItems((prev) => prev.filter((it) => it.id !== id))
 
   const handleUpdateItem = (id: string | number, campo: keyof ItemPresupuesto, valor: unknown) => {
-    setItems((prev) =>
-      prev.map((it) => {
-        if (it.id !== id) return it
-        const actualizado = { ...it, [campo]: valor }
-        const cant = Number(actualizado.cantidad) || 1
-        const precio = Number(actualizado.precioUnitario) || 0
-        const desc = Number(actualizado.descuento) || 0
-        actualizado.subtotal = Math.max(0, cant * precio - desc)
-        return actualizado
-      })
-    )
+    setItems((prev) => prev.map((it) => {
+      if (it.id !== id) return it
+      const act = { ...it, [campo]: valor }
+      act.subtotal = Math.max(0, (Number(act.cantidad) || 1) * (Number(act.precioUnitario) || 0) - (Number(act.descuento) || 0))
+      return act
+    }))
   }
 
   const { totalBruto, totalDescuento, totalPagar } = useMemo(() => {
@@ -76,34 +73,35 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = ({
     return { totalBruto: bruto, totalDescuento: desc, totalPagar: Math.max(0, bruto - desc) }
   }, [items, descuentoTotalPct])
 
+  const handleCancelar = () => {
+    if (items.length > 2 && !window.confirm('¿Deseas descartar los cambios del presupuesto sin guardar?')) return
+    onCerrar()
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    if (items.length === 0) { window.alert('Debe incluir al menos 1 prestación en el presupuesto.'); return }
+    if (totalPagar <= 0) { window.alert('El total a pagar debe ser mayor a $0.'); return }
     if (descuentoManualPct > 0 && (!motivoDescuento.trim() || !autorizadoPor.trim())) {
-      window.alert('Motivo y profesional autorizador obligatorios para descuentos manuales.')
-      return
+      window.alert('Motivo y profesional autorizador obligatorios para descuentos manuales.'); return
     }
 
+    const folio = `PRE-${Date.now().toString().slice(-6)}`
     const nuevoPresupuesto: Presupuesto = {
-      id: crypto.randomUUID(),
-      folio: `PRE-${Date.now().toString().slice(-6)}`,
-      pacienteId: String(pacienteId),
-      pacienteNombre,
-      pacienteRut,
-      items,
-      totalBruto,
-      totalDescuentos: totalDescuento,
-      totalAPagar: totalPagar,
-      total: totalPagar,
-      montoTotal: totalPagar,
-      estado: 'borrador',
-      prevision,
-      validezDias,
-      fechaVencimiento: new Date(Date.now() + validezDias * 86400000).toISOString(),
-      motivoDescuento: motivoDescuento.trim() || undefined,
-      autorizadoPor: autorizadoPor.trim() || undefined,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      id: crypto.randomUUID(), folio, pacienteId: String(pacienteId), pacienteNombre, pacienteRut,
+      items, totalBruto, totalDescuentos: totalDescuento, totalAPagar: totalPagar, total: totalPagar, montoTotal: totalPagar,
+      estado: 'borrador', prevision, validezDias, fechaVencimiento: new Date(Date.now() + validezDias * 86400000).toISOString(),
+      motivoDescuento: motivoDescuento.trim() || undefined, autorizadoPor: autorizadoPor.trim() || undefined,
+      planCuotas: planCuotas ? { cuotas: planCuotas.cuotas, valorCuota: planCuotas.valorCuota, modalidad: planCuotas.modalidad } : undefined,
+      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
     } as unknown as Presupuesto
+
+    timelineService.agregarEvento(String(pacienteId), {
+      tipo: 'presupuesto',
+      titulo: `Presupuesto creado (${folio})`,
+      descripcion: `Presupuesto emitido en estado BORRADOR por $${totalPagar.toLocaleString('es-CL')}.`,
+      detalles: { folio, total: totalPagar, items: items.length },
+    })
 
     onGuardar?.(nuevoPresupuesto)
     onCerrar()
@@ -119,26 +117,14 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = ({
           </div>
           <div className="flex items-center gap-2">
             <div className="flex items-center p-1 bg-surface-hover rounded-xl text-xs">
-              <button
-                type="button"
-                onClick={() => setVista('simplificada')}
-                className={`px-2.5 py-1 rounded-lg flex items-center gap-1 font-semibold ${vista === 'simplificada' ? 'bg-primary text-white' : 'text-graphite-500'}`}
-                data-testid="btn-vista-simplificada"
-              >
+              <button type="button" onClick={() => setVista('simplificada')} className={`px-2.5 py-1 rounded-lg flex items-center gap-1 font-semibold ${vista === 'simplificada' ? 'bg-primary text-white' : 'text-graphite-500'}`} data-testid="btn-vista-simplificada">
                 <Layers className="w-3.5 h-3.5" /> Fases
               </button>
-              <button
-                type="button"
-                onClick={() => setVista('detallada')}
-                className={`px-2.5 py-1 rounded-lg flex items-center gap-1 font-semibold ${vista === 'detallada' ? 'bg-primary text-white' : 'text-graphite-500'}`}
-                data-testid="btn-vista-detallada"
-              >
+              <button type="button" onClick={() => setVista('detallada')} className={`px-2.5 py-1 rounded-lg flex items-center gap-1 font-semibold ${vista === 'detallada' ? 'bg-primary text-white' : 'text-graphite-500'}`} data-testid="btn-vista-detallada">
                 <List className="w-3.5 h-3.5" /> Items
               </button>
             </div>
-            <button type="button" onClick={onCerrar} className="text-graphite-400 hover:text-graphite-700" aria-label="Cerrar modal">
-              <X className="w-5 h-5" />
-            </button>
+            <button type="button" onClick={handleCancelar} className="text-graphite-400 hover:text-graphite-700" aria-label="Cerrar modal"><X className="w-5 h-5" /></button>
           </div>
         </div>
 
@@ -147,9 +133,7 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = ({
             <div>
               <label className="block font-semibold mb-1">Convenio / Previsión del Paciente</label>
               <select value={prevision} onChange={(e) => setPrevision(e.target.value)} className="w-full p-2 bg-surface border border-surface rounded-lg">
-                {Object.entries(CONVENIOS).map(([k, v]) => (
-                  <option key={k} value={k}>{v.label}</option>
-                ))}
+                {Object.entries(CONVENIOS).map(([k, v]) => (<option key={k} value={k}>{v.label}</option>))}
               </select>
             </div>
             <div>
@@ -158,56 +142,7 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = ({
             </div>
           </div>
 
-          {vista === 'simplificada' ? (
-            <div className="space-y-3" data-testid="presupuesto-vista-simplificada">
-              {(['urgencias', 'estabilizacion', 'rehabilitacion', 'estetica'] as const).map((fase) => {
-                const itemsFase = items.filter((it) => it.faseClinica === fase)
-                const subtotalFase = itemsFase.reduce((s, it) => s + it.subtotal, 0)
-                return (
-                  <div key={fase} className="p-3.5 bg-surface-hover/50 border border-surface rounded-xl">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-bold uppercase tracking-wider text-graphite-700 dark:text-graphite-300">
-                        Fase {fase} ({itemsFase.length} prestaciones)
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-mono font-bold text-primary">${subtotalFase.toLocaleString('es-CL')}</span>
-                        <button type="button" onClick={() => handleAgregarItem(fase)} className="text-xs text-primary hover:underline font-semibold">+ Agregar</button>
-                      </div>
-                    </div>
-                    {itemsFase.map((it) => (
-                      <div key={it.id} className="flex items-center justify-between text-xs py-1 text-graphite-600 dark:text-graphite-400">
-                        <span>{it.nombrePrestacion}</span>
-                        <span>${it.subtotal.toLocaleString('es-CL')}</span>
-                      </div>
-                    ))}
-                  </div>
-                )
-              })}
-            </div>
-          ) : (
-            <div className="space-y-2.5" data-testid="presupuesto-vista-detallada">
-              {items.map((it) => (
-                <div key={it.id} className="grid grid-cols-12 gap-2 items-center p-2.5 bg-surface border border-surface rounded-xl text-xs">
-                  <div className="col-span-5">
-                    <input type="text" value={it.nombrePrestacion} onChange={(e) => handleUpdateItem(it.id, 'nombrePrestacion', e.target.value)} className="w-full p-1.5 bg-surface border border-surface rounded-lg text-xs" />
-                  </div>
-                  <div className="col-span-2">
-                    <input type="number" value={it.precioUnitario} onChange={(e) => handleUpdateItem(it.id, 'precioUnitario', Number(e.target.value))} className="w-full p-1.5 bg-surface border border-surface rounded-lg text-xs font-mono" />
-                  </div>
-                  <div className="col-span-2">
-                    <input type="number" value={it.cantidad} onChange={(e) => handleUpdateItem(it.id, 'cantidad', Number(e.target.value))} className="w-full p-1.5 bg-surface border border-surface rounded-lg text-xs font-mono" />
-                  </div>
-                  <div className="col-span-2 text-right font-mono font-bold text-primary">${it.subtotal.toLocaleString('es-CL')}</div>
-                  <div className="col-span-1 text-center">
-                    <button type="button" onClick={() => handleEliminarItem(it.id)} className="text-graphite-400 hover:text-rose-500" aria-label="Eliminar item">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-              <Button type="button" size="sm" variant="secondary" icon={Plus} onClick={() => handleAgregarItem()}>Agregar Item</Button>
-            </div>
-          )}
+          <ModalPresupuestoItemsView vista={vista} items={items} onAgregarItem={handleAgregarItem} onEliminarItem={handleEliminarItem} onUpdateItem={handleUpdateItem} />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-surface/50 border border-surface rounded-xl text-xs">
             <div>
@@ -231,6 +166,7 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = ({
           <div className="pt-3 border-t border-surface flex flex-col sm:flex-row items-end sm:items-center justify-between gap-3 text-xs">
             <div className="text-graphite-500">
               Descuento Convenio: <span className="font-bold text-primary">{descuentoConvenioPct}%</span> &bull; Total Desc: <span className="font-bold text-rose-600">{descuentoTotalPct}%</span>
+              {planCuotas && <span className="block text-[11px] text-emerald-600 font-semibold mt-1">Plan: {planCuotas.cuotas}x ${planCuotas.valorCuota.toLocaleString('es-CL')} ({planCuotas.frecuencia})</span>}
             </div>
             <div className="text-right space-y-0.5">
               <p className="text-graphite-500">Total Bruto: <span className="font-mono">${totalBruto.toLocaleString('es-CL')}</span></p>
@@ -238,12 +174,30 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = ({
               <p className="text-sm font-bold text-graphite-900 dark:text-graphite-50">Total a Pagar: <span className="font-mono text-primary">${totalPagar.toLocaleString('es-CL')}</span></p>
             </div>
           </div>
-          <div className="flex items-center justify-end gap-2 pt-2 border-t border-surface">
-            <Button type="button" variant="ghost" size="sm" onClick={onCerrar}>Cancelar</Button>
-            <Button type="submit" variant="primary" size="sm" icon={DollarSign}>Crear Presupuesto</Button>
+
+          <div className="flex items-center justify-between pt-3 border-t border-surface">
+            <Button type="button" variant="secondary" size="sm" icon={Calendar} onClick={() => setShowConfigCuotas(true)} data-testid="btn-configurar-cuota">
+              Configurar cuota
+            </Button>
+            <div className="flex items-center gap-2">
+              <Button type="button" variant="ghost" size="sm" onClick={handleCancelar} data-testid="btn-cancelar-presupuesto">
+                Cancelar
+              </Button>
+              <button
+                type="submit"
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-[#E5C378] to-[#B88E3A] text-[#070B14] hover:brightness-105 active:scale-95 transition-all shadow-md flex items-center gap-1.5"
+                data-testid="btn-guardar-presupuesto"
+              >
+                <DollarSign className="w-4 h-4" /> Guardar presupuesto
+              </button>
+            </div>
           </div>
         </form>
       </div>
+
+      {showConfigCuotas && (
+        <ModalConfigurarCuotas montoTotal={totalPagar} onConfirmar={(plan) => setPlanCuotas(plan)} onCerrar={() => setShowConfigCuotas(false)} />
+      )}
     </div>
   )
 }

@@ -108,7 +108,7 @@ describe('Flujo Clínico E2E de Persistencia BP06 + BP07', () => {
     fireEvent.change(selectPrevision, { target: { value: 'banmedica' } })
     expect(screen.getAllByText(/20%/i).length).toBeGreaterThan(0)
 
-    fireEvent.click(screen.getByText('Crear Presupuesto'))
+    fireEvent.click(screen.getByTestId('btn-guardar-presupuesto'))
     expect(onGuardarPresupuesto).toHaveBeenCalledWith(
       expect.objectContaining({
         estado: 'borrador',
