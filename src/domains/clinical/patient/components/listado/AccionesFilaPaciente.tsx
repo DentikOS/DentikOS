@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react'
-import { FileText, Calendar, MoreVertical, TriangleAlert } from 'lucide-react'
+import { FileText, CalendarPlus, MoreVertical, TriangleAlert } from 'lucide-react'
 import { useRBAC } from '../../../../../shared/hooks/useRBAC'
 import { notificationService } from '../../../../../infrastructure/notification/notificationService'
 import { usePacientesStore } from '../../../../../app/stores/pacientesStore'
@@ -10,6 +10,7 @@ import { Button } from '../../../../../shared/ui/ui/Button'
 import { ModalEditarPaciente } from '../modales/ModalEditarPaciente'
 import { ModalAsignarEtiqueta } from '../modales/ModalAsignarEtiqueta'
 import { ModalCambiarDoctorTratante } from '../modales/ModalCambiarDoctorTratante'
+import { ModalAgendarCitaRapida } from '../modales/ModalAgendarCitaRapida'
 import { FichaDerivacionModal } from '../ficha/plan-tratamiento/FichaDerivacionModal'
 import { fichaResumenPDFService } from '../../services/fichaResumenPDFService'
 import { timelineService } from '../../services/timelineService'
@@ -41,6 +42,7 @@ export const AccionesFilaPaciente: React.FC<AccionesFilaPacienteProps> = ({
   const [modalDerivacionAbierto, setModalDerivacionAbierto] = useState(false)
   const [modalEtiquetasAbierto, setModalEtiquetasAbierto] = useState(false)
   const [modalDoctorAbierto, setModalDoctorAbierto] = useState(false)
+  const [modalAgendarAbierto, setModalAgendarAbierto] = useState(false)
 
   const esBloqueado = paciente.estado === 'bloqueado' || Boolean(paciente.bloqueado)
   const puedeAgendar = rol !== 'asistente'
@@ -51,19 +53,7 @@ export const AccionesFilaPaciente: React.FC<AccionesFilaPacienteProps> = ({
       setAlertaBloqueoAbierta(true)
       return
     }
-    if (onAgendarCita) {
-      onAgendarCita(paciente)
-    } else {
-      window.dispatchEvent(
-        new CustomEvent('navegar_agenda', {
-          detail: { pacienteId: paciente.id, doctorTratante: paciente.doctorTratante },
-        })
-      )
-      notificationService.mostrar(
-        `Agendando cita para ${paciente.nombre || paciente.nombreCompleto}`,
-        { tipo: 'info' }
-      )
-    }
+    setModalAgendarAbierto(true)
   }
 
   const handleImprimir = () => {
@@ -104,7 +94,7 @@ export const AccionesFilaPaciente: React.FC<AccionesFilaPacienteProps> = ({
           aria-label="Agendar cita"
           data-testid={`btn-agendar-${paciente.id}`}
         >
-          <Calendar className="w-4 h-4" />
+          <CalendarPlus className="w-4 h-4" />
         </button>
       )}
 
@@ -179,6 +169,18 @@ export const AccionesFilaPaciente: React.FC<AccionesFilaPacienteProps> = ({
           paciente={paciente}
           isOpen={true}
           onClose={() => setModalDoctorAbierto(false)}
+        />
+      )}
+
+      {modalAgendarAbierto && (
+        <ModalAgendarCitaRapida
+          paciente={paciente}
+          doctorTratante={typeof paciente.doctorTratante === 'string' ? paciente.doctorTratante : undefined}
+          isOpen={true}
+          onClose={() => setModalAgendarAbierto(false)}
+          onCitaCreada={() => {
+            onAgendarCita?.(paciente)
+          }}
         />
       )}
 

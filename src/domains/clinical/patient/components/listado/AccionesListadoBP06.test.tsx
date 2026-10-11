@@ -245,6 +245,39 @@ describe('Acciones Rápidas y Menú Contextual (BP06 §01 + §05 + §06)', () =>
     fireEvent.scroll(window)
     expect(screen.queryByTestId('menu-dropdown-pac-1')).not.toBeInTheDocument()
   })
+
+  it('WS-I: Click en Agendar cita abre ModalAgendarCitaRapida, guarda cita y permite ver en Agenda', () => {
+    const handleNavegar = vi.fn()
+    window.addEventListener('navegar_seccion', handleNavegar)
+
+    render(
+      <AccionesFilaPaciente
+        paciente={mockPacienteActivo}
+        alSeleccionarPaciente={vi.fn()}
+      />
+    )
+
+    const btnAgendar = screen.getByTestId('btn-agendar-pac-1')
+    fireEvent.click(btnAgendar)
+
+    expect(screen.getByTestId('modal-agendar-cita-pac-1')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('Ignacio Valenzuela')).toBeInTheDocument()
+
+    // Confirmar agendamiento
+    fireEvent.click(screen.getByText('Agendar Cita'))
+
+    // Pantalla de confirmación con botón Ver en Agenda
+    expect(screen.getByTestId('modal-cita-confirmada-pac-1')).toBeInTheDocument()
+    const btnVerAgenda = screen.getByTestId('btn-ver-en-agenda')
+    fireEvent.click(btnVerAgenda)
+
+    expect(handleNavegar).toHaveBeenCalled()
+    window.removeEventListener('navegar_seccion', handleNavegar)
+
+    // Verificar timeline del paciente
+    const eventos = timelineService.obtenerTimeline('pac-1')
+    expect(eventos.some((e) => e.titulo.includes('Cita agendada para'))).toBe(true)
+  })
 })
 
 
