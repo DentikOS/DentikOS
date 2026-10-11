@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { ArrowLeft, Trash2, User, Activity, Clock, Shield, Pill, Layers, FileText } from 'lucide-react'
+import { ArrowLeft, Trash2, User, Activity, Clock, Shield, Pill, Layers, FileText, Camera } from 'lucide-react'
 import { Button } from '../../../../../shared/ui/ui/Button'
 import { usePacientesStore } from '../../../../../app/stores/pacientesStore'
 import type { Paciente } from '../../schemas/pacienteSchema'
@@ -14,6 +14,7 @@ import { Consentimientos } from './consentimientos/Consentimientos'
 import { PlanTratamiento } from './plan-tratamiento/PlanTratamiento'
 import { Timeline } from './Timeline'
 import { ModoQuirurgico } from './ModoQuirurgico'
+import { AdjuntosSection } from './adjuntos/AdjuntosSection'
 
 export interface FichaClinicaProps {
   paciente?: Paciente
@@ -33,6 +34,7 @@ const TABS_FICHA = [
   { id: 'recetas', label: 'Recetas', icon: Pill },
   { id: 'consentimientos', label: 'Consentimientos', icon: Shield },
   { id: 'plan-tratamiento', label: 'Plan Tratamiento', icon: Layers },
+  { id: 'adjuntos', label: 'Fotos & RX', icon: Camera },
   { id: 'timeline', label: 'Timeline', icon: Clock },
 ] as const
 
@@ -217,6 +219,9 @@ export const FichaClinica: React.FC<FichaClinicaProps> = ({
             nombrePaciente={pacienteFinal.nombreCompleto || pacienteFinal.nombre}
             onGenerarPresupuesto={onGenerarPresupuesto}
           />
+        )}
+        {pestanaActual === 'adjuntos' && (
+          <AdjuntosSection paciente={pacienteFinal} pacienteId={String(pacienteFinal.id)} />
         )}
         {pestanaActual === 'timeline' && <Timeline pacienteId={pacienteFinal.id} />}
       </div>
