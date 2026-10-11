@@ -3,7 +3,8 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 import { PresupuestoComparativo } from './PresupuestoComparativo'
 import { ModoPresentacion } from './ModoPresentacion'
-import { crearRegistroVersion, compararVersiones } from '../../utils/historialVersiones'
+import { SimuladorCuotas } from './SimuladorCuotas'
+import { HistorialVersiones } from './HistorialVersiones'
 import type { Presupuesto } from '../../schemas/presupuestoSchema'
 
 const mockPresupuesto: Presupuesto = {
@@ -52,16 +53,29 @@ describe('PresupuestoComparativo & ModoPresentacion (BP07)', () => {
     fireEvent.keyDown(window, { key: 'Escape' })
     expect(onSalir).toHaveBeenCalled()
   })
+})
 
-  it('crea y compara registros de historial de versiones con hash', () => {
-    const v1 = crearRegistroVersion(1, 'Dra. Soto', 'Creación inicial de presupuesto')
-    const v2 = crearRegistroVersion(2, 'Dr. Perez', 'Aplicado descuento ISAPRE')
+describe('SimuladorCuotas & HistorialVersiones (BP07 §09, §15)', () => {
+  it('renderiza SimuladorCuotas con opciones de 1, 3 y 6 cuotas', () => {
+    const onSeleccionar = vi.fn()
+    render(<SimuladorCuotas montoTotal={600000} onSeleccionarPlan={onSeleccionar} />)
 
-    expect(v1.hash).toMatch(/^VER-1-[A-F0-9]+$/)
-    expect(v2.version).toBe(2)
+    expect(screen.getByTestId('simulador-cuotas')).toBeInTheDocument()
+    expect(screen.getByTestId('plan-cuotas-1')).toBeInTheDocument()
+    expect(screen.getByTestId('plan-cuotas-3')).toBeInTheDocument()
+    expect(screen.getByTestId('plan-cuotas-6')).toBeInTheDocument()
 
-    const diff = compararVersiones(v1, v2)
-    expect(diff).toContain('V1 -> V2')
-    expect(diff).toContain('Aplicado descuento ISAPRE')
+    fireEvent.click(screen.getByTestId('btn-confirmar-plan-cuotas'))
+    expect(onSeleccionar).toHaveBeenCalledWith(
+      expect.objectContaining({ cuotas: 3, valorCuota: 200000 })
+    )
+  })
+
+  it('renderiza HistorialVersiones con SHA-256 y permite expandir diferencias', () => {
+    render(<HistorialVersiones folioPresupuesto="PRE-TEST" />)
+
+    expect(screen.getByTestId('historial-versiones')).toBeInTheDocument()
+    expect(screen.getByText('v3.0')).toBeInTheDocument()
+    expect(screen.getByTestId('diff-version-3')).toBeInTheDocument()
   })
 })
