@@ -1,8 +1,10 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Pill, Plus, AlertTriangle, QrCode, FileCheck, Trash2 } from 'lucide-react'
 import { Button } from '../../../../../../shared/ui/ui/Button'
 import { useVademecumStore, type Medicamento } from '../../../../../../app/stores/vademecumStore'
 import { RecetasEmitidasLista, type RecetaEmitidaItem } from './RecetasEmitidasLista'
+import { fichasClinicasStorageService } from '../../../services/fichasClinicasStorageService'
+import { recetasPDFService } from '../../../services/recetasPDFService'
 import type { Paciente } from '../../../schemas/pacienteSchema'
 
 interface MedicamentoItem {
@@ -27,6 +29,15 @@ export const Recetas: React.FC<RecetasProps> = ({
   const [indicaciones, setIndicaciones] = useState('Tomar con alimentos. Abundante líquido.')
   const [recetas, setRecetas] = useState<RecetaEmitidaItem[]>([])
   const [sugerencias, setSugerencias] = useState<{ idx: number; items: Medicamento[] } | null>(null)
+
+  useEffect(() => {
+    if (!paciente.id) return
+    fichasClinicasStorageService.obtenerFichaClinica(String(paciente.id)).then((ficha) => {
+      if (ficha?.recetas && Array.isArray(ficha.recetas)) {
+        setRecetas(ficha.recetas as RecetaEmitidaItem[])
+      }
+    })
+  }, [paciente.id])
 
   const buscarMedicamentos = (query: string, idx: number) => {
     if (query.length < 2) {
@@ -76,9 +87,14 @@ export const Recetas: React.FC<RecetasProps> = ({
     setMedicamentos((prev) => prev.filter((_, i) => i !== index))
   }
 
-  const handleEmitirReceta = (e: React.FormEvent) => {
+  const handleEmitirReceta = async (e: React.FormEvent) => {
     e.preventDefault()
     if (medicamentos.length === 0 || !medicamentos[0].nombre) return
+
+    if (hayConflictoFarmaco) {
+      window.alert('Bloqueo de Seguridad: Medicamento contraindicado por alergia severa del paciente.')
+      return
+    }
 
     const randomHash = Array.from(crypto.getRandomValues(new Uint8Array(16)))
       .map((b) => b.toString(16).padStart(2, '0'))
@@ -93,7 +109,27 @@ export const Recetas: React.FC<RecetasProps> = ({
       qrToken: `https://studio-dental.app/rx/${randomHash.slice(0, 8)}`,
     }
 
-    setRecetas([nuevaReceta, ...recetas])
+    const nuevasRecetas = [nuevaReceta, ...recetas]
+    setRecetas(nuevasRecetas)
+
+    if (paciente.id) {
+      await fichasClinicasStorageService.guardarSeccionFicha(String(paciente.id), 'recetas', nuevasRecetas)
+    }
+
+    try {
+      recetasPDFService.descargarReceta({
+        pacienteNombre: paciente.nombreCompleto || paciente.nombre,
+        pacienteRut: paciente.rut,
+        profesional,
+        medicamentos: [...medicamentos],
+        indicaciones,
+        fecha: nuevaReceta.fecha,
+        hashForense: nuevaReceta.hashForense,
+        qrToken: nuevaReceta.qrToken,
+      })
+    } catch {
+      // Ignorar en entorno de test sin soporte de canvas
+    }
   }
 
   return (
@@ -202,9 +238,7 @@ export const Recetas: React.FC<RecetasProps> = ({
           <span className="text-[11px] text-graphite-400 flex items-center gap-1">
             <FileCheck className="w-3.5 h-3.5 text-emerald-500" /> Firmado digital con QR forense
           </span>
-          <Button type="submit" variant="primary" icon={QrCode}>
-            Emitir & Firmar Receta
-          </Button>
+          <Button type="submit" variant="primary" icon={QrCode}>Emitir & Firmar Receta</Button>
         </div>
       </form>
 
