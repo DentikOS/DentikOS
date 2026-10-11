@@ -52,7 +52,7 @@ export interface PacientesStore {
   seleccionarTodos: () => void
   limpiarSeleccion: () => void
 
-  abrirFicha: (pacienteId: string | number) => void
+  abrirFicha: (pacienteId: string | number, pestanaInicial?: PestanaFicha) => void
   cerrarFicha: () => void
   setPestanaActiva: (pestana: PestanaFicha) => void
   bloquearPaciente: (id: string | number) => void
@@ -78,9 +78,9 @@ export const usePacientesStore = create<PacientesStore>()(
         return { pacientes: next }
       }),
 
-      setPacienteActivo: (paciente: Paciente | null) => {
+      setPacienteActivo: (paciente: Paciente | null, pestanaInicial?: PestanaFicha) => {
         if (paciente) {
-          get().abrirFicha(paciente.id)
+          get().abrirFicha(paciente.id, pestanaInicial)
         } else {
           get().cerrarFicha()
         }
@@ -104,7 +104,7 @@ export const usePacientesStore = create<PacientesStore>()(
 
       limpiarSeleccion: () => set({ seleccion: [] }),
 
-      abrirFicha: (pacienteId) => {
+      abrirFicha: (pacienteId, pestanaInicial = 'datos') => {
         const paciente = get().pacientes.find((p) => String(p.id) === String(pacienteId))
         if (paciente) {
           const ficha: FichaClinica = {
@@ -118,7 +118,7 @@ export const usePacientesStore = create<PacientesStore>()(
             timeline: [],
             version: 1
           }
-          set({ fichaActiva: ficha, pacienteActivo: paciente, pestanaActiva: 'datos' })
+          set({ fichaActiva: ficha, pacienteActivo: paciente, pestanaActiva: pestanaInicial })
         }
       },
 

@@ -77,8 +77,8 @@ export const AccionesFilaPaciente: React.FC<AccionesFilaPacienteProps> = ({
   }
 
   const handleVerDocumentos = () => {
-    usePacientesStore.getState().setPestanaActiva('recetas-consentimientos')
     alSeleccionarPaciente(paciente)
+    usePacientesStore.getState().setPestanaActiva('recetas-consentimientos')
     notificationService.mostrar('Accediendo a documentos del paciente', { tipo: 'info' })
   }
 
