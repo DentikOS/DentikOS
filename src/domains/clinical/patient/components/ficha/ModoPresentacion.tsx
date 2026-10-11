@@ -109,7 +109,7 @@ export const ModoPresentacion: React.FC<ModoPresentacionProps> = ({ paciente, on
             )}
             {paciente.anticoagulantes && (
               <div className="p-3 bg-amber-500/20 border border-amber-500/30 rounded-xl text-amber-200 font-bold">
-                ⚠️ Uso de Anticoagulantes
+                Uso de Anticoagulantes
               </div>
             )}
           </div>

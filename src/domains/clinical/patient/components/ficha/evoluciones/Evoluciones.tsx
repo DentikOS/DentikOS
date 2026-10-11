@@ -113,7 +113,7 @@ export const Evoluciones: React.FC<EvolucionesProps> = ({
             className={estaDictando ? 'animate-pulse' : ''}
             data-testid="btn-dictado-voz"
           >
-            {estaDictando ? '⏹️ Detener dictado' : '🎤 Iniciar dictado'}
+            {estaDictando ? 'Detener dictado' : 'Iniciar dictado'}
           </Button>
         </div>
 

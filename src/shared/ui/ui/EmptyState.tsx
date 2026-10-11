@@ -2,7 +2,7 @@
  * EmptyState — Componente base del Design System (F10-A4)
  *
  * Estado vacío estándar con icono lucide, título, descripción y CTA opcional.
- * Reemplaza los bloques ad-hoc con emojis gigantes (🪑 text-2xl, 🗑️ text-6xl).
+ * Reemplaza los bloques ad-hoc con iconos grandes.
  *
  * Tokens DS v2 consumidos vía style inline: --ds-text-base, --ds-text-sm,
  * --ds-text-xs, --ds-weight-semibold.

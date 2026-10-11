@@ -55,7 +55,7 @@ export const ConveniosManager = memo<ConveniosManagerProps>(({ convenios, onActu
               </div>
               {convenioRecienGuardado === c.id && (
                 <span className="text-emerald-600 font-bold text-[10px] animate-pulse">
-                  ✓ Guardado
+                  Guardado
                 </span>
               )}
             </div>

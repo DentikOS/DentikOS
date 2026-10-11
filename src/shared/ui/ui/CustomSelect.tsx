@@ -224,7 +224,7 @@ export const CustomSelect = <T extends string | number = string>({
                     <Icon icon={option.icon} size="sm" className="text-graphite-500 dark:text-graphite-400" />
                   )}
                   <span className="flex-1">{option.label}</span>
-                  {isSelected && <span className="text-primary">✓</span>}
+                  {isSelected && <span className="text-primary"></span>}
                 </div>
               )
             })}

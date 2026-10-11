@@ -1,4 +1,5 @@
 import React, { memo } from 'react'
+import { User } from 'lucide-react'
 import { Badge } from '../../../../../shared/ui/ui/Badge'
 import { usePacientesStore } from '../../../../../app/stores/pacientesStore'
 import { AccionesFilaPaciente } from './AccionesFilaPaciente'
@@ -67,10 +68,10 @@ export const VistaLista: React.FC<VistaListaProps> = memo(({
                 onClick={() => alSeleccionarPaciente(p)}
                 className="cursor-pointer min-w-0 flex-1 space-y-0.5"
               >
-                {/* Línea 1: 👤 Nombre completo · Edad · Última · Próxima */}
+                {/* Línea 1: Nombre completo · Edad · Última · Próxima */}
                 <div className="flex items-center gap-2 text-xs truncate">
-                  <span className="font-bold text-graphite-900 dark:text-graphite-50 group-hover:text-primary transition-colors truncate flex items-center gap-1">
-                    <span className="text-graphite-400">👤</span>
+                  <span className="font-bold text-graphite-900 dark:text-graphite-50 group-hover:text-primary transition-colors truncate flex items-center gap-1.5">
+                    <User className="w-3.5 h-3.5 text-graphite-400 shrink-0" />
                     <span>{nombre}</span>
                   </span>
                   <span className="text-graphite-400">·</span>
@@ -107,7 +108,7 @@ export const VistaLista: React.FC<VistaListaProps> = memo(({
               </div>
             </div>
 
-            {/* Derecha: exactamente los 4 iconos [📋] [📅] [📞] [⋮] */}
+            {/* Derecha: exactamente los 4 iconos rápidos */}
             <AccionesFilaPaciente
               paciente={p}
               alSeleccionarPaciente={alSeleccionarPaciente}

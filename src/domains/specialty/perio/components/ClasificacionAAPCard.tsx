@@ -47,7 +47,7 @@ export const ClasificacionAAPCard = memo<ClasificacionAAPCardProps>(({ indices, 
 
       {indices.diagnosticoConcluyente === false && (
         <div className="p-3 rounded-xl bg-amber-50 border-2 border-amber-400 text-amber-900 text-[11px] font-semibold">
-          ⚠ Sondaje incompleto: {indices.sitiosSinRegistrar} de {indices.sitiosTotales} sitios sin registrar.
+          Sondaje incompleto: {indices.sitiosSinRegistrar} de {indices.sitiosTotales} sitios sin registrar.
           El diagnóstico AAP no se calcula hasta completar al menos el 80% del sondaje de las piezas presentes.
         </div>
       )}

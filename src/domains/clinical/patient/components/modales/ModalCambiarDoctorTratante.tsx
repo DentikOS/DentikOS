@@ -46,15 +46,17 @@ export const ModalCambiarDoctorTratante: React.FC<ModalCambiarDoctorTratanteProp
       ? `Motivo: ${motivo.trim()}`
       : 'Reasignación directa desde el listado'
     timelineService.agregarEvento(paciente.id, {
-      tipo: 'administrativo',
+      id: `tl-reprog-${Date.now()}`,
+      fecha: new Date().toISOString(),
+      tipo: 'admin',
       titulo: `Paciente reasignado a ${nombreDoctor} por ${usuarioActual}`,
-      descripcion: descripcionTimeline,
+      detalles: descripcionTimeline,
       profesional: usuarioActual,
     })
 
     notificationService.mostrar(
       `Doctor tratante actualizado a ${nombreDoctor}`,
-      { tipo: 'exito' }
+      { tipo: 'success' }
     )
     onClose()
   }

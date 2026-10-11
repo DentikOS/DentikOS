@@ -57,7 +57,7 @@ export const ModalEditarPaciente: React.FC<ModalEditarPacienteProps> = ({
       direccion: formData.direccion,
       alergias: formData.alergias,
     })
-    notificationService.mostrar('Datos del paciente actualizados con éxito', { tipo: 'exito' })
+    notificationService.mostrar('Datos del paciente actualizados con éxito', { tipo: 'success' })
     onClose()
   }
 

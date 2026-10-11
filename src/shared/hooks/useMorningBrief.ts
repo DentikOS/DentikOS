@@ -19,7 +19,7 @@ export const useMorningBrief = (userRole = 'admin'): MorningBriefData => {
 
     const lineaAgenda: MorningBriefLine = {
       id: 'agenda',
-      icono: '📅',
+      icono: 'calendar',
       texto: `${citas.length} citas · ${canceladas} cancelación · ${pendientes} confirmaciones pendientes`,
       seccion: 'Agenda',
       severidad: 'info'
@@ -28,7 +28,7 @@ export const useMorningBrief = (userRole = 'admin'): MorningBriefData => {
     const citaConAlerta = citas.find((c) => c.alergias || c.observaciones?.toLowerCase().includes('alergia'))
     const lineaAlertas: MorningBriefLine = {
       id: 'alertas',
-      icono: '⚠️',
+      icono: 'alert',
       texto: citaConAlerta
         ? `${citaConAlerta.pacienteNombre || 'Paciente'} tiene alerta clínica (cita ${citaConAlerta.horaInicio || 'hoy'})`
         : 'Sin alertas clínicas críticas reportadas para hoy',
@@ -40,7 +40,7 @@ export const useMorningBrief = (userRole = 'admin'): MorningBriefData => {
     const cobroAyer = movs.filter((m) => m.tipo === 'ingreso').reduce((acc, m) => acc + (Number(m.monto) || 0), 0)
     const lineaFinanzas: MorningBriefLine = {
       id: 'finanzas',
-      icono: '💰',
+      icono: 'wallet',
       texto: cobroAyer > 0 ? `$${cobroAyer.toLocaleString('es-CL')} recaudado en caja` : '$180.000 por cobrar de ayer',
       seccion: 'Pagos',
       severidad: 'info'
@@ -51,7 +51,7 @@ export const useMorningBrief = (userRole = 'admin'): MorningBriefData => {
     const cargaActiva = cargas.find((c) => c.estado !== 'Aprobado')
     const lineaEsterilizacion: MorningBriefLine = {
       id: 'esterilizacion',
-      icono: '🔬',
+      icono: 'lab',
       texto: cargaActiva
         ? `Autoclave #1: ciclo #${cargaActiva.lote || '48'} en curso (termina 09:45)`
         : 'Autoclave #1: todos los ciclos validados y listos',
@@ -64,7 +64,7 @@ export const useMorningBrief = (userRole = 'admin'): MorningBriefData => {
     const itemCritico = items.find((i) => (Number(i.cantidad) || 0) <= (Number(i.minimoCritico) || 5))
     const lineaInventario: MorningBriefLine = {
       id: 'inventario',
-      icono: '📦',
+      icono: 'package',
       texto: itemCritico
         ? `${itemCritico.nombre}: quedan ${itemCritico.cantidad} ${itemCritico.unidad || 'uds'} (stock crítico)`
         : 'Anestesia 2%: quedan 4 unidades (stock crítico)',

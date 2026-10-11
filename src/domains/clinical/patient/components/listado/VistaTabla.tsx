@@ -67,7 +67,7 @@ export const VistaTabla: React.FC<VistaTablaProps> = memo(({
           data-testid="btn-configurar-columnas"
         >
           <Settings2 className="w-3.5 h-3.5 text-primary" />
-          <span>⚙ Columnas</span>
+          <span>Columnas</span>
         </button>
         <SelectorColumnasTabla
           columnasVisibles={columnasVisibles}

@@ -150,7 +150,7 @@ export const ModalNuevoPaciente: React.FC<ModalNuevoPacienteProps> = memo(({ alG
             )}
             {rutValido && !errorRut && (
               <p data-testid="paciente-rut-valido" className="text-green-600 text-xs mt-1 font-medium">
-                ✓ RUT válido
+                RUT válido
               </p>
             )}
           </div>

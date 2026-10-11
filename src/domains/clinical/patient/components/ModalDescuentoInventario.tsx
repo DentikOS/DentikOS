@@ -172,7 +172,7 @@ export const ModalDescuentoInventario: React.FC<ModalDescuentoInventarioProps> =
           variant="primary"
           fullWidth
         >
-          Confirmar y Descontar ✓
+          Confirmar y Descontar
         </Button>
       </div>
 

@@ -93,7 +93,7 @@ export const DashboardModulo: React.FC<DashboardModuloProps> = memo(({ setPacien
       {sugerencia && (
         <div className="flex items-center justify-between p-3 rounded-xl bg-amber-500/10 border border-[#B88E3A]/40 text-xs shadow-xs animate-in slide-in-from-top-2">
           <span className="font-semibold text-[#0F172A] dark:text-white">
-            💡 Priorización Inteligente: Usas con frecuencia &quot;{sugerencia.nombre}&quot;. ¿Deseas moverlo al inicio?
+            Priorización Inteligente: Usas con frecuencia &quot;{sugerencia.nombre}&quot;. ¿Deseas moverlo al inicio?
           </span>
           <div className="flex items-center gap-2">
             <button

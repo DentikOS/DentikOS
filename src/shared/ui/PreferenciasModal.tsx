@@ -59,9 +59,9 @@ export const PreferenciasModal: React.FC<PreferenciasModalProps> = ({ isOpen, on
   }
 
   const THEMES: { value: Theme; label: string; icon: string }[] = [
-    { value: 'light', label: 'Claro', icon: '☀️' },
-    { value: 'surgical', label: 'Quirúrgico', icon: '🔬' },
-    { value: 'dark', label: 'Oscuro', icon: '🌙' },
+    { value: 'light', label: 'Claro', icon: '' },
+    { value: 'surgical', label: 'Quirúrgico', icon: '' },
+    { value: 'dark', label: 'Oscuro', icon: '' },
   ]
 
   return (

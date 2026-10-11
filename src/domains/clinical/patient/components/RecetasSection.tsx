@@ -1,5 +1,5 @@
 import React, { memo } from 'react'
-import { Printer } from 'lucide-react'
+import { Printer, X } from 'lucide-react'
 import { recetasStorageService, type RecetaLocal } from '../services/recetasStorageService'
 import { FormularioNuevaReceta } from './FormularioNuevaReceta'
 import { createLogger } from '../../../../infrastructure/logging/logger'
@@ -82,7 +82,7 @@ export const RecetasSection: React.FC<RecetasSectionProps> = memo(({ paciente, u
                   <span className="font-bold text-sm text-gray-900 dark:text-graphite-50 block">{i + 1}. {r.medicamento}</span>
                   <p className="text-xs text-gray-700 dark:text-graphite-300 mt-1"><span className="font-semibold">Indicación:</span> {r.indicacion}</p>
                 </div>
-                <button onClick={() => handleEliminarReceta(r.id)} className="text-red-500 font-bold print:hidden">✕</button>
+                <button onClick={() => handleEliminarReceta(r.id)} className="text-red-500 font-bold print:hidden"><X className="w-4 h-4" /></button>
               </div>
             </div>
           ))}

@@ -99,7 +99,7 @@ export const PlantillasManager: React.FC<PlantillasManagerProps> = memo(({
           </h3>
           {plantillaEditar && (
             <Button type="button" onClick={handleCancelarEdicion} variant="ghost" size="sm">
-              ✕ Cancelar
+              Cancelar
             </Button>
           )}
         </div>

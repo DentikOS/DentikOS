@@ -1,4 +1,5 @@
 import React from 'react'
+import { X } from 'lucide-react'
 
 const ESTADOS_COLORES: Record<string, string> = {
   sano: 'fill-white dark:fill-graphite-900 stroke-gray-400 dark:stroke-graphite-600',
@@ -54,10 +55,10 @@ export const DienteSVG: React.FC<DienteSVGProps> = ({
       <span className="text-[11px] font-extrabold text-gray-800 dark:text-graphite-100 mb-1">{numero}</span>
       <div className="relative">
         {estadoGeneral === 'ausente' && (
-          <div className="absolute inset-0 flex items-center justify-center z-10 text-[var(--chart-missing)] font-black text-xl select-none bg-white/60 dark:bg-graphite-800/60 rounded-lg">✕</div>
+          <div className="absolute inset-0 flex items-center justify-center z-10 text-[var(--chart-missing)] font-black text-xl select-none bg-white/60 dark:bg-graphite-800/60 rounded-lg"><X className="w-6 h-6" /></div>
         )}
         {estadoGeneral === 'indicacion_exodoncia' && (
-          <div className="absolute inset-0 flex items-center justify-center z-10 text-[var(--chart-caries)] font-black text-xl select-none bg-white/60 dark:bg-graphite-800/60 rounded-lg">✕</div>
+          <div className="absolute inset-0 flex items-center justify-center z-10 text-[var(--chart-caries)] font-black text-xl select-none bg-white/60 dark:bg-graphite-800/60 rounded-lg"><X className="w-6 h-6" /></div>
         )}
         {estadoGeneral === 'implante' && (
           <div className="absolute inset-0 flex items-center justify-center z-10 text-[var(--chart-implant)] dark:text-graphite-100 font-extrabold text-[9px] bg-slate-200/90 dark:bg-slate-800/90 rounded px-1 border border-[var(--chart-implant)]">IMP</div>

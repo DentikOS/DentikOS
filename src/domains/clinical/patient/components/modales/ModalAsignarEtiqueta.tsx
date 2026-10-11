@@ -55,7 +55,7 @@ export const ModalAsignarEtiqueta: React.FC<ModalAsignarEtiquetaProps> = ({
 
   const handleGuardar = () => {
     actualizarPaciente(paciente.id, { etiquetas })
-    notificationService.mostrar('Etiquetas actualizadas correctamente', { tipo: 'exito' })
+    notificationService.mostrar('Etiquetas actualizadas correctamente', { tipo: 'success' })
     onClose()
   }
 

@@ -1,5 +1,5 @@
 import React, { memo, useState, useEffect } from 'react'
-import { Image, FileText, Paperclip } from 'lucide-react'
+import { Image, FileText, Paperclip, X } from 'lucide-react'
 import { useAppDialog } from '../../../../shared/hooks/useAppDialog'
 import type {
   ArchivoClinicoUI,
@@ -169,7 +169,7 @@ export const ArchivoViewer: React.FC<ArchivoViewerProps> = memo(({
 
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs font-semibold bg-green-100 text-green-800 px-2 py-1 rounded">
-                  ✓ R2
+                  R2 sincronizado
                 </span>
 
                 <div className="flex items-center gap-2">
@@ -201,8 +201,9 @@ export const ArchivoViewer: React.FC<ArchivoViewerProps> = memo(({
                       onClick={() => confirmarEliminar(archivo)}
                       className="text-xs font-bold text-gray-400 dark:text-graphite-500 hover:text-red-600 px-1 cursor-pointer"
                       title="Eliminar archivo"
+                      aria-label="Eliminar archivo"
                     >
-                      ✕
+                      <X className="w-3.5 h-3.5" />
                     </button>
                   )}
                 </div>

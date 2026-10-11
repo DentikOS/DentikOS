@@ -392,7 +392,7 @@ export const DatosPaciente: React.FC<DatosPacienteProps> = ({ paciente, onGuarda
         )}
         {estadoSincronizacion === 'guardado' && (
           <span className="flex items-center gap-1.5 text-xs text-emerald-600 font-semibold" data-testid="indicador-guardado">
-            <CheckCircle className="w-3.5 h-3.5" /> Guardado ✓
+            <CheckCircle className="w-3.5 h-3.5" /> Guardado
           </span>
         )}
         {estadoSincronizacion === 'error' && (

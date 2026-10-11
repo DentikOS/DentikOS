@@ -3,7 +3,7 @@ import { tiempoRelativo } from '../../../../shared/utils/dateUtils'
 import { Modal } from '../../../../shared/ui/ui/Modal'
 import { Input } from '../../../../shared/ui/ui/Input'
 import { useAppDialog } from '../../../../shared/hooks/useAppDialog'
-import { Scale, Calendar, User, ShieldCheck, UserX } from 'lucide-react'
+import { Scale, Calendar, User, ShieldCheck, UserX, X } from 'lucide-react'
 
 export interface PacienteEliminadoUI {
   id: string | number
@@ -75,9 +75,10 @@ export const ModalPapelera: React.FC<ModalPapeleraProps> = ({
         <button
           type="button"
           onClick={onCerrar}
-          className="text-graphite-400 dark:text-graphite-500 hover:text-graphite-900 dark:hover:text-graphite-50 font-bold text-lg cursor-pointer"
+          className="text-graphite-400 dark:text-graphite-500 hover:text-graphite-900 dark:hover:text-graphite-50 cursor-pointer"
+          aria-label="Cerrar modal papelera"
         >
-          ✕
+          <X className="w-5 h-5" />
         </button>
       </div>
 

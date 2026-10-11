@@ -1,7 +1,7 @@
 /**
  * Tooth — Icono custom del dominio dental (F10-B1)
  *
- * Lucide-react no incluye un icono de diente, y 🦷 es central en la UI
+ * Lucide-react no incluye un icono de diente, y el diente es central en la UI
  * clínica (odontograma, piezas, hallazgos). Este componente replica la
  * API de lucide (size/color/strokeWidth/className) para ser intercambiable
  * vía <Icon icon={Tooth} />.

@@ -7,7 +7,7 @@ import {
   type TarifaLaboratorio
 } from '../constants/laboratorioConstants'
 import type { LabDataInput } from '../hooks/useLaboratorio'
-import { Plus, Settings, Pencil, Trash2, Folder } from 'lucide-react'
+import { Plus, Settings, Pencil, Trash2, Folder, X } from 'lucide-react'
 
 export interface DirectorioLaboratoriosProps {
   laboratorios: LaboratorioBase[]
@@ -120,7 +120,7 @@ export const DirectorioLaboratorios: React.FC<DirectorioLaboratoriosProps> = mem
           </h3>
           {labEditar && (
             <Button type="button" onClick={handleAbrirNuevo} variant="ghost" size="sm">
-              ✕ Cancelar
+              Cancelar
             </Button>
           )}
         </div>
@@ -207,7 +207,7 @@ export const DirectorioLaboratorios: React.FC<DirectorioLaboratoriosProps> = mem
                     size="sm"
                     className="px-2 py-0.5"
                   >
-                    ✕
+                    <X className="w-3.5 h-3.5" />
                   </Button>
                 </div>
               </div>

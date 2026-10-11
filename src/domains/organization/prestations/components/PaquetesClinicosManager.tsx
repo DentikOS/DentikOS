@@ -50,7 +50,7 @@ export const PaquetesClinicosManager: React.FC<PaquetesClinicosManagerProps> = m
     e.preventDefault()
     if (!nombre.trim() || !precioCombo) return
 
-    // 💡 Limpieza de separadores de miles para evitar que 50.000 se convierta en 50
+    // Limpieza de separadores de miles para evitar que 50.000 se convierta en 50
     const precioLimpio = parseFloat(String(precioCombo).replace(/[^0-9]/g, '')) || 0
 
     alGuardarPaquete({
@@ -94,7 +94,7 @@ export const PaquetesClinicosManager: React.FC<PaquetesClinicosManagerProps> = m
               onClick={handleCancelarEdicion}
               className="text-gray-400 dark:text-graphite-500 font-bold hover:text-black text-xs cursor-pointer"
             >
-              ✕ Cancelar
+              Cancelar
             </button>
           )}
         </div>

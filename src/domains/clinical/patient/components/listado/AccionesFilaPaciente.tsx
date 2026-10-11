@@ -66,43 +66,16 @@ export const AccionesFilaPaciente: React.FC<AccionesFilaPacienteProps> = ({
     }
   }
 
-  // 1. Editar datos completos
-  const handleEditar = () => {
-    if (onEditar) {
-      onEditar(paciente)
-    } else {
-      setModalEditarAbierto(true)
-    }
-  }
-
-  // 2. Imprimir ficha resumen
   const handleImprimir = () => {
     notificationService.mostrar('Generando ficha resumen para impresión...', { tipo: 'info' })
     fichaResumenPDFService.imprimirFichaResumen(paciente)
   }
 
-  // 3. Exportar ficha (PDF)
   const handleExportar = () => {
-    notificationService.mostrar('Ficha clínica descargada en PDF', { tipo: 'exito' })
+    notificationService.mostrar('Ficha clínica descargada en PDF', { tipo: 'success' })
     fichaResumenPDFService.exportarFichaCompletaPDF(paciente)
   }
 
-  // 4. Crear ficha de derivación
-  const handleDerivar = () => {
-    setModalDerivacionAbierto(true)
-  }
-
-  // 5. Asignar etiqueta
-  const handleAsignarEtiqueta = () => {
-    setModalEtiquetasAbierto(true)
-  }
-
-  // 6. Cambiar doctor tratante
-  const handleCambiarDoctor = () => {
-    setModalDoctorAbierto(true)
-  }
-
-  // 7. Ver documentos adjuntos (pestaña 7: recetas-consentimientos)
   const handleVerDocumentos = () => {
     usePacientesStore.getState().setPestanaActiva('recetas-consentimientos')
     alSeleccionarPaciente(paciente)
@@ -111,7 +84,6 @@ export const AccionesFilaPaciente: React.FC<AccionesFilaPacienteProps> = ({
 
   return (
     <div className="flex items-center gap-1 relative" onClick={(e) => e.stopPropagation()}>
-      {/* 1. Ver Ficha */}
       <button
         type="button"
         onClick={() => alSeleccionarPaciente(paciente)}
@@ -123,7 +95,6 @@ export const AccionesFilaPaciente: React.FC<AccionesFilaPacienteProps> = ({
         <FileText className="w-4 h-4" />
       </button>
 
-      {/* 2. Agendar Cita */}
       {puedeAgendar && (
         <button
           type="button"
@@ -137,10 +108,8 @@ export const AccionesFilaPaciente: React.FC<AccionesFilaPacienteProps> = ({
         </button>
       )}
 
-      {/* 3. Llamar */}
       <BotonLlamarPopover paciente={paciente} telefono={paciente.telefono} />
 
-      {/* 4. Menú Contextual con Portal */}
       <div className="relative">
         <button
           ref={btnMenuRef}
@@ -159,19 +128,18 @@ export const AccionesFilaPaciente: React.FC<AccionesFilaPacienteProps> = ({
           isOpen={menuAbierto}
           triggerRef={btnMenuRef}
           onClose={() => setMenuAbierto(false)}
-          onEditar={handleEditar}
+          onEditar={onEditar ? () => onEditar(paciente) : () => setModalEditarAbierto(true)}
           onImprimir={handleImprimir}
           onExportar={handleExportar}
-          onDerivar={handleDerivar}
-          onAsignarEtiqueta={handleAsignarEtiqueta}
-          onCambiarDoctor={handleCambiarDoctor}
+          onDerivar={() => setModalDerivacionAbierto(true)}
+          onAsignarEtiqueta={() => setModalEtiquetasAbierto(true)}
+          onCambiarDoctor={() => setModalDoctorAbierto(true)}
           onVerDocumentos={handleVerDocumentos}
           onDesactivar={onDesactivar}
           onBloquear={onBloquear}
         />
       </div>
 
-      {/* Modales funcionales de las acciones */}
       {modalEditarAbierto && (
         <ModalEditarPaciente
           paciente={paciente}
@@ -186,11 +154,13 @@ export const AccionesFilaPaciente: React.FC<AccionesFilaPacienteProps> = ({
           onCerrar={() => setModalDerivacionAbierto(false)}
           onDerivar={(d) => {
             timelineService.agregarEvento(paciente.id, {
-              tipo: 'administrativo',
+              id: `tl-deriv-${Date.now()}`,
+              fecha: new Date().toISOString(),
+              tipo: 'admin',
               titulo: `Derivación emitida a ${d.especialidad}`,
-              descripcion: `Especialista: ${d.especialista || 'No especificado'} · Motivo: ${d.motivo}`,
+              detalles: `Especialista: ${d.especialista || 'No especificado'} · Motivo: ${d.motivo}`,
             })
-            notificationService.mostrar('Ficha de derivación emitida con éxito', { tipo: 'exito' })
+            notificationService.mostrar('Ficha de derivación emitida con éxito', { tipo: 'success' })
             setModalDerivacionAbierto(false)
           }}
         />
@@ -212,14 +182,8 @@ export const AccionesFilaPaciente: React.FC<AccionesFilaPacienteProps> = ({
         />
       )}
 
-      {/* Alerta de bloqueo */}
       {alertaBloqueoAbierta && (
-        <Modal
-          isOpen={true}
-          onClose={() => setAlertaBloqueoAbierta(false)}
-          size="sm"
-          showCloseButton={false}
-        >
+        <Modal isOpen={true} onClose={() => setAlertaBloqueoAbierta(false)} size="sm" showCloseButton={false}>
           <div className="space-y-3 p-1" data-testid={`alerta-bloqueo-${paciente.id}`}>
             <div className="flex items-center gap-2 text-rose-600 font-bold text-sm">
               <TriangleAlert className="w-5 h-5 shrink-0" />
@@ -232,11 +196,7 @@ export const AccionesFilaPaciente: React.FC<AccionesFilaPacienteProps> = ({
               Bloqueado por: {String(paciente.bloqueadoPor || 'Admin')} · {paciente.bloqueadoAt ? new Date(String(paciente.bloqueadoAt)).toLocaleDateString('es-CL') : 'Fecha no registrada'}
             </p>
             <div className="flex justify-end gap-2 pt-2 border-t border-surface">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setAlertaBloqueoAbierta(false)}
-              >
+              <Button variant="ghost" size="sm" onClick={() => setAlertaBloqueoAbierta(false)}>
                 Cancelar
               </Button>
               <Button

@@ -13,17 +13,18 @@ export const DOCTORES_CLINICA_DEFAULT: readonly DoctorClinica[] = [
 ]
 
 export const formatearDoctorTratante = (
-  doctor?: string | null,
+  doctor?: unknown,
   doctorTratanteId?: string | null
 ): { texto: string; asignado: boolean } => {
   if (doctorTratanteId) {
     const encontrado = DOCTORES_CLINICA_DEFAULT.find((d) => d.id === doctorTratanteId)
     if (encontrado) return { texto: encontrado.nombre, asignado: true }
   }
-  if (!doctor || !doctor.trim()) {
+  const doctorStr = typeof doctor === 'string' ? doctor : (doctor ? String(doctor) : null)
+  if (!doctorStr || !doctorStr.trim()) {
     return { texto: 'Sin asignar', asignado: false }
   }
-  const lim = doctor.trim()
+  const lim = doctorStr.trim()
   const lower = lim.toLowerCase()
   if (
     lower === 'tratante' ||

@@ -65,7 +65,7 @@ describe('DatosClinicaForm', () => {
         'clinica-123',
         expect.objectContaining({ nombreClinica: 'Clínica Dental Renombrada' })
       )
-      expect(screen.getByText(/Guardado en la nube ✓/i)).toBeInTheDocument()
+      expect(screen.getByText(/Guardado en la nube/i)).toBeInTheDocument()
       expect(onGuardarMock).toHaveBeenCalled()
     })
   })

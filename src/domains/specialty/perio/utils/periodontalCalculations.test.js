@@ -100,7 +100,7 @@ describe('calcularIndicesPeriodontales', () => {
   })
 
   // ===========================================================================
-  // ✅ COMPORTAMIENTO CORREGIDO (F1-04b) — Fail-Safe Clinical Default
+  // COMPORTAMIENTO CORREGIDO (F1-04b) — Fail-Safe Clinical Default
   // Sitios sin registrar NUNCA se cuentan como sanos (0mm). Se excluyen de
   // los promedios y se contabilizan en sitiosSinRegistrar. Antes de F1-04b,
   // este mismo caso se trataba como 3 sitios sanos y podía arrojar
@@ -163,7 +163,7 @@ describe('calcularIndicesPeriodontales', () => {
   })
 
   // ===========================================================================
-  // ✅ COMPORTAMIENTO CORREGIDO (F1-04b) — parámetro factoresRiesgo conectado
+  // COMPORTAMIENTO CORREGIDO (F1-04b) — parámetro factoresRiesgo conectado
   // Antes de F1-04b, la función solo declaraba `piezasData` como parámetro;
   // el `factoresRiesgo` que le pasa PeriodontogramaModulo.jsx se descartaba
   // en silencio y el Grado AAP se calculaba SIEMPRE como si el paciente no

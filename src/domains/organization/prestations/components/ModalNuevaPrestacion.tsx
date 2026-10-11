@@ -52,7 +52,7 @@ export const ModalNuevaPrestacion: React.FC<ModalNuevaPrestacionProps> = memo(({
       id: prestacionEditar ? prestacionEditar.id : Date.now(),
       nombre: nombre.trim(),
       especialidad,
-      precio: valParticular, // 💡 Propiedad requerida por FichaPaciente y Presupuestos
+      precio: valParticular, // Propiedad requerida por FichaPaciente y Presupuestos
       precioParticular: valParticular,
       precioFonasa: valFonasa,
       codigoFonasa: codigoFonasa.trim()

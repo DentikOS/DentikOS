@@ -40,7 +40,7 @@ describe('Acciones Rápidas y Menú Contextual (BP06 §01 + §05 + §06)', () =>
     useSesionStore.setState({ userProfile: { rol: 'admin', email: 'admin@dental.cl' } })
   })
 
-  it('muestra exactamente los 4 iconos rápidos [📋] [📅] [📞] [⋮] por fila', () => {
+  it('muestra exactamente los 4 iconos rápidos por fila', () => {
     render(
       <AccionesFilaPaciente
         paciente={mockPacienteActivo}
@@ -54,7 +54,7 @@ describe('Acciones Rápidas y Menú Contextual (BP06 §01 + §05 + §06)', () =>
     expect(screen.getByTestId('btn-menu-contextual-pac-1')).toBeInTheDocument()
   })
 
-  it('oculta el botón agendar [📅] para rol asistente', () => {
+  it('oculta el botón agendar para rol asistente', () => {
     useSesionStore.setState({ userProfile: { rol: 'asistente', email: 'asistente@dental.cl' } })
     render(
       <AccionesFilaPaciente
@@ -67,7 +67,7 @@ describe('Acciones Rápidas y Menú Contextual (BP06 §01 + §05 + §06)', () =>
     expect(screen.queryByTestId('btn-agendar-pac-1')).not.toBeInTheDocument()
   })
 
-  it('al intentar agendar [📅] en paciente bloqueado, muestra alerta BP06 §04 con motivo', () => {
+  it('al intentar agendar en paciente bloqueado, muestra alerta BP06 §04 con motivo', () => {
     render(
       <AccionesFilaPaciente
         paciente={mockPacienteBloqueado}
@@ -123,7 +123,7 @@ describe('Acciones Rápidas y Menú Contextual (BP06 §01 + §05 + §06)', () =>
     expect(eventos.some((e) => e.titulo.includes('Llamada saliente a Ignacio Valenzuela'))).toBe(true)
   })
 
-  it('VistaTabla renderiza las 6 columnas fijas y botón de configuración ⚙ Columnas', () => {
+  it('VistaTabla renderiza las 6 columnas fijas y botón de configuración Columnas', () => {
     render(
       <VistaTabla
         pacientes={[mockPacienteActivo]}
@@ -144,7 +144,7 @@ describe('Acciones Rápidas y Menú Contextual (BP06 §01 + §05 + §06)', () =>
     expect(screen.getByTestId('popover-columnas-personalizables')).toBeInTheDocument()
   })
 
-  it('VistaLista no tiene botón 🗑 de papelera directo', () => {
+  it('VistaLista no tiene botón de papelera directo', () => {
     render(
       <VistaLista
         pacientes={[mockPacienteActivo]}

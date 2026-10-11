@@ -127,7 +127,7 @@ export const ResumenEjecutivo: React.FC<ResumenEjecutivoProps> = ({ paciente, on
           <div className="mt-3 flex flex-wrap gap-2">
             {alergias ? (
               <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-[#E11D48]/15 text-[#E11D48] border border-[#E11D48]/30">
-                ⚠️ ALERGIA: {alergias}
+                ALERGIA: {alergias}
               </span>
             ) : (
               <span className="text-xs text-graphite-400">Sin alergias severas registradas</span>

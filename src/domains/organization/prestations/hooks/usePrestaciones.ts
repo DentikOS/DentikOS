@@ -77,7 +77,7 @@ export const usePrestaciones = (
   const [busqueda, setBusqueda] = useState<string>('')
   const [especialidadFiltro, setEspecialidadFiltro] = useState<string>('Todas')
 
-  // 💡 Sincronizador global reactivo
+  // Sincronizador global reactivo
   const guardarYSincronizarGlobal = useCallback(
     (nuevasPrestaciones: Prestacion[]) => {
       const normalizadas = nuevasPrestaciones.map(p => ({
@@ -183,7 +183,7 @@ export const usePrestaciones = (
     [prestaciones, guardarYSincronizarGlobal]
   )
 
-  // 💡 Crear o Editar Paquetes Promocionales
+  // Crear o Editar Paquetes Promocionales
   const agregarOEditarPaquete = useCallback(
     (nuevoPack: PaqueteInput) => {
       const valPrecio =

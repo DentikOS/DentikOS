@@ -228,12 +228,12 @@ export const generarAdvertencias = (
 
   // 1. Embarazo + Felipresina
   if (esEmbarazo && nombreNorm.includes('felipresina')) {
-    advertencias.push('⚠ Felipresina: evitar en embarazo por estructura análoga a oxitocina (riesgo controvertido)')
+    advertencias.push('Felipresina: evitar en embarazo por estructura análoga a oxitocina (riesgo controvertido)')
   }
 
   // 2. Embarazo + vasoconstrictor
   if (esEmbarazo && anestesia.tieneVasoconstrictor) {
-    advertencias.push('⚠ Vasoconstrictor en embarazo: limitar a máximo 2 tubos por precaución')
+    advertencias.push('Vasoconstrictor en embarazo: limitar a máximo 2 tubos por precaución')
   }
 
   // 3. Cardiopata + vasoconstrictor
@@ -241,7 +241,7 @@ export const generarAdvertencias = (
     const epiPorTubo = (anestesia.concentracionVasoconstrictor || 0) * (anestesia.volumenPorTubo || 0)
     if (epiPorTubo > 0) {
       const tubosMaximoEpi = Math.floor(0.04 / epiPorTubo)
-      advertencias.push(`⚠ Cardiopatía: limitar Epinefrina a 0.04 mg por sesión (≈ ${tubosMaximoEpi} tubos)`)
+      advertencias.push(`Cardiopatía: limitar Epinefrina a 0.04 mg por sesión (≈ ${tubosMaximoEpi} tubos)`)
     }
   }
 
@@ -254,12 +254,12 @@ export const generarAdvertencias = (
 
   // 5. Pediátrica: Bupivacaína contraindicada <12 años
   if (esPediatria && nombreNorm.includes('bupivacaina')) {
-    advertencias.push('⛔ Bupivacaína NO recomendada en niños <12 años')
+    advertencias.push('Bupivacaína NO recomendada en niños <12 años')
   }
 
   // 6. Pediátrica: Articaína contraindicada <4 años
   if (esPediatria && nombreNorm.includes('articaina')) {
-    advertencias.push('⚠ Articaína contraindicada en niños <4 años')
+    advertencias.push('Articaína contraindicada en niños <4 años')
   }
 
   // 7. Paciente de bajo peso (<50 kg) con vasoconstrictor
@@ -398,7 +398,7 @@ export const calcularDosisAnestesiaCompleta = (params: CalcularDosisParams = {})
         presentacion: anestesia.presentacion
       },
       calculos: null,
-      advertencias: ['⛔ Bupivacaína contraindicada en menores de 12 años']
+      advertencias: ['Bupivacaína contraindicada en menores de 12 años']
     }
   }
 
@@ -413,7 +413,7 @@ export const calcularDosisAnestesiaCompleta = (params: CalcularDosisParams = {})
         presentacion: anestesia.presentacion
       },
       calculos: null,
-      advertencias: ['⛔ Articaína contraindicada en menores de 4 años']
+      advertencias: ['Articaína contraindicada en menores de 4 años']
     }
   }
 
@@ -438,7 +438,7 @@ export const calcularDosisAnestesiaCompleta = (params: CalcularDosisParams = {})
           presentacion: anestesia.presentacion
         },
         calculos: null,
-        advertencias: ['⚠ Dosis pediátrica faltante, cálculo bloqueado por seguridad']
+        advertencias: ['Dosis pediátrica faltante, cálculo bloqueado por seguridad']
       }
     }
   } else {

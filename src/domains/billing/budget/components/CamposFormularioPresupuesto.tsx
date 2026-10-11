@@ -6,6 +6,7 @@ import React from 'react'
 import { Icon } from '../../../../shared/ui/Icon'
 import { Tooth } from '../../../../shared/ui/icons/Tooth'
 import { Input } from '../../../../shared/ui/ui/Input'
+import { X } from 'lucide-react'
 
 import type { PresupuestoItemLocal } from '../services/presupuestosStorageService'
 
@@ -203,8 +204,9 @@ export const CamposFormularioPresupuesto: React.FC<CamposFormularioPresupuestoPr
                   type="button"
                   onClick={() => it.id != null && handleEliminarItem(it.id)}
                   className="text-red-500 font-bold hover:text-red-700 cursor-pointer"
+                  aria-label="Eliminar item"
                 >
-                  ✕
+                  <X className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>

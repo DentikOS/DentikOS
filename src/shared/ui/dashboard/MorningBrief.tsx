@@ -20,7 +20,7 @@ export const MorningBrief: React.FC<MorningBriefProps> = ({ data, onNavegar }) =
     >
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <span className="text-base">☀️</span>
+          
           <h2 className="text-sm font-bold text-[#0F172A] dark:text-white uppercase tracking-wider">
             Tu día en 30 segundos
           </h2>
