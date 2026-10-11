@@ -5,29 +5,20 @@ import { useVademecumStore, type Medicamento } from '../../../../../../app/store
 import { RecetasEmitidasLista, type RecetaEmitidaItem } from './RecetasEmitidasLista'
 import { fichasClinicasStorageService } from '../../../services/fichasClinicasStorageService'
 import { recetasPDFService } from '../../../services/recetasPDFService'
+import { VisorPDF } from '../shared/VisorPDF'
 import type { Paciente } from '../../../schemas/pacienteSchema'
 
-interface MedicamentoItem {
-  nombre: string
-  dosis: string
-  frecuencia: string
-  duracion: string
-}
-
-interface RecetasProps {
-  paciente: Paciente
-  profesional?: string
-}
+interface MedicamentoItem { nombre: string; dosis: string; frecuencia: string; duracion: string }
+interface RecetasProps { paciente: Paciente; profesional?: string }
 
 export const Recetas: React.FC<RecetasProps> = ({
   paciente,
   profesional = 'Dr. Tratante',
 }) => {
-  const [medicamentos, setMedicamentos] = useState<MedicamentoItem[]>([
-    { nombre: 'Amoxicilina 500 mg (comprimidos)', dosis: '500 mg', frecuencia: 'Cada 8 horas', duracion: '7 días' },
-  ])
+  const [medicamentos, setMedicamentos] = useState<MedicamentoItem[]>([{ nombre: 'Amoxicilina 500 mg (comprimidos)', dosis: '500 mg', frecuencia: 'Cada 8 horas', duracion: '7 días' }])
   const [indicaciones, setIndicaciones] = useState('Tomar con alimentos. Abundante líquido.')
   const [recetas, setRecetas] = useState<RecetaEmitidaItem[]>([])
+  const [recetaParaVer, setRecetaParaVer] = useState<RecetaEmitidaItem | null>(null)
   const [sugerencias, setSugerencias] = useState<{ idx: number; items: Medicamento[] } | null>(null)
 
   useEffect(() => {
@@ -101,11 +92,8 @@ export const Recetas: React.FC<RecetasProps> = ({
       .join('')
 
     const nuevaReceta: RecetaEmitidaItem = {
-      id: crypto.randomUUID(),
-      fecha: new Date().toISOString(),
-      profesional,
-      medicamentos: [...medicamentos],
-      hashForense: `SEC-STEG-${randomHash.slice(0, 12).toUpperCase()}`,
+      id: crypto.randomUUID(), fecha: new Date().toISOString(), profesional,
+      medicamentos: [...medicamentos], hashForense: `SEC-STEG-${randomHash.slice(0, 12).toUpperCase()}`,
       qrToken: `https://studio-dental.app/rx/${randomHash.slice(0, 8)}`,
     }
 
@@ -118,14 +106,9 @@ export const Recetas: React.FC<RecetasProps> = ({
 
     try {
       recetasPDFService.descargarReceta({
-        pacienteNombre: paciente.nombreCompleto || paciente.nombre,
-        pacienteRut: paciente.rut,
-        profesional,
-        medicamentos: [...medicamentos],
-        indicaciones,
-        fecha: nuevaReceta.fecha,
-        hashForense: nuevaReceta.hashForense,
-        qrToken: nuevaReceta.qrToken,
+        pacienteNombre: paciente.nombreCompleto || paciente.nombre, pacienteRut: paciente.rut,
+        profesional, medicamentos: [...medicamentos], indicaciones, fecha: nuevaReceta.fecha,
+        hashForense: nuevaReceta.hashForense, qrToken: nuevaReceta.qrToken,
       })
     } catch {
       // Ignorar en entorno de test sin soporte de canvas
@@ -242,7 +225,26 @@ export const Recetas: React.FC<RecetasProps> = ({
         </div>
       </form>
 
-      <RecetasEmitidasLista recetas={recetas} />
+      <RecetasEmitidasLista recetas={recetas} onVerReceta={setRecetaParaVer} />
+
+      {recetaParaVer && (
+        <VisorPDF
+          titulo="Receta Médica Electrónica"
+          pacienteNombre={paciente.nombreCompleto || paciente.nombre}
+          profesional={recetaParaVer.profesional}
+          fecha={new Date(recetaParaVer.fecha).toLocaleDateString('es-CL')}
+          hashForense={recetaParaVer.hashForense}
+          contenidoTexto={recetaParaVer.medicamentos.map((m) => `• ${m.nombre} (${m.dosis})`).join('\n')}
+          onCerrar={() => setRecetaParaVer(null)}
+          onDescargar={() => {
+            recetasPDFService.descargarReceta({
+              pacienteNombre: paciente.nombreCompleto || paciente.nombre, pacienteRut: paciente.rut,
+              profesional: recetaParaVer.profesional, medicamentos: recetaParaVer.medicamentos as any,
+              indicaciones, fecha: recetaParaVer.fecha, hashForense: recetaParaVer.hashForense, qrToken: recetaParaVer.qrToken,
+            })
+          }}
+        />
+      )}
     </div>
   )
 }

@@ -12,9 +12,10 @@ export interface RecetaEmitidaItem {
 
 interface RecetasEmitidasListaProps {
   recetas: RecetaEmitidaItem[]
+  onVerReceta?: (receta: RecetaEmitidaItem) => void
 }
 
-export const RecetasEmitidasLista: React.FC<RecetasEmitidasListaProps> = ({ recetas }) => {
+export const RecetasEmitidasLista: React.FC<RecetasEmitidasListaProps> = ({ recetas, onVerReceta }) => {
   if (recetas.length === 0) return null
 
   return (
@@ -39,8 +40,20 @@ export const RecetasEmitidasLista: React.FC<RecetasEmitidasListaProps> = ({ rece
             </p>
           </div>
 
-          <div className="p-2 rounded-xl bg-surface-hover border border-surface flex items-center gap-2">
-            <QrCode className="w-7 h-7 text-graphite-700 dark:text-graphite-200" />
+          <div className="flex items-center gap-2">
+            {onVerReceta && (
+              <button
+                type="button"
+                onClick={() => onVerReceta(rx)}
+                className="px-3 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold transition-colors cursor-pointer"
+                data-testid={`btn-ver-receta-${rx.id}`}
+              >
+                Ver
+              </button>
+            )}
+            <div className="p-2 rounded-xl bg-surface-hover border border-surface flex items-center gap-2">
+              <QrCode className="w-7 h-7 text-graphite-700 dark:text-graphite-200" />
+            </div>
           </div>
         </div>
       ))}

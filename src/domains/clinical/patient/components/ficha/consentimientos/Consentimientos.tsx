@@ -5,18 +5,13 @@ import { PLANTILLAS_CONSENTIMIENTO } from '../../../constants/plantillasConsenti
 import { fichasClinicasStorageService } from '../../../services/fichasClinicasStorageService'
 import type { Paciente } from '../../../schemas/pacienteSchema'
 
+import { VisorPDF } from '../shared/VisorPDF'
+
 export type ModoFirmaConsentimiento = 'canvas' | 'tipografica' | 'otp' | 'presencial'
 
 export interface ConsentimientoFirmado {
-  id: string
-  plantillaId: string
-  tipo: string
-  textoLegal: string
-  fecha: string
-  firmante: string
-  esTutor: boolean
-  modoFirma: ModoFirmaConsentimiento
-  hashForense: string
+  id: string; plantillaId: string; tipo: string; textoLegal: string; fecha: string
+  firmante: string; esTutor: boolean; modoFirma: ModoFirmaConsentimiento; hashForense: string
 }
 
 interface ConsentimientosProps {
@@ -30,6 +25,7 @@ export const Consentimientos: React.FC<ConsentimientosProps> = ({ paciente }) =>
   const [otpCodigo, setOtpCodigo] = useState('')
   const [nombreTutor, setNombreTutor] = useState(paciente.tutorLegal?.nombre || '')
   const [firmados, setFirmados] = useState<ConsentimientoFirmado[]>([])
+  const [docParaVer, setDocParaVer] = useState<ConsentimientoFirmado | null>(null)
 
   const esMenor = Boolean((paciente.edad && Number(paciente.edad) < 18) || paciente.tutorLegal?.nombre)
   const firmanteEfectivo = esMenor ? nombreTutor.trim() : (paciente.nombreCompleto || paciente.nombre)
@@ -55,14 +51,9 @@ export const Consentimientos: React.FC<ConsentimientosProps> = ({ paciente }) =>
       .map((b) => b.toString(16).padStart(2, '0')).join('')
 
     const nuevo: ConsentimientoFirmado = {
-      id: crypto.randomUUID(),
-      plantillaId: plantillaActual.id,
-      tipo: plantillaActual.nombre,
-      textoLegal: plantillaActual.texto,
-      fecha: new Date().toISOString(),
-      firmante: firmanteEfectivo || 'Firmante Registrado',
-      esTutor: esMenor,
-      modoFirma,
+      id: crypto.randomUUID(), plantillaId: plantillaActual.id, tipo: plantillaActual.nombre,
+      textoLegal: plantillaActual.texto, fecha: new Date().toISOString(),
+      firmante: firmanteEfectivo || 'Firmante Registrado', esTutor: esMenor, modoFirma,
       hashForense: `SHA256:CONS-${randomHash.toUpperCase()}`,
     }
 
@@ -115,36 +106,16 @@ export const Consentimientos: React.FC<ConsentimientosProps> = ({ paciente }) =>
           </div>
 
           <div className="flex items-center p-1 bg-surface-hover rounded-xl text-xs gap-1">
-            <button
-              type="button"
-              onClick={() => setModoFirma('tipografica')}
-              className={`p-1.5 rounded-lg flex items-center gap-1 ${modoFirma === 'tipografica' ? 'bg-primary text-white' : 'text-graphite-500'}`}
-              title="Firma Tipográfica"
-            >
+            <button type="button" onClick={() => setModoFirma('tipografica')} className={`p-1.5 rounded-lg flex items-center gap-1 ${modoFirma === 'tipografica' ? 'bg-primary text-white' : 'text-graphite-500'}`} title="Firma Tipográfica">
               <Type className="w-3.5 h-3.5" /> <span className="hidden sm:inline text-[11px]">Tipográfica</span>
             </button>
-            <button
-              type="button"
-              onClick={() => setModoFirma('canvas')}
-              className={`p-1.5 rounded-lg flex items-center gap-1 ${modoFirma === 'canvas' ? 'bg-primary text-white' : 'text-graphite-500'}`}
-              title="Trazado Táctil"
-            >
+            <button type="button" onClick={() => setModoFirma('canvas')} className={`p-1.5 rounded-lg flex items-center gap-1 ${modoFirma === 'canvas' ? 'bg-primary text-white' : 'text-graphite-500'}`} title="Trazado Táctil">
               <PenTool className="w-3.5 h-3.5" /> <span className="hidden sm:inline text-[11px]">Trazado</span>
             </button>
-            <button
-              type="button"
-              onClick={() => setModoFirma('otp')}
-              className={`p-1.5 rounded-lg flex items-center gap-1 ${modoFirma === 'otp' ? 'bg-primary text-white' : 'text-graphite-500'}`}
-              title="Código SMS/WhatsApp"
-            >
+            <button type="button" onClick={() => setModoFirma('otp')} className={`p-1.5 rounded-lg flex items-center gap-1 ${modoFirma === 'otp' ? 'bg-primary text-white' : 'text-graphite-500'}`} title="Código SMS/WhatsApp">
               <Smartphone className="w-3.5 h-3.5" /> <span className="hidden sm:inline text-[11px]">OTP</span>
             </button>
-            <button
-              type="button"
-              onClick={() => setModoFirma('presencial')}
-              className={`p-1.5 rounded-lg flex items-center gap-1 ${modoFirma === 'presencial' ? 'bg-primary text-white' : 'text-graphite-500'}`}
-              title="Presencial en Tablet"
-            >
+            <button type="button" onClick={() => setModoFirma('presencial')} className={`p-1.5 rounded-lg flex items-center gap-1 ${modoFirma === 'presencial' ? 'bg-primary text-white' : 'text-graphite-500'}`} title="Presencial en Tablet">
               <UserCheck className="w-3.5 h-3.5" /> <span className="hidden sm:inline text-[11px]">Presencial</span>
             </button>
           </div>
@@ -230,12 +201,34 @@ export const Consentimientos: React.FC<ConsentimientosProps> = ({ paciente }) =>
                 </p>
                 <p className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 mt-0.5">{doc.hashForense}</p>
               </div>
-              <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600">
-                <FileCheck className="w-6 h-6" />
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setDocParaVer(doc)}
+                  className="px-3 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold transition-colors cursor-pointer"
+                  data-testid={`btn-ver-consentimiento-${doc.id}`}
+                >
+                  Ver
+                </button>
+                <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600">
+                  <FileCheck className="w-5 h-5" />
+                </div>
               </div>
             </div>
           ))}
         </div>
+      )}
+
+      {docParaVer && (
+        <VisorPDF
+          titulo={`Consentimiento Informado: ${docParaVer.tipo}`}
+          pacienteNombre={paciente.nombreCompleto || paciente.nombre}
+          profesional="Profesional Tratante"
+          fecha={new Date(docParaVer.fecha).toLocaleDateString('es-CL')}
+          hashForense={docParaVer.hashForense}
+          contenidoTexto={docParaVer.textoLegal}
+          onCerrar={() => setDocParaVer(null)}
+        />
       )}
     </div>
   )
