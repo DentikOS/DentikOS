@@ -1,3 +1,5 @@
+import { obtenerFechaLocalISO } from '../../../../../shared/utils/dateUtils'
+
 export const BOXES_CITA_RAPIDA = [
   'Sillón 1 - Odontología General',
   'Sillón 2 - Higiene & Ortodoncia',
@@ -14,7 +16,7 @@ export const PRESTACIONES_DEFAULT_RAPIDAS = [
 export const obtenerFechaMananaISO = (): string => {
   const d = new Date()
   d.setDate(d.getDate() + 1)
-  return d.toISOString().split('T')[0]
+  return obtenerFechaLocalISO(d)
 }
 
 export const sumarMinutosHora = (hora: string, minutos: number): string => {

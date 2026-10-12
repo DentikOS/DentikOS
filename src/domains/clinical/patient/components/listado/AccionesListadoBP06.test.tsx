@@ -246,7 +246,7 @@ describe('Acciones Rápidas y Menú Contextual (BP06 §01 + §05 + §06)', () =>
     expect(screen.queryByTestId('menu-dropdown-pac-1')).not.toBeInTheDocument()
   })
 
-  it('WS-I: Click en Agendar cita abre ModalAgendarCitaRapida, guarda cita y permite ver en Agenda', () => {
+  it('WS-I: Click en Agendar cita abre ModalAgendarCitaRapida, guarda cita y permite ver en Agenda', async () => {
     const handleNavegar = vi.fn()
     window.addEventListener('navegar_seccion', handleNavegar)
 
@@ -267,7 +267,7 @@ describe('Acciones Rápidas y Menú Contextual (BP06 §01 + §05 + §06)', () =>
     fireEvent.click(screen.getByText('Agendar Cita'))
 
     // Pantalla de confirmación con botón Ver en Agenda
-    expect(screen.getByTestId('modal-cita-confirmada-pac-1')).toBeInTheDocument()
+    expect(await screen.findByTestId('modal-cita-confirmada-pac-1')).toBeInTheDocument()
     const btnVerAgenda = screen.getByTestId('btn-ver-en-agenda')
     fireEvent.click(btnVerAgenda)
 

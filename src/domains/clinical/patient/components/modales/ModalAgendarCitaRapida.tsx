@@ -23,9 +23,7 @@ export interface ModalAgendarCitaRapidaProps {
 export const ModalAgendarCitaRapida: React.FC<ModalAgendarCitaRapidaProps> = memo(({
   paciente, doctorTratante, isOpen, onClose, onCitaCreada,
 }) => {
-  const { doctores } = useDoctoresClinica()
-  const prestaciones = usePrestacionesStore((s) => s.prestacionesArancel)
-  const citasExistentes = useAgendaStore((s) => s.citas)
+  const { doctores } = useDoctoresClinica(), prestaciones = usePrestacionesStore((s) => s.prestacionesArancel), citasExistentes = useAgendaStore((s) => s.citas)
   const [fecha, setFecha] = useState(obtenerFechaMananaISO), [hora, setHora] = useState('09:00')
   const [duracion, setDuracion] = useState(30), [box, setBox] = useState(BOXES_CITA_RAPIDA[0])
   const [doctorId, setDoctorId] = useState(() => paciente.doctorTratanteId || doctores[0]?.id || '')
@@ -38,20 +36,22 @@ export const ModalAgendarCitaRapida: React.FC<ModalAgendarCitaRapidaProps> = mem
   const motivoFinal = motivo || listaMotivos[0]
   const conflicto = citasExistentes.some((c) => c.fecha === fecha && c.horaInicio === hora && (c.doctor === nombreDoctor || c.boxAsignado === box))
 
-  const handleGuardar = (e: React.FormEvent) => {
+  const handleGuardar = async (e: React.FormEvent) => {
     e.preventDefault()
+    const fechaISO = fecha.split('T')[0]
     const nuevaCita: Cita = {
-      id: `cita-${Date.now()}`, fecha, horaInicio: hora, horaFin: sumarMinutosHora(hora, duracion),
+      id: `cita-${Date.now()}`, fecha: fechaISO, horaInicio: hora, horaFin: sumarMinutosHora(hora, duracion),
       estado: 'Pendiente', pacienteId: paciente.id, pacienteNombre: paciente.nombre || paciente.nombreCompleto,
       pacienteRut: paciente.rut, pacienteTelefono: paciente.telefono ? String(paciente.telefono) : undefined, doctor: nombreDoctor,
       boxAsignado: box, motivo: motivoFinal, trataMiento: motivoFinal, duracionMinutos: duracion, observaciones: notas.trim() || undefined,
     }
     const actuales = agendaStorageService.obtenerCitas()
-    agendaStorageService.guardarCitas([...actuales, nuevaCita])
+    await agendaStorageService.guardarCitas([...actuales, nuevaCita])
     useAgendaStore.getState().addCita(nuevaCita)
+    useAgendaStore.getState().setDateIso(fechaISO)
     timelineService.agregarEvento(paciente.id, {
       id: `tl-cita-${Date.now()}`, fecha: new Date().toISOString(), tipo: 'cita',
-      titulo: `Cita agendada para ${fecha} ${hora} con ${nombreDoctor}`, detalles: `Box: ${box} · Motivo: ${motivoFinal}`, profesional: nombreDoctor,
+      titulo: `Cita agendada para ${fechaISO} ${hora} con ${nombreDoctor}`, detalles: `Box: ${box} · Motivo: ${motivoFinal}`, profesional: nombreDoctor,
     })
     notificationService.mostrar('Cita agendada con éxito', { tipo: 'success' })
     setCitaCreada(nuevaCita)

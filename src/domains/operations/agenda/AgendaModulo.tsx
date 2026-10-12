@@ -1,4 +1,4 @@
-import React, { memo, useMemo, useState } from 'react'
+import React, { memo, useMemo, useState, useEffect } from 'react'
 import { Ban, Plus, Armchair, Calendar } from 'lucide-react'
 import { Button } from '../../../shared/ui/ui/Button'
 import { PageHeader } from '../../../shared/ui/ui/PageHeader'
@@ -54,14 +54,27 @@ export const AgendaModulo: React.FC<AgendaModuloProps> = memo(({ alSeleccionarPa
 
   const currentView = useAgendaStore((state) => state.currentView)
   const setStoreView = useAgendaStore((state) => state.setView)
+  const storeCitas = useAgendaStore((state) => state.citas)
+  const storeDateIso = useAgendaStore((state) => state.currentDateIso)
   const theme = useThemeStore((state) => state.theme)
+
+  useEffect(() => {
+    if (storeDateIso) {
+      setFechaSeleccionada(storeDateIso.split('T')[0])
+    }
+  }, [storeDateIso, setFechaSeleccionada])
 
   // F7-27: Estado de vista de agenda
   const [vista, setVista] = useState<string>('box')
   const [busqueda, setBusqueda] = useState<string>('')
 
+  const todasLasCitas = useMemo(() => {
+    if (storeCitas && storeCitas.length > 0) return storeCitas
+    return citas
+  }, [storeCitas, citas])
+
   const citasDelDia = useMemo(() => {
-    let filtradas = citas.filter(c => c.fecha === fechaSeleccionada)
+    let filtradas = todasLasCitas.filter(c => (c.fecha || '').split('T')[0] === (fechaSeleccionada || '').split('T')[0])
     if (busqueda && busqueda.trim()) {
       const termino = busqueda.toLowerCase().trim()
       filtradas = filtradas.filter(c =>
@@ -72,7 +85,7 @@ export const AgendaModulo: React.FC<AgendaModuloProps> = memo(({ alSeleccionarPa
       )
     }
     return filtradas
-  }, [citas, fechaSeleccionada, busqueda])
+  }, [todasLasCitas, fechaSeleccionada, busqueda])
 
   // F7-27: Handler de exportación CSV
   const handleExportarCSV = (): void => {
@@ -262,7 +275,7 @@ export const AgendaModulo: React.FC<AgendaModuloProps> = memo(({ alSeleccionarPa
           onAppointmentClick={(cita) => funcionVerFicha(cita)}
           onSlotClick={() => setModalNuevaCitaAbierto(true)}
           onAppointmentMove={(id, nuevaHora, col) => {
-            const citaExistente = citas.find((c) => String(c.id) === String(id))
+            const citaExistente = todasLasCitas.find((c) => String(c.id) === String(id))
             if (citaExistente) {
               guardarCita({ ...citaExistente, horaInicio: nuevaHora, ...(col ? { doctor: col } : {}) })
             }
@@ -273,7 +286,7 @@ export const AgendaModulo: React.FC<AgendaModuloProps> = memo(({ alSeleccionarPa
 
       {(currentView === 'week' || vista === 'week') && (
         <AgendaWeekView
-          appointments={citas}
+          appointments={todasLasCitas}
           currentDateIso={fechaSeleccionada}
           onAppointmentClick={(cita) => funcionVerFicha(cita)}
           onDayClick={(iso) => {
@@ -290,7 +303,7 @@ export const AgendaModulo: React.FC<AgendaModuloProps> = memo(({ alSeleccionarPa
 
       {(currentView === 'month' || vista === 'month') && (
         <AgendaMonthView
-          appointments={citas}
+          appointments={todasLasCitas}
           currentDateIso={fechaSeleccionada}
           onDayClick={(iso) => {
             setFechaSeleccionada(iso)
