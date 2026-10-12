@@ -1,8 +1,9 @@
 import React, { memo, useState } from 'react'
+import { Eye } from 'lucide-react'
 import { Modal } from '../../../../shared/ui/ui/Modal'
 import { Input } from '../../../../shared/ui/ui/Input'
 import { Button } from '../../../../shared/ui/ui/Button'
-import { formatearRut, obtenerErrorRut } from '../../../../shared/utils/validarRut'
+import { formatearRut, obtenerErrorRut, normalizarRut } from '../../../../shared/utils/validarRut'
 import { rutDuplicado, type Paciente } from '../schemas/pacienteSchema'
 import { markFormDirty, markFormSaved } from '../../../../shared/utils/formDirtyUtils'
 
@@ -18,6 +19,8 @@ export interface NuevoPacienteFormData {
   ocupacion?: string
   contactoEmergencia?: string
   id?: string | number
+  estado?: string
+  fechaCreacion?: string
   [key: string]: unknown
 }
 
@@ -25,14 +28,21 @@ export interface ModalNuevoPacienteProps {
   alGuardar: (nuevoPaciente: NuevoPacienteFormData) => void
   alCerrar: () => void
   pacientes?: Array<Partial<Paciente> & { rut?: string; [key: string]: unknown }>
+  onVerFichaExistente?: (paciente: Paciente) => void
 }
 
-export const ModalNuevoPaciente: React.FC<ModalNuevoPacienteProps> = memo(({ alGuardar, alCerrar, pacientes = [] }) => {
+export const ModalNuevoPaciente: React.FC<ModalNuevoPacienteProps> = memo(({
+  alGuardar,
+  alCerrar,
+  pacientes = [],
+  onVerFichaExistente,
+}) => {
   const [nuevoPaciente, setNuevoPaciente] = useState<NuevoPacienteFormData>({
     nombre: '', rut: '', telefono: '', edad: '', prevision: 'Fonasa', alergias: '', email: '', direccion: '', ocupacion: '', contactoEmergencia: ''
   })
   const [errorRut, setErrorRut] = useState<string>('')
   const [rutValido, setRutValido] = useState<boolean>(false)
+  const [duplicadoEncontrado, setDuplicadoEncontrado] = useState<Paciente | null>(null)
   const [enviando, setEnviando] = useState<boolean>(false)
 
   const actualizarCampo = (campo: keyof NuevoPacienteFormData, valor: unknown): void => {
@@ -40,57 +50,59 @@ export const ModalNuevoPaciente: React.FC<ModalNuevoPacienteProps> = memo(({ alG
     setNuevoPaciente((prev) => ({ ...prev, [campo]: valor }))
   }
 
-  // Validación en tiempo real del RUT
   const handleRutChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
     markFormDirty()
     const valor = e.target.value
-    setNuevoPaciente(prev => ({ ...prev, rut: valor }))
-    
+    setNuevoPaciente((prev) => ({ ...prev, rut: valor }))
+
     if (!valor.trim()) {
       setErrorRut('')
       setRutValido(false)
+      setDuplicadoEncontrado(null)
       return
     }
-    
+
     const error = obtenerErrorRut(valor)
     if (error) {
       setErrorRut(error)
       setRutValido(false)
+      setDuplicadoEncontrado(null)
       return
     }
-    
-    // Verificar duplicados
+
     if (rutDuplicado(valor, pacientes as Paciente[])) {
+      const dup = (pacientes as Paciente[]).find(
+        (p) => p.rut && normalizarRut(p.rut) === normalizarRut(valor)
+      )
       setErrorRut('Este RUT ya está registrado')
       setRutValido(false)
+      setDuplicadoEncontrado(dup || null)
       return
     }
-    
+
     setErrorRut('')
     setRutValido(true)
+    setDuplicadoEncontrado(null)
   }
 
-  // Normalización automática al perder foco
   const handleRutBlur = (): void => {
     if (nuevoPaciente.rut.trim() && !errorRut) {
-      const formateado = formatearRut(nuevoPaciente.rut)
-      setNuevoPaciente(prev => ({ ...prev, rut: formateado }))
+      setNuevoPaciente((prev) => ({ ...prev, rut: formatearRut(nuevoPaciente.rut) }))
     }
   }
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>): void => {
     e.preventDefault()
-    
-    // Validación final antes de guardar
-    if (!nuevoPaciente.nombre || !nuevoPaciente.rut || !nuevoPaciente.telefono) return
+    if (!nuevoPaciente.nombre.trim() || !nuevoPaciente.rut.trim() || !nuevoPaciente.telefono?.trim()) return
     if (!rutValido || errorRut) return
 
     setEnviando(true)
-
     const nuevo: NuevoPacienteFormData = {
       ...nuevoPaciente,
-      id: Date.now(),
-      edad: nuevoPaciente.edad || '30'
+      id: crypto.randomUUID(),
+      estado: 'nuevo',
+      fechaCreacion: new Date().toISOString(),
+      edad: nuevoPaciente.edad || '',
     }
 
     markFormSaved()
@@ -99,24 +111,15 @@ export const ModalNuevoPaciente: React.FC<ModalNuevoPacienteProps> = memo(({ alG
   }
 
   const puedeGuardar = Boolean(
-    nuevoPaciente.nombre.trim() &&
-    nuevoPaciente.rut.trim() &&
-    nuevoPaciente.telefono?.trim() &&
-    rutValido &&
-    !errorRut
+    nuevoPaciente.nombre.trim() && nuevoPaciente.rut.trim() && nuevoPaciente.telefono?.trim() && rutValido && !errorRut
   )
 
   return (
-    <Modal
-      isOpen={true}
-      onClose={alCerrar}
-      title="Registrar Nuevo Paciente"
-      size="lg"
-    >
+    <Modal isOpen={true} onClose={alCerrar} title="Registrar Nuevo Paciente" size="lg">
       <form onSubmit={handleSubmit} className="space-y-4 text-xs">
         <Input
           data-testid="paciente-nombre"
-          label="Nombre Completo"
+          label={<>Nombre Completo <span className="text-[#E11D48] required-asterisk">*</span></>}
           type="text"
           required
           value={nuevoPaciente.nombre}
@@ -138,15 +141,27 @@ export const ModalNuevoPaciente: React.FC<ModalNuevoPacienteProps> = memo(({ alG
               onBlur={handleRutBlur}
               placeholder="12.345.678-9"
               className={`w-full px-3 py-2 rounded-lg border text-sm ${
-                errorRut ? 'border-red-500 bg-red-50' :
-                rutValido ? 'border-green-500 bg-green-50' :
-                'border-gray-300 dark:border-graphite-600'
+                errorRut ? 'border-red-500 bg-red-50' : rutValido ? 'border-green-500 bg-green-50' : 'border-gray-300 dark:border-graphite-600'
               }`}
             />
             {errorRut && (
-              <p data-testid="paciente-rut-error" className="text-red-600 text-xs mt-1 font-medium">
-                {errorRut}
-              </p>
+              <div className="mt-1 space-y-1.5">
+                <p data-testid="paciente-rut-error" className="text-red-600 text-xs font-medium">
+                  {errorRut}
+                </p>
+                {duplicadoEncontrado && onVerFichaExistente && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    icon={Eye}
+                    onClick={() => onVerFichaExistente(duplicadoEncontrado)}
+                    data-testid="btn-ver-ficha-existente"
+                  >
+                    Ver ficha existente
+                  </Button>
+                )}
+              </div>
             )}
             {rutValido && !errorRut && (
               <p data-testid="paciente-rut-valido" className="text-green-600 text-xs mt-1 font-medium">
@@ -157,7 +172,7 @@ export const ModalNuevoPaciente: React.FC<ModalNuevoPacienteProps> = memo(({ alG
           <div>
             <Input
               data-testid="paciente-telefono"
-              label="Teléfono"
+              label={<>Teléfono <span className="text-[#E11D48] required-asterisk">*</span></>}
               type="text"
               required
               value={nuevoPaciente.telefono || ''}
@@ -168,24 +183,20 @@ export const ModalNuevoPaciente: React.FC<ModalNuevoPacienteProps> = memo(({ alG
         </div>
 
         <div className="grid grid-cols-3 gap-3">
-          <div>
-            <Input
-              label="Edad"
-              type="number"
-              value={nuevoPaciente.edad ? String(nuevoPaciente.edad) : ''}
-              onChange={(e) => actualizarCampo('edad', e.target.value)}
-              placeholder="30"
-            />
-          </div>
-          <div>
-            <Input
-              label="Correo"
-              type="email"
-              value={nuevoPaciente.email || ''}
-              onChange={(e) => actualizarCampo('email', e.target.value)}
-              placeholder="juan@ejemplo.com"
-            />
-          </div>
+          <Input
+            label="Edad"
+            type="number"
+            value={nuevoPaciente.edad ? String(nuevoPaciente.edad) : ''}
+            onChange={(e) => actualizarCampo('edad', e.target.value)}
+            placeholder="30"
+          />
+          <Input
+            label="Correo"
+            type="email"
+            value={nuevoPaciente.email || ''}
+            onChange={(e) => actualizarCampo('email', e.target.value)}
+            placeholder="juan@ejemplo.com"
+          />
           <div>
             <label className="block font-semibold text-gray-600 dark:text-graphite-400 uppercase mb-1">Previsión</label>
             <select
@@ -213,13 +224,7 @@ export const ModalNuevoPaciente: React.FC<ModalNuevoPacienteProps> = memo(({ alG
         </div>
 
         <div className="flex gap-2 pt-2">
-          <Button
-            data-testid="paciente-cancelar"
-            type="button"
-            onClick={alCerrar}
-            variant="ghost"
-            fullWidth
-          >
+          <Button data-testid="paciente-cancelar" type="button" onClick={alCerrar} variant="ghost" fullWidth>
             Cancelar
           </Button>
           <Button

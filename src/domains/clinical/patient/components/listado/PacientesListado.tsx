@@ -387,7 +387,15 @@ export const PacientesListado: React.FC<PacientesListadoProps> = memo(({
       <PacientesAccionesMasivas />
 
       {mostrarModalNuevo && (
-        <ModalNuevoPaciente pacientes={pacientes} alGuardar={handleCrearPaciente} alCerrar={() => setMostrarModalNuevo(false)} />
+        <ModalNuevoPaciente
+          pacientes={pacientes}
+          alGuardar={handleCrearPaciente}
+          alCerrar={() => setMostrarModalNuevo(false)}
+          onVerFichaExistente={(paciente) => {
+            setMostrarModalNuevo(false)
+            setPacienteActivo(paciente)
+          }}
+        />
       )}
 
       {mostrarPapelera && (
