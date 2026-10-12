@@ -22,6 +22,7 @@ import { useThemeStore } from '../../../app/stores/useThemeStore'
 import { exportarCitasCSV } from '../../../shared/utils/csvExport'
 import { SILLONES_DENTALES } from './constants/agendaConstants'
 import { usePacientesStore } from '../../../app/stores/pacientesStore'
+import { agendaStorageService } from './services/agendaStorageService'
 import type { Cita } from './schemas/citaSchema'
 import type { Paciente } from '../../../domains/clinical/patient/schemas/pacienteSchema'
 
@@ -63,6 +64,20 @@ export const AgendaModulo: React.FC<AgendaModuloProps> = memo(({ alSeleccionarPa
       setFechaSeleccionada(storeDateIso.split('T')[0])
     }
   }, [storeDateIso, setFechaSeleccionada])
+
+  useEffect(() => {
+    const cargarCitas = async () => {
+      try {
+        const citasDB = await agendaStorageService.obtenerCitasDesdeSupabase()
+        if (citasDB && citasDB.length > 0) {
+          useAgendaStore.getState().setCitas(citasDB)
+        }
+      } catch (error) {
+        console.error('Error cargando citas desde Supabase:', error)
+      }
+    }
+    cargarCitas()
+  }, [])
 
   // F7-27: Estado de vista de agenda
   const [vista, setVista] = useState<string>('box')

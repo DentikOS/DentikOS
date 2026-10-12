@@ -38,24 +38,29 @@ export const ModalAgendarCitaRapida: React.FC<ModalAgendarCitaRapidaProps> = mem
 
   const handleGuardar = async (e: React.FormEvent) => {
     e.preventDefault()
-    const fechaISO = fecha.split('T')[0]
-    const nuevaCita: Cita = {
-      id: `cita-${Date.now()}`, fecha: fechaISO, horaInicio: hora, horaFin: sumarMinutosHora(hora, duracion),
-      estado: 'Pendiente', pacienteId: paciente.id, pacienteNombre: paciente.nombre || paciente.nombreCompleto,
-      pacienteRut: paciente.rut, pacienteTelefono: paciente.telefono ? String(paciente.telefono) : undefined, doctor: nombreDoctor,
-      boxAsignado: box, motivo: motivoFinal, trataMiento: motivoFinal, duracionMinutos: duracion, observaciones: notas.trim() || undefined,
+    try {
+      const fechaISO = fecha.split('T')[0]
+      const nuevaCita: Cita = {
+        id: `cita-${Date.now()}`, fecha: fechaISO, horaInicio: hora, horaFin: sumarMinutosHora(hora, duracion),
+        estado: 'Pendiente', pacienteId: paciente.id, pacienteNombre: paciente.nombre || paciente.nombreCompleto,
+        pacienteRut: paciente.rut, pacienteTelefono: paciente.telefono ? String(paciente.telefono) : undefined, doctor: nombreDoctor,
+        boxAsignado: box, motivo: motivoFinal, trataMiento: motivoFinal, duracionMinutos: duracion, observaciones: notas.trim() || undefined,
+      }
+      const actuales = useAgendaStore.getState().citas
+      await agendaStorageService.guardarCitas([...actuales, nuevaCita])
+      useAgendaStore.getState().addCita(nuevaCita)
+      useAgendaStore.getState().setDateIso(fechaISO)
+      await timelineService.agregarEvento(paciente.id, {
+        id: `tl-cita-${Date.now()}`, fecha: new Date().toISOString(), tipo: 'cita',
+        titulo: `Cita agendada para ${fechaISO} ${hora} con ${nombreDoctor}`, detalles: `Box: ${box} · Motivo: ${motivoFinal}`, profesional: nombreDoctor,
+      })
+      notificationService.mostrar('Cita agendada con éxito', { tipo: 'success' })
+      setCitaCreada(nuevaCita)
+      onCitaCreada?.(nuevaCita)
+    } catch (error) {
+      console.error('Error agendando cita:', error)
+      notificationService.mostrar('Error al agendar cita', { tipo: 'error' })
     }
-    const actuales = agendaStorageService.obtenerCitas()
-    await agendaStorageService.guardarCitas([...actuales, nuevaCita])
-    useAgendaStore.getState().addCita(nuevaCita)
-    useAgendaStore.getState().setDateIso(fechaISO)
-    timelineService.agregarEvento(paciente.id, {
-      id: `tl-cita-${Date.now()}`, fecha: new Date().toISOString(), tipo: 'cita',
-      titulo: `Cita agendada para ${fechaISO} ${hora} con ${nombreDoctor}`, detalles: `Box: ${box} · Motivo: ${motivoFinal}`, profesional: nombreDoctor,
-    })
-    notificationService.mostrar('Cita agendada con éxito', { tipo: 'success' })
-    setCitaCreada(nuevaCita)
-    onCitaCreada?.(nuevaCita)
   }
 
   const handleVerEnAgenda = () => {
@@ -68,9 +73,7 @@ export const ModalAgendarCitaRapida: React.FC<ModalAgendarCitaRapidaProps> = mem
     <Modal isOpen={isOpen} onClose={onClose} size="sm" showCloseButton={false}>
       {citaCreada ? (
         <div className="space-y-4 p-2 text-center" data-testid={`modal-cita-confirmada-${paciente.id}`}>
-          <div className="w-10 h-10 mx-auto rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center">
-            <CheckCircle2 className="w-6 h-6" />
-          </div>
+          <div className="w-10 h-10 mx-auto rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center"><CheckCircle2 className="w-6 h-6" /></div>
           <div>
             <h3 className="text-sm font-bold text-graphite-900 dark:text-graphite-50">Cita agendada con éxito</h3>
             <p className="text-xs text-graphite-600 dark:text-graphite-300 mt-1">{fecha} a las {hora} hrs con {nombreDoctor} ({box})</p>
@@ -129,17 +132,14 @@ export const ModalAgendarCitaRapida: React.FC<ModalAgendarCitaRapidaProps> = mem
           </div>
           <div>
             <label className="block text-[11px] font-semibold text-graphite-700 dark:text-graphite-300 mb-0.5">Notas (Opcional)</label>
-            <input type="text" placeholder="Ej. Paciente solicita confirmación..." value={notas} onChange={(e) => setNotas(e.target.value)} className="w-full p-2 bg-surface border border-surface rounded-xl text-xs" />
+            <input type="text" placeholder="Ej. Paciente solicita..." value={notas} onChange={(e) => setNotas(e.target.value)} className="w-full p-2 bg-surface border border-surface rounded-xl text-xs" />
           </div>
           {conflicto && (
             <div className="flex items-center gap-1.5 p-2 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl text-[11px] text-amber-700 dark:text-amber-300">
               <TriangleAlert className="w-3.5 h-3.5 shrink-0" /><span>Atención: Posible sobrecupo o cruce en este bloque.</span>
             </div>
           )}
-          <div className="flex justify-end gap-2 pt-2 border-t border-surface">
-            <Button type="button" variant="ghost" size="sm" onClick={onClose}>Cancelar</Button>
-            <Button type="submit" variant="primary" size="sm">Agendar Cita</Button>
-          </div>
+          <div className="flex justify-end gap-2 pt-2 border-t border-surface"><Button type="button" variant="ghost" size="sm" onClick={onClose}>Cancelar</Button><Button type="submit" variant="primary" size="sm">Agendar Cita</Button></div>
         </form>
       )}
     </Modal>

@@ -344,6 +344,40 @@ const eliminarCita = async (citaId: unknown): Promise<boolean> => {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// OBTENER CITAS DESDE SUPABASE (ASYNC)
+// ═══════════════════════════════════════════════════════════════════
+
+const obtenerCitasDesdeSupabase = async (): Promise<Cita[]> => {
+  if (!USE_SUPABASE || !supabase) {
+    return obtenerCitas()
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('citas')
+      .select('*')
+      .order('fecha', { ascending: true })
+
+    if (error) {
+      log.error('Error obteniendo citas de Supabase:', error.message || error)
+      return obtenerCitas()
+    }
+
+    const transformadas = (data || [])
+      .map((row: Record<string, unknown>) => transformarDesdeSupabase(row))
+      .filter((c): c is Cita => c !== null)
+
+    citasCache = transformadas
+    cacheInicializado = true
+    citasRepo.guardar(transformadas)
+    return transformadas
+  } catch (error) {
+    log.error('Excepción al obtener citas desde Supabase:', error)
+    return obtenerCitas()
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // RESET CACHE (para tests)
 // ═══════════════════════════════════════════════════════════════════
 
@@ -361,6 +395,7 @@ export interface AgendaStorageServiceAPI {
   guardarCitas: (citas: unknown) => Promise<boolean>
   eliminarCita: (citaId: unknown) => Promise<boolean>
   sincronizarDesdeSupabase: () => Promise<Cita[] | null>
+  obtenerCitasDesdeSupabase: () => Promise<Cita[]>
   resetCache: () => void
   obtenerPendingDeletes: () => string[]
 }
@@ -370,6 +405,8 @@ export const agendaStorageService: AgendaStorageServiceAPI = {
   guardarCitas,
   eliminarCita,
   sincronizarDesdeSupabase,
+  obtenerCitasDesdeSupabase,
   resetCache,
   obtenerPendingDeletes
 }
+
