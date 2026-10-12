@@ -4,6 +4,7 @@ import { Badge } from '../../../../../shared/ui/ui/Badge'
 import { usePacientesStore } from '../../../../../app/stores/pacientesStore'
 import { AccionesFilaPaciente } from './AccionesFilaPaciente'
 import { formatearDoctorTratante } from '../../utils/formatearDoctor'
+import { useProximasCitasMap } from '../../hooks/useProximaCita'
 import type { Paciente } from '../../schemas/pacienteSchema'
 
 interface VistaListaProps {
@@ -24,6 +25,7 @@ export const VistaLista: React.FC<VistaListaProps> = memo(({
 }) => {
   const seleccion = usePacientesStore((s) => s.seleccion)
   const toggleSeleccion = usePacientesStore((s) => s.toggleSeleccion)
+  const proximasCitasMap = useProximasCitasMap()
   const modoSeleccionActivo = seleccion.length > 0
 
   return (
@@ -37,7 +39,10 @@ export const VistaLista: React.FC<VistaListaProps> = memo(({
         const ultimaVisitaTexto = p.fechaUltimaVisita
           ? new Date(p.fechaUltimaVisita).toLocaleDateString('es-CL')
           : (p.ultimaVisita ? String(p.ultimaVisita) : '—')
-        const proximaCitaTexto = p.proximaCita ? String(p.proximaCita) : 'Sin cita próxima'
+        const proximaCita = proximasCitasMap.get(idStr)
+        const proximaCitaTexto = proximaCita
+          ? `${proximaCita.fecha} ${proximaCita.horaInicio || ''}`.trim()
+          : (p.proximaCita ? String(p.proximaCita) : 'Sin cita próxima')
         const { texto: docTexto, asignado: docAsignado } = formatearDoctorTratante(p.doctorTratante, p.doctorTratanteId)
 
         return (

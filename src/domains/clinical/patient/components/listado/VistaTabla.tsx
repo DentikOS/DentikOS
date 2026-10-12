@@ -7,6 +7,7 @@ import { AccionesFilaPaciente } from './AccionesFilaPaciente'
 import { SelectorColumnasTabla } from './SelectorColumnasTabla'
 import { ejecutarClickToEmail } from '../../utils/clickToEmail'
 import { formatearDoctorTratante } from '../../utils/formatearDoctor'
+import { useProximasCitasMap } from '../../hooks/useProximaCita'
 import type { Paciente } from '../../schemas/pacienteSchema'
 
 interface VistaTablaProps {
@@ -38,21 +39,15 @@ export const VistaTabla: React.FC<VistaTablaProps> = memo(({
   })
 
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY_COLUMNAS, JSON.stringify(columnasVisibles))
-    } catch {
-      // localStorage no disponible en entorno restringido
-    }
+    try { localStorage.setItem(STORAGE_KEY_COLUMNAS, JSON.stringify(columnasVisibles)) } catch { /* ignore */ }
   }, [columnasVisibles])
 
-  const toggleColumna = (id: string) => {
-    setColumnasVisibles((prev) => ({ ...prev, [id]: !prev[id] }))
-  }
-
+  const toggleColumna = (id: string) => setColumnasVisibles((prev) => ({ ...prev, [id]: !prev[id] }))
   const seleccion = usePacientesStore((s) => s.seleccion)
   const toggleSeleccion = usePacientesStore((s) => s.toggleSeleccion)
   const seleccionarTodos = usePacientesStore((s) => s.seleccionarTodos)
   const limpiarSeleccion = usePacientesStore((s) => s.limpiarSeleccion)
+  const proximasCitasMap = useProximasCitasMap()
 
   const todosSeleccionados =
     pacientes.length > 0 && pacientes.every((p) => seleccion.includes(String(p.id)))
@@ -121,7 +116,10 @@ export const VistaTabla: React.FC<VistaTablaProps> = memo(({
               const ultimaVisita = p.fechaUltimaVisita
                 ? new Date(p.fechaUltimaVisita).toLocaleDateString('es-CL')
                 : (p.ultimaVisita ? String(p.ultimaVisita) : '—')
-              const proximaCita = p.proximaCita ? String(p.proximaCita) : '—'
+              const proximaCitaObj = proximasCitasMap.get(idStr)
+              const proximaCita = proximaCitaObj
+                ? `${proximaCitaObj.fecha} ${proximaCitaObj.horaInicio || ''}`.trim()
+                : (p.proximaCita ? String(p.proximaCita) : '—')
               const tieneAlergias = Boolean(p.alergias || p.alergiasSeveras)
               const { texto: docTexto, asignado: docAsignado } = formatearDoctorTratante(p.doctorTratante, p.doctorTratanteId)
 
