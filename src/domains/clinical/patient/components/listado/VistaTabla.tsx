@@ -8,6 +8,7 @@ import { SelectorColumnasTabla } from './SelectorColumnasTabla'
 import { ejecutarClickToEmail } from '../../utils/clickToEmail'
 import { formatearDoctorTratante } from '../../utils/formatearDoctor'
 import { useProximasCitasMap } from '../../hooks/useProximaCita'
+import { destacarCoincidencias } from '../../../../../shared/utils/destacarCoincidencias'
 import type { Paciente } from '../../schemas/pacienteSchema'
 
 interface VistaTablaProps {
@@ -17,6 +18,7 @@ interface VistaTablaProps {
   onDesactivarPaciente?: (paciente: Paciente) => void
   onBloquearPaciente?: (paciente: Paciente) => void
   onAgendarCita?: (paciente: Paciente) => void
+  busqueda?: string
 }
 
 const STORAGE_KEY_COLUMNAS = 'columnas_tabla_pacientes'
@@ -27,6 +29,7 @@ export const VistaTabla: React.FC<VistaTablaProps> = memo(({
   onDesactivarPaciente,
   onBloquearPaciente,
   onAgendarCita,
+  busqueda = '',
 }) => {
   const [selectorAbierto, setSelectorAbierto] = useState(false)
   const [columnasVisibles, setColumnasVisibles] = useState<Record<string, boolean>>(() => {
@@ -142,7 +145,7 @@ export const VistaTabla: React.FC<VistaTablaProps> = memo(({
                   </td>
                   {/* 1. Nombre completo */}
                   <td className="p-2.5 cursor-pointer font-bold text-graphite-900 dark:text-graphite-50 hover:text-primary" onClick={() => alSeleccionarPaciente(p)}>
-                    {nombre}
+                    {destacarCoincidencias(nombre, busqueda)}
                   </td>
                   {/* 2. RUT */}
                   <td className="p-2.5 font-mono text-[11px] text-graphite-600 dark:text-graphite-300">{p.rut || '—'}</td>

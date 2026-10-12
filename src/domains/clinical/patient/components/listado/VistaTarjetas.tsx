@@ -4,6 +4,7 @@ import { usePacientesStore } from '../../../../../app/stores/pacientesStore'
 import { AccionesFilaPaciente } from './AccionesFilaPaciente'
 import { formatearDoctorTratante } from '../../utils/formatearDoctor'
 import { useProximasCitasMap } from '../../hooks/useProximaCita'
+import { destacarCoincidencias } from '../../../../../shared/utils/destacarCoincidencias'
 import type { Paciente } from '../../schemas/pacienteSchema'
 
 interface VistaTarjetasProps {
@@ -13,6 +14,7 @@ interface VistaTarjetasProps {
   onDesactivarPaciente?: (paciente: Paciente) => void
   onBloquearPaciente?: (paciente: Paciente) => void
   onAgendarCita?: (paciente: Paciente) => void
+  busqueda?: string
 }
 
 export const VistaTarjetas: React.FC<VistaTarjetasProps> = memo(({
@@ -21,6 +23,7 @@ export const VistaTarjetas: React.FC<VistaTarjetasProps> = memo(({
   onDesactivarPaciente,
   onBloquearPaciente,
   onAgendarCita,
+  busqueda = '',
 }) => {
   const seleccion = usePacientesStore((s) => s.seleccion)
   const toggleSeleccion = usePacientesStore((s) => s.toggleSeleccion)
@@ -73,7 +76,7 @@ export const VistaTarjetas: React.FC<VistaTarjetasProps> = memo(({
                       onClick={() => alSeleccionarPaciente(p)}
                       className="font-bold text-graphite-900 dark:text-graphite-50 text-xs truncate group-hover:text-primary transition-colors cursor-pointer"
                     >
-                      {nombre} <span className="font-normal text-graphite-500">· {edadTexto}</span>
+                      {destacarCoincidencias(nombre, busqueda)} <span className="font-normal text-graphite-500">· {edadTexto}</span>
                     </h3>
                     <p className="text-[11px] text-graphite-500 font-mono">{p.rut}</p>
                   </div>
