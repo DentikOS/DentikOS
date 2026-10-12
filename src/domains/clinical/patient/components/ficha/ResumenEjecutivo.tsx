@@ -1,5 +1,7 @@
 import React from 'react'
 import { Clock, Layers, DollarSign, Calendar, ShieldAlert, HeartPulse, ChevronRight, CheckCircle2 } from 'lucide-react'
+import { useProximaCita } from '../../hooks/useProximaCita'
+import { formatearDoctorTratante } from '../../utils/formatearDoctor'
 import type { Paciente } from '../../schemas/pacienteSchema'
 import type { PestanaFicha } from '../../services/contextualRouter'
 
@@ -9,11 +11,18 @@ interface ResumenEjecutivoProps {
 }
 
 export const ResumenEjecutivo: React.FC<ResumenEjecutivoProps> = ({ paciente, onNavegar }) => {
-  const alergias = Array.isArray(paciente.alergiasSeveras) && paciente.alergiasSeveras.length > 0
-    ? paciente.alergiasSeveras.join(', ')
-    : typeof paciente.alergias === 'string' && paciente.alergias.trim()
-    ? paciente.alergias
-    : null
+  const proximaCita = useProximaCita(paciente.id)
+  const { texto: doctorTexto } = formatearDoctorTratante(paciente.doctorTratante, paciente.doctorTratanteId)
+  const fechaUltima = paciente.fechaUltimaVisita || (paciente as unknown as Record<string, unknown>).ultimaVisita
+
+  const alergias =
+    Array.isArray(paciente.alergiasSeveras) && paciente.alergiasSeveras.length > 0
+      ? paciente.alergiasSeveras.join(', ')
+      : typeof paciente.alergias === 'string' && paciente.alergias.trim()
+      ? paciente.alergias
+      : null
+
+  const tratamientoTexto = (paciente.tratamientoActivo || (paciente as unknown as Record<string, unknown>).tratamiento) as string | undefined
 
   return (
     <div className="space-y-4" data-testid="resumen-ejecutivo-panel">
@@ -33,10 +42,20 @@ export const ResumenEjecutivo: React.FC<ResumenEjecutivoProps> = ({ paciente, on
           </div>
           <div className="mt-3 space-y-1">
             <p className="text-xs font-semibold text-graphite-900 dark:text-graphite-50">
-              {String(paciente.ultimaVisita || '15 Sep 2026')}
+              {fechaUltima ? (
+                new Date(String(fechaUltima)).toLocaleDateString('es-CL')
+              ) : (
+                <span className="text-graphite-400 italic">Sin visitas registradas</span>
+              )}
             </p>
-            <p className="text-xs text-graphite-500">Dr. {String(paciente.doctorTratante || 'Martínez')}</p>
-            <p className="text-[11px] text-graphite-400 italic">Motivo: Control periodontal y limpieza</p>
+            {doctorTexto ? (
+              <p className="text-xs text-graphite-500">{doctorTexto}</p>
+            ) : (
+              <p className="text-xs text-graphite-400 italic">Sin doctor asignado</p>
+            )}
+            {paciente.motivoConsulta ? (
+              <p className="text-[11px] text-graphite-400 italic">Motivo: {paciente.motivoConsulta}</p>
+            ) : null}
           </div>
         </div>
 
@@ -54,11 +73,14 @@ export const ResumenEjecutivo: React.FC<ResumenEjecutivoProps> = ({ paciente, on
             <ChevronRight className="w-4 h-4 text-graphite-400 group-hover:translate-x-0.5 transition-transform" />
           </div>
           <div className="mt-3 space-y-1">
-            <div className="flex items-center gap-1.5 text-xs text-graphite-800 dark:text-graphite-100">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-              <span>Rehabilitación Oral Fases 1 & 2</span>
-            </div>
-            <p className="text-[11px] text-graphite-500">2 fases en curso de 3 planificadas</p>
+            {tratamientoTexto ? (
+              <div className="flex items-center gap-1.5 text-xs text-graphite-800 dark:text-graphite-100">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                <span>{tratamientoTexto}</span>
+              </div>
+            ) : (
+              <p className="text-xs text-graphite-400 italic">Sin tratamiento activo registrado</p>
+            )}
           </div>
         </div>
 
@@ -71,22 +93,13 @@ export const ResumenEjecutivo: React.FC<ResumenEjecutivoProps> = ({ paciente, on
           <div className="flex items-center justify-between pb-2 border-b border-surface">
             <div className="flex items-center gap-2 text-xs font-bold text-graphite-700 dark:text-graphite-200">
               <DollarSign className="w-4 h-4 text-emerald-500" />
-              <span>Presupuesto Activo</span>
+              <span>Presupuesto</span>
             </div>
             <ChevronRight className="w-4 h-4 text-graphite-400 group-hover:translate-x-0.5 transition-transform" />
           </div>
           <div className="mt-3 space-y-1">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-graphite-500">Total:</span>
-              <span className="font-mono font-bold text-graphite-900 dark:text-graphite-100">$480.000</span>
-            </div>
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-graphite-500">Saldo:</span>
-              <span className="font-mono font-bold text-rose-500">$180.000</span>
-            </div>
-            <span className="inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-              En Curso
-            </span>
+            <p className="text-xs text-graphite-500">Gestión de presupuestos y aranceles</p>
+            <p className="text-[11px] text-graphite-400">Haga clic para ver o generar presupuestos</p>
           </div>
         </div>
 
@@ -105,9 +118,17 @@ export const ResumenEjecutivo: React.FC<ResumenEjecutivoProps> = ({ paciente, on
           </div>
           <div className="mt-3 space-y-1">
             <p className="text-xs font-semibold text-graphite-900 dark:text-graphite-50">
-              {String(paciente.proximaCita || '22 Oct 2026 10:00')}
+              {proximaCita ? (
+                `${proximaCita.fecha} ${proximaCita.horaInicio || ''}`.trim()
+              ) : paciente.proximaCita ? (
+                String(paciente.proximaCita)
+              ) : (
+                <span className="text-graphite-400 italic">Sin cita programada</span>
+              )}
             </p>
-            <p className="text-[11px] text-graphite-500">Box 2 · Sillón Quirúrgico</p>
+            {proximaCita?.boxAsignado || proximaCita?.box ? (
+              <p className="text-[11px] text-graphite-500">Box: {String(proximaCita.boxAsignado || proximaCita.box)}</p>
+            ) : null}
           </div>
         </div>
 
