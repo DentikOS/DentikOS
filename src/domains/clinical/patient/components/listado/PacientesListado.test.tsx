@@ -147,7 +147,7 @@ describe('PacientesListado (BP06)', () => {
   })
 
   it('muestra spinner mientras carga inicialmente con lista vacía', async () => {
-    let resolver: (p: Paciente[]) => void = () => {}
+    let resolver: () => void = () => {}
     const mockPromise = new Promise<void>((res) => {
       resolver = () => res()
     })
