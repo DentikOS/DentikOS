@@ -59,6 +59,8 @@ export interface PacientesStore {
   desbloquearPaciente: (id: string | number) => void
   actualizarPaciente: (id: string | number, updates: Partial<Paciente>) => void
   refrescarDesdeSupabase: () => Promise<void>
+  isLoadingPacientes: boolean
+  cargarPacientes: () => Promise<void>
 }
 
 export const usePacientesStore = create<PacientesStore>()(
@@ -71,6 +73,7 @@ export const usePacientesStore = create<PacientesStore>()(
       seleccion: [],
       fichaActiva: null,
       pestanaActiva: 'datos',
+      isLoadingPacientes: false,
 
       setPacientes: (updater: PacientesUpdater) => set((state) => {
         const next = typeof updater === 'function' ? updater(state.pacientes) : updater
@@ -160,6 +163,26 @@ export const usePacientesStore = create<PacientesStore>()(
           if (Array.isArray(datos)) set({ pacientes: datos })
         } catch (e: unknown) {
           log.error('Error refrescarDesdeSupabase:', e)
+        }
+      },
+
+      cargarPacientes: async (): Promise<void> => {
+        set({ isLoadingPacientes: true })
+        try {
+          const locales = pacientesStorageService.obtenerPacientes()
+          if (locales && locales.length > 0) {
+            set({ pacientes: locales })
+          }
+          if (typeof pacientesStorageService.sincronizarDesdeSupabase === 'function') {
+            const datos = await pacientesStorageService.sincronizarDesdeSupabase()
+            if (Array.isArray(datos) && datos.length > 0) {
+              set({ pacientes: datos })
+            }
+          }
+        } catch (error) {
+          log.error('Error cargando pacientes:', error)
+        } finally {
+          set({ isLoadingPacientes: false })
         }
       }
     }),

@@ -35,6 +35,8 @@ export const PacientesListado: React.FC<PacientesListadoProps> = memo(({
 }) => {
   const pacientes = usePacientesStore((s) => s.pacientes)
   const setPacientes = usePacientesStore((s) => s.setPacientes)
+  const cargarPacientes = usePacientesStore((s) => s.cargarPacientes)
+  const isLoadingPacientes = usePacientesStore((s) => s.isLoadingPacientes)
   const setPacienteActivo = usePacientesStore((s) => s.setPacienteActivo)
   const vistaActual = usePacientesStore((s) => s.vistaActual)
   const filtros = usePacientesStore((s) => s.filtros)
@@ -43,12 +45,31 @@ export const PacientesListado: React.FC<PacientesListadoProps> = memo(({
   const [mostrarModalNuevo, setMostrarModalNuevo] = useState<boolean>(false)
   const [mostrarPapelera, setMostrarPapelera] = useState<boolean>(false)
   const [pacienteAccion, setPacienteAccion] = useState<{ paciente: Paciente; modo: 'desactivar' | 'bloquear' } | null>(null)
+  const [cargandoInicial, setCargandoInicial] = useState<boolean>(pacientes.length === 0)
 
   useEffect(() => {
     const handleAbrirModal = () => setMostrarModalNuevo(true)
     window.addEventListener('abrir_nuevo_paciente', handleAbrirModal)
     return () => window.removeEventListener('abrir_nuevo_paciente', handleAbrirModal)
   }, [])
+
+  useEffect(() => {
+    if (pacientes.length === 0) {
+      const fetchPacientes = async () => {
+        try {
+          await cargarPacientes()
+        } catch (error) {
+          console.error('Error cargando pacientes:', error)
+          notificationService.mostrar('Error al cargar pacientes desde Supabase', { tipo: 'error' })
+        } finally {
+          setCargandoInicial(false)
+        }
+      }
+      fetchPacientes()
+    } else {
+      setCargandoInicial(false)
+    }
+  }, [cargarPacientes, pacientes.length])
 
   const { puede } = useRBAC()
   const {
@@ -173,6 +194,17 @@ export const PacientesListado: React.FC<PacientesListadoProps> = memo(({
       return true
     })
   }, [pacientes, busqueda, filtros.estado])
+
+  if (cargandoInicial && pacientes.length === 0) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]" data-testid="pacientes-loading-state">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto" />
+          <p className="mt-4 text-graphite-500 text-sm font-medium">Cargando pacientes...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="relative pb-16" data-testid="pacientes-listado-modulo">

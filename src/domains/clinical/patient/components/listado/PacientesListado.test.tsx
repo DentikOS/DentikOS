@@ -145,4 +145,28 @@ describe('PacientesListado (BP06)', () => {
     expect(screen.getByTestId('acciones-masivas-bar')).toBeInTheDocument()
     expect(screen.getByText('1 seleccionado')).toBeInTheDocument()
   })
+
+  it('muestra spinner mientras carga inicialmente con lista vacía', async () => {
+    let resolver: (p: Paciente[]) => void = () => {}
+    const mockPromise = new Promise<void>((res) => {
+      resolver = () => res()
+    })
+    const mockCargar = vi.fn().mockReturnValue(mockPromise)
+    usePacientesStore.setState({
+      pacientes: [],
+      cargarPacientes: mockCargar,
+    })
+
+    render(<PacientesListado />)
+
+    expect(screen.getByTestId('pacientes-loading-state')).toBeInTheDocument()
+    expect(screen.getByText('Cargando pacientes...')).toBeInTheDocument()
+
+    resolver()
+    usePacientesStore.setState({ pacientes: mockPacientes })
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('pacientes-loading-state')).not.toBeInTheDocument()
+    })
+  })
 })
