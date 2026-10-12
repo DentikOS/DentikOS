@@ -1,4 +1,4 @@
-import React, { memo, useState, useEffect, useMemo } from 'react'
+import React, { memo, useState, useEffect, useMemo, useRef } from 'react'
 import { Plus, Users, UserX } from 'lucide-react'
 import { Button } from '../../../../../shared/ui/ui/Button'
 import { Badge } from '../../../../../shared/ui/ui/Badge'
@@ -9,6 +9,7 @@ import { ModalNuevoPaciente, type NuevoPacienteFormData } from '../ModalNuevoPac
 import { ModalPapelera } from '../ModalPapelera'
 import { ModalDesactivarBloquear } from './ModalDesactivarBloquear'
 import { usePapelera } from '../../hooks/usePapelera'
+import { useHistorialBusqueda } from '../../hooks/useHistorialBusqueda'
 import { useRBAC } from '../../../../../shared/hooks/useRBAC'
 import { PERMISOS } from '../../../../../constants/rbacConstants'
 import { notificationService } from '../../../../../infrastructure/notification/notificationService'
@@ -17,6 +18,8 @@ import type { Paciente } from '../../schemas/pacienteSchema'
 
 import { PacientesKPIs } from './PacientesKPIs'
 import { PacientesBusqueda } from './PacientesBusqueda'
+import { PacientesFiltrosAvanzados } from './PacientesFiltrosAvanzados'
+import { PacientesFiltrosGuardados } from './PacientesFiltrosGuardados'
 import { VistaLista } from './VistaLista'
 import { VistaTabla } from './VistaTabla'
 import { VistaTarjetas } from './VistaTarjetas'
@@ -42,10 +45,36 @@ export const PacientesListado: React.FC<PacientesListadoProps> = memo(({
   const filtros = usePacientesStore((s) => s.filtros)
 
   const [busqueda, setBusqueda] = useState<string>('')
+  const [mostrarFiltros, setMostrarFiltros] = useState<boolean>(false)
   const [mostrarModalNuevo, setMostrarModalNuevo] = useState<boolean>(false)
   const [mostrarPapelera, setMostrarPapelera] = useState<boolean>(false)
   const [pacienteAccion, setPacienteAccion] = useState<{ paciente: Paciente; modo: 'desactivar' | 'bloquear' } | null>(null)
   const [cargandoInicial, setCargandoInicial] = useState<boolean>(pacientes.length === 0)
+
+  const inputBusquedaRef = useRef<HTMLInputElement>(null)
+  const { historial, agregarBusqueda, limpiarHistorial } = useHistorialBusqueda()
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        inputBusquedaRef.current?.focus()
+        inputBusquedaRef.current?.select()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      if (busqueda.trim().length >= 3) {
+        agregarBusqueda(busqueda)
+      }
+    }, 500)
+    return () => clearTimeout(handler)
+  }, [busqueda, agregarBusqueda])
 
   useEffect(() => {
     const handleAbrirModal = () => setMostrarModalNuevo(true)
@@ -174,14 +203,26 @@ export const PacientesListado: React.FC<PacientesListadoProps> = memo(({
 
   const pacientesFiltrados = useMemo(() => {
     return pacientes.filter((p) => {
+      // Búsqueda multi-campo: nombre, RUT, teléfono, email, ID ficha
       const nom = (p.nombre || p.nombreCompleto || '').toLowerCase()
       const rutStr = (p.rut || '').toLowerCase()
       const telStr = p.telefono ? String(p.telefono) : ''
+      const emailStr = (p.email || '').toLowerCase()
+      const idStr = String(p.id || '')
+
       const q = busqueda.toLowerCase().trim()
 
-      const coincideBusqueda = !q || nom.includes(q) || rutStr.includes(q) || telStr.includes(q)
+      const coincideBusqueda =
+        !q ||
+        nom.includes(q) ||
+        rutStr.includes(q) ||
+        telStr.includes(q) ||
+        emailStr.includes(q) ||
+        idStr.includes(q)
+
       if (!coincideBusqueda) return false
 
+      // 1. Filtro de estado
       const esDesactivado = p.estado === 'desactivado' || Boolean(p.deleted_at)
       if (esDesactivado && !q && !filtros.estado.includes('desactivado')) {
         return false
@@ -191,9 +232,55 @@ export const PacientesListado: React.FC<PacientesListadoProps> = memo(({
         return false
       }
 
+      // 2. Filtro de doctor
+      if (filtros.doctor && filtros.doctor.length > 0) {
+        const docId = String(p.doctorTratanteId || p.doctorTratante || '')
+        if (!filtros.doctor.includes(docId)) return false
+      }
+
+      // 3. Filtro de última visita
+      if (filtros.ultimaVisita && p.fechaUltimaVisita) {
+        const fechaUltima = new Date(String(p.fechaUltimaVisita))
+        const fechaFiltro = new Date(filtros.ultimaVisita)
+        if (fechaUltima > fechaFiltro) return false
+      }
+
+      // 4. Filtro de próxima cita
+      if (filtros.proximaCita && p.proximaCita) {
+        const fechaProxima = new Date(String(p.proximaCita))
+        const fechaFiltro = new Date(filtros.proximaCita)
+        if (fechaProxima < fechaFiltro) return false
+      }
+
+      // 5. Filtro de edad
+      if (filtros.edadMin && (p.edad == null || Number(p.edad) < Number(filtros.edadMin))) return false
+      if (filtros.edadMax && (p.edad == null || Number(p.edad) > Number(filtros.edadMax))) return false
+
+      // 6. Filtro de previsión
+      if (filtros.prevision && filtros.prevision.length > 0 && !filtros.prevision.includes(p.prevision || '')) {
+        return false
+      }
+
+      // 7. Filtro de etiquetas
+      if (filtros.etiquetas && filtros.etiquetas.length > 0 && !filtros.etiquetas.some((tag) => (p.etiquetas || []).includes(tag))) {
+        return false
+      }
+
+      // 8. Filtro de tratamiento
+      if (
+        filtros.tratamiento &&
+        !(
+          String(p.tratamientoActivo || (p as unknown as Record<string, unknown>).tratamiento || '')
+            .toLowerCase()
+            .includes(filtros.tratamiento.toLowerCase())
+        )
+      ) {
+        return false
+      }
+
       return true
     })
-  }, [pacientes, busqueda, filtros.estado])
+  }, [pacientes, busqueda, filtros])
 
   if (cargandoInicial && pacientes.length === 0) {
     return (
@@ -243,7 +330,23 @@ export const PacientesListado: React.FC<PacientesListadoProps> = memo(({
       />
 
       <PacientesKPIs pacientes={pacientes} />
-      <PacientesBusqueda busqueda={busqueda} onBusquedaChange={setBusqueda} totalResultados={pacientesFiltrados.length} />
+      <PacientesBusqueda
+        busqueda={busqueda}
+        onBusquedaChange={setBusqueda}
+        totalResultados={pacientesFiltrados.length}
+        inputRef={inputBusquedaRef}
+        mostrarFiltros={mostrarFiltros}
+        onToggleFiltros={() => setMostrarFiltros((prev) => !prev)}
+        historial={historial}
+        onLimpiarHistorial={limpiarHistorial}
+      />
+
+      {mostrarFiltros && (
+        <div className="space-y-4 mb-6">
+          <PacientesFiltrosAvanzados />
+          <PacientesFiltrosGuardados />
+        </div>
+      )}
 
       {pacientesFiltrados.length === 0 ? (
         <EmptyState
@@ -255,6 +358,7 @@ export const PacientesListado: React.FC<PacientesListadoProps> = memo(({
       ) : vistaActual === 'tabla' ? (
         <VistaTabla
           pacientes={pacientesFiltrados}
+          busqueda={busqueda}
           alSeleccionarPaciente={handleSeleccionar}
           alEliminarPaciente={handleEliminarConPapelera}
           onDesactivarPaciente={handleSolicitarDesactivar}
@@ -263,6 +367,7 @@ export const PacientesListado: React.FC<PacientesListadoProps> = memo(({
       ) : vistaActual === 'tarjetas' ? (
         <VistaTarjetas
           pacientes={pacientesFiltrados}
+          busqueda={busqueda}
           alSeleccionarPaciente={handleSeleccionar}
           alEliminarPaciente={handleEliminarConPapelera}
           onDesactivarPaciente={handleSolicitarDesactivar}
@@ -271,6 +376,7 @@ export const PacientesListado: React.FC<PacientesListadoProps> = memo(({
       ) : (
         <VistaLista
           pacientes={pacientesFiltrados}
+          busqueda={busqueda}
           alSeleccionarPaciente={handleSeleccionar}
           alEliminarPaciente={handleEliminarConPapelera}
           onDesactivarPaciente={handleSolicitarDesactivar}
