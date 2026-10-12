@@ -32,7 +32,11 @@ export interface FiltrosPacientes {
   doctor: string[]
   ultimaVisita: string
   proximaCita: string
+  edadMin?: string
+  edadMax?: string
+  prevision?: string[]
   etiquetas: string[]
+  tratamiento?: string
 }
 
 export interface PacientesStore {
@@ -69,7 +73,17 @@ export const usePacientesStore = create<PacientesStore>()(
       pacientes: pacientesStorageService.obtenerPacientes(SEED_PACIENTES_DEMO),
       pacienteActivo: null,
       vistaActual: 'lista',
-      filtros: { estado: [], doctor: [], ultimaVisita: '', proximaCita: '', etiquetas: [] },
+      filtros: {
+        estado: [],
+        doctor: [],
+        ultimaVisita: '',
+        proximaCita: '',
+        edadMin: '',
+        edadMax: '',
+        prevision: [],
+        etiquetas: [],
+        tratamiento: '',
+      },
       seleccion: [],
       fichaActiva: null,
       pestanaActiva: 'datos',
