@@ -15,6 +15,8 @@ vi.mock('../../../../infrastructure/supabase/supabaseClient', () => ({
 describe('agendaStorageService.obtenerCitasDesdeSupabase', () => {
   let orderMock: ReturnType<typeof vi.fn>
   let selectMock: ReturnType<typeof vi.fn>
+  let eqMock: ReturnType<typeof vi.fn>
+  let isMock: ReturnType<typeof vi.fn>
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -35,7 +37,17 @@ describe('agendaStorageService.obtenerCitasDesdeSupabase', () => {
       error: null,
     })
 
+    isMock = vi.fn().mockReturnValue({
+      order: orderMock,
+    })
+
+    eqMock = vi.fn().mockReturnValue({
+      is: isMock,
+      order: orderMock,
+    })
+
     selectMock = vi.fn().mockReturnValue({
+      eq: eqMock,
       order: orderMock,
     })
 

@@ -35,6 +35,8 @@ import {
   transformarDesdeSupabase,
   transformarParaSupabase
 } from './agendaTransformations'
+import { useSesionStore } from '../../../../app/stores/sesionStore'
+import { getClinicaActivaSync } from '../../../../infrastructure/auth/authService'
 
 const log = createLogger('agendaStorageService')
 
@@ -105,63 +107,44 @@ interface QueryBuilderLike {
  * Útil después del login, después de migración, o al recibir eventos Realtime.
  */
 const sincronizarDesdeSupabase = async (): Promise<Cita[] | null> => {
-  if (!USE_SUPABASE || !supabase) {
-    return citasCache
-  }
-
-  try {
-    let query = supabase.from('citas').select('*') as unknown as QueryBuilderLike
-    if (typeof query.is === 'function') {
-      query = query.is('deleted_at', null)
-    }
-    const { data, error } = await query
-      .order('fecha', { ascending: false })
-      .order('hora_inicio', { ascending: true })
-
-    if (error) {
-      log.warn('Error al sincronizar desde Supabase:', error.message)
-      return citasCache
-    }
-
-    if (!Array.isArray(data)) return citasCache
-
-    // F7-36: Supabase [] = clínica sin citas. Error de red ya retornó cache arriba.
-    if (data.length === 0) {
-      log.info('Supabase retornó []: clínica sin citas, cache limpiada')
-    }
-
-    const nuevas: Cita[] = data
-      .map((row: Record<string, unknown>) => transformarDesdeSupabase(row))
-      .filter((c): c is Cita => c !== null)
-    citasCache = nuevas
-    citasRepo.guardar(nuevas)
-
-    return nuevas
-  } catch (error: unknown) {
-    log.error('Excepción al sincronizar desde Supabase:', error)
-    return citasCache
-  }
+  return obtenerCitasDesdeSupabase()
 }
 
 // ═══════════════════════════════════════════════════════════════════
 // GUARDAR CITAS (ASYNC con actualización de caché síncrona)
 // ═══════════════════════════════════════════════════════════════════
 
+const COLUMNAS_DB_CITAS = new Set([
+  'id', 'user_id', 'clinica_id', 'paciente_id', 'paciente_nombre',
+  'fecha', 'hora_inicio', 'hora_fin', 'estado', 'motivo', 'notas',
+  'deleted_at'
+])
+
+const sanitizarParaSupabase = (fila: Record<string, unknown>): Record<string, unknown> => {
+  const limpio: Record<string, unknown> = {}
+  for (const [k, v] of Object.entries(fila)) {
+    if (COLUMNAS_DB_CITAS.has(k) && v !== undefined) {
+      limpio[k] = v
+    }
+  }
+  return limpio
+}
+
 /**
- * Guarda la lista completa de citas.
- *
- * 1. Actualiza caché en memoria (síncrono) — UX optimista
- * 2. Persiste en localStorage como caché persistente
- * 3. Si Supabase activo, sincroniza en background (no bloquea)
+ * Guarda la lista completa de citas con logs de depuración (FIX-1).
  */
 const guardarCitas = async (citas: unknown): Promise<boolean> => {
+  console.log('[DEBUG-CITAS] guardarCitas llamado con', citas)
+
   // (F2-04b) — validación Zod antes de persistir
   const validacion = validarListaCitas(citas)
   if (!validacion.valido || !validacion.datos) {
+    console.error('[DEBUG-CITAS] Validación Zod falló:', validacion.error)
     log.error('Error de validación al guardar citas (F2-04b):', validacion.error)
     return false
   }
   const datos = validacion.datos
+  console.log('[DEBUG-CITAS] Validación Zod OK, datos:', datos.length, 'citas')
 
   // 1. Actualizar caché en memoria inmediatamente
   citasCache = datos
@@ -169,8 +152,10 @@ const guardarCitas = async (citas: unknown): Promise<boolean> => {
 
   // 2. Persistir en localStorage como caché
   citasRepo.guardar(datos)
+  console.log('[DEBUG-CITAS] Guardado en localStorage')
 
   if (!USE_SUPABASE || !supabase) {
+    console.log('[DEBUG-CITAS] Supabase no disponible')
     return true
   }
 
@@ -178,69 +163,107 @@ const guardarCitas = async (citas: unknown): Promise<boolean> => {
   try {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
+      console.error('[DEBUG-CITAS] No hay usuario autenticado')
       return true
+    }
+    console.log('[DEBUG-CITAS] Usuario autenticado:', user.id)
+
+    // Obtener clinicaId de la sesión
+    const sesionStore = useSesionStore.getState()
+    const clinicaId = (
+      sesionStore.clinicaActual ||
+      sesionStore.userProfile?.clinicaId ||
+      (sesionStore as unknown as Record<string, unknown>).clinicaId ||
+      ((sesionStore as unknown as Record<string, unknown>).clinicaActiva as { id?: string } | undefined)?.id ||
+      getClinicaActivaSync()
+    ) as string | null
+    console.log('[DEBUG-CITAS] clinicaId:', clinicaId)
+
+    if (!clinicaId) {
+      console.error('[DEBUG-CITAS] No hay clinicaId en sesión')
+      return false
     }
 
     const aInsertar: Cita[] = []
     const aActualizar: Cita[] = []
-    const idsEnMemoria = new Set<string>()
 
     for (const cita of datos) {
-      if (esUuidValido(cita.id)) {
+      if (esUuidValido(String(cita.id))) {
         aActualizar.push(cita)
-        idsEnMemoria.add(String(cita.id))
       } else {
         aInsertar.push(cita)
       }
     }
 
-    // UPDATE en batch
-    if (aActualizar.length > 0) {
-      const paraUpdate = aActualizar.map((c: Cita) => ({
-        ...transformarParaSupabase(c),
-        user_id: user.id
-      }))
+    console.log('[DEBUG-CITAS] A insertar:', aInsertar.length, 'A actualizar:', aActualizar.length)
 
+    // INSERT
+    if (aInsertar.length > 0) {
+      const paraInsert = aInsertar.map((c: Cita) => {
+        const transformado = transformarParaSupabase(c) || {}
+        console.log('[DEBUG-CITAS] Cita a insertar (transformada):', transformado)
+        const limpio = sanitizarParaSupabase({
+          ...transformado,
+          clinica_id: clinicaId,
+          user_id: user.id
+        })
+        delete limpio.id // Generar UUID en DB si no es UUID válido
+        return limpio
+      })
+
+      console.log('[DEBUG-CITAS] Ejecutando INSERT en Supabase:', paraInsert)
+      const { error: insertError, data: insertData } = await supabase
+        .from('citas')
+        .insert(paraInsert)
+        .select()
+
+      if (insertError) {
+        console.error('[DEBUG-CITAS] Error INSERT:', insertError)
+        log.error('Error insertando citas en Supabase:', insertError)
+        return false
+      }
+      console.log('[DEBUG-CITAS] INSERT exitoso, datos:', insertData)
+
+      // Actualizar mapeo legacy -> UUID en caché y storage
+      if (Array.isArray(insertData) && insertData.length > 0 && citasCache) {
+        for (let i = 0; i < insertData.length; i++) {
+          const insertado = insertData[i] as { id?: string }
+          const citaOriginal = aInsertar[i]
+          if (citaOriginal && insertado?.id) {
+            const idx = citasCache.findIndex((c) => String(c.id) === String(citaOriginal.id))
+            if (idx >= 0) {
+              citasCache[idx] = { ...citasCache[idx], id: insertado.id }
+              migrationStorageService.registrarMapeo(String(citaOriginal.id), String(insertado.id))
+            }
+          }
+        }
+        citasRepo.guardar(citasCache)
+      }
+    }
+
+    // UPDATE
+    if (aActualizar.length > 0) {
+      const paraUpdate = aActualizar.map((c: Cita) => {
+        const transformado = transformarParaSupabase(c) || {}
+        console.log('[DEBUG-CITAS] Cita a actualizar (transformada):', transformado)
+        return sanitizarParaSupabase({
+          ...transformado,
+          clinica_id: clinicaId,
+          user_id: user.id
+        })
+      })
+
+      console.log('[DEBUG-CITAS] Ejecutando UPDATE en Supabase:', paraUpdate)
       const { error: updateError } = await supabase
         .from('citas')
         .upsert(paraUpdate, { onConflict: 'id' })
 
       if (updateError) {
-        log.error('Error al actualizar en Supabase:', updateError.message)
+        console.error('[DEBUG-CITAS] Error UPDATE:', updateError)
+        log.error('Error actualizando citas en Supabase:', updateError)
+        return false
       }
-    }
-
-    // INSERT uno por uno (INSERT directo sin verificación de duplicados)
-    for (const cita of aInsertar) {
-      const paraInsert: Record<string, unknown> = {
-        ...transformarParaSupabase(cita),
-        user_id: user.id
-      }
-      delete paraInsert.id
-
-      // INSERT directo en Supabase
-      const { data: insertado, error: insertError } = await supabase
-        .from('citas')
-        .insert(paraInsert)
-        .select('id')
-        .single()
-
-      if (insertError) {
-        log.error(`Error al insertar cita:`, insertError.message)
-        continue
-      }
-
-      // Actualizar la cita en caché con el nuevo UUID
-      if (citasCache && insertado) {
-        const index = citasCache.findIndex(c => !esUuidValido(c.id) &&
-          c.fecha === cita.fecha && c.horaInicio === cita.horaInicio &&
-          c.pacienteId === cita.pacienteId)
-        if (index >= 0) {
-          const legacyId = citasCache[index].id
-          citasCache[index] = { ...citasCache[index], id: insertado.id }
-          migrationStorageService.registrarMapeo(String(legacyId), String(insertado.id))
-        }
-      }
+      console.log('[DEBUG-CITAS] UPDATE exitoso')
     }
 
     // P0-1: Procesar eliminaciones pendientes explícitas (soft-delete vía UPDATE)
@@ -281,10 +304,12 @@ const guardarCitas = async (citas: unknown): Promise<boolean> => {
       citasRepo.guardar(citasCache)
     }
 
+    console.log('[DEBUG-CITAS] Sincronización con Supabase completada')
     return true
   } catch (error: unknown) {
-    log.error('Excepción al guardar en Supabase:', error)
-    return true
+    console.error('[DEBUG-CITAS] Excepción:', error)
+    log.error('Excepción sincronizando citas con Supabase:', error)
+    return false
   }
 }
 
@@ -348,31 +373,68 @@ const eliminarCita = async (citaId: unknown): Promise<boolean> => {
 // ═══════════════════════════════════════════════════════════════════
 
 const obtenerCitasDesdeSupabase = async (): Promise<Cita[]> => {
+  console.log('[DEBUG-CITAS] obtenerCitasDesdeSupabase llamado')
+
   if (!USE_SUPABASE || !supabase) {
+    console.log('[DEBUG-CITAS] Supabase no disponible')
     return obtenerCitas()
   }
 
   try {
-    const { data, error } = await supabase
-      .from('citas')
-      .select('*')
-      .order('fecha', { ascending: true })
+    const sesionStore = useSesionStore.getState()
+    const clinicaId = (
+      sesionStore.clinicaActual ||
+      sesionStore.userProfile?.clinicaId ||
+      (sesionStore as unknown as Record<string, unknown>).clinicaId ||
+      ((sesionStore as unknown as Record<string, unknown>).clinicaActiva as { id?: string } | undefined)?.id ||
+      getClinicaActivaSync()
+    ) as string | null
+    console.log('[DEBUG-CITAS] clinicaId:', clinicaId)
 
-    if (error) {
-      log.error('Error obteniendo citas de Supabase:', error.message || error)
+    if (!clinicaId) {
+      console.error('[DEBUG-CITAS] No hay clinicaId en sesión')
       return obtenerCitas()
     }
 
-    const transformadas = (data || [])
-      .map((row: Record<string, unknown>) => transformarDesdeSupabase(row))
-      .filter((c): c is Cita => c !== null)
+    console.log('[DEBUG-CITAS] Ejecutando SELECT en Supabase para clinicaId:', clinicaId)
 
-    citasCache = transformadas
+    let query: any = supabase.from('citas').select('*')
+
+    if (typeof query.is === 'function') {
+      query = query.is('deleted_at', null)
+    }
+
+    if (clinicaId && typeof query.eq === 'function') {
+      query = query.eq('clinica_id', clinicaId)
+    }
+
+    if (typeof query.order === 'function') {
+      query = query.order('fecha', { ascending: true })
+    }
+
+    const { data, error } = await query
+
+    if (error) {
+      console.error('[DEBUG-CITAS] Error SELECT:', error)
+      log.error('Error obteniendo citas de Supabase:', error)
+      return obtenerCitas()
+    }
+
+    console.log('[DEBUG-CITAS] SELECT exitoso, rows:', data?.length || 0)
+    console.log('[DEBUG-CITAS] Datos crudos de Supabase:', data)
+
+    const citasTransformadas = transformarDesdeSupabase(data || [])
+    const resultadoFinal: Cita[] = Array.isArray(citasTransformadas) ? citasTransformadas : []
+    console.log('[DEBUG-CITAS] Citas transformadas:', resultadoFinal.length)
+
+    citasCache = resultadoFinal
     cacheInicializado = true
-    citasRepo.guardar(transformadas)
-    return transformadas
+    citasRepo.guardar(resultadoFinal)
+
+    return resultadoFinal
   } catch (error) {
-    log.error('Excepción al obtener citas desde Supabase:', error)
+    console.error('[DEBUG-CITAS] Excepción:', error)
+    log.error('Excepción obteniendo citas de Supabase:', error)
     return obtenerCitas()
   }
 }
