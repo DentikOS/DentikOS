@@ -241,6 +241,13 @@ export const pacientesStorageService = {
   obtenerPacientes,
   guardarPacientes,
   guardarPaciente,
+  actualizarPaciente: async (id: string | number, updates: Partial<Paciente>): Promise<boolean> => {
+    const actuales = obtenerPacientes()
+    const index = actuales.findIndex((p) => String(p.id) === String(id))
+    if (index === -1) return false
+    actuales[index] = { ...actuales[index], ...updates }
+    return guardarPacientes(actuales)
+  },
   procesarColaPacientes,
   obtenerPendingPacientes,
   guardarPendingPacientes,
