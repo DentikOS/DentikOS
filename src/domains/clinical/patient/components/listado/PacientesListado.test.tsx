@@ -60,6 +60,7 @@ describe('PacientesListado (BP06)', () => {
     usePacientesStore.setState({
       pacientes: mockPacientes,
       vistaActual: 'lista',
+      busquedaActual: '',
       filtros: { estado: [], doctor: [], ultimaVisita: '', proximaCita: '', etiquetas: [] },
       seleccion: [],
     })
@@ -169,4 +170,18 @@ describe('PacientesListado (BP06)', () => {
       expect(screen.queryByTestId('pacientes-loading-state')).not.toBeInTheDocument()
     })
   })
+
+  it('inicializa y filtra con busquedaActual preexistente en el store', () => {
+    usePacientesStore.setState({ busquedaActual: 'Carlos' })
+    render(
+      <PacientesListado
+        alSeleccionarPaciente={alSeleccionar}
+        alEliminarPaciente={alEliminar}
+      />
+    )
+    expect(screen.getByTestId('input-busqueda-paciente')).toHaveValue('Carlos')
+    expect(screen.getByText('Carlos Perez')).toBeInTheDocument()
+    expect(screen.queryByText('Ana María Gómez')).not.toBeInTheDocument()
+  })
 })
+

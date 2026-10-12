@@ -43,8 +43,8 @@ export const PacientesListado: React.FC<PacientesListadoProps> = memo(({
   const setPacienteActivo = usePacientesStore((s) => s.setPacienteActivo)
   const vistaActual = usePacientesStore((s) => s.vistaActual)
   const filtros = usePacientesStore((s) => s.filtros)
-
-  const [busqueda, setBusqueda] = useState<string>('')
+  const busqueda = usePacientesStore((s) => s.busquedaActual)
+  const setBusqueda = usePacientesStore((s) => s.setBusquedaActual)
   const [mostrarFiltros, setMostrarFiltros] = useState<boolean>(false)
   const [mostrarModalNuevo, setMostrarModalNuevo] = useState<boolean>(false)
   const [mostrarPapelera, setMostrarPapelera] = useState<boolean>(false)

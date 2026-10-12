@@ -47,11 +47,13 @@ export interface PacientesStore {
   seleccion: (string | number)[]
   fichaActiva: FichaClinica | null
   pestanaActiva: PestanaFicha
+  busquedaActual: string
 
   setPacientes: (updater: PacientesUpdater) => void
   setPacienteActivo: (paciente: Paciente | null) => void
   setVista: (vista: 'lista' | 'tabla' | 'tarjetas') => void
   setFiltros: (filtros: Partial<FiltrosPacientes>) => void
+  setBusquedaActual: (busqueda: string) => void
   toggleSeleccion: (id: string | number) => void
   seleccionarTodos: () => void
   limpiarSeleccion: () => void
@@ -73,6 +75,7 @@ export const usePacientesStore = create<PacientesStore>()(
       pacientes: pacientesStorageService.obtenerPacientes(SEED_PACIENTES_DEMO),
       pacienteActivo: null,
       vistaActual: 'lista',
+      busquedaActual: '',
       filtros: {
         estado: [],
         doctor: [],
@@ -108,6 +111,8 @@ export const usePacientesStore = create<PacientesStore>()(
       setFiltros: (filtrosParciales) => set((state) => ({
         filtros: { ...state.filtros, ...filtrosParciales }
       })),
+
+      setBusquedaActual: (busqueda) => set({ busquedaActual: busqueda }),
 
       toggleSeleccion: (id) => set((state) => ({
         seleccion: state.seleccion.includes(id)
@@ -204,7 +209,8 @@ export const usePacientesStore = create<PacientesStore>()(
       name: 'dentikos_pacientes_store_v2',
       partialize: (state) => ({
         vistaActual: state.vistaActual,
-        filtros: state.filtros
+        filtros: state.filtros,
+        busquedaActual: state.busquedaActual,
       })
     }
   )
