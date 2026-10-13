@@ -10,6 +10,7 @@ import React, { useState } from 'react'
 import { motion, type PanInfo } from 'framer-motion'
 import { Sun, Microscope, Moon } from 'lucide-react'
 import { useSidebarStore, type AppTheme } from '../../app/stores/useSidebarStore'
+import { soundEffects } from '../utils/soundEffects'
 
 const THEMES: AppTheme[] = ['light', 'surgical', 'dark']
 const ICONS = [Sun, Microscope, Moon]
@@ -40,22 +41,7 @@ export const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ compact = false, c
   const currentIndex = Math.max(0, THEMES.indexOf(theme))
 
   const playThemeChangeSound = () => {
-    try {
-      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
-      if (!AudioCtx) return
-      const ctx = new AudioCtx()
-      const playTone = (freq: number, startTime: number) => {
-        const osc = ctx.createOscillator()
-        const gain = ctx.createGain()
-        osc.connect(gain); gain.connect(ctx.destination)
-        osc.frequency.value = freq; osc.type = 'sine'
-        gain.gain.setValueAtTime(0.15, startTime)
-        gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.04)
-        osc.start(startTime); osc.stop(startTime + 0.04)
-      }
-      playTone(680, ctx.currentTime)
-      playTone(850, ctx.currentTime + 0.04)
-    } catch {}
+    soundEffects.save()
   }
 
   const switchTo = (newTheme: AppTheme) => {
