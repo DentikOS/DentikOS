@@ -57,7 +57,13 @@ export const transformarParaSupabase = (
   if (!pacienteJs) return null
   const resultado: Record<string, unknown> = {}
   for (const [claveJs, valor] of Object.entries(pacienteJs)) {
-    if (claveJs === 'createdAt' || claveJs === 'updatedAt' || claveJs === 'userId') {
+    if (
+      claveJs === 'createdAt' ||
+      claveJs === 'updatedAt' ||
+      claveJs === 'userId' ||
+      claveJs === 'doctorTratante' ||
+      claveJs === 'diasSinVisita'
+    ) {
       continue
     }
     const claveDb = CAMEL_TO_SNAKE_MAP[claveJs] || claveJs
