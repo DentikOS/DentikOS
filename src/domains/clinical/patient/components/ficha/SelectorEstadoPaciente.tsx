@@ -30,7 +30,10 @@ export const SelectorEstadoPaciente: React.FC<Props> = ({ paciente }) => {
   const setPacientes = usePacientesStore((s) => s.setPacientes)
 
   const esAdmin = userProfile?.rol === 'admin'
-  const puedeCambiarEstado = esAdmin || paciente.estado === 'nuevo' || paciente.estado === 'activo'
+  const estadoActual = (usePacientesStore((s) =>
+    s.pacientes.find((p) => String(p.id) === String(paciente.id))?.estado
+  ) || paciente.estado || 'nuevo') as EstadoPaciente
+  const puedeCambiarEstado = esAdmin || estadoActual === 'nuevo' || estadoActual === 'activo'
 
   const handleCambiarEstado = async (nuevoEstado: EstadoPaciente, motivoConfirmado?: string) => {
     if (!esAdmin && nuevoEstado === 'bloqueado') {
@@ -45,7 +48,7 @@ export const SelectorEstadoPaciente: React.FC<Props> = ({ paciente }) => {
     }
 
     const motivoFinal = motivoConfirmado || motivo
-    const estadoAnterior = paciente.estado || 'nuevo'
+    const estadoAnterior = estadoActual || 'nuevo'
 
     setPacientes((prev) =>
       prev.map((p) =>
@@ -82,8 +85,8 @@ export const SelectorEstadoPaciente: React.FC<Props> = ({ paciente }) => {
     <>
       <div className="flex items-center gap-2 flex-wrap" data-testid="selector-estado-paciente">
         {ESTADOS_DISPONIBLES.map(({ valor, label, icon: Icon, color }) => {
-          const activo = paciente.estado === valor
-          const deshabilitado = (!esAdmin && valor === 'bloqueado') || (!puedeCambiarEstado && valor !== paciente.estado)
+          const activo = estadoActual === valor
+          const deshabilitado = (!esAdmin && valor === 'bloqueado') || (!puedeCambiarEstado && valor !== estadoActual)
           return (
             <button
               key={valor}
