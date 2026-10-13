@@ -32,18 +32,24 @@ export const timelineService = {
 
     if (USE_SUPABASE && supabase) {
       try {
-        await supabase
-          .from('timeline_paciente')
-          .insert({
-            id,
-            paciente_id: pacienteId,
-            tipo: evento.tipo,
-            fecha: evento.fecha,
-            titulo: evento.titulo,
-            detalles: evento.detalles || null,
-            usuario: evento.usuario || null,
-            profesional: evento.profesional || null,
-          })
+        const esUuid = (val: unknown): boolean =>
+          typeof val === 'string' &&
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)
+
+        if (esUuid(pacienteId)) {
+          await supabase
+            .from('timeline_paciente')
+            .insert({
+              ...(esUuid(id) ? { id } : {}),
+              paciente_id: pacienteId,
+              tipo: evento.tipo,
+              fecha: evento.fecha,
+              titulo: evento.titulo,
+              detalles: evento.detalles || null,
+              usuario: evento.usuario || null,
+              profesional: evento.profesional || null,
+            })
+        }
       } catch (err) {
         console.error('Error sincronizando evento de timeline con Supabase:', err)
       }
