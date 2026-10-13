@@ -252,7 +252,7 @@ export const GestionMiembrosModulo: React.FC = () => {
                         className="text-primary hover:text-champagne-600 dark:text-gold-satin transition-colors cursor-pointer"
                         title="Copiar link de invitación"
                       >
-                        {urlCopiada === invitacion.token ? '✓ Copiado' : 'Copiar Link'}
+                        {urlCopiada === invitacion.token ? 'Copiado' : 'Copiar Link'}
                       </button>
                       <button
                         onClick={() => handleRevocar(invitacion.id)}

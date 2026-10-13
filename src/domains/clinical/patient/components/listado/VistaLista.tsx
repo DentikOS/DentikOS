@@ -1,68 +1,99 @@
 import React, { memo } from 'react'
-import { FileText, Trash2, AlertCircle, Phone, Mail } from 'lucide-react'
-import { Button } from '../../../../../shared/ui/ui/Button'
+import { User } from 'lucide-react'
 import { Badge } from '../../../../../shared/ui/ui/Badge'
 import { usePacientesStore } from '../../../../../app/stores/pacientesStore'
+import { AccionesFilaPaciente } from './AccionesFilaPaciente'
+import { useDoctoresClinica } from '../../hooks/useDoctoresClinica'
+import { formatearDoctorTratante } from '../../utils/formatearDoctor'
+import { useProximasCitasMap } from '../../hooks/useProximaCita'
+import { destacarCoincidencias } from '../../../../../shared/utils/destacarCoincidencias'
 import type { Paciente } from '../../schemas/pacienteSchema'
 
 interface VistaListaProps {
   pacientes: Paciente[]
   alSeleccionarPaciente: (paciente: Paciente) => void
-  alEliminarPaciente: (id: string | number) => void
+  alEliminarPaciente?: (id: string | number) => void
+  onDesactivarPaciente?: (paciente: Paciente) => void
+  onBloquearPaciente?: (paciente: Paciente) => void
+  onAgendarCita?: (paciente: Paciente) => void
+  busqueda?: string
 }
 
 export const VistaLista: React.FC<VistaListaProps> = memo(({
   pacientes,
   alSeleccionarPaciente,
-  alEliminarPaciente,
+  onDesactivarPaciente,
+  onBloquearPaciente,
+  onAgendarCita,
+  busqueda = '',
 }) => {
   const seleccion = usePacientesStore((s) => s.seleccion)
   const toggleSeleccion = usePacientesStore((s) => s.toggleSeleccion)
+  const proximasCitasMap = useProximasCitasMap()
+  const { doctores } = useDoctoresClinica()
+  const modoSeleccionActivo = seleccion.length > 0
 
   return (
-    <div className="space-y-2.5" data-testid="vista-lista-container">
+    <div className="space-y-2" data-testid="vista-lista-container">
       {pacientes.map((p) => {
         const idStr = String(p.id)
         const isSelected = seleccion.includes(idStr)
         const nombre = p.nombre || p.nombreCompleto || 'Sin nombre'
-        const tieneAlergias = Array.isArray(p.alergias)
-          ? p.alergias.length > 0
-          : Boolean(p.alergias)
-        const tieneSeveras = Array.isArray(p.alergiasSeveras) && p.alergiasSeveras.length > 0
         const estado = p.estado || 'activo'
+        const edadTexto = p.edad ? `${p.edad} años` : 'Edad s/r'
+        const ultimaVisitaTexto = p.fechaUltimaVisita
+          ? new Date(p.fechaUltimaVisita).toLocaleDateString('es-CL')
+          : (p.ultimaVisita ? String(p.ultimaVisita) : '—')
+        const proximaCita = proximasCitasMap.get(idStr)
+        const proximaCitaTexto = proximaCita
+          ? `${proximaCita.fecha} ${proximaCita.horaInicio || ''}`.trim()
+          : (p.proximaCita ? String(p.proximaCita) : 'Sin cita próxima')
+        const { texto: docTexto, asignado: docAsignado } = formatearDoctorTratante(p.doctorTratante, p.doctorTratanteId, doctores)
 
         return (
           <div
             key={idStr}
             data-testid={`paciente-card-${p.id}`}
-            className={`p-4 border rounded-xl transition-all duration-150 flex items-center justify-between gap-4 group ${
+            className={`min-h-[58px] p-3 border rounded-xl transition-all duration-150 flex items-center justify-between gap-3 group ${
               isSelected
                 ? 'bg-primary/5 border-primary/40'
                 : 'bg-surface/90 border-surface hover:border-primary/30 hover:shadow-xs'
             }`}
           >
-            <div className="flex items-center gap-3 min-w-0">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
               <input
                 type="checkbox"
                 checked={isSelected}
                 onChange={() => toggleSeleccion(idStr)}
                 aria-label={`Seleccionar ${nombre}`}
-                className="w-4 h-4 rounded border-graphite-300 text-primary focus:ring-primary cursor-pointer"
+                className={`w-4 h-4 rounded border-graphite-300 text-primary focus:ring-primary cursor-pointer shrink-0 transition-opacity ${
+                  modoSeleccionActivo || isSelected
+                    ? 'opacity-100'
+                    : 'opacity-0 group-hover:opacity-100 focus:opacity-100'
+                }`}
                 onClick={(e) => e.stopPropagation()}
               />
 
               <div
                 onClick={() => alSeleccionarPaciente(p)}
-                className="cursor-pointer min-w-0 flex-1"
+                className="cursor-pointer min-w-0 flex-1 space-y-0.5"
               >
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-bold text-graphite-900 dark:text-graphite-50 group-hover:text-primary transition-colors text-sm">
-                    {nombre}
+                {/* Línea 1: Nombre completo · Edad · Última · Próxima */}
+                <div className="flex items-center gap-2 text-xs truncate">
+                  <span className="font-bold text-graphite-900 dark:text-graphite-50 group-hover:text-primary transition-colors truncate flex items-center gap-1.5">
+                    <User className="w-3.5 h-3.5 text-graphite-400 shrink-0" />
+                    <span>{destacarCoincidencias(nombre, busqueda)}</span>
                   </span>
-                  <span className="text-xs text-graphite-500 font-mono">
-                    {p.rut}
-                  </span>
+                  <span className="text-graphite-400">·</span>
+                  <span className="text-graphite-600 dark:text-graphite-300 shrink-0">{edadTexto}</span>
+                  <span className="text-graphite-400">·</span>
+                  <span className="text-graphite-500 shrink-0">Última: {ultimaVisitaTexto}</span>
+                  <span className="text-graphite-400">·</span>
+                  <span className="text-primary font-medium shrink-0">Próxima: {proximaCitaTexto}</span>
+                </div>
 
+                {/* Línea 2: pill de estado · Dr. tratante */}
+                <div className="flex items-center gap-2 text-[11px] text-graphite-500">
                   <Badge
                     size="sm"
                     variant={
@@ -72,69 +103,29 @@ export const VistaLista: React.FC<VistaListaProps> = memo(({
                         ? 'info'
                         : estado === 'bloqueado'
                         ? 'danger'
+                        : estado === 'desactivado'
+                        ? 'neutral'
                         : 'neutral'
                     }
                   >
                     {estado}
                   </Badge>
-
-                  {p.prevision && (
-                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-surface-hover text-graphite-600 dark:text-graphite-300 uppercase font-medium">
-                      {p.prevision}
-                    </span>
-                  )}
-
-                  {(tieneAlergias || tieneSeveras) && (
-                    <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 font-semibold border border-rose-500/20">
-                      <AlertCircle className="w-3 h-3" />
-                      {tieneSeveras ? 'Alerta Severa' : 'Alergias'}
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-4 text-xs text-graphite-500 mt-1 flex-wrap">
-                  {p.telefono && (
-                    <span className="flex items-center gap-1">
-                      <Phone className="w-3 h-3" /> {String(p.telefono)}
-                    </span>
-                  )}
-                  {p.email && (
-                    <span className="flex items-center gap-1">
-                      <Mail className="w-3 h-3" /> {p.email}
-                    </span>
-                  )}
-                  {p.fechaUltimaVisita && (
-                    <span className="text-graphite-400">
-                      Última visita: {new Date(p.fechaUltimaVisita).toLocaleDateString()}
-                    </span>
-                  )}
+                  <span className="text-graphite-400">·</span>
+                  <span className={docAsignado ? 'text-graphite-600 dark:text-graphite-300' : 'text-[#94A3B8] italic'}>
+                    {docTexto}
+                  </span>
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">
-              <Button
-                data-testid={`btn-ficha-${p.id}`}
-                onClick={() => alSeleccionarPaciente(p)}
-                size="sm"
-                variant="secondary"
-                icon={FileText}
-              >
-                Ver ficha
-              </Button>
-              <Button
-                data-testid={`btn-eliminar-${p.id}`}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  alEliminarPaciente(p.id)
-                }}
-                size="sm"
-                variant="ghost"
-                icon={Trash2}
-                className="text-clinical-error hover:bg-clinical-error/10"
-                aria-label="Eliminar paciente"
-              />
-            </div>
+            {/* Derecha: exactamente los 4 iconos rápidos */}
+            <AccionesFilaPaciente
+              paciente={p}
+              alSeleccionarPaciente={alSeleccionarPaciente}
+              onDesactivar={onDesactivarPaciente}
+              onBloquear={onBloquearPaciente}
+              onAgendarCita={onAgendarCita}
+            />
           </div>
         )
       })}

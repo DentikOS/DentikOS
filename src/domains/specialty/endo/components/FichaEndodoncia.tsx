@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { TECNICAS_OBTURACION, SELLADORES_ENDODONTICOS } from '../../../../shared/clinical/quirurgico/quirurgicoConstants'
 import { Icon } from '../../../../shared/ui/Icon'
-import { FlaskConical, Trash2 } from 'lucide-react'
+import { FlaskConical, Trash2, X } from 'lucide-react'
 import type { EndodonciaItem, ConductoItem } from '../../../../shared/clinical/quirurgico/quirurgicoStorageService'
 import type { NuevaEndodonciaInput } from '../../../../shared/clinical/quirurgico/useQuirurgico'
 
@@ -175,7 +175,7 @@ export const FichaEndodoncia: React.FC<FichaEndodonciaProps> = ({
                       />
                     </td>
                     <td className="p-1 text-right">
-                      <button type="button" onClick={() => handleEliminarFilaConducto(idx)} className="text-red-500 hover:text-red-700 font-bold px-1 transition-micro cursor-pointer">✕</button>
+                      <button type="button" onClick={() => handleEliminarFilaConducto(idx)} className="text-red-500 hover:text-red-700 font-bold px-1 transition-micro cursor-pointer"><X className="w-3.5 h-3.5" /></button>
                     </td>
                   </tr>
                 ))}

@@ -15,8 +15,11 @@ import { RecetasConsentimientos } from './RecetasConsentimientos'
 import { Timeline } from './Timeline'
 import { ModoQuirurgico } from './ModoQuirurgico'
 import { ModoPresentacion } from './ModoPresentacion'
+import { SugerenciaCompletitud } from './SugerenciaCompletitud'
 import { determinarPestanaDefault, type PestanaFicha } from '../../services/contextualRouter'
 import { sonarAlerta220Hz } from '../../utils/alertaSonido'
+import { calcularDiasSinVisita } from '../../utils/estadosPacienteCalculations'
+import { useEstadoPaciente } from '../../hooks/useEstadoPaciente'
 
 export interface FichaClinicaProps {
   paciente?: Paciente
@@ -59,6 +62,8 @@ export const FichaClinica: React.FC<FichaClinicaProps> = ({
   const pacienteStore = (pacienteId ? pacientes.find((p) => String(p.id) === String(pacienteId)) : null) || pacienteActivoStore
   const pacienteFinal: Paciente = pacienteStore || paciente || pacientes[0]
 
+  useEstadoPaciente(pacienteFinal)
+
   useEffect(() => {
     const tieneAlergias = Boolean(
       (Array.isArray(pacienteFinal?.alergiasSeveras) && pacienteFinal.alergiasSeveras.length > 0) ||
@@ -72,17 +77,19 @@ export const FichaClinica: React.FC<FichaClinicaProps> = ({
   // Contextual Router (WS2)
   useEffect(() => {
     if (!pestanaActivaStore && pacienteFinal) {
+      const fechaVisita = pacienteFinal.fechaUltimaVisita || (pacienteFinal as unknown as Record<string, unknown>).ultimaVisita
+      const dias = calcularDiasSinVisita(typeof fechaVisita === 'string' ? fechaVisita : null)
       const tabDefault = determinarPestanaDefault(
         {
-          esNuevo: !pacienteFinal.ultimaVisita,
-          diasSinVisita: pacienteFinal.ultimaVisita ? 30 : 200,
+          esNuevo: dias === null,
+          diasSinVisita: dias ?? 0,
           presupuestoPendienteDias: 0,
         },
         { citaActiva: false }
       )
       setPestanaActivaStore(tabDefault)
     }
-  }, [pacienteFinal?.id, pestanaActivaStore, setPestanaActivaStore])
+  }, [pacienteFinal?.id, pacienteFinal?.fechaUltimaVisita, pestanaActivaStore, setPestanaActivaStore])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -171,6 +178,11 @@ export const FichaClinica: React.FC<FichaClinicaProps> = ({
         onModoQuirurgico={() => setModoQuirurgicoActivo(true)}
         onModoPresentacion={() => setModoPresentacionActivo((p) => !p)}
         onResponderEmbarazo={(emb) => alActualizarPaciente?.({ ...pacienteFinal, embarazo: emb })}
+      />
+
+      <SugerenciaCompletitud
+        paciente={pacienteFinal}
+        onCompletar={() => setPestanaActivaStore('datos')}
       />
 
       {/* 8 Pestañas exactas según BP06 §09 */}

@@ -169,7 +169,7 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
             }}
             data-testid="btn-ver-todos-presupuestos"
           >
-            📋 Ver todos los presupuestos
+            Ver todos los presupuestos
           </Button>
           <button
             type="button"
@@ -177,7 +177,7 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
             className="px-6 py-3 bg-gradient-to-r from-[#E5C378] to-[#B88E3A] text-[#070B14] font-semibold rounded-lg hover:brightness-105 cursor-pointer"
             data-testid="btn-generar-presupuesto-bottom"
           >
-            ✨ Generar presupuesto
+            Generar presupuesto
           </button>
         </div>
       </div>

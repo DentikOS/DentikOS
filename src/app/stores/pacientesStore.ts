@@ -32,7 +32,11 @@ export interface FiltrosPacientes {
   doctor: string[]
   ultimaVisita: string
   proximaCita: string
+  edadMin?: string
+  edadMax?: string
+  prevision?: string[]
   etiquetas: string[]
+  tratamiento?: string
 }
 
 export interface PacientesStore {
@@ -43,22 +47,26 @@ export interface PacientesStore {
   seleccion: (string | number)[]
   fichaActiva: FichaClinica | null
   pestanaActiva: PestanaFicha
+  busquedaActual: string
 
   setPacientes: (updater: PacientesUpdater) => void
   setPacienteActivo: (paciente: Paciente | null) => void
   setVista: (vista: 'lista' | 'tabla' | 'tarjetas') => void
   setFiltros: (filtros: Partial<FiltrosPacientes>) => void
+  setBusquedaActual: (busqueda: string) => void
   toggleSeleccion: (id: string | number) => void
   seleccionarTodos: () => void
   limpiarSeleccion: () => void
 
-  abrirFicha: (pacienteId: string | number) => void
+  abrirFicha: (pacienteId: string | number, pestanaInicial?: PestanaFicha) => void
   cerrarFicha: () => void
   setPestanaActiva: (pestana: PestanaFicha) => void
   bloquearPaciente: (id: string | number) => void
   desbloquearPaciente: (id: string | number) => void
   actualizarPaciente: (id: string | number, updates: Partial<Paciente>) => void
   refrescarDesdeSupabase: () => Promise<void>
+  isLoadingPacientes: boolean
+  cargarPacientes: () => Promise<void>
 }
 
 export const usePacientesStore = create<PacientesStore>()(
@@ -67,10 +75,22 @@ export const usePacientesStore = create<PacientesStore>()(
       pacientes: pacientesStorageService.obtenerPacientes(SEED_PACIENTES_DEMO),
       pacienteActivo: null,
       vistaActual: 'lista',
-      filtros: { estado: [], doctor: [], ultimaVisita: '', proximaCita: '', etiquetas: [] },
+      busquedaActual: '',
+      filtros: {
+        estado: [],
+        doctor: [],
+        ultimaVisita: '',
+        proximaCita: '',
+        edadMin: '',
+        edadMax: '',
+        prevision: [],
+        etiquetas: [],
+        tratamiento: '',
+      },
       seleccion: [],
       fichaActiva: null,
       pestanaActiva: 'datos',
+      isLoadingPacientes: false,
 
       setPacientes: (updater: PacientesUpdater) => set((state) => {
         const next = typeof updater === 'function' ? updater(state.pacientes) : updater
@@ -78,9 +98,9 @@ export const usePacientesStore = create<PacientesStore>()(
         return { pacientes: next }
       }),
 
-      setPacienteActivo: (paciente: Paciente | null) => {
+      setPacienteActivo: (paciente: Paciente | null, pestanaInicial?: PestanaFicha) => {
         if (paciente) {
-          get().abrirFicha(paciente.id)
+          get().abrirFicha(paciente.id, pestanaInicial)
         } else {
           get().cerrarFicha()
         }
@@ -91,6 +111,8 @@ export const usePacientesStore = create<PacientesStore>()(
       setFiltros: (filtrosParciales) => set((state) => ({
         filtros: { ...state.filtros, ...filtrosParciales }
       })),
+
+      setBusquedaActual: (busqueda) => set({ busquedaActual: busqueda }),
 
       toggleSeleccion: (id) => set((state) => ({
         seleccion: state.seleccion.includes(id)
@@ -104,7 +126,7 @@ export const usePacientesStore = create<PacientesStore>()(
 
       limpiarSeleccion: () => set({ seleccion: [] }),
 
-      abrirFicha: (pacienteId) => {
+      abrirFicha: (pacienteId, pestanaInicial = 'datos') => {
         const paciente = get().pacientes.find((p) => String(p.id) === String(pacienteId))
         if (paciente) {
           const ficha: FichaClinica = {
@@ -118,7 +140,7 @@ export const usePacientesStore = create<PacientesStore>()(
             timeline: [],
             version: 1
           }
-          set({ fichaActiva: ficha, pacienteActivo: paciente, pestanaActiva: 'datos' })
+          set({ fichaActiva: ficha, pacienteActivo: paciente, pestanaActiva: pestanaInicial })
         }
       },
 
@@ -161,13 +183,34 @@ export const usePacientesStore = create<PacientesStore>()(
         } catch (e: unknown) {
           log.error('Error refrescarDesdeSupabase:', e)
         }
+      },
+
+      cargarPacientes: async (): Promise<void> => {
+        set({ isLoadingPacientes: true })
+        try {
+          const locales = pacientesStorageService.obtenerPacientes()
+          if (locales && locales.length > 0) {
+            set({ pacientes: locales })
+          }
+          if (typeof pacientesStorageService.sincronizarDesdeSupabase === 'function') {
+            const datos = await pacientesStorageService.sincronizarDesdeSupabase()
+            if (Array.isArray(datos) && datos.length > 0) {
+              set({ pacientes: datos })
+            }
+          }
+        } catch (error) {
+          log.error('Error cargando pacientes:', error)
+        } finally {
+          set({ isLoadingPacientes: false })
+        }
       }
     }),
     {
       name: 'dentikos_pacientes_store_v2',
       partialize: (state) => ({
         vistaActual: state.vistaActual,
-        filtros: state.filtros
+        filtros: state.filtros,
+        busquedaActual: state.busquedaActual,
       })
     }
   )

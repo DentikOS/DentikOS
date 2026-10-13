@@ -19,7 +19,11 @@ export const SNAKE_TO_CAMEL_MAP: Readonly<Record<string, string>> = {
   fecha_ingreso: 'fechaIngreso',
   user_id: 'userId',
   created_at: 'createdAt',
-  updated_at: 'updatedAt'
+  updated_at: 'updatedAt',
+  doctor_tratante_id: 'doctorTratanteId',
+  motivo_bloqueo: 'motivoBloqueo',
+  fecha_ultima_visita: 'fechaUltimaVisita',
+  fecha_creacion: 'fechaCreacion'
 }
 
 /**
@@ -53,7 +57,14 @@ export const transformarParaSupabase = (
   if (!pacienteJs) return null
   const resultado: Record<string, unknown> = {}
   for (const [claveJs, valor] of Object.entries(pacienteJs)) {
-    if (claveJs === 'createdAt' || claveJs === 'updatedAt' || claveJs === 'userId') {
+    if (
+      claveJs === 'createdAt' ||
+      claveJs === 'updatedAt' ||
+      claveJs === 'userId' ||
+      claveJs === 'doctorTratante' ||
+      claveJs === 'diasSinVisita' ||
+      claveJs === 'sincronizado'
+    ) {
       continue
     }
     const claveDb = CAMEL_TO_SNAKE_MAP[claveJs] || claveJs
@@ -63,5 +74,14 @@ export const transformarParaSupabase = (
       resultado[claveDb] = valor
     }
   }
+
+  // Log solo de campos críticos para depuración
+  console.log('[DEBUG] transformarParaSupabase:', {
+    id: resultado.id,
+    estado: resultado.estado,
+    doctor_tratante_id: resultado.doctor_tratante_id,
+    bloqueado: resultado.bloqueado,
+  })
+
   return resultado
 }

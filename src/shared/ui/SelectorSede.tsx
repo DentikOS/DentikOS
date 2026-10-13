@@ -2,7 +2,7 @@
  * SelectorSede — Selector y visualizador de sede activa (Blueprint 03 §04)
  *
  * Siempre visible en desktop con:
- * - Punto indicador 🟢 (#0D9488) de sincronización
+ * - Punto indicador (#0D9488) de sincronización
  * - Icono MapPin dorado (#D4AF37)
  * - Nombre de sede activa (fallback 'Sede Principal' si no hay sedes)
  * - Indicador dropdown ▼ (interactivo incluso con 1 sede)

@@ -94,7 +94,7 @@ export const useComunicaciones = (): UseComunicacionesReturn => {
     })
   }, [historial, busqueda, canalFiltro, estadoFiltro])
 
-  // 💡 Registrar o Modificar entrada en la Bitácora
+  // Registrar o Modificar entrada en la Bitácora
   const registrarOActualizarEnvio = useCallback(
     (registroData: MensajeHistorial | RegistroEnvioInput) => {
       setHistorial(prev => {
@@ -118,7 +118,7 @@ export const useComunicaciones = (): UseComunicacionesReturn => {
     []
   )
 
-  // 💡 Modificación rápida de estado de confirmación
+  // Modificación rápida de estado de confirmación
   const cambiarEstadoConfirmacion = useCallback(
     (idRegistro: number | string, nuevoEstado: string) => {
       setHistorial(prev => {

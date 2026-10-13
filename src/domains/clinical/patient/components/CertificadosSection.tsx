@@ -27,7 +27,7 @@ export interface CertificadosSectionProps {
  *
  * Componente padre que renderiza:
  * - FormularioNuevoCertificado
- * - Historial de certificados emitidos (con mini-badge 🔒 si respaldado)
+ * - Historial de certificados emitidos (con mini-badge de candado si respaldado)
  * - Preview del certificado seleccionado (con badge grande de estado R2)
  * - Portal de impresión aislada (M2a)
  */

@@ -310,9 +310,9 @@ describe('ConflictResolutionModal', () => {
   })
 
   it('debe tener atributos de accesibilidad role="dialog" y aria-modal', () => {
-    const { container } = render(<ConflictResolutionModal {...defaultProps} />)
+    render(<ConflictResolutionModal {...defaultProps} />)
     
-    const dialog = container.querySelector('[role="dialog"]')
+    const dialog = screen.getByRole('dialog')
     expect(dialog).toBeInTheDocument()
     expect(dialog).toHaveAttribute('aria-modal', 'true')
   })
@@ -333,8 +333,8 @@ describe('ConflictResolutionModal', () => {
       camposComparar: []
     }
     
-    const { container } = render(<ConflictResolutionModal {...propsSinCampos} />)
-    expect(container.firstChild).toBeInTheDocument()
+    render(<ConflictResolutionModal {...propsSinCampos} />)
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
   })
 })
 

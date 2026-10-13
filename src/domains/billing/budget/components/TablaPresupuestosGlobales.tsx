@@ -115,7 +115,7 @@ export const TablaPresupuestosGlobales: React.FC<TablaPresupuestosGlobalesProps>
                       title="Registrar pago"
                       data-testid={`btn-registrar-pago-${p.id}`}
                     >
-                      💰 Registrar pago
+                      Registrar pago
                     </button>
                   )}
                   <button

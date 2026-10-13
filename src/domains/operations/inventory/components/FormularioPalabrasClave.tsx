@@ -1,7 +1,7 @@
 import React from 'react'
 import { Button } from '../../../../shared/ui/ui/Button'
 import { Input } from '../../../../shared/ui/ui/Input'
-import { Key } from 'lucide-react'
+import { Key, X } from 'lucide-react'
 
 export interface FormularioPalabrasClaveProps {
   palabrasClaveCategoriaActiva: string[]
@@ -37,9 +37,9 @@ export const FormularioPalabrasClave: React.FC<FormularioPalabrasClaveProps> = (
               onClick={() => handleEliminarPalabraClave(index)}
               variant="ghost"
               size="sm"
-              className="text-red-500 hover:text-red-700 p-0 w-4 h-4 transition-colors duration-150"
+              className="text-red-500 hover:text-red-700 p-0 w-4 h-4 transition-colors duration-150 inline-flex items-center justify-center"
             >
-              ✕
+              <X className="w-3.5 h-3.5" />
             </Button>
           </span>
         ))}

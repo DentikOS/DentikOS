@@ -53,6 +53,24 @@ describe('pacienteSchema (F6-G)', () => {
       expect(result.success).toBe(true)
       expect(result.data.campoNoCatalogado).toBe('valor')
     })
+
+    it('acepta null en campos opcionales de BP06 (como los devueltos por Supabase)', () => {
+      const conNulls = {
+        ...pacienteValido,
+        estado: null,
+        fechaCreacion: null,
+        fechaUltimaVisita: null,
+        doctorTratanteId: null,
+        doctorTratante: null,
+        bloqueado: null,
+        motivoBloqueo: null,
+        etiquetas: null,
+        diasSinVisita: null,
+        tutorLegal: null
+      }
+      const result = pacienteSchema.safeParse(conNulls)
+      expect(result.success).toBe(true)
+    })
   })
 
   describe('validarListaPacientes', () => {

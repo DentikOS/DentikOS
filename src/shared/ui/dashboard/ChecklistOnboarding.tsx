@@ -124,7 +124,7 @@ export const ChecklistOnboarding: React.FC<ChecklistOnboardingProps> = ({
             onClick={onCompletarTour}
             className="text-xs font-semibold text-slate-500 hover:text-[#B88E3A] transition-colors cursor-pointer ml-auto"
           >
-            Ver mini-tour guiado ✨
+            Ver mini-tour guiado
           </button>
         )}
       </div>

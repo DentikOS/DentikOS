@@ -6,27 +6,27 @@ const PASOS = [
   {
     titulo: 'Bienvenido a tu Consola Odontológica',
     descripcion: 'Este es tu Dashboard: aquí ves todo lo que pasa en tu clínica cada día con máxima telemetría operativa.',
-    emoji: '🏢'
+    emoji: ''
   },
   {
     titulo: 'Morning Brief Inteligente',
     descripcion: 'El Morning Brief te da un resumen en 30 segundos. Click en cualquier línea para ir al módulo correspondiente.',
-    emoji: '☀️'
+    emoji: ''
   },
   {
     titulo: 'Acciones Rápidas con Gradiente',
     descripcion: 'Las acciones rápidas abajo te permiten crear citas, pacientes y presupuestos en un click.',
-    emoji: '⚡'
+    emoji: ''
   },
   {
     titulo: 'Búsqueda Global Omnicanal',
     descripcion: 'Usa ⌘K para buscar cualquier paciente, cita o acción sin navegar por menús manuales.',
-    emoji: '🔍'
+    emoji: ''
   },
   {
     titulo: 'Personalización por Rol y Widgets',
     descripcion: 'Puedes personalizar tu Dashboard reordenando u ocultando los widgets según tu criterio profesional. ¡Explora!',
-    emoji: '🎨'
+    emoji: ''
   }
 ]
 

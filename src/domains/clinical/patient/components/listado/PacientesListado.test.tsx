@@ -60,6 +60,7 @@ describe('PacientesListado (BP06)', () => {
     usePacientesStore.setState({
       pacientes: mockPacientes,
       vistaActual: 'lista',
+      busquedaActual: '',
       filtros: { estado: [], doctor: [], ultimaVisita: '', proximaCita: '', etiquetas: [] },
       seleccion: [],
     })
@@ -145,4 +146,42 @@ describe('PacientesListado (BP06)', () => {
     expect(screen.getByTestId('acciones-masivas-bar')).toBeInTheDocument()
     expect(screen.getByText('1 seleccionado')).toBeInTheDocument()
   })
+
+  it('muestra spinner mientras carga inicialmente con lista vacía', async () => {
+    let resolver: () => void = () => {}
+    const mockPromise = new Promise<void>((res) => {
+      resolver = () => res()
+    })
+    const mockCargar = vi.fn().mockReturnValue(mockPromise)
+    usePacientesStore.setState({
+      pacientes: [],
+      cargarPacientes: mockCargar,
+    })
+
+    render(<PacientesListado />)
+
+    expect(screen.getByTestId('pacientes-loading-state')).toBeInTheDocument()
+    expect(screen.getByText('Cargando pacientes...')).toBeInTheDocument()
+
+    resolver()
+    usePacientesStore.setState({ pacientes: mockPacientes })
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('pacientes-loading-state')).not.toBeInTheDocument()
+    })
+  })
+
+  it('inicializa y filtra con busquedaActual preexistente en el store', () => {
+    usePacientesStore.setState({ busquedaActual: 'Carlos' })
+    render(
+      <PacientesListado
+        alSeleccionarPaciente={alSeleccionar}
+        alEliminarPaciente={alEliminar}
+      />
+    )
+    expect(screen.getByTestId('input-busqueda-paciente')).toHaveValue('Carlos')
+    expect(screen.getByText('Carlos Perez')).toBeInTheDocument()
+    expect(screen.queryByText('Ana María Gómez')).not.toBeInTheDocument()
+  })
 })
+

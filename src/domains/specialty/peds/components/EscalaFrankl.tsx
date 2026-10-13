@@ -39,7 +39,7 @@ export const EscalaFrankl = memo<EscalaFranklProps>(({
               <p className="text-[10px] mt-1 leading-snug">{item.desc}</p>
             </div>
             {gradoSeleccionado === item.grado && (
-              <span className="text-[10px] font-black uppercase mt-2 block text-right">✓ Seleccionado</span>
+              <span className="text-[10px] font-black uppercase mt-2 block text-right">Seleccionado</span>
             )}
           </button>
         ))}

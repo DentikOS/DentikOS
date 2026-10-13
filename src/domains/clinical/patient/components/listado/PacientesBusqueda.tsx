@@ -4,23 +4,38 @@ import { Input } from '../../../../../shared/ui/ui/Input'
 import { Button } from '../../../../../shared/ui/ui/Button'
 import { usePacientesStore } from '../../../../../app/stores/pacientesStore'
 
-interface PacientesBusquedaProps {
+export interface PacientesBusquedaProps {
   busqueda: string
   onBusquedaChange: (valor: string) => void
   totalResultados: number
+  inputRef?: React.RefObject<HTMLInputElement | null>
+  mostrarFiltros?: boolean
+  onToggleFiltros?: () => void
+  historial?: string[]
+  onLimpiarHistorial?: () => void
 }
 
 export const PacientesBusqueda: React.FC<PacientesBusquedaProps> = ({
   busqueda,
   onBusquedaChange,
   totalResultados,
+  inputRef,
+  mostrarFiltros: mostrarFiltrosProp,
+  onToggleFiltros,
+  historial = [],
+  onLimpiarHistorial,
 }) => {
   const [localInput, setLocalInput] = useState(busqueda)
+  const [mostrarDropdownHistorial, setMostrarDropdownHistorial] = useState(false)
+  const [mostrarFiltrosInterno, setMostrarFiltrosInterno] = useState(false)
+
   const vistaActual = usePacientesStore((s) => s.vistaActual)
   const setVista = usePacientesStore((s) => s.setVista)
   const filtros = usePacientesStore((s) => s.filtros)
   const setFiltros = usePacientesStore((s) => s.setFiltros)
-  const [mostrarFiltros, setMostrarFiltros] = useState(false)
+
+  const mostrarFiltros = mostrarFiltrosProp !== undefined ? mostrarFiltrosProp : mostrarFiltrosInterno
+  const handleToggleFiltros = onToggleFiltros || (() => setMostrarFiltrosInterno((prev) => !prev))
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -43,22 +58,70 @@ export const PacientesBusqueda: React.FC<PacientesBusquedaProps> = ({
     }
   }
 
-  const tieneFiltrosActivos = filtros.estado.length > 0 || Boolean(filtros.ultimaVisita)
+  const tieneFiltrosActivos =
+    (filtros.estado && filtros.estado.length > 0) ||
+    Boolean(filtros.ultimaVisita) ||
+    Boolean(filtros.proximaCita) ||
+    (filtros.doctor && filtros.doctor.length > 0) ||
+    Boolean(filtros.edadMin) ||
+    Boolean(filtros.edadMax) ||
+    (filtros.prevision && filtros.prevision.length > 0) ||
+    (filtros.etiquetas && filtros.etiquetas.length > 0) ||
+    Boolean(filtros.tratamiento)
 
   return (
     <div className="space-y-3 mb-6" data-testid="pacientes-busqueda-container">
       <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
-        <div className="flex-1 max-w-xl">
+        <div className="flex-1 max-w-xl relative">
           <Input
+            ref={inputRef}
             data-testid="input-busqueda-paciente"
             type="text"
             value={localInput}
             onChange={(e) => setLocalInput(e.target.value)}
-            placeholder="Buscar por nombre, RUT o teléfono del paciente..."
+            onFocus={() => setMostrarDropdownHistorial(true)}
+            onBlur={() => setMostrarDropdownHistorial(false)}
+            placeholder="Buscar por nombre, RUT, teléfono, email o ID (⌘K)..."
             icon={Search}
             iconPosition="left"
             className="w-full"
           />
+
+          {mostrarDropdownHistorial && historial.length > 0 && !localInput && (
+            <div className="absolute top-full left-0 right-0 mt-1 bg-surface border border-surface rounded-xl shadow-lg z-20 max-h-60 overflow-y-auto">
+              <div className="px-3 py-2 text-xs font-semibold text-graphite-500 border-b border-surface">
+                Búsquedas recientes
+              </div>
+              {historial.map((b, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onMouseDown={(e) => {
+                    e.preventDefault()
+                    setLocalInput(b)
+                    onBusquedaChange(b)
+                    setMostrarDropdownHistorial(false)
+                  }}
+                  className="w-full text-left px-3 py-2 text-sm text-graphite-700 dark:text-graphite-300 hover:bg-surface-hover transition-colors"
+                >
+                  {b}
+                </button>
+              ))}
+              {onLimpiarHistorial && (
+                <button
+                  type="button"
+                  onMouseDown={(e) => {
+                    e.preventDefault()
+                    onLimpiarHistorial()
+                    setMostrarDropdownHistorial(false)
+                  }}
+                  className="w-full text-left px-3 py-2 text-xs text-rose-500 hover:text-rose-600 border-t border-surface transition-colors"
+                >
+                  Limpiar historial
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-2 self-end sm:self-auto">
@@ -67,7 +130,7 @@ export const PacientesBusqueda: React.FC<PacientesBusquedaProps> = ({
             variant={tieneFiltrosActivos ? 'primary' : 'secondary'}
             size="sm"
             icon={Filter}
-            onClick={() => setMostrarFiltros((prev) => !prev)}
+            onClick={handleToggleFiltros}
             data-testid="btn-toggle-filtros"
           >
             Filtros
@@ -121,10 +184,10 @@ export const PacientesBusqueda: React.FC<PacientesBusquedaProps> = ({
         </div>
       </div>
 
-      {mostrarFiltros && (
+      {mostrarFiltros && onToggleFiltros === undefined && (
         <div className="p-3 bg-surface/90 border border-surface rounded-xl flex flex-wrap items-center gap-3 text-xs">
           <span className="font-semibold text-graphite-700 dark:text-graphite-300">Estado:</span>
-          {['todos', 'activo', 'nuevo', 'bloqueado', 'inactivo'].map((est) => (
+          {['todos', 'activo', 'nuevo', 'bloqueado', 'inactivo', 'desactivado'].map((est) => (
             <button
               key={est}
               type="button"

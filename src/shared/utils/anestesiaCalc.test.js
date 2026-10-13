@@ -229,7 +229,7 @@ describe('anestesiaCalc', () => {
       expect(resultado.estado).toBe('DATOS_INCOMPLETOS')
       expect(resultado.mensaje).toContain('Bupivacaína')
       expect(resultado.mensaje).toContain('12 años')
-      expect(resultado.advertencias.some((a) => a.includes('⛔'))).toBe(true)
+      expect(resultado.advertencias.some((a) => a.includes('Bupivacaína contraindicada'))).toBe(true)
     })
 
     it('Paciente <4 años + Articaína: DATOS_INCOMPLETOS con advertencia', () => {

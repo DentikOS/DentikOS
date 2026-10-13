@@ -59,7 +59,7 @@ export const SelectorCategoria: React.FC<SelectorCategoriaProps> = ({
             size="sm"
             className="bg-emerald-600 hover:bg-emerald-700 transition-colors duration-150"
           >
-            ✓ Crear
+            Crear
           </Button>
           <Button
             onClick={() => {
@@ -69,7 +69,7 @@ export const SelectorCategoria: React.FC<SelectorCategoriaProps> = ({
             variant="secondary"
             size="sm"
           >
-            ✕ Cancelar
+            Cancelar
           </Button>
         </div>
       ) : (

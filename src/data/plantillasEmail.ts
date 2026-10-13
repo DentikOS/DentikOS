@@ -33,7 +33,7 @@ export const generarHtmlEmailInvitacion = (params: EmailInvitacionParams): strin
   } = params
 
   const sedesTexto = sedesAsignadas.length > 0 ? sedesAsignadas.join(', ') : 'Sede Principal'
-  const listaPermisos = permisos.map((p) => `<li>✓ ${p}</li>`).join('')
+  const listaPermisos = permisos.map((p) => `<li>${p}</li>`).join('')
 
   return `
 <!DOCTYPE html>
@@ -68,8 +68,8 @@ export const generarHtmlEmailInvitacion = (params: EmailInvitacionParams): strin
                 <tr>
                   <td style="padding: 20px;">
                     <p style="margin: 0 0 10px; font-size: 12px; font-weight: 700; color: #D4AF37; text-transform: uppercase;">Detalles de tu asignación:</p>
-                    <p style="margin: 0 0 8px; font-size: 13px; color: #E2E8F0;">📍 <strong>Sedes:</strong> ${sedesTexto}</p>
-                    <p style="margin: 0 0 8px; font-size: 13px; color: #E2E8F0;">🛡️ <strong>Rol asignado:</strong> ${rol}</p>
+                    <p style="margin: 0 0 8px; font-size: 13px; color: #E2E8F0;"><strong>Sedes:</strong> ${sedesTexto}</p>
+                    <p style="margin: 0 0 8px; font-size: 13px; color: #E2E8F0;"><strong>Rol asignado:</strong> ${rol}</p>
                     ${permisos.length > 0 ? `
                     <p style="margin: 12px 0 6px; font-size: 12px; font-weight: 600; color: #94A3B8;">Funcionalidades incluidas:</p>
                     <ul style="margin: 0; padding-left: 18px; font-size: 12px; color: #CBD5E1; line-height: 1.6;">

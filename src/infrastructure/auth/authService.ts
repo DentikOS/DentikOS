@@ -65,6 +65,7 @@ export interface MiembroItem {
   id: string
   user_id: string
   email: string
+  nombre?: string
   rol: string
   activo: boolean
   fecha_invitacion?: string
@@ -633,26 +634,28 @@ export const listarMiembros = async (): Promise<{ success: boolean; miembros?: M
       return { success: true, miembros: [] }
     }
 
-    // Query 2: Obtener emails de usuarios por separado (evita JOIN de PostgREST)
+    // Query 2: Obtener emails y nombres de usuarios por separado (evita JOIN de PostgREST)
     const userIds = Array.from(new Set(miembrosRaw.map((m: { user_id: string }) => m.user_id).filter(Boolean)))
     const emailMap = new Map<string, string>()
+    const nombreMap = new Map<string, string>()
 
     if (userIds.length > 0) {
       try {
         const { data: profilesData } = await supabase
           .from('profiles')
-          .select('id, email')
+          .select('id, email, full_name')
           .in('id', userIds)
 
         if (profilesData) {
-          profilesData.forEach((p: { id: string; email?: string }) => {
-            if (p.id && p.email) {
-              emailMap.set(p.id, p.email)
+          profilesData.forEach((p: { id: string; email?: string; full_name?: string }) => {
+            if (p.id) {
+              if (p.email) emailMap.set(p.id, p.email)
+              if (p.full_name) nombreMap.set(p.id, p.full_name)
             }
           })
         }
       } catch (err: unknown) {
-        log.warn('F7-11: No se pudieron obtener emails de profiles para miembros:', err)
+        log.warn('F7-11: No se pudieron obtener emails/perfiles para miembros:', err)
       }
     }
 
@@ -668,6 +671,7 @@ export const listarMiembros = async (): Promise<{ success: boolean; miembros?: M
       id: m.id,
       user_id: m.user_id,
       email: emailMap.get(m.user_id) || 'N/A',
+      nombre: nombreMap.get(m.user_id) || emailMap.get(m.user_id) || 'Miembro',
       rol: m.rol,
       activo: m.activo,
       fecha_invitacion: m.fecha_invitacion,

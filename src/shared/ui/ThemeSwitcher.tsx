@@ -1,6 +1,6 @@
 /**
  * ThemeSwitcher — Slider físico táctil, continuo y accesible para los 3 modos de DentikOS
- * Blueprint 02 §04: ☀️ Claro | 🔬 Quirúrgico | 🌙 Oscuro
+ * Blueprint 02 §04: Claro | Quirúrgico | Oscuro
  * Soporta click directo, arrastre (Pointer Events con snap a 250ms) y flechas ←/→
  */
 import React, { useState, useRef, useCallback } from 'react'

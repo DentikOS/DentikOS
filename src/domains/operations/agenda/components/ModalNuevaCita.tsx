@@ -1,5 +1,5 @@
 import React, { memo, useState, useMemo } from 'react'
-import { Plus, User, Zap } from 'lucide-react'
+import { Plus, User, Zap, ShieldAlert } from 'lucide-react'
 import { Icon } from '../../../../shared/ui/Icon'
 import { SILLONES_DENTALES } from '../constants/agendaConstants'
 import { obtenerFechaLocalISO } from '../../../../shared/utils/dateUtils'
@@ -11,6 +11,7 @@ import { RecurrenciaForm } from './RecurrenciaForm'
 import { generarCitasRecurrencia, validarConflictosRecurrencia } from '../../../../shared/utils/recurrenciaUtils'
 import { confirmarConflictosRecurrencia } from '../utils/validarConflictosRecurrencia'
 import { validarConflictoCitaUnica } from '../utils/validarConflictoCitaUnica'
+import { usePacientesStore } from '../../../../app/stores/pacientesStore'
 import type { Cita } from '../schemas/citaSchema'
 import type { Paciente } from '../../../../domains/clinical/patient/schemas/pacienteSchema'
 
@@ -54,6 +55,10 @@ export const ModalNuevaCita: React.FC<ModalNuevaCitaProps> = memo(({
 
   const { alert: dialogAlert, confirm: dialogConfirm } = useAppDialog()
 
+  const pacientesStore = usePacientesStore((s) => s.pacientes)
+  const listaPacientes = pacientes.length > 0 ? pacientes : pacientesStore
+  const [alertaBloqueo, setAlertaBloqueo] = useState<{ mensaje: string; accion: string } | null>(null)
+
   const handleSelectPacienteChange = (e: { target: { value: string } }): void => {
     const pId = e.target.value
     setPacienteSeleccionadoId(pId)
@@ -62,11 +67,21 @@ export const ModalNuevaCita: React.FC<ModalNuevaCitaProps> = memo(({
       setPacienteNombre('')
       setPacienteTelefono('')
       setPacienteRut('')
+      setAlertaBloqueo(null)
       return
     }
 
-    const pEncontrado = pacientes.find(p => String(p.id) === String(pId))
+    const pEncontrado = listaPacientes.find(p => String(p.id) === String(pId))
     if (pEncontrado) {
+      if (pEncontrado.estado === 'bloqueado' || (pEncontrado as unknown as { bloqueado?: boolean }).bloqueado) {
+        setAlertaBloqueo({
+          mensaje: `Paciente bloqueado · Motivo: ${(pEncontrado as unknown as { motivoBloqueo?: string }).motivoBloqueo || 'No especificado'}`,
+          accion: 'Contactar Admin',
+        })
+      } else {
+        setAlertaBloqueo(null)
+      }
+
       const nombreCompleto = `${pEncontrado.nombre || ''} ${pEncontrado.apellido || ''}`.trim() || pEncontrado.nombreCompleto || ''
       setPacienteNombre(nombreCompleto)
       setPacienteTelefono(pEncontrado.telefono ? String(pEncontrado.telefono) : '')
@@ -104,6 +119,8 @@ export const ModalNuevaCita: React.FC<ModalNuevaCitaProps> = memo(({
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault()
+
+    if (alertaBloqueo) return
 
     if (!pacienteNombre.trim()) {
       await dialogAlert({
@@ -239,12 +256,13 @@ export const ModalNuevaCita: React.FC<ModalNuevaCitaProps> = memo(({
             setEsPacienteExpress(false)
             setPacienteSeleccionadoId('')
             setPacienteNombre('')
+            setAlertaBloqueo(null)
           }}
           className={`flex-1 py-2 text-xs font-black rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
             !esPacienteExpress ? 'bg-graphite-900 dark:bg-graphite-100 text-white dark:text-graphite-900 shadow-xs' : 'text-gray-600 dark:text-graphite-400 hover:text-graphite-900 dark:hover:text-graphite-100'
           }`}
         >
-          <Icon icon={User} size="xs" /> Paciente Registrado ({pacientes.length})
+          <Icon icon={User} size="xs" /> Paciente Registrado ({listaPacientes.length})
         </button>
         <button
           type="button"
@@ -253,6 +271,7 @@ export const ModalNuevaCita: React.FC<ModalNuevaCitaProps> = memo(({
             setPacienteSeleccionadoId('')
             setPacienteNombre('')
             setPacienteTelefono('')
+            setAlertaBloqueo(null)
           }}
           className={`flex-1 py-2 text-xs font-black rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
             esPacienteExpress ? 'bg-graphite-900 dark:bg-graphite-100 text-white dark:text-graphite-900 shadow-xs' : 'text-gray-600 dark:text-graphite-400 hover:text-graphite-900 dark:hover:text-graphite-100'
@@ -264,7 +283,7 @@ export const ModalNuevaCita: React.FC<ModalNuevaCitaProps> = memo(({
 
       <form onSubmit={handleSubmit} className="space-y-3 text-xs">
         <CamposFormularioCita
-          pacientes={pacientes}
+          pacientes={listaPacientes}
           sillonesDentales={SILLONES_DENTALES}
           esPacienteExpress={esPacienteExpress}
           pacienteSeleccionadoId={pacienteSeleccionadoId}
@@ -292,6 +311,20 @@ export const ModalNuevaCita: React.FC<ModalNuevaCitaProps> = memo(({
           setObservaciones={setObservaciones}
           handleSelectPacienteChange={handleSelectPacienteChange}
         />
+
+        {alertaBloqueo && (
+          <div className="flex items-center gap-3 p-3 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800 rounded-xl" data-testid="alerta-paciente-bloqueado">
+            <ShieldAlert className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-rose-900 dark:text-rose-100">
+                {alertaBloqueo.mensaje}
+              </p>
+            </div>
+            <Button variant="secondary" size="sm" type="button" onClick={() => setAlertaBloqueo(null)}>
+              {alertaBloqueo.accion}
+            </Button>
+          </div>
+        )}
 
         {/* F7-27: Formulario de recurrencia */}
         <RecurrenciaForm
@@ -324,6 +357,8 @@ export const ModalNuevaCita: React.FC<ModalNuevaCitaProps> = memo(({
             type="submit"
             variant="primary"
             icon={Plus}
+            disabled={Boolean(alertaBloqueo)}
+            data-testid="btn-confirmar-cita"
           >
             Confirmar cita
           </Button>

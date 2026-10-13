@@ -112,7 +112,7 @@ export const evaluarIncompatibilidadFarmaco = (
   if (!alergiasLimpias) {
     return {
       tipo: 'sin_datos',
-      mensaje: '⚠ Alergias no registradas para este paciente.',
+      mensaje: 'Alergias no registradas para este paciente.',
       sugerencia: 'Verifique manualmente los antecedentes alérgicos con el paciente antes de prescribir.'
     }
   }

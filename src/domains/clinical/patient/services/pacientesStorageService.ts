@@ -232,6 +232,34 @@ export const procesarColaPacientes = async (): Promise<{ procesados: number; fal
   })
 }
 
+export const actualizarPaciente = async (
+  pacienteId: string | number,
+  updates: Partial<Paciente>
+): Promise<boolean> => {
+  console.log('[DEBUG] actualizarPaciente:', { pacienteId, updates })
+
+  const pacientes = obtenerPacientes()
+  const index = pacientes.findIndex((p) => String(p.id) === String(pacienteId))
+
+  if (index < 0) {
+    log.error('Paciente no encontrado para actualizar:', pacienteId)
+    return false
+  }
+
+  const pacienteActualizado = { ...pacientes[index], ...updates }
+  console.log('[DEBUG] Paciente actualizado:', {
+    id: pacienteActualizado.id,
+    estado: pacienteActualizado.estado,
+    doctorTratanteId: pacienteActualizado.doctorTratanteId,
+  })
+
+  pacientes[index] = pacienteActualizado
+  const resultado = await guardarPacientes(pacientes)
+  console.log('[DEBUG] Resultado guardarPacientes:', resultado)
+
+  return resultado
+}
+
 export const resetCache = (): void => {
   pacientesCache = null
   cacheInicializado = false
@@ -241,6 +269,7 @@ export const pacientesStorageService = {
   obtenerPacientes,
   guardarPacientes,
   guardarPaciente,
+  actualizarPaciente,
   procesarColaPacientes,
   obtenerPendingPacientes,
   guardarPendingPacientes,

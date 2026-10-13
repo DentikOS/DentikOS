@@ -1,6 +1,7 @@
 import React, { memo } from 'react'
 import { formatearCLP } from '../../../../shared/utils/formatoMoneda'
 import { Button } from '../../../../shared/ui/ui/Button'
+import { X } from 'lucide-react'
 import type { ItemPresupuesto } from '../hooks/usePresupuesto'
 import type { Paciente } from '../schemas/pacienteSchema'
 
@@ -89,7 +90,7 @@ export const TablaItemsPresupuesto: React.FC<TablaItemsPresupuestoProps> = memo(
                   className="text-clinical-error hover:text-red-700 cursor-pointer"
                   aria-label="Eliminar item"
                 >
-                  ✕
+                  <X className="w-3.5 h-3.5" />
                 </Button>
               </td>
             </tr>

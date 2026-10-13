@@ -82,7 +82,7 @@ export const DatosClinicaForm: React.FC<DatosClinicaFormProps> = memo(({ datosCl
         const ok = await clinicStorageService.guardarClinicaCompleta(clinicaId, form as DatosClinicaConfig)
         if (ok) {
           markFormSaved()
-          setEstadoGuardado('Guardado en la nube ✓')
+          setEstadoGuardado('Guardado en la nube')
           if (alGuardar) alGuardar(form)
         }
       } else {
@@ -92,7 +92,7 @@ export const DatosClinicaForm: React.FC<DatosClinicaFormProps> = memo(({ datosCl
           window.dispatchEvent(new CustomEvent('clinica_actualizada', { detail: { nombre: nuevoNombre } }))
         }
         markFormSaved()
-        setEstadoGuardado('Guardado en la nube ✓')
+        setEstadoGuardado('Guardado en la nube')
         if (alGuardar) alGuardar(form)
       }
     } finally {

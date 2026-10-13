@@ -5,6 +5,8 @@ import {
   debePreguntarEmbarazo,
   validarAnticoagulantesCirugia,
 } from '../../services/validacionesCruzadasClinicas'
+import { useProximaCita } from '../../hooks/useProximaCita'
+import { useDoctorTratante } from '../../hooks/useDoctorTratante'
 import type { Paciente } from '../../schemas/pacienteSchema'
 
 interface AlertasCriticasHeaderProps {
@@ -48,6 +50,10 @@ export const AlertasCriticasHeader: React.FC<AlertasCriticasHeaderProps> = ({
     tieneCronicas ||
     debePreguntarEmbarazo(paciente)
 
+  const proximaCita = useProximaCita(paciente.id)
+  const { texto: doctorTexto } = useDoctorTratante(paciente.doctorTratanteId, paciente.doctorTratante)
+  const fechaUltima = paciente.fechaUltimaVisita || (paciente as unknown as Record<string, unknown>).ultimaVisita
+
   return (
     <div
       className="bg-surface/95 backdrop-blur-md border border-surface rounded-2xl p-4 mb-4 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-3"
@@ -56,10 +62,30 @@ export const AlertasCriticasHeader: React.FC<AlertasCriticasHeaderProps> = ({
       <div className="flex-1">
         <div className="flex items-center gap-2 flex-wrap mb-1">
           <span className="text-sm font-extrabold text-graphite-900 dark:text-graphite-50">
-            👤 {paciente.nombreCompleto || paciente.nombre || 'Paciente'} {paciente.edad ? `· ${paciente.edad} años` : ''} · RUT: {paciente.rut || 'Sin RUT'}
+            {paciente.nombreCompleto || paciente.nombre || 'Paciente'} {paciente.edad ? `· ${paciente.edad} años` : ''} · RUT: {paciente.rut || 'Sin RUT'}
           </span>
-          <span className="text-xs text-graphite-500">
-            Última visita: {String(paciente.ultimaVisita || '15 Sep 2026')} · Próxima cita: {String(paciente.proximaCita || '22 Oct 2026 10:00')} · Dr. tratante: {String(paciente.doctorTratante || 'Dr. Martínez')}
+          <span className="text-xs text-graphite-500 flex items-center gap-1.5 flex-wrap">
+            <span>
+              Última visita: {fechaUltima ? (
+                new Date(String(fechaUltima)).toLocaleDateString('es-CL')
+              ) : (
+                <span className="text-graphite-400 italic">Sin registro</span>
+              )}
+            </span>
+            <span>·</span>
+            <span>
+              Próxima cita: {proximaCita ? (
+                `${proximaCita.fecha} ${proximaCita.horaInicio || ''}`.trim()
+              ) : paciente.proximaCita ? (
+                String(paciente.proximaCita)
+              ) : (
+                <span className="text-graphite-400 italic">Sin cita</span>
+              )}
+            </span>
+            <span>·</span>
+            <span>
+              Dr. tratante: {doctorTexto || <span className="text-graphite-400 italic">Sin asignar</span>}
+            </span>
           </span>
         </div>
 
@@ -82,7 +108,7 @@ export const AlertasCriticasHeader: React.FC<AlertasCriticasHeaderProps> = ({
                 className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-[#E11D48]/15 text-[#E11D48] text-xs font-black border border-[#E11D48]/40 animate-pulse"
               >
                 <ShieldAlert className="w-4 h-4 text-[#E11D48]" />
-                ⚠️ ALERGIA SEVERA: {textoAlergias}
+                ALERGIA SEVERA: {textoAlergias}
               </span>
             )}
 
@@ -92,7 +118,7 @@ export const AlertasCriticasHeader: React.FC<AlertasCriticasHeaderProps> = ({
                 className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-[#E11D48]/15 text-[#E11D48] text-xs font-black border border-[#E11D48]/40"
               >
                 <HeartPulse className="w-4 h-4 text-[#E11D48]" />
-                ⚠️ Anticoagulantes
+                Anticoagulantes
               </span>
             )}
 
@@ -135,7 +161,7 @@ export const AlertasCriticasHeader: React.FC<AlertasCriticasHeaderProps> = ({
             className="mt-3 p-2.5 bg-purple-500/10 border border-purple-500/30 rounded-xl flex items-center justify-between gap-2 text-xs"
           >
             <span className="font-semibold text-purple-700 dark:text-purple-300">
-              ⚠️ Paciente en rango fértil (12-55 años): ¿Se encuentra actualmente en embarazo o lactancia?
+              Paciente en rango fértil (12-55 años): ¿Se encuentra actualmente en embarazo o lactancia?
             </span>
             <div className="flex items-center gap-1.5 shrink-0">
               <button

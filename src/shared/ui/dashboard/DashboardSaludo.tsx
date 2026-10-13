@@ -111,7 +111,7 @@ export const DashboardSaludo: React.FC<DashboardSaludoProps> = ({
             title="Personalizar Dashboard"
             aria-label="Personalizar Dashboard"
           >
-            ⚙️
+            
           </button>
         )}
       </div>

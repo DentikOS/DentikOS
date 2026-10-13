@@ -5,6 +5,7 @@ import { Input } from '../../../../../shared/ui/ui/Input'
 import type { Paciente } from '../../schemas/pacienteSchema'
 import { useRBAC } from '../../../../../shared/hooks/useRBAC'
 import { usePacientesStore } from '../../../../../app/stores/pacientesStore'
+import { SelectorEstadoPaciente } from './SelectorEstadoPaciente'
 
 interface DatosPacienteProps {
   paciente: Paciente
@@ -83,6 +84,14 @@ export const DatosPaciente: React.FC<DatosPacienteProps> = ({ paciente, onGuarda
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6" data-testid="datos-paciente-tab">
+      {/* Sección: Estado del paciente */}
+      <div className="bg-surface/90 border border-surface rounded-2xl p-5 shadow-xs space-y-2">
+        <h4 className="text-xs font-semibold text-graphite-600 dark:text-graphite-400">
+          Estado del paciente
+        </h4>
+        <SelectorEstadoPaciente paciente={paciente} />
+      </div>
+
       {/* Sección 1: Datos Demográficos */}
       <div className="bg-surface/90 border border-surface rounded-2xl p-5 shadow-xs">
         <div className="flex items-center gap-2 mb-4 pb-2 border-b border-surface">
@@ -205,39 +214,6 @@ export const DatosPaciente: React.FC<DatosPacienteProps> = ({ paciente, onGuarda
               <option value="otro">Otro Convenio</option>
             </select>
           </div>
-
-          <div>
-            <label className="block font-semibold mb-1 text-graphite-700 dark:text-graphite-300">
-              Estado del Paciente
-            </label>
-            <select
-              data-testid="select-estado-paciente"
-              value={formData.estado || 'activo'}
-              onChange={(e) => handleChange('estado', e.target.value)}
-              className="w-full h-10 px-3 bg-surface border border-surface rounded-xl text-xs focus:ring-1 focus:ring-primary capitalize"
-            >
-              <option value="activo">Activo</option>
-              <option value="nuevo">Nuevo</option>
-              <option value="inactivo">Inactivo</option>
-              <option value="bloqueado">Bloqueado (Solo Admin)</option>
-            </select>
-          </div>
-
-          {formData.estado === 'bloqueado' && (
-            <div className="col-span-full">
-              <label className="block font-semibold mb-1 text-rose-600">
-                Motivo de Bloqueo * (Requerido)
-              </label>
-              <Input
-                data-testid="input-motivo-bloqueo"
-                type="text"
-                required
-                value={formData.notasAdmin || ''}
-                onChange={(e) => handleChange('notasAdmin', e.target.value)}
-                placeholder="Indique el motivo por el cual se bloquea al paciente..."
-              />
-            </div>
-          )}
         </div>
       </div>
 
@@ -392,7 +368,7 @@ export const DatosPaciente: React.FC<DatosPacienteProps> = ({ paciente, onGuarda
         )}
         {estadoSincronizacion === 'guardado' && (
           <span className="flex items-center gap-1.5 text-xs text-emerald-600 font-semibold" data-testid="indicador-guardado">
-            <CheckCircle className="w-3.5 h-3.5" /> Guardado ✓
+            <CheckCircle className="w-3.5 h-3.5" /> Guardado
           </span>
         )}
         {estadoSincronizacion === 'error' && (
