@@ -3,7 +3,7 @@ import { User } from 'lucide-react'
 import { Badge } from '../../../../../shared/ui/ui/Badge'
 import { usePacientesStore } from '../../../../../app/stores/pacientesStore'
 import { AccionesFilaPaciente } from './AccionesFilaPaciente'
-import { formatearDoctorTratante } from '../../utils/formatearDoctor'
+import { useDoctorTratante } from '../../hooks/useDoctorTratante'
 import { useProximasCitasMap } from '../../hooks/useProximaCita'
 import { destacarCoincidencias } from '../../../../../shared/utils/destacarCoincidencias'
 import type { Paciente } from '../../schemas/pacienteSchema'
@@ -46,7 +46,7 @@ export const VistaLista: React.FC<VistaListaProps> = memo(({
         const proximaCitaTexto = proximaCita
           ? `${proximaCita.fecha} ${proximaCita.horaInicio || ''}`.trim()
           : (p.proximaCita ? String(p.proximaCita) : 'Sin cita próxima')
-        const { texto: docTexto, asignado: docAsignado } = formatearDoctorTratante(p.doctorTratante, p.doctorTratanteId)
+        const { texto: docTexto, asignado: docAsignado } = useDoctorTratante(p.doctorTratanteId, p.doctorTratante)
 
         return (
           <div
