@@ -119,7 +119,7 @@ export const ModalNuevoPaciente: React.FC<ModalNuevoPacienteProps> = memo(({
       <form onSubmit={handleSubmit} className="space-y-4 text-xs">
         <Input
           data-testid="paciente-nombre"
-          label={<>Nombre Completo <span className="text-[#E11D48] required-asterisk">*</span></>}
+          label="Nombre Completo"
           type="text"
           required
           value={nuevoPaciente.nombre}
@@ -130,7 +130,7 @@ export const ModalNuevoPaciente: React.FC<ModalNuevoPacienteProps> = memo(({
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block font-semibold text-gray-600 dark:text-graphite-400 uppercase mb-1">
-              RUT <span className="text-[#E11D48] required-asterisk">*</span>
+              RUT <span className="text-[#E11D48] text-clinical-error required-asterisk ml-1" aria-hidden="true">*</span>
             </label>
             <input
               data-testid="paciente-rut"
@@ -172,7 +172,7 @@ export const ModalNuevoPaciente: React.FC<ModalNuevoPacienteProps> = memo(({
           <div>
             <Input
               data-testid="paciente-telefono"
-              label={<>Teléfono <span className="text-[#E11D48] required-asterisk">*</span></>}
+              label="Teléfono"
               type="text"
               required
               value={nuevoPaciente.telefono || ''}

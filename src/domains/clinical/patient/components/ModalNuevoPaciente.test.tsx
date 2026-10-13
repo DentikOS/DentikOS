@@ -68,4 +68,20 @@ describe('ModalNuevoPaciente', () => {
       expect.objectContaining({ id: 'p-1', nombre: 'Ana María' })
     )
   })
+
+  it('muestra exactamente un asterisco rojo por cada campo obligatorio', () => {
+    render(
+      <ModalNuevoPaciente
+        alGuardar={vi.fn()}
+        alCerrar={vi.fn()}
+      />
+    )
+
+    const asteriscos = document.body.querySelectorAll('.required-asterisk')
+    expect(asteriscos).toHaveLength(3)
+    asteriscos.forEach((ast) => {
+      expect(ast.textContent).toBe('*')
+      expect(ast.className).toContain('text-[#E11D48]')
+    })
+  })
 })
