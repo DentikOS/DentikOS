@@ -53,4 +53,32 @@ describe('TopBarBreadcrumbs (BP03 §08 Feature 3)', () => {
     expect(screen.queryByTestId('topbar-saved-indicator')).not.toBeInTheDocument()
     expect(screen.queryByText(/Guardado/i)).not.toBeInTheDocument()
   })
+
+  it('limita a máximo 3 niveles visibles (BP03 §02)', () => {
+    const items = [
+      { label: 'Nivel 1' },
+      { label: 'Nivel 2' },
+      { label: 'Nivel 3' },
+      { label: 'Nivel 4' },
+    ]
+    render(<TopBarBreadcrumbs items={items} />)
+
+    expect(screen.getByText('Nivel 1')).toBeInTheDocument()
+    expect(screen.getByText('Nivel 2')).toBeInTheDocument()
+    expect(screen.getByText('Nivel 3')).toBeInTheDocument()
+    expect(screen.queryByText('Nivel 4')).not.toBeInTheDocument()
+  })
+
+  it('trunca con "…" al inicio si el texto excede 20 caracteres y mantiene title completo', () => {
+    const longName = 'María José González Rodríguez'
+    render(<TopBarBreadcrumbs items={[{ label: 'Pacientes' }, { label: longName }]} />)
+
+    // Truncado a 20 caracteres: '…' + slice(-19)
+    const expectedTruncated = '…' + longName.slice(-19)
+    expect(screen.getByText(expectedTruncated)).toBeInTheDocument()
+
+    const currentLevel = screen.getByText(expectedTruncated)
+    expect(currentLevel).toHaveAttribute('title', longName)
+    expect(currentLevel).toHaveAttribute('aria-current', 'page')
+  })
 })
