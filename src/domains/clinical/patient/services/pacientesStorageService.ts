@@ -236,6 +236,8 @@ export const actualizarPaciente = async (
   pacienteId: string | number,
   updates: Partial<Paciente>
 ): Promise<boolean> => {
+  console.log('[DEBUG] actualizarPaciente:', { pacienteId, updates })
+
   const pacientes = obtenerPacientes()
   const index = pacientes.findIndex((p) => String(p.id) === String(pacienteId))
 
@@ -245,9 +247,17 @@ export const actualizarPaciente = async (
   }
 
   const pacienteActualizado = { ...pacientes[index], ...updates }
-  pacientes[index] = pacienteActualizado
+  console.log('[DEBUG] Paciente actualizado:', {
+    id: pacienteActualizado.id,
+    estado: pacienteActualizado.estado,
+    doctorTratanteId: pacienteActualizado.doctorTratanteId,
+  })
 
-  return guardarPacientes(pacientes)
+  pacientes[index] = pacienteActualizado
+  const resultado = await guardarPacientes(pacientes)
+  console.log('[DEBUG] Resultado guardarPacientes:', resultado)
+
+  return resultado
 }
 
 export const resetCache = (): void => {

@@ -74,5 +74,14 @@ export const transformarParaSupabase = (
       resultado[claveDb] = valor
     }
   }
+
+  // Log solo de campos críticos para depuración
+  console.log('[DEBUG] transformarParaSupabase:', {
+    id: resultado.id,
+    estado: resultado.estado,
+    doctor_tratante_id: resultado.doctor_tratante_id,
+    bloqueado: resultado.bloqueado,
+  })
+
   return resultado
 }
