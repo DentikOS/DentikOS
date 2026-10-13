@@ -4,11 +4,14 @@ import { LoginScreen } from './shared/ui/LoginScreen'
 import { Sidebar } from './shared/ui/Sidebar'
 import { MobileHamburger } from './shared/ui/MobileHamburger'
 import { SidebarMobileOverlay } from './shared/ui/SidebarMobileOverlay'
-import { AtajosTecladoModal } from './shared/ui/AtajosTecladoModal'
 import { ModoPresentacionBar } from './shared/ui/ModoPresentacionBar'
 import { PreferenciasModal } from './shared/ui/PreferenciasModal'
 import { DispositivosModal } from './shared/ui/DispositivosModal'
 import { PerfilModal } from './shared/ui/PerfilModal'
+import { FocusMode } from './shared/ui/FocusMode'
+import { KeyboardShortcutsModal } from './shared/ui/KeyboardShortcutsModal'
+import { useKeyboardShortcuts } from './shared/hooks/useKeyboardShortcuts'
+import { useSupabaseRealtime } from './shared/hooks/useSupabaseRealtime'
 import { useSidebarStore } from './app/stores/useSidebarStore'
 import { useTopBarStore } from './app/stores/useTopBarStore'
 import { useAutoSurgicalMode } from './shared/hooks/useAutoSurgicalMode'
@@ -33,6 +36,7 @@ import { BootstrapClinica } from './shared/ui/BootstrapClinica'
 import { VerificandoCuenta } from './shared/ui/VerificandoCuenta'
 import { useInvitacionHash } from './shared/hooks/useInvitacionHash'
 import { useDarkMode } from './shared/hooks/useDarkMode'
+import { useThemeClass } from './shared/hooks/useThemeClass'
 import { useRestaurarPaciente } from './shared/hooks/useRestaurarPaciente'
 import { useSidebarCounters } from './shared/hooks/useSidebarCounters'
 import { useCommandPalette } from './shared/hooks/useCommandPalette'
@@ -152,6 +156,9 @@ export const App: React.FC = () => {
 
   // F7-25: Dark mode y modo quirúrgico con persistencia
   const { theme, darkMode, cycleTheme, toggleDarkMode } = useDarkMode()
+  useThemeClass()
+  useKeyboardShortcuts()
+  useSupabaseRealtime()
   const logoutStore = useSesionStore((state: unknown) => (state as SesionStoreState).logout)
 
   // F6-H: Timeout de sesión + sincronización entre pestañas + manejo de errores 401
@@ -176,7 +183,6 @@ export const App: React.FC = () => {
   const setPresentationMode = useTopBarStore((s) => s.setPresentationMode)
   const startTimer = useTopBarStore((s) => s.startTimer)
   const stopTimer = useTopBarStore((s) => s.stopTimer)
-  const [atajosOpen, setAtajosOpen] = useState(false)
   const [perfilModalOpen, setPerfilModalOpen] = useState(false)
   const [preferenciasModalOpen, setPreferenciasModalOpen] = useState(false)
   const [dispositivosModalOpen, setDispositivosModalOpen] = useState(false)
@@ -225,62 +231,6 @@ export const App: React.FC = () => {
     if (pacienteSeleccionado) startTimer()
     else stopTimer()
   }, [pacienteSeleccionado, startTimer, stopTimer])
-
-  // Blueprint 02 & 03: Atajos globales (⌘K, ⌘⇧F, ⌘⇧M, ⌘⇧D, ?, Esc)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent): void => {
-      const target = e.target as HTMLElement | null
-      const isInput =
-        target &&
-        (target.tagName === 'INPUT' ||
-          target.tagName === 'TEXTAREA' ||
-          target.tagName === 'SELECT' ||
-          (target as { isContentEditable?: boolean }).isContentEditable)
-
-      // ⌘K / Ctrl+K: CommandPalette
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault()
-        commandPalette.toggle()
-        return
-      }
-
-      // ⌘⇧F / Ctrl+Shift+F: Alternar Modo Foco
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'f') {
-        e.preventDefault()
-        toggleFocusMode()
-        return
-      }
-
-      // ⌘⇧M / Ctrl+Shift+M: Alternar Modo Presentación
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'm') {
-        e.preventDefault()
-        setPresentationMode(!presentationMode)
-        return
-      }
-
-      // ⌘⇧D / Ctrl+Shift+D: Alternar tema
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'd') {
-        e.preventDefault()
-        cycleTheme()
-        return
-      }
-
-      // Esc: Salir de Modo Foco o Presentación
-      if (e.key === 'Escape') {
-        if (presentationMode) setPresentationMode(false)
-        if (focusMode) setFocusMode(false)
-        return
-      }
-
-      // ?: Panel de atajos (cuando no se escribe en formulario)
-      if (e.key === '?' && !isInput) {
-        e.preventDefault()
-        setAtajosOpen(true)
-      }
-    }
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [commandPalette, toggleFocusMode, setFocusMode, presentationMode, setPresentationMode, cycleTheme, focusMode])
 
   // Acciones contextuales por módulo del Blueprint 03
   const accionesConfig = ACCIONES_POR_MODULO[activeSection]
@@ -369,6 +319,32 @@ export const App: React.FC = () => {
       window.removeEventListener('navegar_seccion', handleNavegarSeccion)
     }
   }, [])
+
+  // Listeners para atajos de creación (Blueprint 02 §07)
+  useEffect(() => {
+    const handleNuevaCita = () => {
+      setActiveSection('Agenda')
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('abrir_nueva_cita'))
+      }, 100)
+    }
+
+    const handleNuevoPaciente = () => {
+      setActiveSection('Pacientes')
+      setPacienteSeleccionado(null)
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('abrir_nuevo_paciente'))
+      }, 100)
+    }
+
+    window.addEventListener('nueva_cita', handleNuevaCita)
+    window.addEventListener('abrir_nuevo_paciente', handleNuevoPaciente)
+
+    return () => {
+      window.removeEventListener('nueva_cita', handleNuevaCita)
+      window.removeEventListener('abrir_nuevo_paciente', handleNuevoPaciente)
+    }
+  }, [setActiveSection, setPacienteSeleccionado])
 
   // F4-02b FIX: Detectar sesión de Supabase al cargar la app
   // y restaurar perfil. IMPORTANTE: solo restaurar si NO hay logout en progreso.
@@ -488,7 +464,6 @@ export const App: React.FC = () => {
       <ToastContainer />
       <AppDialogProvider />
       <CommandPalette {...commandPalette} />
-      <AtajosTecladoModal isOpen={atajosOpen} onClose={() => setAtajosOpen(false)} />
       <PerfilModal isOpen={perfilModalOpen} onClose={() => setPerfilModalOpen(false)} />
       <PreferenciasModal isOpen={preferenciasModalOpen} onClose={() => setPreferenciasModalOpen(false)} />
       <DispositivosModal isOpen={dispositivosModalOpen} onClose={() => setDispositivosModalOpen(false)} />
@@ -498,38 +473,36 @@ export const App: React.FC = () => {
         onSalir={() => setPresentationMode(false)}
       />
 
-      {/* Botón flotante para salir de Modo Foco */}
-      {focusMode && (
-        <button
-          type="button"
-          onClick={() => setFocusMode(false)}
-          className="fixed top-3 right-4 z-50 flex items-center gap-2 px-3 py-1.5 rounded-full bg-graphite-900/90 text-white text-xs font-semibold shadow-lg hover:bg-graphite-800 transition-all border border-surface cursor-pointer"
-          title="Salir de Modo Foco"
-          aria-label="Salir de Modo Foco"
-        >
-          <span>Salir de Modo Foco</span>
-          <kbd className="px-1.5 py-0.5 text-[10px] bg-graphite-800 rounded font-mono">Esc</kbd>
-        </button>
-      )}
+      {/* Features Premium: Modo Foco y Panel de Atajos */}
+      <FocusMode />
+      <KeyboardShortcutsModal />
 
       <div className="min-h-screen flex flex-col bg-canvas text-primary-surface font-sans">
-        <TopBar
-          userProfile={userProfile}
-          activeSection={activeSection}
-          pacienteSeleccionado={pacienteSeleccionado}
-          onLogout={handleLogout}
-          darkMode={darkMode}
-          theme={theme}
-          breadcrumbs={breadcrumbs}
-          accionPrimaria={accionPrimaria}
-          accionesSecundarias={accionesSecundarias}
-          onOpenSearch={() => commandPalette.toggle()}
-          onOpenAtajos={() => setAtajosOpen(true)}
-          onOpenPerfil={() => setPerfilModalOpen(true)}
-          onOpenPreferencias={() => setPreferenciasModalOpen(true)}
-          onOpenDispositivos={() => setDispositivosModalOpen(true)}
-          hamburger={<MobileHamburger />}
-        />
+        {focusMode ? (
+          <div className="h-12 flex items-center px-4 bg-white dark:bg-[#0F172A] border-b border-[#E2E8F0] dark:border-[#24334A] shrink-0">
+            <span className="text-sm font-medium text-[#0F172A] dark:text-[#F8FAFC]">
+              Modo Foco — {pacienteSeleccionado?.nombre || 'Ficha Clínica'}
+            </span>
+          </div>
+        ) : (
+          <TopBar
+            userProfile={userProfile}
+            activeSection={activeSection}
+            pacienteSeleccionado={pacienteSeleccionado}
+            onLogout={handleLogout}
+            darkMode={darkMode}
+            theme={theme}
+            breadcrumbs={breadcrumbs}
+            accionPrimaria={accionPrimaria}
+            accionesSecundarias={accionesSecundarias}
+            onOpenSearch={() => commandPalette.toggle()}
+            onOpenAtajos={() => window.dispatchEvent(new CustomEvent('open-shortcuts-modal'))}
+            onOpenPerfil={() => setPerfilModalOpen(true)}
+            onOpenPreferencias={() => setPreferenciasModalOpen(true)}
+            onOpenDispositivos={() => setDispositivosModalOpen(true)}
+            hamburger={<MobileHamburger />}
+          />
+        )}
         <div className="flex flex-1">
           <Sidebar userProfile={userProfile} activeSection={activeSection} setActiveSection={setActiveSection} onLogout={handleLogout} counters={sidebarCounters} />
           <SidebarMobileOverlay userProfile={userProfile} activeSection={activeSection} setActiveSection={setActiveSection} onLogout={handleLogout} counters={sidebarCounters} />
