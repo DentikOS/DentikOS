@@ -6,7 +6,8 @@ import { BotonLlamarPopover } from './BotonLlamarPopover'
 import { AccionesFilaPaciente } from './AccionesFilaPaciente'
 import { SelectorColumnasTabla } from './SelectorColumnasTabla'
 import { ejecutarClickToEmail } from '../../utils/clickToEmail'
-import { useDoctorTratante } from '../../hooks/useDoctorTratante'
+import { useDoctoresClinica } from '../../hooks/useDoctoresClinica'
+import { formatearDoctorTratante } from '../../utils/formatearDoctor'
 import { useProximasCitasMap } from '../../hooks/useProximaCita'
 import { destacarCoincidencias } from '../../../../../shared/utils/destacarCoincidencias'
 import type { Paciente } from '../../schemas/pacienteSchema'
@@ -51,6 +52,7 @@ export const VistaTabla: React.FC<VistaTablaProps> = memo(({
   const seleccionarTodos = usePacientesStore((s) => s.seleccionarTodos)
   const limpiarSeleccion = usePacientesStore((s) => s.limpiarSeleccion)
   const proximasCitasMap = useProximasCitasMap()
+  const { doctores } = useDoctoresClinica()
 
   const todosSeleccionados =
     pacientes.length > 0 && pacientes.every((p) => seleccion.includes(String(p.id)))
@@ -124,7 +126,7 @@ export const VistaTabla: React.FC<VistaTablaProps> = memo(({
                 ? `${proximaCitaObj.fecha} ${proximaCitaObj.horaInicio || ''}`.trim()
                 : (p.proximaCita ? String(p.proximaCita) : '—')
               const tieneAlergias = Boolean(p.alergias || p.alergiasSeveras)
-              const { texto: docTexto, asignado: docAsignado } = useDoctorTratante(p.doctorTratanteId, p.doctorTratante)
+              const { texto: docTexto, asignado: docAsignado } = formatearDoctorTratante(p.doctorTratante, p.doctorTratanteId, doctores)
 
               return (
                 <tr

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { listarMiembros } from '../../../../infrastructure/auth/authService'
 import { useSesionStore, type UserProfileSession } from '../../../../app/stores/sesionStore'
 import { isSupabaseConfigured } from '../../../../infrastructure/supabase/supabaseClient'
@@ -34,7 +34,10 @@ export const useDoctoresClinica = () => {
   const [error, setError] = useState<string | null>(null)
 
   const cargarDoctores = useCallback(async () => {
+    console.log('[DEBUG] useDoctoresClinica: cargando doctores')
+
     if (!isSupabaseConfigured()) {
+      console.log('[DEBUG] Supabase no configurado, usando datos locales')
       setDoctores(obtenerDoctoresLocales(userProfile, clinicaActual))
       setLoading(false)
       return
@@ -43,6 +46,11 @@ export const useDoctoresClinica = () => {
     try {
       setLoading(true)
       const res = await listarMiembros()
+      console.log('[DEBUG] listarMiembros respuesta:', {
+        success: res.success,
+        total: res.miembros?.length || 0,
+      })
+
       if (res.success && Array.isArray(res.miembros) && res.miembros.length > 0) {
         const docs: DoctorClinica[] = res.miembros
           .filter((m) => m.activo !== false && (m.rol === 'dentista' || m.rol === 'admin'))
@@ -51,21 +59,43 @@ export const useDoctoresClinica = () => {
             nombre: m.nombre || m.email,
             rol: m.rol,
           }))
+
+        console.log('[DEBUG] Doctores cargados:', {
+          total: docs.length,
+          primerDoctor: docs[0]
+            ? {
+                id: docs[0].id,
+                nombre: docs[0].nombre,
+              }
+            : null,
+        })
+
         setDoctores(docs)
       } else {
+        console.log('[DEBUG] Sin miembros, usando datos locales')
         setDoctores(obtenerDoctoresLocales(userProfile, clinicaActual))
       }
+      setLoading(false)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Error al cargar miembros')
+      console.error('[DEBUG] Error cargando doctores:', err)
+      setError(err instanceof Error ? err.message : 'Error desconocido')
       setDoctores(obtenerDoctoresLocales(userProfile, clinicaActual))
-    } finally {
       setLoading(false)
     }
-  }, [clinicaActual, userProfile])
+  }, [userProfile, clinicaActual])
+
+  const clinicaId = (clinicaActual as unknown as { id?: string })?.id ?? clinicaActual
 
   useEffect(() => {
     cargarDoctores()
-  }, [cargarDoctores])
+  }, [userProfile?.id, clinicaId, cargarDoctores])
 
-  return { doctores, loading, error, refrescar: cargarDoctores }
+  return {
+    doctores,
+    loading,
+    error,
+    cargarDoctores,
+    refrescar: cargarDoctores,
+  }
 }
+
