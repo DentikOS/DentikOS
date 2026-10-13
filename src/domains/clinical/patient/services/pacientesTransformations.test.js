@@ -80,12 +80,13 @@ describe('pacientesTransformations', () => {
     expect(transformadoDeVuelta.etiquetas).toEqual(['vip', 'ortodoncia'])
   })
 
-  it('excluye doctorTratante y diasSinVisita (campos derivados) del payload a Supabase', () => {
+  it('excluye doctorTratante, diasSinVisita y sincronizado del payload a Supabase', () => {
     const pacienteJs = {
       id: 'uuid-1',
       doctorTratanteId: 'doc-uuid-123',
       doctorTratante: 'Dr. Roberto Gómez',
-      diasSinVisita: 45
+      diasSinVisita: 45,
+      sincronizado: true
     }
     const db = transformarParaSupabase(pacienteJs)
     expect(db.doctor_tratante_id).toBe('doc-uuid-123')
@@ -93,5 +94,6 @@ describe('pacientesTransformations', () => {
     expect(db.doctor_tratante).toBeUndefined()
     expect(db.diasSinVisita).toBeUndefined()
     expect(db.dias_sin_visita).toBeUndefined()
+    expect(db.sincronizado).toBeUndefined()
   })
 })

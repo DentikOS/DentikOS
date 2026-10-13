@@ -62,7 +62,8 @@ export const transformarParaSupabase = (
       claveJs === 'updatedAt' ||
       claveJs === 'userId' ||
       claveJs === 'doctorTratante' ||
-      claveJs === 'diasSinVisita'
+      claveJs === 'diasSinVisita' ||
+      claveJs === 'sincronizado'
     ) {
       continue
     }
