@@ -51,12 +51,27 @@ export const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ compact = false, c
 
   const handleDragEnd = (_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     setIsDragging(false)
-    const dragDistance = info.offset.x
-    const threshold = 26.5
-    let newIndex = currentIndex
-    if (dragDistance > threshold && currentIndex < THEMES.length - 1) newIndex = currentIndex + 1
-    else if (dragDistance < -threshold && currentIndex > 0) newIndex = currentIndex - 1
-    switchTo(THEMES[newIndex])
+
+    // Calcular posición X final del círculo (posición inicial + desplazamiento)
+    const currentX = THUMB_POSITIONS[currentIndex]
+    const finalX = currentX + info.offset.x
+
+    // Encontrar la posición más cercana a donde soltó el usuario
+    let closestIndex = 0
+    let closestDistance = Infinity
+
+    THUMB_POSITIONS.forEach((pos, i) => {
+      const distance = Math.abs(finalX - pos)
+      if (distance < closestDistance) {
+        closestDistance = distance
+        closestIndex = i
+      }
+    })
+
+    // Solo cambiar si realmente cambió de posición
+    if (closestIndex !== currentIndex) {
+      switchTo(THEMES[closestIndex])
+    }
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

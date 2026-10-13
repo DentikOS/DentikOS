@@ -49,4 +49,43 @@ describe('ThemeSwitcher (Blueprint 02 §04)', () => {
     fireEvent.click(compactBtn)
     expect(useSidebarStore.getState().theme).toBe('surgical')
   })
+
+  it('permite cambiar directamente de light a dark en un solo drag', () => {
+    render(<ThemeSwitcher compact={false} />)
+    const slider = screen.getByTestId('theme-switcher-slider')
+
+    slider.getBoundingClientRect = () => ({
+      left: 0,
+      width: 160,
+      top: 0,
+      bottom: 32,
+      height: 32,
+      right: 160,
+      x: 0,
+      y: 0,
+      toJSON: () => {},
+    })
+
+    // Drag directo hacia posición dark (> 66% del track)
+    fireEvent.pointerUp(slider, { clientX: 140 })
+    expect(useSidebarStore.getState().theme).toBe('dark')
+
+    // Drag directo desde dark de regreso a light (< 33% del track)
+    fireEvent.pointerUp(slider, { clientX: 20 })
+    expect(useSidebarStore.getState().theme).toBe('light')
+  })
+
+  it('soporta flechas de teclado para cambiar tema', () => {
+    render(<ThemeSwitcher compact={false} />)
+    const slider = screen.getByTestId('theme-switcher-slider')
+
+    fireEvent.keyDown(slider, { key: 'ArrowRight' })
+    expect(useSidebarStore.getState().theme).toBe('surgical')
+
+    fireEvent.keyDown(slider, { key: 'ArrowRight' })
+    expect(useSidebarStore.getState().theme).toBe('dark')
+
+    fireEvent.keyDown(slider, { key: 'ArrowLeft' })
+    expect(useSidebarStore.getState().theme).toBe('surgical')
+  })
 })
