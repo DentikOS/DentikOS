@@ -78,21 +78,24 @@ export const pacienteSchema = z.object({
   embarazo: z.boolean().optional(),
   lactancia: z.boolean().optional(),
   anticoagulantes: z.boolean().optional(),
-  estado: z.enum(['activo', 'inactivo', 'bloqueado', 'nuevo', 'desactivado']).optional(),
-  fechaCreacion: z.string().optional(),
-  fechaUltimaVisita: z.string().optional(),
-  diasSinVisita: z.number().optional(),
+  estado: z.enum(['activo', 'inactivo', 'bloqueado', 'nuevo', 'desactivado']).nullable().optional(),
+  fechaCreacion: z.string().nullable().optional(),
+  fechaUltimaVisita: z.string().nullable().optional(),
+  diasSinVisita: z.number().nullable().optional(),
   tutorLegal: z.object({
     nombre: z.string(),
     rut: z.string(),
     relacion: z.string(),
     telefono: z.string()
-  }).optional(),
-  doctorTratanteId: z.string().optional(),
-  etiquetas: z.array(z.string()).optional(),
-  notasAdmin: z.string().optional(),
-  clinicaId: z.string().optional(),
-  version: z.number().optional()
+  }).nullable().optional(),
+  doctorTratanteId: z.string().nullable().optional(),
+  doctorTratante: z.string().nullable().optional(),
+  bloqueado: z.boolean().nullable().optional(),
+  motivoBloqueo: z.string().nullable().optional(),
+  etiquetas: z.array(z.string()).nullable().optional(),
+  notasAdmin: z.string().nullable().optional(),
+  clinicaId: z.string().nullable().optional(),
+  version: z.number().nullable().optional()
 }).passthrough()
 
 export type Paciente = z.infer<typeof pacienteSchema>
