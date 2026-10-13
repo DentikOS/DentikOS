@@ -5,6 +5,7 @@ import { Input } from '../../../../../shared/ui/ui/Input'
 import type { Paciente } from '../../schemas/pacienteSchema'
 import { useRBAC } from '../../../../../shared/hooks/useRBAC'
 import { usePacientesStore } from '../../../../../app/stores/pacientesStore'
+import { SelectorEstadoPaciente } from './SelectorEstadoPaciente'
 
 interface DatosPacienteProps {
   paciente: Paciente
@@ -83,6 +84,14 @@ export const DatosPaciente: React.FC<DatosPacienteProps> = ({ paciente, onGuarda
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6" data-testid="datos-paciente-tab">
+      {/* Sección: Estado del paciente */}
+      <div className="bg-surface/90 border border-surface rounded-2xl p-5 shadow-xs space-y-2">
+        <h4 className="text-xs font-semibold text-graphite-600 dark:text-graphite-400">
+          Estado del paciente
+        </h4>
+        <SelectorEstadoPaciente paciente={paciente} />
+      </div>
+
       {/* Sección 1: Datos Demográficos */}
       <div className="bg-surface/90 border border-surface rounded-2xl p-5 shadow-xs">
         <div className="flex items-center gap-2 mb-4 pb-2 border-b border-surface">
