@@ -37,6 +37,7 @@ import {
 } from './agendaTransformations'
 import { useSesionStore } from '../../../../app/stores/sesionStore'
 import { getClinicaActivaSync } from '../../../../infrastructure/auth/authService'
+import { tenantCache } from '../../../../infrastructure/tenant/tenantCache'
 
 const log = createLogger('agendaStorageService')
 
@@ -387,13 +388,17 @@ const obtenerCitasDesdeSupabase = async (): Promise<Cita[]> => {
       sesionStore.userProfile?.clinicaId ||
       (sesionStore as unknown as Record<string, unknown>).clinicaId ||
       ((sesionStore as unknown as Record<string, unknown>).clinicaActiva as { id?: string } | undefined)?.id ||
-      getClinicaActivaSync()
+      getClinicaActivaSync() ||
+      tenantCache.getClinicaId?.()
     ) as string | null
     console.log('[DEBUG-CITAS] clinicaId:', clinicaId)
 
     if (!clinicaId) {
       console.error('[DEBUG-CITAS] No hay clinicaId en sesión')
-      return obtenerCitas()
+      // F7-36: Sin clinicaId válido, retornar array vacío.
+      // NO hacer fallback a localStorage porque puede contener datos
+      // de otra clínica (violación de aislamiento multi-tenant).
+      return []
     }
 
     console.log('[DEBUG-CITAS] Ejecutando SELECT en Supabase para clinicaId:', clinicaId)
@@ -417,7 +422,10 @@ const obtenerCitasDesdeSupabase = async (): Promise<Cita[]> => {
     if (error) {
       console.error('[DEBUG-CITAS] Error SELECT:', error)
       log.error('Error obteniendo citas de Supabase:', error)
-      return obtenerCitas()
+      // En caso de error de Supabase, retornar array vacío para evitar
+      // contaminación cross-tenant. El fallback a localStorage solo está
+      // permitido cuando USE_SUPABASE es false.
+      return []
     }
 
     console.log('[DEBUG-CITAS] SELECT exitoso, rows:', data?.length || 0)
@@ -435,7 +443,7 @@ const obtenerCitasDesdeSupabase = async (): Promise<Cita[]> => {
   } catch (error) {
     console.error('[DEBUG-CITAS] Excepción:', error)
     log.error('Excepción obteniendo citas de Supabase:', error)
-    return obtenerCitas()
+    return []
   }
 }
 

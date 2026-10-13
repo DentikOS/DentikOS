@@ -34,6 +34,7 @@ export interface TenantCacheInstance {
   invalidarClinica: (clinicaId: string) => number
   invalidarTodas: () => number
   listarClavesTenant: () => string[]
+  getClinicaId?: () => string | null
 }
 
 /**
@@ -192,7 +193,8 @@ export const createTenantCache = (getClinicaId: () => string | null): TenantCach
     eliminarTenant,
     invalidarClinica,
     invalidarTodas,
-    listarClavesTenant
+    listarClavesTenant,
+    getClinicaId
   }
 }
 
