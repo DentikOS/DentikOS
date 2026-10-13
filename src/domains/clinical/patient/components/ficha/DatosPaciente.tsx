@@ -214,39 +214,6 @@ export const DatosPaciente: React.FC<DatosPacienteProps> = ({ paciente, onGuarda
               <option value="otro">Otro Convenio</option>
             </select>
           </div>
-
-          <div>
-            <label className="block font-semibold mb-1 text-graphite-700 dark:text-graphite-300">
-              Estado del Paciente
-            </label>
-            <select
-              data-testid="select-estado-paciente"
-              value={formData.estado || 'activo'}
-              onChange={(e) => handleChange('estado', e.target.value)}
-              className="w-full h-10 px-3 bg-surface border border-surface rounded-xl text-xs focus:ring-1 focus:ring-primary capitalize"
-            >
-              <option value="activo">Activo</option>
-              <option value="nuevo">Nuevo</option>
-              <option value="inactivo">Inactivo</option>
-              <option value="bloqueado">Bloqueado (Solo Admin)</option>
-            </select>
-          </div>
-
-          {formData.estado === 'bloqueado' && (
-            <div className="col-span-full">
-              <label className="block font-semibold mb-1 text-rose-600">
-                Motivo de Bloqueo * (Requerido)
-              </label>
-              <Input
-                data-testid="input-motivo-bloqueo"
-                type="text"
-                required
-                value={formData.notasAdmin || ''}
-                onChange={(e) => handleChange('notasAdmin', e.target.value)}
-                placeholder="Indique el motivo por el cual se bloquea al paciente..."
-              />
-            </div>
-          )}
         </div>
       </div>
 
