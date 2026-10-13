@@ -80,7 +80,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center pt-[14vh] px-4">
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-[20vh] px-4">
           {/* Backdrop blur [12px] */}
           <motion.div
             initial={{ opacity: 0 }}
@@ -98,7 +98,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.95, opacity: 0, y: -10 }}
             transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-            className="relative w-[560px] max-w-[92vw] max-h-[480px] bg-white dark:bg-graphite-950 surgical:bg-graphite-200 rounded-2xl shadow-2xl border border-surface flex flex-col overflow-hidden"
+            className="relative w-[560px] max-w-[90vw] sm:max-w-[92vw] max-h-[70vh] sm:max-h-[420px] bg-white dark:bg-graphite-950 surgical:bg-graphite-200 rounded-2xl shadow-2xl border border-surface flex flex-col overflow-hidden"
             role="dialog"
             aria-modal="true"
             aria-label="Paleta de comandos"
