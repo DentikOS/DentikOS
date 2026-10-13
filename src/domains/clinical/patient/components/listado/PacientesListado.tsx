@@ -14,6 +14,8 @@ import { useRBAC } from '../../../../../shared/hooks/useRBAC'
 import { PERMISOS } from '../../../../../constants/rbacConstants'
 import { notificationService } from '../../../../../infrastructure/notification/notificationService'
 import { timelineService } from '../../services/timelineService'
+import { pacientesStorageService } from '../../services/pacientesStorageService'
+import { useSesionStore } from '../../../../../app/stores/sesionStore'
 import type { Paciente } from '../../schemas/pacienteSchema'
 
 import { PacientesKPIs } from './PacientesKPIs'
@@ -45,6 +47,7 @@ export const PacientesListado: React.FC<PacientesListadoProps> = memo(({
   const filtros = usePacientesStore((s) => s.filtros)
   const busqueda = usePacientesStore((s) => s.busquedaActual)
   const setBusqueda = usePacientesStore((s) => s.setBusquedaActual)
+  const userProfile = useSesionStore((s) => s.userProfile)
   const [mostrarFiltros, setMostrarFiltros] = useState<boolean>(false)
   const [mostrarModalNuevo, setMostrarModalNuevo] = useState<boolean>(false)
   const [mostrarPapelera, setMostrarPapelera] = useState<boolean>(false)
@@ -135,11 +138,15 @@ export const PacientesListado: React.FC<PacientesListadoProps> = memo(({
     setPacienteAccion({ paciente: p, modo: 'desactivar' })
   }
 
-  const handleConfirmarAccion = (motivo: string) => {
+  const handleConfirmarAccion = async (motivo: string) => {
     if (!pacienteAccion) return
-    const pid = pacienteAccion.paciente.id
+    const { paciente, modo } = pacienteAccion
+    const pid = paciente.id
+    const nuevoEstado = modo === 'desactivar' ? 'desactivado' : 'bloqueado'
+    const estadoAnterior = paciente.estado || 'activo'
+    const usuarioNombre = String(userProfile?.nombreCompleto || userProfile?.nombre || 'Admin')
 
-    if (pacienteAccion.modo === 'desactivar') {
+    if (modo === 'desactivar') {
       setPacientes((prev) =>
         prev.map((p) =>
           String(p.id) === String(pid)
@@ -147,11 +154,13 @@ export const PacientesListado: React.FC<PacientesListadoProps> = memo(({
             : p
         )
       )
-      timelineService.agregarEvento(pid, {
-        id: crypto.randomUUID(),
+      await pacientesStorageService.actualizarPaciente(pid, { estado: 'desactivado' })
+      await timelineService.agregarEvento(pid, {
+        tipo: 'cambio_estado',
         fecha: new Date().toISOString(),
-        tipo: 'admin',
-        titulo: `Admin desactivó paciente · Motivo: ${motivo}`,
+        titulo: `Paciente desactivado por ${usuarioNombre}`,
+        detalles: `Estado anterior: ${estadoAnterior} · Motivo: ${motivo}`,
+        usuario: usuarioNombre,
       })
       handleEliminarConPapelera(pid)
       notificationService.mostrar('Paciente desactivado correctamente', { tipo: 'success' })
@@ -159,19 +168,26 @@ export const PacientesListado: React.FC<PacientesListadoProps> = memo(({
       setPacientes((prev) =>
         prev.map((p) =>
           String(p.id) === String(pid)
-            ? { ...p, estado: 'bloqueado', bloqueado: true, motivoBloqueo: motivo, bloqueadoPor: 'Admin', bloqueadoAt: new Date().toISOString() }
+            ? { ...p, estado: 'bloqueado', bloqueado: true, motivoBloqueo: motivo, bloqueadoPor: usuarioNombre, bloqueadoAt: new Date().toISOString() }
             : p
         )
       )
-      timelineService.agregarEvento(pid, {
-        id: crypto.randomUUID(),
+      await pacientesStorageService.actualizarPaciente(pid, {
+        estado: 'bloqueado',
+        bloqueado: true,
+        motivoBloqueo: motivo,
+      })
+      await timelineService.agregarEvento(pid, {
+        tipo: 'cambio_estado',
         fecha: new Date().toISOString(),
-        tipo: 'admin',
-        titulo: `Admin bloqueó paciente · Motivo: ${motivo}`,
+        titulo: `Paciente bloqueado por ${usuarioNombre}`,
+        detalles: `Estado anterior: ${estadoAnterior} · Motivo: ${motivo}`,
+        usuario: usuarioNombre,
       })
       notificationService.mostrar('Paciente bloqueado para nuevas citas', { tipo: 'warning' })
     }
     setPacienteAccion(null)
+    await refrescar()
   }
 
   const handleRestaurar = async (pacienteId: string | number) => {

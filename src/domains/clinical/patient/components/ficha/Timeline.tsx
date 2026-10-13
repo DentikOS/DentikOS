@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react'
-import { Clock, FileText, CreditCard, ShieldCheck, Pill, Calendar, Activity } from 'lucide-react'
+import { Clock, FileText, CreditCard, ShieldCheck, Pill, Calendar, Activity, ShieldAlert } from 'lucide-react'
 import { timelineService, type EventoTimeline } from '../../services/timelineService'
 import { Badge } from '../../../../../shared/ui/ui/Badge'
 
@@ -7,22 +7,26 @@ interface TimelineProps {
   pacienteId: string | number
 }
 
-const ICONOS_TIPO: Record<EventoTimeline['tipo'], React.ElementType> = {
+const ICONOS_TIPO: Record<string, React.ElementType> = {
   evolucion: FileText,
   pago: CreditCard,
   consentimiento: ShieldCheck,
   receta: Pill,
   cita: Calendar,
   presupuesto: Activity,
+  cambio_estado: ShieldAlert,
+  admin: ShieldAlert,
 }
 
-const BADGES_TIPO: Record<EventoTimeline['tipo'], { label: string; variant: 'success' | 'warning' | 'info' | 'neutral' }> = {
+const BADGES_TIPO: Record<string, { label: string; variant: 'success' | 'warning' | 'info' | 'neutral' }> = {
   evolucion: { label: 'Evolución', variant: 'info' },
   pago: { label: 'Pago / Abono', variant: 'success' },
   consentimiento: { label: 'Consentimiento', variant: 'warning' },
   receta: { label: 'Receta', variant: 'info' },
   cita: { label: 'Cita Clínica', variant: 'neutral' },
   presupuesto: { label: 'Presupuesto', variant: 'warning' },
+  cambio_estado: { label: 'Estado', variant: 'warning' },
+  admin: { label: 'Administrativo', variant: 'warning' },
 }
 
 export const Timeline: React.FC<TimelineProps> = ({ pacienteId }) => {
@@ -71,8 +75,8 @@ export const Timeline: React.FC<TimelineProps> = ({ pacienteId }) => {
                   <span className="text-[11px] font-mono text-graphite-400">{fechaFormateada}</span>
                 </div>
 
-                {evento.profesional && (
-                  <p className="text-xs text-graphite-500 font-medium">Profesional: {evento.profesional}</p>
+                {(evento.profesional || evento.usuario) && (
+                  <p className="text-xs text-graphite-500 font-medium">Profesional: {evento.profesional || evento.usuario}</p>
                 )}
 
                 {evento.detalles && (
