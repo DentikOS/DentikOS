@@ -48,4 +48,35 @@ describe('pacientesTransformations', () => {
     expect(transformarParaSupabase(null)).toBeNull()
     expect(transformarParaSupabase(undefined)).toBeNull()
   })
+
+  it('mapea correctamente columnas BP06 bidireccionalmente', () => {
+    const pacienteJs = {
+      id: 'uuid-1',
+      doctorTratanteId: 'doc-uuid-123',
+      motivoBloqueo: 'Mora prolongada',
+      fechaUltimaVisita: '2026-05-10T10:00:00Z',
+      fechaCreacion: '2026-05-01T08:00:00Z',
+      estado: 'activo',
+      bloqueado: false,
+      etiquetas: ['vip', 'ortodoncia']
+    }
+
+    const db = transformarParaSupabase(pacienteJs)
+    expect(db.doctor_tratante_id).toBe('doc-uuid-123')
+    expect(db.motivo_bloqueo).toBe('Mora prolongada')
+    expect(db.fecha_ultima_visita).toBe('2026-05-10T10:00:00Z')
+    expect(db.fecha_creacion).toBe('2026-05-01T08:00:00Z')
+    expect(db.estado).toBe('activo')
+    expect(db.bloqueado).toBe(false)
+    expect(db.etiquetas).toEqual(['vip', 'ortodoncia'])
+
+    const transformadoDeVuelta = transformarDesdeSupabase(db)
+    expect(transformadoDeVuelta.doctorTratanteId).toBe('doc-uuid-123')
+    expect(transformadoDeVuelta.motivoBloqueo).toBe('Mora prolongada')
+    expect(transformadoDeVuelta.fechaUltimaVisita).toBe('2026-05-10T10:00:00Z')
+    expect(transformadoDeVuelta.fechaCreacion).toBe('2026-05-01T08:00:00Z')
+    expect(transformadoDeVuelta.estado).toBe('activo')
+    expect(transformadoDeVuelta.bloqueado).toBe(false)
+    expect(transformadoDeVuelta.etiquetas).toEqual(['vip', 'ortodoncia'])
+  })
 })

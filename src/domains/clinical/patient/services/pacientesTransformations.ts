@@ -19,7 +19,11 @@ export const SNAKE_TO_CAMEL_MAP: Readonly<Record<string, string>> = {
   fecha_ingreso: 'fechaIngreso',
   user_id: 'userId',
   created_at: 'createdAt',
-  updated_at: 'updatedAt'
+  updated_at: 'updatedAt',
+  doctor_tratante_id: 'doctorTratanteId',
+  motivo_bloqueo: 'motivoBloqueo',
+  fecha_ultima_visita: 'fechaUltimaVisita',
+  fecha_creacion: 'fechaCreacion'
 }
 
 /**
