@@ -52,29 +52,38 @@ export const useCommandPalette = ({
 }: UseCommandPaletteOptions) => {
   const [isOpen, setIsOpen] = useState(false)
   const [query, setQuery] = useState('')
+  const [debouncedQuery, setDebouncedQuery] = useState('')
   const [selectedIndex, setSelectedIndex] = useState(0)
+
+  // Debounce de 150ms para fuzzy matching (Blueprint 03 §03)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(query)
+    }, 150)
+    return () => clearTimeout(timer)
+  }, [query])
 
   const pacientes = usePacientesStore((s) => s.pacientes)
   const { puede } = useRBAC()
   const { setTheme } = useDarkMode()
 
   const pacientesItems = useMemo(() =>
-    buildPacienteResults(pacientes || [], query, onNavigate, onSelectPaciente),
-    [pacientes, query, onNavigate, onSelectPaciente]
+    buildPacienteResults(pacientes || [], debouncedQuery, onNavigate, onSelectPaciente),
+    [pacientes, debouncedQuery, onNavigate, onSelectPaciente]
   )
 
   const citasItems = useMemo(() => {
     let citas: Array<{ id?: string | number; pacienteNombre?: string; motivo?: string; fecha?: string; hora?: string; horaInicio?: string }> = []
     try { citas = agendaStorageService.obtenerCitas() || [] } catch { citas = [] }
-    return buildCitaResults(citas, query, onNavigate, onOpenCita)
-  }, [query, onNavigate, onOpenCita])
+    return buildCitaResults(citas, debouncedQuery, onNavigate, onOpenCita)
+  }, [debouncedQuery, onNavigate, onOpenCita])
 
   const modulosItems = useMemo(() => {
     const permitidos = SECCIONES_SIDEBAR.flatMap((s) => s.items).filter(
       (item) => !item.permisoRequerido || puede(item.permisoRequerido)
     )
-    return buildModuloResults(permitidos, query, onNavigate)
-  }, [puede, query, onNavigate])
+    return buildModuloResults(permitidos, debouncedQuery, onNavigate)
+  }, [puede, debouncedQuery, onNavigate])
 
   const accionesItems = useMemo(() =>
     buildAccionResults(ACCIONES_BASE, onEjecutarAccion, onNavigate),
@@ -97,8 +106,18 @@ export const useCommandPalette = ({
 
   useEffect(() => { setSelectedIndex(0) }, [allResults.length])
 
-  const open = useCallback(() => { playSound('openPalette'); setIsOpen(true); setQuery('') }, [])
-  const close = useCallback(() => { setIsOpen(false); setQuery('') }, [])
+  const open = useCallback(() => {
+    playSound('openPalette')
+    setIsOpen(true)
+    setQuery('')
+    setDebouncedQuery('')
+  }, [])
+
+  const close = useCallback(() => {
+    setIsOpen(false)
+    setQuery('')
+    setDebouncedQuery('')
+  }, [])
   const toggle = useCallback(() => { if (isOpen) close(); else open() }, [isOpen, open, close])
 
   const handleSelect = useCallback((r: PaletteResult) => {
