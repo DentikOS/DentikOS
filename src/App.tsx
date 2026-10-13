@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, Suspense, lazy } from 'react'
+import { motion } from 'framer-motion'
 import { LoginScreen } from './shared/ui/LoginScreen'
 import { Sidebar } from './shared/ui/Sidebar'
 import { MobileHamburger } from './shared/ui/MobileHamburger'
@@ -535,103 +536,114 @@ export const App: React.FC = () => {
 
           <main className="flex-1 p-8 print:p-0 overflow-x-hidden">
             <Suspense fallback={<CargandoModulo />}>
-              {activeSection === 'Dashboard' && (
-                <Dashboard
-                  setPacienteSeleccionado={setPacienteSeleccionado}
-                  setActiveSection={setActiveSection}
-                />
-              )}
-
-              {activeSection === 'Agenda' && (
-                <ErrorBoundary modulo="agenda" onReset={() => setActiveSection('Dashboard')}>
-                  <Agenda
-                    alSeleccionarPaciente={(paciente: Paciente) => {
-                      setPacienteSeleccionado(paciente)
-                      setActiveSection('Pacientes')
-                    }}
-                    citaSeleccionadaId={citaSeleccionadaId}
-                  />
-                </ErrorBoundary>
-              )}
-
-              {(activeSection === 'Urgencias y GES' || activeSection === 'Urgencias GES') && (
-                <UrgenciasGesModulo />
-              )}
-
-              {activeSection === 'Esterilización' && (
-                <EsterilizacionModulo />
-              )}
-
-              {activeSection === 'Laboratorio' && (
-                <LaboratorioModulo />
-              )}
-
-              {activeSection === 'Prestaciones' && (
-                <PrestacionesModulo />
-              )}
-
-              {activeSection === 'Presupuestos' && (
-                <ErrorBoundary modulo="presupuestos" onReset={() => setActiveSection('Dashboard')}>
-                  <Presupuestos
+              <motion.div
+                key={activeSection}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{
+                  duration: 0.35, // Token "Fluido"
+                  ease: [0.16, 1, 0.3, 1],
+                }}
+              >
+                {activeSection === 'Dashboard' && (
+                  <Dashboard
                     setPacienteSeleccionado={setPacienteSeleccionado}
                     setActiveSection={setActiveSection}
                   />
-                </ErrorBoundary>
-              )}
+                )}
 
-              {activeSection === 'Pagos' && (
-                <PagosModulo />
-              )}
-
-              {activeSection === 'Finanzas' && (
-                <FinanzasModulo />
-              )}
-
-              {activeSection === 'Comunicaciones' && (
-                <ComunicacionesModulo />
-              )}
-
-              {activeSection === 'Inventario' && <InventarioModulo />}
-
-              {activeSection === 'Reportes' && (
-                <ReportesModulo />
-              )}
-
-              {(activeSection === 'Administración DentikOS' || activeSection === 'Miembros' || activeSection === 'Configuración') && (
-                <AdministracionDentikOSModulo userProfile={userProfile} />
-              )}
-
-              {activeSection === 'Vademécum' && <AdminVademecumModulo />}
-
-              {activeSection === 'Pacientes' && (
-                <ErrorBoundary modulo="pacientes" onReset={() => { setPacienteSeleccionado(null); usePacientesStore.getState().cerrarFicha(); setActiveSection('Dashboard') }}>
-                  {(pacienteSeleccionado || pacienteActivo) ? (
-                    <FichaClinica
-                      paciente={(pacienteSeleccionado || pacienteActivo)!}
-                      pacienteId={(pacienteSeleccionado || pacienteActivo)?.id}
-                      alActualizarPaciente={handleActualizarPaciente}
-                      alEliminarPaciente={handleEliminarPaciente}
-                      alVolver={() => {
-                        setPacienteSeleccionado(null)
-                        usePacientesStore.getState().cerrarFicha()
+                {activeSection === 'Agenda' && (
+                  <ErrorBoundary modulo="agenda" onReset={() => setActiveSection('Dashboard')}>
+                    <Agenda
+                      alSeleccionarPaciente={(paciente: Paciente) => {
+                        setPacienteSeleccionado(paciente)
+                        setActiveSection('Pacientes')
                       }}
-                      navegacionClinica={navegacionClinica} /* F7-26 */
+                      citaSeleccionadaId={citaSeleccionadaId}
                     />
-                  ) : (
-                    <PacientesListado
-                      alSeleccionarPaciente={(p) => {
-                        setPacienteSeleccionado(p)
-                        usePacientesStore.getState().setPacienteActivo(p)
-                      }}
-                      alEliminarPaciente={handleEliminarPaciente}
-                      alPacienteCreado={(p) => {
-                        setPacienteSeleccionado(p as Paciente)
-                        usePacientesStore.getState().setPacienteActivo(p as Paciente)
-                      }}
+                  </ErrorBoundary>
+                )}
+
+                {(activeSection === 'Urgencias y GES' || activeSection === 'Urgencias GES') && (
+                  <UrgenciasGesModulo />
+                )}
+
+                {activeSection === 'Esterilización' && (
+                  <EsterilizacionModulo />
+                )}
+
+                {activeSection === 'Laboratorio' && (
+                  <LaboratorioModulo />
+                )}
+
+                {activeSection === 'Prestaciones' && (
+                  <PrestacionesModulo />
+                )}
+
+                {activeSection === 'Presupuestos' && (
+                  <ErrorBoundary modulo="presupuestos" onReset={() => setActiveSection('Dashboard')}>
+                    <Presupuestos
+                      setPacienteSeleccionado={setPacienteSeleccionado}
+                      setActiveSection={setActiveSection}
                     />
-                  )}
-                </ErrorBoundary>
-              )}
+                  </ErrorBoundary>
+                )}
+
+                {activeSection === 'Pagos' && (
+                  <PagosModulo />
+                )}
+
+                {activeSection === 'Finanzas' && (
+                  <FinanzasModulo />
+                )}
+
+                {activeSection === 'Comunicaciones' && (
+                  <ComunicacionesModulo />
+                )}
+
+                {activeSection === 'Inventario' && <InventarioModulo />}
+
+                {activeSection === 'Reportes' && (
+                  <ReportesModulo />
+                )}
+
+                {(activeSection === 'Administración DentikOS' || activeSection === 'Miembros' || activeSection === 'Configuración') && (
+                  <AdministracionDentikOSModulo userProfile={userProfile} />
+                )}
+
+                {activeSection === 'Vademécum' && <AdminVademecumModulo />}
+
+                {activeSection === 'Pacientes' && (
+                  <ErrorBoundary modulo="pacientes" onReset={() => { setPacienteSeleccionado(null); usePacientesStore.getState().cerrarFicha(); setActiveSection('Dashboard') }}>
+                    {(pacienteSeleccionado || pacienteActivo) ? (
+                      <FichaClinica
+                        paciente={(pacienteSeleccionado || pacienteActivo)!}
+                        pacienteId={(pacienteSeleccionado || pacienteActivo)?.id}
+                        alActualizarPaciente={handleActualizarPaciente}
+                        alEliminarPaciente={handleEliminarPaciente}
+                        alVolver={() => {
+                          setPacienteSeleccionado(null)
+                          usePacientesStore.getState().cerrarFicha()
+                        }}
+                        navegacionClinica={navegacionClinica} /* F7-26 */
+                      />
+                    ) : (
+                      <PacientesListado
+                        alSeleccionarPaciente={(p) => {
+                          setPacienteSeleccionado(p)
+                          usePacientesStore.getState().setPacienteActivo(p)
+                        }}
+                        alEliminarPaciente={handleEliminarPaciente}
+                        alPacienteCreado={(p) => {
+                          setPacienteSeleccionado(p as Paciente)
+                          usePacientesStore.getState().setPacienteActivo(p as Paciente)
+                        }}
+                      />
+                    )}
+                  </ErrorBoundary>
+                )}
+              </motion.div>
             </Suspense>
           </main>
         </div>

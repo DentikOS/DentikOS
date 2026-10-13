@@ -2,41 +2,19 @@
  * Sidebar — Blueprint 02: 5 Categorías Core, Trazo de Cera Quirúrgico y Cascada Framer Motion
  * Respetando arquitectura DDD y límite estricto de 250 líneas.
  */
-import React, { useMemo, useEffect, useCallback } from 'react'
+import React, { useMemo, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { useRBAC } from '../hooks/useRBAC'
 import { SidebarHeader } from './SidebarHeader'
 import { SidebarFooter } from './SidebarFooter'
-import { Icon } from './Icon'
-import { Badge } from './ui/Badge'
+import { SidebarItemAnimated } from './SidebarItemAnimated'
 import { useSidebarStore, type SidebarMode } from '../../app/stores/useSidebarStore'
 import { useDarkMode } from '../hooks/useDarkMode'
 import { useNombreClinica } from '../hooks/useNombreClinica'
 import { useSedes } from '../../domains/organization/clinic/hooks/useSedes'
-import { SECCIONES_SIDEBAR, type SidebarItem, type SidebarSeccion } from '../../constants/sidebarConstants'
+import { SECCIONES_SIDEBAR, type SidebarSeccion } from '../../constants/sidebarConstants'
 import type { PerfilUsuario } from '../../infrastructure/auth/authService'
 import type { SidebarCountersReturn } from '../hooks/useSidebarCounters'
-
-const playTrazoCeraSound = () => {
-  if (typeof window === 'undefined') return
-  try {
-    const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof window.AudioContext }).webkitAudioContext
-    if (!AudioCtx) return
-    const ctx = new AudioCtx()
-    const now = ctx.currentTime
-    const osc = ctx.createOscillator()
-    const gain = ctx.createGain()
-    osc.frequency.setValueAtTime(1200, now)
-    gain.gain.setValueAtTime(0.025, now)
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.015)
-    osc.connect(gain)
-    gain.connect(ctx.destination)
-    osc.start(now)
-    osc.stop(now + 0.015)
-  } catch {
-    // Ignore audio failures
-  }
-}
 
 export interface SidebarProps {
   userProfile?: PerfilUsuario | null
@@ -113,11 +91,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     })).filter((sec) => sec.items.length > 0)
   ), [puede])
 
-  const handleItemClick = useCallback((name: string) => {
-    playTrazoCeraSound()
-    setActiveSection(name)
-  }, [setActiveSection])
-
   if (focusMode || mode === 'hidden') return null
 
   return (
@@ -164,54 +137,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       key={item.slug}
                       variants={{ hidden: { opacity: 0, y: 8 }, visible: { opacity: 1, y: 0 } }}
                     >
-                      <button
-                        data-testid={`sidebar-menu-${item.slug}`}
-                        data-legacy-testid={`sidebar-menu-${item.name.toLowerCase().replace(/\s+/g, '-')}`}
-                        onClick={() => handleItemClick(item.name)}
-                        title={isCollapsed ? (muestraContador ? `${item.name} (${contador})` : item.name) : undefined}
-                        aria-current={activo ? 'page' : undefined}
-                        className={`relative w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-xs font-semibold transition-all group overflow-hidden ${
-                          activo
-                            ? 'bg-gold-light/60 text-champagne-700 shadow-xs dark:bg-surface dark:text-gold-satin surgical:bg-white surgical:text-black font-bold'
-                            : 'text-graphite-700 dark:text-graphite-300 hover:bg-graphite-100 dark:hover:bg-graphite-800/70'
-                        } ${isCollapsed ? 'justify-center px-1' : ''}`}
-                      >
-                        {/* Trazo de Cera Quirúrgica en item activo */}
-                        {activo && (
-                          <motion.div
-                            layoutId="sidebar-active-border"
-                            className="absolute left-0 top-0 bottom-0 w-[3px] bg-primary rounded-r"
-                            initial={{ height: 0 }}
-                            animate={{ height: '100%' }}
-                            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-                          >
-                            <span className="absolute -bottom-0.5 -left-0.5 w-1.5 h-1.5 rounded-full bg-amber-300 shadow-sm" />
-                          </motion.div>
-                        )}
-
-                        <motion.div
-                          animate={activo ? { scale: [1.0, 1.08, 1.0] } : { scale: 1.0 }}
-                          transition={{ duration: 0.18 }}
-                          className="flex items-center justify-center flex-shrink-0"
-                        >
-                          <Icon
-                            icon={item.icon}
-                            size="md"
-                            className={activo ? 'text-primary surgical:text-black' : 'text-graphite-500 group-hover:text-graphite-900 dark:group-hover:text-gold-satin'}
-                          />
-                        </motion.div>
-
-                        {!isCollapsed && (
-                          <>
-                            <span className="flex-1 text-left truncate">{item.name}</span>
-                            {muestraContador && (
-                              <Badge size="sm" variant={item.counterVariant || 'neutral'}>
-                                {contador}
-                              </Badge>
-                            )}
-                          </>
-                        )}
-                      </button>
+                      <SidebarItemAnimated
+                        icon={item.icon}
+                        label={item.name}
+                        slug={item.slug}
+                        isActive={activo}
+                        onClick={() => setActiveSection(item.name)}
+                        isCollapsed={isCollapsed}
+                        badge={muestraContador ? (contador as number) : undefined}
+                        badgeColor={item.counterVariant === 'error' ? 'red' : item.counterVariant === 'warning' ? 'amber' : 'gold'}
+                        title={muestraContador ? `${item.name} (${contador})` : item.name}
+                      />
                     </motion.div>
                   )
                 })}
