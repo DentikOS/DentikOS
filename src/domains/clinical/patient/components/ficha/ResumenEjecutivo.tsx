@@ -1,7 +1,7 @@
 import React from 'react'
 import { Clock, Layers, DollarSign, Calendar, ShieldAlert, HeartPulse, ChevronRight, CheckCircle2 } from 'lucide-react'
 import { useProximaCita } from '../../hooks/useProximaCita'
-import { formatearDoctorTratante } from '../../utils/formatearDoctor'
+import { useDoctorTratante } from '../../hooks/useDoctorTratante'
 import type { Paciente } from '../../schemas/pacienteSchema'
 import type { PestanaFicha } from '../../services/contextualRouter'
 
@@ -12,7 +12,7 @@ interface ResumenEjecutivoProps {
 
 export const ResumenEjecutivo: React.FC<ResumenEjecutivoProps> = ({ paciente, onNavegar }) => {
   const proximaCita = useProximaCita(paciente.id)
-  const { texto: doctorTexto } = formatearDoctorTratante(paciente.doctorTratante, paciente.doctorTratanteId)
+  const { texto: doctorTexto } = useDoctorTratante(paciente.doctorTratanteId, paciente.doctorTratante)
   const fechaUltima = paciente.fechaUltimaVisita || (paciente as unknown as Record<string, unknown>).ultimaVisita
 
   const alergias =

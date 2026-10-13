@@ -6,7 +6,7 @@ import {
   validarAnticoagulantesCirugia,
 } from '../../services/validacionesCruzadasClinicas'
 import { useProximaCita } from '../../hooks/useProximaCita'
-import { formatearDoctorTratante } from '../../utils/formatearDoctor'
+import { useDoctorTratante } from '../../hooks/useDoctorTratante'
 import type { Paciente } from '../../schemas/pacienteSchema'
 
 interface AlertasCriticasHeaderProps {
@@ -51,7 +51,7 @@ export const AlertasCriticasHeader: React.FC<AlertasCriticasHeaderProps> = ({
     debePreguntarEmbarazo(paciente)
 
   const proximaCita = useProximaCita(paciente.id)
-  const { texto: doctorTexto } = formatearDoctorTratante(paciente.doctorTratante, paciente.doctorTratanteId)
+  const { texto: doctorTexto } = useDoctorTratante(paciente.doctorTratanteId, paciente.doctorTratante)
   const fechaUltima = paciente.fechaUltimaVisita || (paciente as unknown as Record<string, unknown>).ultimaVisita
 
   return (
