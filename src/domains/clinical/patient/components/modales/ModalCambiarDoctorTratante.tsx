@@ -54,18 +54,18 @@ export const ModalCambiarDoctorTratante: React.FC<ModalCambiarDoctorTratanteProp
         doctorTratante: docEncontrado.nombre,
       })
 
-      await pacientesStorageService.actualizarPaciente(paciente.id, {
-        doctorTratanteId: docEncontrado.id,
-        doctorTratante: docEncontrado.nombre,
-      })
-
-      await timelineService.agregarEvento(paciente.id, {
+      void timelineService.agregarEvento(paciente.id, {
         id: `tl-reprog-${Date.now()}`,
         fecha: new Date().toISOString(),
         tipo: 'admin',
         titulo: `Paciente reasignado a ${docEncontrado.nombre} por ${usuarioActual}`,
         detalles: motivoTexto,
         profesional: usuarioActual,
+      })
+
+      await pacientesStorageService.actualizarPaciente(paciente.id, {
+        doctorTratanteId: docEncontrado.id,
+        doctorTratante: docEncontrado.nombre,
       })
 
       notificationService.mostrar(
@@ -78,18 +78,18 @@ export const ModalCambiarDoctorTratante: React.FC<ModalCambiarDoctorTratanteProp
         doctorTratante: undefined,
       })
 
-      await pacientesStorageService.actualizarPaciente(paciente.id, {
-        doctorTratanteId: undefined,
-        doctorTratante: undefined,
-      })
-
-      await timelineService.agregarEvento(paciente.id, {
+      void timelineService.agregarEvento(paciente.id, {
         id: `tl-reprog-${Date.now()}`,
         fecha: new Date().toISOString(),
         tipo: 'admin',
         titulo: `Doctor tratante desasignado por ${usuarioActual}`,
         detalles: motivoTexto,
         profesional: usuarioActual,
+      })
+
+      await pacientesStorageService.actualizarPaciente(paciente.id, {
+        doctorTratanteId: undefined,
+        doctorTratante: undefined,
       })
 
       notificationService.mostrar('Doctor tratante removido', { tipo: 'info' })
