@@ -46,7 +46,7 @@ export const useThemeStore = create<ThemeState>((set) => ({
   },
 
   cycleTheme: () => {
-    const themes: Theme[] = ['light', 'surgical', 'dark']
+    const themes: Theme[] = ['light', 'dark', 'surgical']
     const current = useSidebarStore.getState().theme
     const next = themes[(themes.indexOf(current) + 1) % themes.length]
     useSidebarStore.getState().setTheme(next as AppTheme)
