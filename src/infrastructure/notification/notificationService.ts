@@ -21,14 +21,23 @@
  */
 
 import { createLogger } from '../logging/logger'
+import { playSound } from '../../shared/utils/soundEffects'
 
 const log = createLogger('notificationService')
 const MAX_VISIBLES = 3
 
 export type NotificationType = 'info' | 'success' | 'warning' | 'error'
+export type NotificationSeverity = 'critical' | 'operational' | 'informational'
+
+export const DURACION_AUTO_DESCARTE: Record<NotificationSeverity, number> = {
+  operational: 24 * 60 * 60 * 1000, // 24 horas en ms
+  informational: 48 * 60 * 60 * 1000, // 48 horas en ms
+  critical: 0, // Nunca se auto-descartan
+}
 
 export interface NotificationOptions {
   tipo?: NotificationType
+  severity?: NotificationSeverity
   duracion?: number
   titulo?: string | null
   dismissable?: boolean
@@ -37,6 +46,7 @@ export interface NotificationOptions {
 export interface NotificationItem {
   id: string
   tipo: NotificationType
+  severity?: NotificationSeverity
   mensaje: string
   titulo: string | null
   dismissable: boolean
@@ -89,7 +99,8 @@ const notificar = (): void => {
 export const mostrar = (mensaje: string, opciones: NotificationOptions = {}): ShowNotificationResult => {
   const {
     tipo = 'info',
-    duracion = DURACION_POR_TIPO[tipo] || 3000,
+    severity,
+    duracion = severity ? 0 : (DURACION_POR_TIPO[tipo] || 3000),
     titulo = null,
     dismissable = true
   } = opciones
@@ -99,25 +110,48 @@ export const mostrar = (mensaje: string, opciones: NotificationOptions = {}): Sh
   const nuevaNotificacion: NotificationItem = {
     id,
     tipo,
+    severity,
     mensaje,
     titulo,
     dismissable,
     timestamp: Date.now()
   }
 
-  // Respetar máximo de visibles: remover la más antigua si hay espacio lleno
-  if (notificaciones.length >= MAX_VISIBLES) {
-    notificaciones = notificaciones.slice(1)
+  // Respetar máximo de visibles para toasts flotantes (sin severidad)
+  if (!severity && notificaciones.filter((n) => !n.severity).length >= MAX_VISIBLES) {
+    const primerToastIdx = notificaciones.findIndex((n) => !n.severity)
+    if (primerToastIdx !== -1) {
+      notificaciones = notificaciones.filter((_, idx) => idx !== primerToastIdx)
+    }
   }
 
   notificaciones = [...notificaciones, nuevaNotificacion]
   notificar()
+
+  // Reproducir sonido según severidad (Blueprint 03 §05)
+  try {
+    if (severity === 'critical') {
+      playSound('criticalNotif') // 220Hz, 180ms
+    } else if (severity === 'operational') {
+      playSound('infoNotif') // 850Hz, 30ms
+    }
+    // Informativa: silencio (no se reproduce sonido)
+  } catch {
+    // Silencioso si audio no disponible
+  }
 
   // Auto-dismiss si duración > 0
   if (duracion > 0) {
     setTimeout(() => {
       ocultar(id)
     }, duracion)
+  }
+
+  // Auto-descarte por severidad (centro de notificaciones)
+  if (severity && DURACION_AUTO_DESCARTE[severity] > 0) {
+    setTimeout(() => {
+      ocultar(id)
+    }, DURACION_AUTO_DESCARTE[severity])
   }
 
   return {
@@ -149,9 +183,18 @@ export const limpiar = (): void => {
 }
 
 /**
- * Retorna una copia de las notificaciones actuales.
+ * Retorna una copia de las notificaciones actuales (filtrando auto-descartadas).
  */
 export const listar = (): NotificationItem[] => {
+  const ahora = Date.now()
+  const activas = notificaciones.filter((n) => {
+    if (!n.severity) return true
+    const limite = DURACION_AUTO_DESCARTE[n.severity]
+    return !limite || ahora - n.timestamp < limite
+  })
+  if (activas.length !== notificaciones.length) {
+    notificaciones = activas
+  }
   return [...notificaciones]
 }
 

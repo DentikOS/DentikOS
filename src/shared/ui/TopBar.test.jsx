@@ -116,6 +116,30 @@ describe('TopBar (Blueprint 02)', () => {
 
       const notifBtn = screen.getByRole('button', { name: /centro de notificaciones/i })
       expect(notifBtn).toBeInTheDocument()
+      expect(notifBtn).toHaveClass('text-[#64748B]')
+    })
+
+    it('muestra badge dorado #B88E3A con número de notificaciones pendientes y "9+" si supera 9', async () => {
+      const { notificationService } = await import('../../infrastructure/notification/notificationService')
+      notificationService.limpiar()
+      notificationService.mostrar('Alerta 1', { severity: 'critical' })
+      notificationService.mostrar('Alerta 2', { severity: 'critical' })
+
+      const { rerender } = render(<TopBar {...defaultProps} />)
+      const badge = screen.getByText('2')
+      expect(badge).toBeInTheDocument()
+      expect(badge).toHaveClass('bg-[#B88E3A]')
+      expect(badge).toHaveClass('text-[#070B14]')
+      expect(badge).toHaveClass('rounded-lg')
+
+      // Probar más de 9 notificaciones
+      for (let i = 3; i <= 11; i++) {
+        notificationService.mostrar(`Alerta ${i}`, { severity: 'critical' })
+      }
+      rerender(<TopBar {...defaultProps} />)
+      expect(screen.getByText('9+')).toBeInTheDocument()
+
+      notificationService.limpiar()
     })
   })
 

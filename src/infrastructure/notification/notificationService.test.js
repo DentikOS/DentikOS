@@ -3,6 +3,10 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
+vi.mock('../../shared/utils/soundEffects', () => ({
+  playSound: vi.fn(),
+}))
+
 describe('notificationService', () => {
   let notificationService
 
@@ -146,6 +150,67 @@ describe('notificationService', () => {
     it('error() debe crear notificación de tipo error', () => {
       notificationService.error('Mensaje')
       expect(notificationService.listar()[0].tipo).toBe('error')
+    })
+  })
+
+  describe('Blueprint 03 §05 — severidades, auto-descarte y sonidos', () => {
+    it('notificación crítica nunca se auto-descarta y reproduce sonido 220Hz (criticalNotif)', async () => {
+      const { playSound } = await import('../../shared/utils/soundEffects')
+      notificationService.mostrar('Alergia severa', {
+        tipo: 'error',
+        severity: 'critical',
+        titulo: 'Alerta Crítica'
+      })
+
+      expect(playSound).toHaveBeenCalledWith('criticalNotif')
+      expect(notificationService.listar()).toHaveLength(1)
+
+      // Avanzar 24 horas y 48 horas
+      vi.advanceTimersByTime(24 * 60 * 60 * 1000)
+      expect(notificationService.listar()).toHaveLength(1)
+
+      vi.advanceTimersByTime(24 * 60 * 60 * 1000)
+      expect(notificationService.listar()).toHaveLength(1)
+    })
+
+    it('notificación operativa se auto-descarta a las 24h y reproduce sonido 850Hz (infoNotif)', async () => {
+      const { playSound } = await import('../../shared/utils/soundEffects')
+      notificationService.mostrar('Cita confirmada', {
+        tipo: 'success',
+        severity: 'operational',
+        titulo: 'Cita Confirmada'
+      })
+
+      expect(playSound).toHaveBeenCalledWith('infoNotif')
+      expect(notificationService.listar()).toHaveLength(1)
+
+      // Avanzar 23h59m
+      vi.advanceTimersByTime(24 * 60 * 60 * 1000 - 1000)
+      expect(notificationService.listar()).toHaveLength(1)
+
+      // Cumplir 24h
+      vi.advanceTimersByTime(1000)
+      expect(notificationService.listar()).toHaveLength(0)
+    })
+
+    it('notificación informativa se auto-descarta a las 48h y permanece en silencio', async () => {
+      const { playSound } = await import('../../shared/utils/soundEffects')
+      notificationService.mostrar('Actualización de inventario', {
+        tipo: 'info',
+        severity: 'informational',
+        titulo: 'Recordatorio'
+      })
+
+      expect(playSound).not.toHaveBeenCalled()
+      expect(notificationService.listar()).toHaveLength(1)
+
+      // Avanzar 24h (aún presente)
+      vi.advanceTimersByTime(24 * 60 * 60 * 1000)
+      expect(notificationService.listar()).toHaveLength(1)
+
+      // Cumplir 48h (se descarta)
+      vi.advanceTimersByTime(24 * 60 * 60 * 1000)
+      expect(notificationService.listar()).toHaveLength(0)
     })
   })
 })

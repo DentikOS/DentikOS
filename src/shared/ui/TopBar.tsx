@@ -151,12 +151,11 @@ export const TopBar: React.FC<TopBarProps> = ({
               type="button"
               onClick={() => setNotifOpen(true)}
               aria-label="Centro de notificaciones"
-              className="relative w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-lg text-graphite-600 dark:text-graphite-300 hover:bg-graphite-100 dark:hover:bg-graphite-800 transition-colors cursor-pointer shrink-0"
+              className="relative w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-lg text-[#64748B] dark:text-[#94A3B8] surgical:text-[#334155] hover:text-[#0F172A] dark:hover:text-[#F8FAFC] surgical:hover:text-[#000000] hover:bg-graphite-100 dark:hover:bg-graphite-800 transition-colors duration-100 cursor-pointer shrink-0"
             >
-              <Bell size={16} className="sm:hidden" />
-              <Bell size={18} className="hidden sm:block" />
+              <Bell size={20} className="shrink-0" />
               {notificaciones.length > 0 && (
-                <span className="absolute top-1 right-1 min-w-[14px] h-3.5 px-0.5 rounded-full bg-primary text-black font-extrabold text-[8px] flex items-center justify-center shadow-xs">
+                <span className="absolute top-0 right-0 min-w-[16px] h-4 px-1 rounded-lg bg-[#B88E3A] text-[#070B14] font-bold text-[10px] flex items-center justify-center shadow-xs">
                   {notificaciones.length > 9 ? '9+' : notificaciones.length}
                 </span>
               )}
