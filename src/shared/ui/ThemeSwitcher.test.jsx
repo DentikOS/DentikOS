@@ -3,11 +3,12 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { ThemeSwitcher } from './ThemeSwitcher'
 import { useThemeStore } from '../../app/stores/useThemeStore'
+import { useSidebarStore } from '../../app/stores/useSidebarStore'
 
 describe('ThemeSwitcher (Blueprint 02)', () => {
   beforeEach(() => {
-    localStorage.setItem('dentikos_theme', 'light')
     useThemeStore.setState({ theme: 'light' })
+    useSidebarStore.setState({ theme: 'light' })
     document.documentElement.classList.remove('dark', 'theme-surgical')
   })
 
@@ -30,7 +31,7 @@ describe('ThemeSwitcher (Blueprint 02)', () => {
     render(<ThemeSwitcher />)
     const surgicalBtn = screen.getByRole('button', { name: /activar modo quirúrgico/i })
     fireEvent.click(surgicalBtn)
-    expect(localStorage.getItem('dentikos_theme')).toBe('surgical')
+    expect(useSidebarStore.getState().theme).toBe('surgical')
     expect(document.documentElement.classList.contains('theme-surgical')).toBe(true)
   })
 
@@ -38,7 +39,7 @@ describe('ThemeSwitcher (Blueprint 02)', () => {
     render(<ThemeSwitcher />)
     const darkBtn = screen.getByRole('button', { name: /activar modo oscuro/i })
     fireEvent.click(darkBtn)
-    expect(localStorage.getItem('dentikos_theme')).toBe('dark')
+    expect(useSidebarStore.getState().theme).toBe('dark')
     expect(document.documentElement.classList.contains('dark')).toBe(true)
   })
 
@@ -48,15 +49,15 @@ describe('ThemeSwitcher (Blueprint 02)', () => {
 
     // De light -> surgical con ArrowRight
     fireEvent.keyDown(slider, { key: 'ArrowRight' })
-    expect(localStorage.getItem('dentikos_theme')).toBe('surgical')
+    expect(useSidebarStore.getState().theme).toBe('surgical')
 
     // De surgical -> dark con ArrowRight
     fireEvent.keyDown(slider, { key: 'ArrowRight' })
-    expect(localStorage.getItem('dentikos_theme')).toBe('dark')
+    expect(useSidebarStore.getState().theme).toBe('dark')
 
     // De dark -> surgical con ArrowLeft
     fireEvent.keyDown(slider, { key: 'ArrowLeft' })
-    expect(localStorage.getItem('dentikos_theme')).toBe('surgical')
+    expect(useSidebarStore.getState().theme).toBe('surgical')
   })
 
   it('soporta interacción de drag con Pointer Events', () => {
@@ -92,6 +93,6 @@ describe('ThemeSwitcher (Blueprint 02)', () => {
       pointerId: 1,
     })
 
-    expect(localStorage.getItem('dentikos_theme')).toBe('dark')
+    expect(useSidebarStore.getState().theme).toBe('dark')
   })
 })
