@@ -7,6 +7,7 @@ import { usePacientesStore } from '../../../../../app/stores/pacientesStore'
 import { useSesionStore } from '../../../../../app/stores/sesionStore'
 import { useDoctoresClinica } from '../../hooks/useDoctoresClinica'
 import { timelineService } from '../../services/timelineService'
+import { pacientesStorageService } from '../../services/pacientesStorageService'
 import type { Paciente } from '../../schemas/pacienteSchema'
 
 interface ModalCambiarDoctorTratanteProps {
@@ -20,7 +21,7 @@ export const ModalCambiarDoctorTratante: React.FC<ModalCambiarDoctorTratanteProp
   isOpen,
   onClose,
 }) => {
-  const actualizarPaciente = usePacientesStore((s) => s.actualizarPaciente)
+  const actualizarPacienteStore = usePacientesStore((s) => s.actualizarPaciente)
   const userProfile = useSesionStore((s) => s.userProfile)
   const { doctores, loading } = useDoctoresClinica()
   const [doctorSeleccionadoId, setDoctorSeleccionadoId] = useState<string>(() => {
@@ -41,19 +42,24 @@ export const ModalCambiarDoctorTratante: React.FC<ModalCambiarDoctorTratanteProp
 
   if (!isOpen) return null
 
-  const handleGuardar = (e: React.FormEvent) => {
+  const handleGuardar = async (e: React.FormEvent) => {
     e.preventDefault()
     const docEncontrado = doctores.find((d) => d.id === doctorSeleccionadoId)
     const usuarioActual = userProfile?.nombreCompleto || userProfile?.email || 'Administrador'
     const motivoTexto = motivo.trim() ? `Motivo: ${motivo.trim()}` : 'Reasignación desde el listado'
 
     if (docEncontrado) {
-      actualizarPaciente(paciente.id, {
+      actualizarPacienteStore(paciente.id, {
         doctorTratanteId: docEncontrado.id,
         doctorTratante: docEncontrado.nombre,
       })
 
-      timelineService.agregarEvento(paciente.id, {
+      await pacientesStorageService.actualizarPaciente(paciente.id, {
+        doctorTratanteId: docEncontrado.id,
+        doctorTratante: docEncontrado.nombre,
+      })
+
+      await timelineService.agregarEvento(paciente.id, {
         id: `tl-reprog-${Date.now()}`,
         fecha: new Date().toISOString(),
         tipo: 'admin',
@@ -67,12 +73,17 @@ export const ModalCambiarDoctorTratante: React.FC<ModalCambiarDoctorTratanteProp
         { tipo: 'success' }
       )
     } else {
-      actualizarPaciente(paciente.id, {
+      actualizarPacienteStore(paciente.id, {
         doctorTratanteId: undefined,
         doctorTratante: undefined,
       })
 
-      timelineService.agregarEvento(paciente.id, {
+      await pacientesStorageService.actualizarPaciente(paciente.id, {
+        doctorTratanteId: undefined,
+        doctorTratante: undefined,
+      })
+
+      await timelineService.agregarEvento(paciente.id, {
         id: `tl-reprog-${Date.now()}`,
         fecha: new Date().toISOString(),
         tipo: 'admin',
