@@ -1,5 +1,5 @@
 import React from 'react'
-import { Calendar, Clock, ChevronRight } from 'lucide-react'
+import { Calendar, Clock, ChevronRight, Settings } from 'lucide-react'
 
 export interface DashboardSaludoProps {
   userProfile?: {
@@ -49,13 +49,25 @@ export const DashboardSaludo: React.FC<DashboardSaludoProps> = ({
   const saludo = obtenerSaludo(now.getHours())
   const fechaStr = formatearFechaEspanol(now)
 
-  let nombreMostrado = userProfile?.nombreCompleto || 'Doctor(a)'
+  const userRole = (userProfile?.rol as string) || 'admin'
+
+  let nombreMostrado = userProfile?.nombreCompleto || 'Usuario'
+
   if (userProfile?.nombreCompleto) {
     const limpio = userProfile.nombreCompleto.replace(/^(Dr\.|Dra\.)\s*/i, '').trim()
     const partes = limpio.split(/\s+/)
     const apellido = partes.length > 1 ? partes[partes.length - 1] : partes[0]
-    const esDra = /^(Dra\.)/i.test(userProfile.nombreCompleto)
-    nombreMostrado = `${esDra ? 'Dra.' : 'Dr.'} ${apellido}`
+    const primerNombre = partes[0]
+
+    // Roles clínicos: usar título profesional
+    if (userRole === 'dentista' || userRole === 'admin') {
+      const esDra = /^(Dra\.)/i.test(userProfile.nombreCompleto)
+      nombreMostrado = `${esDra ? 'Dra.' : 'Dr.'} ${apellido}`
+    } 
+    // Roles no clínicos: usar solo el primer nombre (sin título)
+    else if (userRole === 'asistente' || userRole === 'recepcion') {
+      nombreMostrado = primerNombre
+    }
   }
 
   return (
@@ -65,7 +77,15 @@ export const DashboardSaludo: React.FC<DashboardSaludoProps> = ({
           <Calendar className="w-3.5 h-3.5 text-[#B88E3A]" />
           <span>{fechaStr}</span>
           <span className="text-surface-border">·</span>
-          <span>{userProfile?.especialidad || 'Práctica Odontológica'}</span>
+          <span>
+            {userRole === 'dentista' || userRole === 'admin'
+              ? (userProfile?.especialidad || 'Práctica Odontológica')
+              : userRole === 'asistente'
+              ? 'Asistente Dental'
+              : userRole === 'recepcion'
+              ? 'Recepción'
+              : (userProfile?.especialidad || 'Práctica Odontológica')}
+          </span>
         </div>
         <h1 className="text-[28px] sm:text-[32px] font-bold text-[#0F172A] dark:text-white tracking-tight leading-tight">
           {saludo}, <span className="text-[#B88E3A]">{nombreMostrado}</span>
@@ -107,11 +127,11 @@ export const DashboardSaludo: React.FC<DashboardSaludoProps> = ({
           <button
             type="button"
             onClick={onAbrirConfig}
-            className="p-2.5 rounded-xl border border-surface-border text-slate-500 hover:text-[#B88E3A] hover:bg-surface transition-all cursor-pointer"
-            title="Personalizar Dashboard"
-            aria-label="Personalizar Dashboard"
+            className="p-2.5 rounded-xl border border-surface-border text-slate-500 hover:text-[#B88E3A] hover:border-[#B88E3A]/40 hover:bg-surface transition-all cursor-pointer group"
+            title="Personalizar widgets del Dashboard"
+            aria-label="Personalizar widgets del Dashboard"
           >
-            
+            <Settings className="w-4 h-4 group-hover:rotate-90 transition-transform duration-300" />
           </button>
         )}
       </div>

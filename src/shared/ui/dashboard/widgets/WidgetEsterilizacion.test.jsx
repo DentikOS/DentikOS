@@ -47,4 +47,10 @@ describe('WidgetEsterilizacion (BP04 §03)', () => {
     fireEvent.click(screen.getByText(/Abrir Módulo de Esterilización/i))
     expect(handleIr).toHaveBeenCalled()
   })
+
+  it('renderiza estado vacío cuando no hay ciclos activos', () => {
+    render(<WidgetEsterilizacion info={null} onIrEsterilizacion={() => {}} />)
+    expect(screen.getByText('No hay ciclos de esterilización activos')).toBeInTheDocument()
+    expect(screen.getByText('Sin ciclos activos')).toBeInTheDocument()
+  })
 })

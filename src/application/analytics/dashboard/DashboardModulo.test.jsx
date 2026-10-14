@@ -27,7 +27,7 @@ describe('DashboardModulo (BP04 Completeness)', () => {
     useDashboardStore.getState().initParaRol('admin')
   })
 
-  it('renderiza la arquitectura completa de Blueprint 04: Saludo, Morning Brief, Widgets y Acciones Rápidas', () => {
+  it('renderiza la arquitectura de Blueprint 04: Saludo, Morning Brief y Widgets (sin Acciones Rápidas)', () => {
     render(<DashboardModulo />)
 
     // Saludo
@@ -37,10 +37,13 @@ describe('DashboardModulo (BP04 Completeness)', () => {
     // Morning Brief
     expect(screen.getByText(/Tu día en 30 segundos/i)).toBeInTheDocument()
 
-    // Acciones Rápidas
-    expect(screen.getByText('Acciones Rápidas')).toBeInTheDocument()
-    expect(screen.getByText('Nueva Cita')).toBeInTheDocument()
-    expect(screen.getByText('Presupuesto')).toBeInTheDocument()
+    // Acciones Rápidas ya no existe
+    expect(screen.queryByText('Acciones Rápidas')).not.toBeInTheDocument()
+  })
+
+  it('NO renderiza AccionesRapidas (eliminado por decisión CEO)', () => {
+    render(<DashboardModulo />)
+    expect(screen.queryByText('Acciones Rápidas')).not.toBeInTheDocument()
   })
 
   it('renderiza Modo Quirúrgico cuando theme === "surgical"', () => {
@@ -74,10 +77,10 @@ describe('DashboardModulo (BP04 Completeness)', () => {
 
   it('permite abrir el modal de personalización de widgets', () => {
     render(<DashboardModulo />)
-    const configBtn = screen.getByTitle(/Personalizar Dashboard/i)
+    const configBtn = screen.getByTitle(/Personalizar.*Dashboard/i)
     fireEvent.click(configBtn)
 
     expect(screen.getByText(/Personalizar Dashboard/i)).toBeInTheDocument()
-    expect(screen.getByText(/Selecciona los widgets que deseas ver en pantalla/i)).toBeInTheDocument()
+    expect(screen.getByText(/Activa o desactiva los widgets/i)).toBeInTheDocument()
   })
 })

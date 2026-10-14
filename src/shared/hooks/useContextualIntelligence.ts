@@ -60,7 +60,8 @@ export const useContextualIntelligence = (paciente?: Paciente | null): string | 
 
   useEffect(() => {
     refrescar()
-    const timer = setInterval(refrescar, 60000)
+    // BP04 §06: Actualización cada 5 minutos según especificación
+    const timer = setInterval(refrescar, 5 * 60 * 1000)
     return () => clearInterval(timer)
   }, [refrescar, activeModule])
 

@@ -35,4 +35,23 @@ describe('WidgetPagosPendientes (BP04 §03)', () => {
     fireEvent.click(screen.getByText(/Recaudado Hoy/i))
     expect(handleIrPagos).toHaveBeenCalled()
   })
+
+  it('renderiza métricas reales (no valores hardcodeados)', () => {
+    render(
+      <WidgetPagosPendientes
+        porCobrarHoy={250000}
+        pagosVencidos={180000}
+        recaudadoHoy={420000}
+        onIrPagos={() => {}}
+      />
+    )
+
+    // Debe mostrar valores reales
+    expect(screen.getByText(/\$250\.000/)).toBeInTheDocument()
+    expect(screen.getByText(/\$180\.000/)).toBeInTheDocument()
+    expect(screen.getByText(/\$420\.000/)).toBeInTheDocument()
+
+    // NO debe mostrar valores hardcodeados antiguos
+    expect(screen.queryByText(/\$350\.000/)).not.toBeInTheDocument()
+  })
 })

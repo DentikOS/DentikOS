@@ -82,4 +82,24 @@ describe('useContextualIntelligence (BP03 §08 Parte 2)', () => {
     const msg = calcularMensajeContextual(null)
     expect(msg).toBeNull()
   })
+
+  it('se actualiza cada 5 minutos según BP04 §06', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 9, 6, 10, 0, 0))
+
+    vi.mocked(agendaStorageService.obtenerCitas).mockReturnValue([
+      { id: '1', fecha: '2026-10-06', horaInicio: '09:00', estado: 'Completado' },
+    ])
+
+    const setContextualMessageSpy = vi.spyOn(useTopBarStore.getState(), 'setContextualMessage')
+
+    renderHook(() => useContextualIntelligence(null))
+    const initialCalls = setContextualMessageSpy.mock.calls.length
+
+    // Avanzar 5 minutos exactos (300000ms)
+    vi.advanceTimersByTime(5 * 60 * 1000)
+
+    expect(setContextualMessageSpy.mock.calls.length).toBeGreaterThan(initialCalls)
+  })
 })
+

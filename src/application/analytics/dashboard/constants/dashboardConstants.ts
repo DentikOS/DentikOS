@@ -10,14 +10,6 @@ export interface AccesoRapido {
   color: string
 }
 
-export interface AccionRapida {
-  id: string
-  label: string
-  icono: string
-  seccion?: string
-  accion?: string
-  shortcut?: string
-}
 
 export const ACCESOS_RAPIDOS: readonly AccesoRapido[] = [
   { id: 'agenda', nombre: 'Agendar Cita', seccion: 'Agenda', color: 'bg-blue-50 text-blue-900 border-blue-200' },
@@ -70,28 +62,4 @@ export const WIDGET_CONFIG: Record<WidgetType, WidgetConfig> = {
   quick_resume: { id: 'quick_resume', tipo: 'quick_resume', visible: true, orden: 9, titulo: 'Retomar Atención' }
 }
 
-export const ACCIONES_RAPIDAS_POR_ROL: Record<string, AccionRapida[]> = {
-  admin: [
-    { id: 'nueva_cita', label: 'Nueva Cita', icono: 'CalendarPlus', seccion: 'Agenda' },
-    { id: 'nuevo_paciente', label: 'Nuevo Paciente', icono: 'UserPlus', seccion: 'Pacientes' },
-    { id: 'presupuesto', label: 'Presupuesto', icono: 'FileSpreadsheet', seccion: 'Presupuestos' },
-    { id: 'command_palette', label: 'Buscar', icono: 'Search', shortcut: '⌘K', accion: 'palette' }
-  ],
-  dentista: [
-    { id: 'nueva_cita', label: 'Nueva Cita', icono: 'CalendarPlus', seccion: 'Agenda' },
-    { id: 'nuevo_paciente', label: 'Nuevo Paciente', icono: 'UserPlus', seccion: 'Pacientes' },
-    { id: 'presupuesto', label: 'Presupuesto', icono: 'FileSpreadsheet', seccion: 'Presupuestos' },
-    { id: 'command_palette', label: 'Buscar', icono: 'Search', shortcut: '⌘K', accion: 'palette' }
-  ],
-  asistente: [
-    { id: 'nueva_cita', label: 'Nueva Cita', icono: 'CalendarPlus', seccion: 'Agenda' },
-    { id: 'esterilizacion', label: 'Nuevo Ciclo', icono: 'Sparkles', seccion: 'Esterilización' },
-    { id: 'inventario', label: 'Revisar Stock', icono: 'Package', seccion: 'Inventario' },
-    { id: 'command_palette', label: 'Buscar', icono: 'Search', shortcut: '⌘K', accion: 'palette' }
-  ],
-  recepcion: [
-    { id: 'nueva_cita', label: 'Nueva Cita', icono: 'CalendarPlus', seccion: 'Agenda' },
-    { id: 'nuevo_paciente', label: 'Nuevo Paciente', icono: 'UserPlus', seccion: 'Pacientes' },
-    { id: 'command_palette', label: 'Buscar', icono: 'Search', shortcut: '⌘K', accion: 'palette' }
-  ]
-}
+

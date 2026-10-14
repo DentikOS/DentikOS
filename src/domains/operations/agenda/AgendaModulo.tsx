@@ -79,6 +79,18 @@ export const AgendaModulo: React.FC<AgendaModuloProps> = memo(({ alSeleccionarPa
     cargarCitas()
   }, [])
 
+  useEffect(() => {
+    const handleAbrirModalCita = () => {
+      setModalNuevaCitaAbierto(true)
+    }
+    window.addEventListener('abrir_modal_cita', handleAbrirModalCita)
+    window.addEventListener('abrir_nueva_cita', handleAbrirModalCita)
+    return () => {
+      window.removeEventListener('abrir_modal_cita', handleAbrirModalCita)
+      window.removeEventListener('abrir_nueva_cita', handleAbrirModalCita)
+    }
+  }, [setModalNuevaCitaAbierto])
+
   // F7-27: Estado de vista de agenda
   const [vista, setVista] = useState<string>('box')
   const [busqueda, setBusqueda] = useState<string>('')

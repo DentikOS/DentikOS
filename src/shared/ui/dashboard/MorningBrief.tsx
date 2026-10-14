@@ -1,10 +1,45 @@
 import React from 'react'
-import { ArrowUpRight } from 'lucide-react'
+import {
+  ArrowUpRight,
+  Calendar,
+  Wallet,
+  AlertTriangle,
+  FlaskConical,
+  Package,
+  Activity,
+  CheckCircle2,
+  Info,
+  Sparkles,
+} from 'lucide-react'
 import type { MorningBriefData } from '../../types/dashboardTypes'
 
 export interface MorningBriefProps {
   data: MorningBriefData
   onNavegar?: (seccion: string) => void
+}
+
+/**
+ * Mapeo de strings de icono (desde useMorningBrief) a componentes Lucide.
+ * Coherente con patrón usado en AccionesRapidas.tsx.
+ */
+const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
+  calendar: Calendar,
+  wallet: Wallet,
+  alert: AlertTriangle,
+  lab: FlaskConical,
+  package: Package,
+  activity: Activity,
+  check: CheckCircle2,
+  info: Info,
+  sparkles: Sparkles,
+}
+
+/**
+ * Obtiene el componente de icono Lucide correspondiente al string.
+ * Fallback: Info si el icono no está mapeado.
+ */
+const getIconComponent = (iconName: string): React.ComponentType<{ className?: string }> => {
+  return ICON_MAP[iconName] || Info
 }
 
 export const MorningBrief: React.FC<MorningBriefProps> = ({ data, onNavegar }) => {
@@ -15,12 +50,11 @@ export const MorningBrief: React.FC<MorningBriefProps> = ({ data, onNavegar }) =
       className="relative rounded-2xl bg-surface border border-surface-border p-4 sm:p-5 shadow-xs overflow-hidden transition-all"
       style={{
         borderLeft: '4px solid transparent',
-        borderImage: 'linear-gradient(to bottom, #E5C378, #B88E3A) 1'
+        borderImage: 'linear-gradient(to bottom, #E5C378, #B88E3A) 1',
       }}
     >
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          
           <h2 className="text-sm font-bold text-[#0F172A] dark:text-white uppercase tracking-wider">
             Tu día en 30 segundos
           </h2>
@@ -41,14 +75,18 @@ export const MorningBrief: React.FC<MorningBriefProps> = ({ data, onNavegar }) =
             badgeColor = 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200/50'
           }
 
+          const IconComp = getIconComponent(linea.icono)
+
           return (
             <button
               key={linea.id}
               type="button"
               onClick={() => onNavegar?.(linea.seccion)}
-              className={`flex items-start gap-2.5 p-2.5 rounded-xl text-left transition-all cursor-pointer group ${badgeColor} hover:shadow-xs hover:border-[#B88E3A]/40`}
+              className={`flex items-start gap-3 p-2.5 rounded-xl text-left transition-all cursor-pointer group ${badgeColor} hover:shadow-xs hover:border-[#B88E3A]/40`}
             >
-              <span className="text-base select-none mt-0.5">{linea.icono}</span>
+              <div className="w-7 h-7 rounded-lg bg-[#B88E3A]/10 text-[#B88E3A] flex items-center justify-center shrink-0 mt-0.5">
+                <IconComp className="w-3.5 h-3.5" />
+              </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-semibold leading-snug line-clamp-2">
                   {linea.texto}

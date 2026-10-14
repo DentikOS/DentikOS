@@ -6,10 +6,10 @@ import { MorningBrief } from './MorningBrief'
 describe('MorningBrief (BP04 §02)', () => {
   const mockData = {
     lineas: [
-      { id: 'agenda', icono: '📅', texto: '8 citas · 1 cancelación', seccion: 'Agenda', severidad: 'info' },
-      { id: 'alertas', icono: '⚠️', texto: 'Juan Pérez tiene alergia', seccion: 'Pacientes', severidad: 'alerta' }
+      { id: 'agenda', icono: 'calendar', texto: '8 citas · 1 cancelación', seccion: 'Agenda', severidad: 'info' },
+      { id: 'alertas', icono: 'alert', texto: 'Juan Pérez tiene alergia', seccion: 'Pacientes', severidad: 'alerta' },
     ],
-    fechaActualizacion: '09:00'
+    fechaActualizacion: '09:00',
   }
 
   it('renderiza título y líneas inteligentes', () => {
@@ -31,5 +31,31 @@ describe('MorningBrief (BP04 §02)', () => {
   it('no renderiza nada si no hay líneas', () => {
     const { container } = render(<MorningBrief data={{ lineas: [], fechaActualizacion: '' }} />)
     expect(container.firstChild).toBeNull()
+  })
+
+  it('renderiza iconos Lucide (no texto literal) para cada línea del brief', () => {
+    const fullMockData = {
+      lineas: [
+        { id: 'agenda', icono: 'calendar', texto: '8 citas hoy', seccion: 'Agenda', severidad: 'info' },
+        { id: 'alertas', icono: 'alert', texto: 'Alerta clínica', seccion: 'Pacientes', severidad: 'alerta' },
+        { id: 'finanzas', icono: 'wallet', texto: '$180.000 por cobrar', seccion: 'Pagos', severidad: 'info' },
+        { id: 'esterilizacion', icono: 'lab', texto: 'Autoclave #1', seccion: 'Esterilización', severidad: 'info' },
+        { id: 'inventario', icono: 'package', texto: 'Stock crítico', seccion: 'Inventario', severidad: 'advertencia' },
+      ],
+      fechaActualizacion: '09:30',
+    }
+
+    const { container } = render(<MorningBrief data={fullMockData} />)
+
+    // NO debe haber texto literal "calendar", "wallet", "alert", "lab", "package"
+    expect(screen.queryByText('calendar')).not.toBeInTheDocument()
+    expect(screen.queryByText('wallet')).not.toBeInTheDocument()
+    expect(screen.queryByText('alert')).not.toBeInTheDocument()
+    expect(screen.queryByText('lab')).not.toBeInTheDocument()
+    expect(screen.queryByText('package')).not.toBeInTheDocument()
+
+    // SÍ debe haber SVGs renderizados por Lucide (5 botones con su icono SVG + flecha ArrowUpRight = al menos 10 SVGs)
+    const svgs = container.querySelectorAll('svg')
+    expect(svgs.length).toBeGreaterThanOrEqual(5)
   })
 })

@@ -11,22 +11,45 @@ export interface AutoclaveInfo {
 }
 
 export interface WidgetEsterilizacionProps {
-  info?: AutoclaveInfo
+  info?: AutoclaveInfo | null
   onIrEsterilizacion?: () => void
   dragHandle?: React.ReactNode
 }
 
 export const WidgetEsterilizacion: React.FC<WidgetEsterilizacionProps> = ({
-  info = {
-    equipo: 'Autoclave Principal #01',
-    ciclo: 48,
-    temperatura: '134°C',
-    tiempoRestante: '12 min',
-    estado: 'en_curso'
-  },
+  info = null,
   onIrEsterilizacion,
   dragHandle
 }) => {
+  if (!info) {
+    return (
+      <WidgetBase
+        titulo="Control de Esterilización"
+        icono={<Sparkles className="w-4 h-4 text-teal-600" />}
+        borderColor="#0D9488"
+        dragHandle={dragHandle}
+        headerAction={
+          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300">
+            Sin ciclos activos
+          </span>
+        }
+        footer={
+          <button
+            type="button"
+            onClick={onIrEsterilizacion}
+            className="w-full flex items-center justify-center gap-1 font-semibold text-teal-600 hover:underline cursor-pointer"
+          >
+            Abrir Módulo de Esterilización →
+          </button>
+        }
+      >
+        <p className="text-xs text-slate-400 text-center py-6">
+          No hay ciclos de esterilización activos
+        </p>
+      </WidgetBase>
+    )
+  }
+
   const esValidado = info.estado === 'validado'
   const colorBorde = esValidado ? '#0D9488' : '#D97706'
 
