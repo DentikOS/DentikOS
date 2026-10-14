@@ -3,6 +3,19 @@
   "plugins": ["react", "oxc"],
   "rules": {
     "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
+    "react/only-export-components": "off",
+    "no-unused-vars": "warn",
+    "react-hooks/exhaustive-deps": "warn",
+    "no-dupe-keys": "warn",
+    "no-unsafe-finally": "warn",
+    "no-useless-escape": "warn"
+  },
+  "ignorePatterns": [
+    "dist/",
+    "node_modules/",
+    "supabase/functions/",
+    ".github/skills/",
+    "*.min.js",
+    "*.umd.js"
+  ]
 }

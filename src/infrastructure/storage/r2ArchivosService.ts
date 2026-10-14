@@ -585,3 +585,70 @@ export const actualizarMetadataArchivo = async (
     return false
   }
 }
+
+/**
+ * Solicita URL firmada para subir foto de perfil a R2 bucket "profile-avatars".
+ * 
+ * Reutiliza la misma arquitectura que solicitaUrlUpload pero:
+ * - No requiere pacienteId (usa user_id del JWT)
+ * - Endpoint: /functions/v1/r2-profile-upload-url
+ * - Bucket: profile-avatars
+ * - Path: {user_id}/{timestamp}.{ext}
+ */
+export interface SolicitaUrlUploadPerfilParams {
+  nombreArchivo: string
+  mimeType: string
+  tamanoBytes: number
+}
+
+export interface R2UploadPerfilResponse {
+  upload_url: string
+  r2_object_key: string
+  expires_in: number
+  upload_headers: Record<string, string>
+  public_url: string
+}
+
+export const solicitaUrlUploadPerfil = async ({
+  nombreArchivo,
+  mimeType,
+  tamanoBytes,
+}: SolicitaUrlUploadPerfilParams): Promise<R2UploadPerfilResponse | null> => {
+  try {
+    if (!supabase) {
+      log.error('Supabase no disponible')
+      return null
+    }
+
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) {
+      log.error('No hay sesión activa')
+      return null
+    }
+
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/r2-profile-upload-url`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        nombre_archivo: nombreArchivo,
+        mime_type: mimeType,
+        tamano_bytes: tamanoBytes,
+      }),
+    })
+
+    if (!response.ok) {
+      const errorBody = await response.text()
+      log.error(`Error solicitando URL de upload perfil: ${response.status}`, errorBody)
+      return null
+    }
+
+    return (await response.json()) as R2UploadPerfilResponse
+  } catch (error: unknown) {
+    log.error('Excepción solicitando URL de upload perfil:', error)
+    return null
+  }
+}
+

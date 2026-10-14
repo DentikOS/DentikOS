@@ -1,0 +1,50 @@
+/**
+ * Tokens de Tema Globales — Blueprint 02 §04 & Brand Manual §5
+ * Modo Claro, Modo Quirúrgico, Modo Oscuro
+ */
+
+/* Modo Claro (default) */
+:root,
+.light {
+  --bg-canvas: #F8FAFC;
+  --bg-surface: #FFFFFF;
+  --bg-elevated: #F1F5F9;
+  --border-subtle: #E2E8F0;
+  --border-focus: #B88E3A;
+  --text-primary: #0F172A;
+  --text-muted: #94A3B8;
+  --brand-gold: #B88E3A;
+}
+
+/* Modo Oscuro */
+.dark {
+  --bg-canvas: #070B14;
+  --bg-surface: #0F172A;
+  --bg-elevated: #1E293B;
+  --border-subtle: #24334A;
+  --border-focus: #E5C378;
+  --text-primary: #F8FAFC;
+  --text-muted: #64748B;
+  --brand-gold: #E5C378;
+}
+
+/* Modo Quirúrgico */
+.surgical,
+.theme-surgical {
+  --bg-canvas: #CBD5E1;
+  --bg-surface: #F1F5F9;
+  --bg-elevated: #E2E8F0;
+  --border-subtle: #475569;
+  --border-focus: #0F172A;
+  --text-primary: #000000;
+  --text-muted: #334155;
+  --brand-gold: #B88E3A;
+}
+
+/* Aplicar a body */
+body {
+  background-color: var(--bg-canvas);
+  color: var(--text-primary);
+  transition: background-color 350ms cubic-bezier(0.16, 1, 0.3, 1),
+              color 350ms cubic-bezier(0.16, 1, 0.3, 1);
+}

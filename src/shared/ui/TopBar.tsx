@@ -92,9 +92,9 @@ export const TopBar: React.FC<TopBarProps> = ({
         {/* Acento por módulo activo (borde superior de 2px) */}
         <div className="h-[2px] w-full shrink-0 transition-colors" style={{ backgroundColor: acentoColor }} />
 
-        <div className="flex items-center justify-between px-4 h-14 md:h-[56px] gap-3">
+        <div className="flex items-center justify-between px-3 sm:px-4 lg:px-6 h-12 sm:h-[52px] lg:h-[56px] gap-2 sm:gap-3">
           {/* Zona Izquierda 40%: Breadcrumbs, Timer, isDirty y Contextual Intelligence */}
-          <div className="flex items-center gap-3 w-[40%] min-w-0">
+          <div className="flex items-center gap-2 sm:gap-3 w-[40%] min-w-0">
             {hamburger}
             <TopBarBreadcrumbs
               items={breadcrumbs}
@@ -111,17 +111,17 @@ export const TopBar: React.FC<TopBarProps> = ({
           </div>
 
           {/* Zona Centro 30%: Búsqueda ⌘K */}
-          <div className="flex items-center justify-center gap-2 w-[30%]">
+          <div className="flex items-center justify-center gap-1 sm:gap-2 w-[30%]">
             <button
               type="button"
               onClick={onOpenSearch}
-              className="flex items-center justify-between w-full max-w-[240px] px-2.5 py-1.5 text-xs text-graphite-500 dark:text-graphite-400 bg-graphite-100/80 dark:bg-graphite-800/80 hover:bg-graphite-200 dark:hover:bg-graphite-700/80 rounded-lg border border-surface transition-colors cursor-pointer"
+              className="flex items-center justify-between w-full max-w-[200px] sm:max-w-[240px] px-2 sm:px-2.5 py-1 sm:py-1.5 text-xs text-graphite-500 dark:text-graphite-400 bg-graphite-100/80 dark:bg-graphite-800/80 hover:bg-graphite-200 dark:hover:bg-graphite-700/80 rounded-lg border border-surface transition-colors cursor-pointer"
               title="Buscar (⌘K)"
               aria-label="Buscar pacientes y módulos"
             >
-              <div className="flex items-center gap-1.5 truncate">
+              <div className="flex items-center gap-1 sm:gap-1.5 truncate">
                 <Search size={13} className="text-primary shrink-0" />
-                <span className="truncate">Buscar...</span>
+                <span className="truncate hidden sm:inline">Buscar...</span>
               </div>
               <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[9px] font-mono bg-white dark:bg-graphite-900 rounded border border-surface shadow-2xs shrink-0">
                 ⌘K
@@ -130,7 +130,7 @@ export const TopBar: React.FC<TopBarProps> = ({
           </div>
 
           {/* Zona Derecha 30%: Acciones contextuales, Pill Sede, Bell 36px y Avatar 32px */}
-          <div className="flex items-center justify-end gap-2 w-[30%] shrink-0">
+          <div className="flex items-center justify-end gap-1 sm:gap-2 w-[30%] shrink-0">
             {/* Acciones contextuales (primaria dorada + menú ⋯) */}
             <TopBarActions
               primaria={accionPrimaria}
@@ -151,11 +151,11 @@ export const TopBar: React.FC<TopBarProps> = ({
               type="button"
               onClick={() => setNotifOpen(true)}
               aria-label="Centro de notificaciones"
-              className="relative w-9 h-9 flex items-center justify-center rounded-lg text-graphite-600 dark:text-graphite-300 hover:bg-graphite-100 dark:hover:bg-graphite-800 transition-colors cursor-pointer shrink-0"
+              className="relative w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-lg text-[#64748B] dark:text-[#94A3B8] surgical:text-[#334155] hover:text-[#0F172A] dark:hover:text-[#F8FAFC] surgical:hover:text-[#000000] hover:bg-graphite-100 dark:hover:bg-graphite-800 transition-colors duration-100 cursor-pointer shrink-0"
             >
-              <Bell size={18} />
+              <Bell size={20} className="shrink-0" />
               {notificaciones.length > 0 && (
-                <span className="absolute top-1 right-1 min-w-[14px] h-3.5 px-0.5 rounded-full bg-primary text-black font-extrabold text-[8px] flex items-center justify-center shadow-xs">
+                <span className="absolute top-0 right-0 min-w-[16px] h-4 px-1 rounded-lg bg-[#B88E3A] text-[#070B14] font-bold text-[10px] flex items-center justify-center shadow-xs">
                   {notificaciones.length > 9 ? '9+' : notificaciones.length}
                 </span>
               )}
@@ -165,7 +165,7 @@ export const TopBar: React.FC<TopBarProps> = ({
             <TopBarAvatarMenu
               userProfile={userProfile}
               onLogout={onLogout}
-              onOpenAtajos={onOpenAtajos}
+              onOpenAtajos={onOpenAtajos ?? (() => window.dispatchEvent(new CustomEvent('open-shortcuts-modal')))}
               onOpenPerfil={onOpenPerfil}
               onOpenPreferencias={onOpenPreferencias}
               onOpenDispositivos={onOpenDispositivos}

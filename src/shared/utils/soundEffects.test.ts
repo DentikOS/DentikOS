@@ -1,68 +1,61 @@
-/**
- * Tests — soundEffects (Blueprint 03)
- * Valida que playSound maneje la API de WebAudio y soporte fallos sin lanzar excepciones.
- */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { playSound } from './soundEffects'
+import { soundEffects, playSound } from './soundEffects'
 
-describe('soundEffects (Blueprint 03)', () => {
-  let mockGain: {
-    connect: ReturnType<typeof vi.fn>
-    gain: {
-      setValueAtTime: ReturnType<typeof vi.fn>
-      exponentialRampToValueAtTime: ReturnType<typeof vi.fn>
-    }
-  }
-
-  let mockOscillator: {
-    frequency: { value: number }
-    connect: ReturnType<typeof vi.fn>
-    start: ReturnType<typeof vi.fn>
-    stop: ReturnType<typeof vi.fn>
-  }
+describe('soundEffects', () => {
+  let mockOscillator: any
+  let mockGain: any
+  let mockCtx: any
 
   beforeEach(() => {
     mockGain = {
-      connect: vi.fn(),
       gain: {
         setValueAtTime: vi.fn(),
         exponentialRampToValueAtTime: vi.fn(),
       },
+      connect: vi.fn(),
     }
 
     mockOscillator = {
-      frequency: { value: 0 },
       connect: vi.fn(),
       start: vi.fn(),
       stop: vi.fn(),
+      frequency: { value: 0 },
+      type: '',
     }
 
-    // Mock AudioContext
-    window.AudioContext = vi.fn().mockImplementation(() => ({
-      currentTime: 0,
-      destination: {},
-      createGain: vi.fn().mockReturnValue(mockGain),
+    mockCtx = {
       createOscillator: vi.fn().mockReturnValue(mockOscillator),
-    }))
+      createGain: vi.fn().mockReturnValue(mockGain),
+      destination: {},
+      currentTime: 0,
+    }
+
+    global.AudioContext = vi.fn().mockImplementation(() => mockCtx) as any
   })
 
-  it('reproduce sonido de frecuencia simple (openPalette)', () => {
-    expect(() => playSound('openPalette')).not.toThrow()
+  it('plays selection sound (1200Hz)', () => {
+    soundEffects.selection()
+    expect(mockOscillator.frequency.value).toBe(1200)
     expect(mockOscillator.start).toHaveBeenCalled()
-    expect(mockOscillator.stop).toHaveBeenCalled()
   })
 
-  it('reproduce sonido de doble frecuencia (selectResult)', () => {
-    expect(() => playSound('selectResult')).not.toThrow()
+  it('plays save sound with two tones', () => {
+    soundEffects.save()
+    expect(mockCtx.createOscillator).toHaveBeenCalledTimes(2)
+  })
+
+  it('plays alertCritical sound (220Hz)', () => {
+    soundEffects.alertCritical()
+    expect(mockOscillator.frequency.value).toBe(220)
+  })
+
+  it('handles missing AudioContext gracefully', () => {
+    delete (global as any).AudioContext
+    expect(() => soundEffects.selection()).not.toThrow()
+  })
+
+  it('playSound alias works', () => {
+    playSound('selection')
     expect(mockOscillator.start).toHaveBeenCalled()
-  })
-
-  it('no lanza error cuando AudioContext falla o no está disponible', () => {
-    // @ts-expect-error simular falta de AudioContext
-    window.AudioContext = undefined
-    // @ts-expect-error simular falta de webkitAudioContext
-    window.webkitAudioContext = undefined
-
-    expect(() => playSound('criticalNotif')).not.toThrow()
   })
 })

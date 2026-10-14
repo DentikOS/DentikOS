@@ -2,41 +2,19 @@
  * Sidebar — Blueprint 02: 5 Categorías Core, Trazo de Cera Quirúrgico y Cascada Framer Motion
  * Respetando arquitectura DDD y límite estricto de 250 líneas.
  */
-import React, { useMemo, useEffect, useCallback } from 'react'
-import { motion } from 'framer-motion'
-import { useRBAC } from '../hooks/useRBAC'
+import React, { useMemo, useEffect } from 'react'
+import { motion, useReducedMotion } from 'framer-motion'
+import { useIsInitialMount } from '../hooks/useCascadeAnimation'
+import { usePermissions } from '../hooks/usePermissions'
 import { SidebarHeader } from './SidebarHeader'
 import { SidebarFooter } from './SidebarFooter'
-import { Icon } from './Icon'
-import { Badge } from './ui/Badge'
+import { SidebarItemAnimated } from './SidebarItemAnimated'
 import { useSidebarStore, type SidebarMode } from '../../app/stores/useSidebarStore'
 import { useDarkMode } from '../hooks/useDarkMode'
 import { useNombreClinica } from '../hooks/useNombreClinica'
 import { useSedes } from '../../domains/organization/clinic/hooks/useSedes'
-import { SECCIONES_SIDEBAR, type SidebarItem, type SidebarSeccion } from '../../constants/sidebarConstants'
 import type { PerfilUsuario } from '../../infrastructure/auth/authService'
 import type { SidebarCountersReturn } from '../hooks/useSidebarCounters'
-
-const playTrazoCeraSound = () => {
-  if (typeof window === 'undefined') return
-  try {
-    const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof window.AudioContext }).webkitAudioContext
-    if (!AudioCtx) return
-    const ctx = new AudioCtx()
-    const now = ctx.currentTime
-    const osc = ctx.createOscillator()
-    const gain = ctx.createGain()
-    osc.frequency.setValueAtTime(1200, now)
-    gain.gain.setValueAtTime(0.025, now)
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.015)
-    osc.connect(gain)
-    gain.connect(ctx.destination)
-    osc.start(now)
-    osc.stop(now + 0.015)
-  } catch {
-    // Ignore audio failures
-  }
-}
 
 export interface SidebarProps {
   userProfile?: PerfilUsuario | null
@@ -60,8 +38,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const setPreSurgicalMode = useSidebarStore((s) => s.setPreSurgicalMode)
   const focusMode = useSidebarStore((s) => s.focusMode)
   const { theme } = useDarkMode()
-  const { puede } = useRBAC()
+  const { seccionesFiltradas: seccionesVisibles } = usePermissions()
   const { sedeActiva } = useSedes()
+  const prefersReducedMotion = useReducedMotion()
+  const isInitialMount = useIsInitialMount()
+  const shouldAnimate = Boolean(isInitialMount && !prefersReducedMotion)
 
   const mode = propMode ?? storeMode
   const isCollapsed = mode === 'collapsed'
@@ -106,18 +87,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
   }, [setMode, propMode])
 
-  const seccionesVisibles = useMemo((): SidebarSeccion[] => (
-    SECCIONES_SIDEBAR.map((sec) => ({
-      ...sec,
-      items: sec.items.filter((item) => !item.permisoRequerido || puede(item.permisoRequerido)),
-    })).filter((sec) => sec.items.length > 0)
-  ), [puede])
-
-  const handleItemClick = useCallback((name: string) => {
-    playTrazoCeraSound()
-    setActiveSection(name)
-  }, [setActiveSection])
-
   if (focusMode || mode === 'hidden') return null
 
   return (
@@ -127,98 +96,97 @@ export const Sidebar: React.FC<SidebarProps> = ({
       aria-label="Menú principal"
     >
       <div>
-        {/* Header: Logo DentikOS + Identidad + Toggle colapso */}
-        <SidebarHeader
-          isCollapsed={isCollapsed}
-          onToggleCollapse={() => setMode(isCollapsed ? 'expanded' : 'collapsed')}
-          clinicaNombre={clinicaNombre}
-          sedeNombre={sedeNombre}
-        />
+        {/* Header: Logo DentikOS con fade-in 50ms */}
+        <motion.div
+          initial={shouldAnimate ? { opacity: 0 } : false}
+          animate={{ opacity: 1 }}
+          transition={{
+            duration: 0.05,
+            ease: [0, 0, 0.2, 1],
+          }}
+        >
+          <SidebarHeader
+            isCollapsed={isCollapsed}
+            onToggleCollapse={() => setMode(isCollapsed ? 'expanded' : 'collapsed')}
+            clinicaNombre={clinicaNombre}
+            sedeNombre={sedeNombre}
+          />
+        </motion.div>
 
         {/* 5 Categorías Core en cascada Framer Motion */}
-        <motion.nav
-          aria-label="Navegacion principal"
-          className="space-y-4"
-          initial="hidden"
-          animate="visible"
-          variants={{ visible: { transition: { staggerChildren: 0.03 } } }}
-        >
-          {seccionesVisibles.map((seccion) => (
-            <div key={seccion.label}>
-              {!isCollapsed ? (
-                <p className="px-2 mb-1 text-[10px] text-graphite-400 dark:text-graphite-500 font-bold uppercase tracking-wider">
-                  {seccion.label}
-                </p>
-              ) : (
-                <div className="h-px bg-graphite-200 dark:bg-graphite-800 mx-1 mb-1.5" aria-hidden="true" />
-              )}
+        <nav aria-label="Navegacion principal" className="space-y-2 mt-2">
+          {seccionesVisibles.map((seccion, categoriaIndex) => {
+            const categoriaDelay = 0.1 + categoriaIndex * 0.03
 
-              <div className="space-y-0.5">
-                {seccion.items.map((item) => {
-                  const activo = activeSection === item.name || (item.slug === 'urgencias-ges' && activeSection === 'Urgencias y GES')
-                  const contador = item.counterKey ? (counters as Record<string, unknown>)[item.counterKey] : undefined
-                  const muestraContador = typeof contador === 'number' && contador > 0
+            return (
+              <div key={seccion.categoria || seccion.label}>
+                {/* Separador con delay */}
+                <motion.div
+                  initial={shouldAnimate ? { opacity: 0, scaleX: 0 } : false}
+                  animate={{ opacity: 1, scaleX: 1 }}
+                  transition={{
+                    duration: 0.25,
+                    delay: categoriaDelay,
+                    ease: [0.16, 1, 0.3, 1],
+                  }}
+                  className="border-t border-[#E2E8F0] dark:border-[#24334A] my-2 mx-2 origin-left"
+                />
 
-                  return (
-                    <motion.div
-                      key={item.slug}
-                      variants={{ hidden: { opacity: 0, y: 8 }, visible: { opacity: 1, y: 0 } }}
-                    >
-                      <button
-                        data-testid={`sidebar-menu-${item.slug}`}
-                        data-legacy-testid={`sidebar-menu-${item.name.toLowerCase().replace(/\s+/g, '-')}`}
-                        onClick={() => handleItemClick(item.name)}
-                        title={isCollapsed ? (muestraContador ? `${item.name} (${contador})` : item.name) : undefined}
-                        aria-current={activo ? 'page' : undefined}
-                        className={`relative w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-xs font-semibold transition-all group overflow-hidden ${
-                          activo
-                            ? 'bg-gold-light/60 text-champagne-700 shadow-xs dark:bg-surface dark:text-gold-satin surgical:bg-white surgical:text-black font-bold'
-                            : 'text-graphite-700 dark:text-graphite-300 hover:bg-graphite-100 dark:hover:bg-graphite-800/70'
-                        } ${isCollapsed ? 'justify-center px-1' : ''}`}
+                {/* Label de categoría con slide-up */}
+                {!isCollapsed && (
+                  <motion.div
+                    initial={shouldAnimate ? { opacity: 0, y: 10 } : false}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{
+                      duration: 0.25,
+                      delay: categoriaDelay + 0.05,
+                      ease: [0.16, 1, 0.3, 1],
+                    }}
+                  >
+                    <p className="px-2 mb-1 text-[10px] text-graphite-400 dark:text-graphite-500 font-bold uppercase tracking-wider">
+                      {seccion.label}
+                    </p>
+                  </motion.div>
+                )}
+
+                {/* Items con delay incremental de 30ms */}
+                <div className="space-y-0.5">
+                  {seccion.items.map((item, itemIndex) => {
+                    const itemDelay = categoriaDelay + 0.1 + itemIndex * 0.03
+                    const activo = activeSection === item.name || (item.slug === 'urgencias-ges' && activeSection === 'Urgencias y GES')
+                    const contador = item.counterKey ? (counters as Record<string, unknown>)[item.counterKey] : undefined
+                    const muestraContador = typeof contador === 'number' && contador > 0
+
+                    return (
+                      <motion.div
+                        key={item.slug}
+                        initial={shouldAnimate ? { opacity: 0, x: -10 } : false}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{
+                          duration: 0.35,
+                          delay: itemDelay,
+                          ease: [0.16, 1, 0.3, 1],
+                        }}
                       >
-                        {/* Trazo de Cera Quirúrgica en item activo */}
-                        {activo && (
-                          <motion.div
-                            layoutId="sidebar-active-border"
-                            className="absolute left-0 top-0 bottom-0 w-[3px] bg-primary rounded-r"
-                            initial={{ height: 0 }}
-                            animate={{ height: '100%' }}
-                            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-                          >
-                            <span className="absolute -bottom-0.5 -left-0.5 w-1.5 h-1.5 rounded-full bg-amber-300 shadow-sm" />
-                          </motion.div>
-                        )}
-
-                        <motion.div
-                          animate={activo ? { scale: [1.0, 1.08, 1.0] } : { scale: 1.0 }}
-                          transition={{ duration: 0.18 }}
-                          className="flex items-center justify-center flex-shrink-0"
-                        >
-                          <Icon
-                            icon={item.icon}
-                            size="md"
-                            className={activo ? 'text-primary surgical:text-black' : 'text-graphite-500 group-hover:text-graphite-900 dark:group-hover:text-gold-satin'}
-                          />
-                        </motion.div>
-
-                        {!isCollapsed && (
-                          <>
-                            <span className="flex-1 text-left truncate">{item.name}</span>
-                            {muestraContador && (
-                              <Badge size="sm" variant={item.counterVariant || 'neutral'}>
-                                {contador}
-                              </Badge>
-                            )}
-                          </>
-                        )}
-                      </button>
-                    </motion.div>
-                  )
-                })}
+                        <SidebarItemAnimated
+                          icon={item.icon}
+                          label={item.name}
+                          slug={item.slug}
+                          isActive={activo}
+                          onClick={() => setActiveSection(item.name)}
+                          isCollapsed={isCollapsed}
+                          badge={muestraContador ? (contador as number) : undefined}
+                          badgeColor={item.counterVariant === 'error' ? 'red' : item.counterVariant === 'warning' ? 'amber' : 'gold'}
+                          title={muestraContador ? `${item.name} (${contador})` : item.name}
+                        />
+                      </motion.div>
+                    )
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
-        </motion.nav>
+            )
+          })}
+        </nav>
       </div>
 
       {/* Footer: SidebarFooter unificado */}

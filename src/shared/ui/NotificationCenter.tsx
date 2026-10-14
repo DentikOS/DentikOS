@@ -9,24 +9,39 @@ import { X, Bell, AlertTriangle, CheckCircle2, Info, CheckCheck } from 'lucide-r
 import { notificationService, type NotificationItem } from '../../infrastructure/notification/notificationService'
 import { useNotifications } from '../hooks/useNotifications'
 
+export interface NotificationCenterItem {
+  id: string
+  severity?: 'critical' | 'operational' | 'informational'
+  tipo?: 'error' | 'warning' | 'info' | 'success'
+  title?: string
+  titulo?: string
+  message?: string
+  mensaje?: string
+  timestamp: number
+  action?: { label: string; onClick: () => void }
+}
+
 export interface NotificationCenterProps {
   isOpen: boolean
   onClose: () => void
+  notifications?: NotificationCenterItem[] | NotificationItem[]
 }
 
-export const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose }) => {
-  const notificaciones = useNotifications()
+export const NotificationCenter: React.FC<NotificationCenterProps> = ({
+  isOpen,
+  onClose,
+  notifications: notificationsProp,
+}) => {
+  const hookNotificaciones = useNotifications()
+  const notificaciones = notificationsProp ?? hookNotificaciones
 
-  // 3 severidades del Blueprint 03
-  const criticas = notificaciones.filter((n) => n.tipo === 'error')
-  const operativas = notificaciones.filter((n) => n.tipo === 'info' || n.tipo === 'warning')
-  const informativas = notificaciones.filter((n) => n.tipo === 'success')
+  const criticas = notificaciones.filter((n) => (n as NotificationCenterItem).severity === 'critical' || n.tipo === 'error')
+  const operativas = notificaciones.filter((n) => (n as NotificationCenterItem).severity === 'operational' || n.tipo === 'info' || n.tipo === 'warning')
+  const informativas = notificaciones.filter((n) => (n as NotificationCenterItem).severity === 'informational' || n.tipo === 'success')
 
   const [leidas, setLeidas] = useState<Set<string>>(new Set())
 
-  const handleDismiss = (id: string) => {
-    notificationService.ocultar(id)
-  }
+  const handleDismiss = (id: string) => notificationService.ocultar(id)
 
   const handleToggleLeida = (id: string) => {
     setLeidas((prev) => {
@@ -37,16 +52,21 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, 
     })
   }
 
-  // Marcar todas leídas / descartar masivo (excepto críticas, que requieren resolución explícita)
   const handleMarcarTodas = () => {
-    const aDescartar = notificaciones.filter((n) => n.tipo !== 'error')
+    const aDescartar = notificaciones.filter((n) => (n as NotificationCenterItem).severity !== 'critical' && n.tipo !== 'error')
     aDescartar.forEach((n) => notificationService.ocultar(n.id))
   }
 
-  const renderItem = (item: NotificationItem, severidad: 'critica' | 'operativa' | 'informativa') => {
+  const renderItem = (
+    item: NotificationCenterItem | NotificationItem,
+    severidad: 'critica' | 'operativa' | 'informativa'
+  ) => {
     const isCritica = severidad === 'critica'
     const isOperativa = severidad === 'operativa'
     const isLeida = leidas.has(item.id)
+    const title = (item as NotificationCenterItem).title || item.titulo
+    const message = (item as NotificationCenterItem).message || item.mensaje
+    const action = (item as NotificationCenterItem).action
 
     return (
       <div
@@ -73,14 +93,31 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, 
         </div>
 
         <div className="flex-1 min-w-0 pr-4">
-          {item.titulo && (
+          {title && (
             <p className="text-xs font-bold text-graphite-900 dark:text-graphite-100 truncate">
-              {item.titulo}
+              {title}
             </p>
           )}
-          <p className="text-xs text-graphite-700 dark:text-graphite-300 leading-relaxed break-words">
-            {item.mensaje}
-          </p>
+          {message && (
+            <p className="text-xs text-graphite-700 dark:text-graphite-300 leading-relaxed break-words">
+              {message}
+            </p>
+          )}
+          {action && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                action.onClick()
+              }}
+              className="text-xs font-medium hover:underline block mt-1.5 cursor-pointer"
+              style={{
+                color: isCritica ? '#E11D48' : isOperativa ? '#0D9488' : '#D97706',
+              }}
+            >
+              {action.label}
+            </button>
+          )}
           <span className="text-[10px] text-graphite-400 mt-1 block">
             {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </span>
@@ -106,14 +143,14 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, 
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Backdrop blur */}
+          {/* Backdrop blur 12px */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 0.4 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/50 z-50 backdrop-blur-xs"
+            className="fixed inset-0 bg-black/50 z-50 backdrop-blur-[12px]"
             aria-hidden="true"
           />
 
@@ -176,38 +213,21 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, 
                 </div>
               ) : (
                 <>
-                  {/* Severidad Crítica */}
-                  {criticas.length > 0 && (
-                    <div className="space-y-2">
+                  {[
+                    { key: 'critica' as const, label: 'Críticas', items: criticas, color: 'text-[#E11D48]', extra: 'Atención inmediata' },
+                    { key: 'operativa' as const, label: 'Operativas', items: operativas, color: 'text-[#0D9488]' },
+                    { key: 'informativa' as const, label: 'Informativas', items: informativas, color: 'text-[#D97706]' },
+                  ].map(({ key, label, items, color, extra }) => items.length > 0 && (
+                    <div key={key} className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-bold text-[#E11D48] uppercase tracking-wider">
-                          Críticas ({criticas.length})
+                        <span className={`text-[10px] font-bold uppercase tracking-wider ${color}`}>
+                          {label} ({items.length})
                         </span>
-                        <span className="text-[9px] text-graphite-400">Atención inmediata</span>
+                        {extra && <span className="text-[9px] text-graphite-400">{extra}</span>}
                       </div>
-                      {criticas.map((item) => renderItem(item, 'critica'))}
+                      {items.map((item) => renderItem(item, key))}
                     </div>
-                  )}
-
-                  {/* Severidad Operativa */}
-                  {operativas.length > 0 && (
-                    <div className="space-y-2">
-                      <span className="text-[10px] font-bold text-[#0D9488] uppercase tracking-wider">
-                        Operativas ({operativas.length})
-                      </span>
-                      {operativas.map((item) => renderItem(item, 'operativa'))}
-                    </div>
-                  )}
-
-                  {/* Severidad Informativa */}
-                  {informativas.length > 0 && (
-                    <div className="space-y-2">
-                      <span className="text-[10px] font-bold text-[#D97706] uppercase tracking-wider">
-                        Informativas ({informativas.length})
-                      </span>
-                      {informativas.map((item) => renderItem(item, 'informativa'))}
-                    </div>
-                  )}
+                  ))}
                 </>
               )}
             </div>

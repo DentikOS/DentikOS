@@ -14,6 +14,7 @@ describe('PerfilModal (Blueprint 03)', () => {
     especialidad: 'Ortodoncia',
     numeroRegistroISP: 'ISP-998877',
     email: 'roberto@clinica.cl',
+    rol: 'dentista',
   }
 
   it('no renderiza nada cuando isOpen es false', () => {

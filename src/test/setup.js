@@ -18,6 +18,26 @@ import { afterEach, vi } from 'vitest'
 // Limpieza automática de localStorage entre tests.
 // Esto previene que datos de un test contaminen el siguiente,
 // especialmente importante para hooks que usan servicios de persistencia.
+// Polyfill básico para PointerEvent en jsdom
+if (typeof window !== 'undefined' && !window.PointerEvent) {
+  class PointerEvent extends MouseEvent {
+    constructor(type, params = {}) {
+      super(type, params)
+      this.pointerId = params.pointerId ?? 0
+      this.width = params.width ?? 0
+      this.height = params.height ?? 0
+      this.pressure = params.pressure ?? 0
+      this.tangentialPressure = params.tangentialPressure ?? 0
+      this.tiltX = params.tiltX ?? 0
+      this.tiltY = params.tiltY ?? 0
+      this.twist = params.twist ?? 0
+      this.pointerType = params.pointerType ?? 'mouse'
+      this.isPrimary = params.isPrimary ?? false
+    }
+  }
+  window.PointerEvent = PointerEvent
+}
+
 afterEach(() => {
   if (typeof window !== 'undefined' && window.localStorage) {
     window.localStorage.clear()

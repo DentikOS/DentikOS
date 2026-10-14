@@ -1,13 +1,20 @@
 import React, { useState, useEffect, useMemo, useCallback, Suspense, lazy } from 'react'
+import { motion } from 'framer-motion'
 import { LoginScreen } from './shared/ui/LoginScreen'
 import { Sidebar } from './shared/ui/Sidebar'
 import { MobileHamburger } from './shared/ui/MobileHamburger'
 import { SidebarMobileOverlay } from './shared/ui/SidebarMobileOverlay'
-import { AtajosTecladoModal } from './shared/ui/AtajosTecladoModal'
 import { ModoPresentacionBar } from './shared/ui/ModoPresentacionBar'
 import { PreferenciasModal } from './shared/ui/PreferenciasModal'
 import { DispositivosModal } from './shared/ui/DispositivosModal'
 import { PerfilModal } from './shared/ui/PerfilModal'
+import { FocusMode } from './shared/ui/FocusMode'
+import { FocusModeTopBar } from './shared/ui/FocusModeTopBar'
+import { KeyboardShortcutsModal } from './shared/ui/KeyboardShortcutsModal'
+import { useKeyboardShortcuts } from './shared/hooks/useKeyboardShortcuts'
+import { useSupabaseRealtime } from './shared/hooks/useSupabaseRealtime'
+import { useNotificationsRealtime } from './shared/hooks/useNotificationsRealtime'
+import { useNotificationTriggers } from './shared/hooks/useNotificationTriggers'
 import { useSidebarStore } from './app/stores/useSidebarStore'
 import { useTopBarStore } from './app/stores/useTopBarStore'
 import { useAutoSurgicalMode } from './shared/hooks/useAutoSurgicalMode'
@@ -32,10 +39,12 @@ import { BootstrapClinica } from './shared/ui/BootstrapClinica'
 import { VerificandoCuenta } from './shared/ui/VerificandoCuenta'
 import { useInvitacionHash } from './shared/hooks/useInvitacionHash'
 import { useDarkMode } from './shared/hooks/useDarkMode'
+import { useThemeClass } from './shared/hooks/useThemeClass'
 import { useRestaurarPaciente } from './shared/hooks/useRestaurarPaciente'
 import { useSidebarCounters } from './shared/hooks/useSidebarCounters'
 import { useCommandPalette } from './shared/hooks/useCommandPalette'
 import { CommandPalette } from './shared/ui/CommandPalette'
+import { notificationService } from './infrastructure/notification/notificationService'
 
 // Módulos de uso diario — carga eager (Public API, Constitución v3.0.0)
 import { Agenda as AgendaModulo } from './domains/operations/agenda'
@@ -125,6 +134,8 @@ export const App: React.FC = () => {
       if (paciente?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(paciente.id))) {
         // F7-36: usa tenant-aware para aislamiento multi-tenant
         pacienteSeleccionadoRepo.guardar(String(paciente.id))
+        // 🔒 Limpiar semáforo: el usuario seleccionó un paciente manualmente
+        sessionStorage.removeItem('dentikos_skip_restore_until')
       } else {
         pacienteSeleccionadoRepo.eliminar()
       }
@@ -142,6 +153,14 @@ export const App: React.FC = () => {
     }
   }, [activeSection])
 
+  // 🔒 LIMPIEZA MIGRACIÓN: eliminar clave legacy directa si existe
+  // (los usuarios antiguos pueden tener ambas claves)
+  useEffect(() => {
+    try {
+      localStorage.removeItem('clinica_paciente_seleccionado_id')
+    } catch {}
+  }, [])
+
   const userProfile = useSesionStore((state: unknown) => (state as SesionStoreState).userProfile)
   const loginStore = useSesionStore((state: unknown) => (state as SesionStoreState).login)
   const pacienteActivo = usePacientesStore((s) => s.pacienteActivo)
@@ -151,13 +170,41 @@ export const App: React.FC = () => {
 
   // F7-25: Dark mode y modo quirúrgico con persistencia
   const { theme, darkMode, cycleTheme, toggleDarkMode } = useDarkMode()
+  useThemeClass()
+  useKeyboardShortcuts()
+  useSupabaseRealtime()
+  useNotificationsRealtime()
+  useNotificationTriggers()
+
+  // Listener global para ⌘S (guardar cambios)
+  useEffect(() => {
+    const handleGuardarCambios = () => {
+      const { isDirty, markSaved } = useTopBarStore.getState()
+      if (isDirty) {
+        // Aquí puedes agregar lógica de guardado específico del módulo
+        // Por ahora, solo marcamos como guardado (el sonido ya está en markSaved)
+        markSaved()
+        notificationService.success('Cambios guardados', { duracion: 2000 })
+      }
+    }
+
+    window.addEventListener('guardar_cambios', handleGuardarCambios)
+    return () => window.removeEventListener('guardar_cambios', handleGuardarCambios)
+  }, [])
+
   const logoutStore = useSesionStore((state: unknown) => (state as SesionStoreState).logout)
 
   // F6-H: Timeout de sesión + sincronización entre pestañas + manejo de errores 401
   useSessionGuard({ userProfile, logout: logoutStore })
 
   // F4-02e: Restaurar paciente seleccionado desde Supabase al recargar
-  useRestaurarPaciente(userProfile, pacienteSeleccionado, setPacienteSeleccionadoState, setActiveSection)
+  useRestaurarPaciente(
+    userProfile,
+    pacienteSeleccionado,
+    setPacienteSeleccionadoState,
+    setActiveSection,
+    pacienteSeleccionadoRepo
+  )
   // F10-B2.5: contadores para el Sidebar
   const sidebarCounters = useSidebarCounters()
 
@@ -175,7 +222,6 @@ export const App: React.FC = () => {
   const setPresentationMode = useTopBarStore((s) => s.setPresentationMode)
   const startTimer = useTopBarStore((s) => s.startTimer)
   const stopTimer = useTopBarStore((s) => s.stopTimer)
-  const [atajosOpen, setAtajosOpen] = useState(false)
   const [perfilModalOpen, setPerfilModalOpen] = useState(false)
   const [preferenciasModalOpen, setPreferenciasModalOpen] = useState(false)
   const [dispositivosModalOpen, setDispositivosModalOpen] = useState(false)
@@ -225,62 +271,6 @@ export const App: React.FC = () => {
     else stopTimer()
   }, [pacienteSeleccionado, startTimer, stopTimer])
 
-  // Blueprint 02 & 03: Atajos globales (⌘K, ⌘⇧F, ⌘⇧M, ⌘⇧D, ?, Esc)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent): void => {
-      const target = e.target as HTMLElement | null
-      const isInput =
-        target &&
-        (target.tagName === 'INPUT' ||
-          target.tagName === 'TEXTAREA' ||
-          target.tagName === 'SELECT' ||
-          (target as { isContentEditable?: boolean }).isContentEditable)
-
-      // ⌘K / Ctrl+K: CommandPalette
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault()
-        commandPalette.toggle()
-        return
-      }
-
-      // ⌘⇧F / Ctrl+Shift+F: Alternar Modo Foco
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'f') {
-        e.preventDefault()
-        toggleFocusMode()
-        return
-      }
-
-      // ⌘⇧M / Ctrl+Shift+M: Alternar Modo Presentación
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'm') {
-        e.preventDefault()
-        setPresentationMode(!presentationMode)
-        return
-      }
-
-      // ⌘⇧D / Ctrl+Shift+D: Alternar tema
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'd') {
-        e.preventDefault()
-        cycleTheme()
-        return
-      }
-
-      // Esc: Salir de Modo Foco o Presentación
-      if (e.key === 'Escape') {
-        if (presentationMode) setPresentationMode(false)
-        if (focusMode) setFocusMode(false)
-        return
-      }
-
-      // ?: Panel de atajos (cuando no se escribe en formulario)
-      if (e.key === '?' && !isInput) {
-        e.preventDefault()
-        setAtajosOpen(true)
-      }
-    }
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [commandPalette, toggleFocusMode, setFocusMode, presentationMode, setPresentationMode, cycleTheme, focusMode])
-
   // Acciones contextuales por módulo del Blueprint 03
   const accionesConfig = ACCIONES_POR_MODULO[activeSection]
   const accionPrimaria = useMemo(() => {
@@ -288,8 +278,15 @@ export const App: React.FC = () => {
     const mapAction: Record<string, () => void> = {
       crearCita: () => setActiveSection('Agenda'),
       crearPaciente: () => {
+        // 🔒 Limpiar paciente guardado en localStorage PRIMERO
+        // Esto previene que useRestaurarPaciente lo restaure tras el null
+        try {
+          localStorage.removeItem('clinica_paciente_seleccionado_id')
+        } catch {}
+
         setActiveSection('Pacientes')
         setPacienteSeleccionado(null)
+        // El modal se abrirá vía el evento en PacientesListado
         setTimeout(() => window.dispatchEvent(new CustomEvent('abrir_nuevo_paciente')), 50)
       },
       crearPresupuesto: () => setActiveSection('Presupuestos'),
@@ -298,11 +295,13 @@ export const App: React.FC = () => {
       nuevoCiclo: () => setActiveSection('Esterilización'),
       ingresoGes: () => setActiveSection('Urgencias GES'),
       buscarFarmaco: () => setActiveSection('Vademécum'),
+      exportarPdf: () => {},
     }
     return {
       label: accionesConfig.primaria.label,
       icon: accionesConfig.primaria.icon,
       onClick: mapAction[accionesConfig.primaria.actionKey] || (() => {}),
+      permisoRequerido: accionesConfig.primaria.permisoRequerido,
     }
   }, [accionesConfig, setActiveSection, setPacienteSeleccionado])
 
@@ -311,8 +310,12 @@ export const App: React.FC = () => {
     return accionesConfig.secundarias.map((sec) => ({
       label: sec.label,
       icon: sec.icon,
+      permisoRequerido: sec.permisoRequerido,
       onClick: () => {
         if (sec.actionKey === 'crearPaciente') {
+          try {
+            localStorage.removeItem('clinica_paciente_seleccionado_id')
+          } catch {}
           setActiveSection('Pacientes')
           setPacienteSeleccionado(null)
           setTimeout(() => window.dispatchEvent(new CustomEvent('abrir_nuevo_paciente')), 50)
@@ -335,7 +338,21 @@ export const App: React.FC = () => {
   const breadcrumbs = useMemo(() => {
     if (activeSection === 'Pacientes' && pacienteSeleccionado) {
       return [
-        { label: 'Pacientes', onClick: () => setPacienteSeleccionado(null) },
+        {
+          label: 'Pacientes',
+          onClick: () => {
+            // 🔒 SEMÁFORO: bloquear restauración por 5 segundos
+            try {
+              const skipUntil = Date.now() + 5000
+              sessionStorage.setItem('dentikos_skip_restore_until', String(skipUntil))
+            } catch {}
+            // setPacienteSeleccionado(null) limpiará automáticamente el repo tenant-aware
+            setPacienteSeleccionado(null)
+            // 🔒 CRÍTICO: limpiar también el store para que el render condicional
+            // (pacienteSeleccionado || pacienteActivo) evalúe a false y muestre el listado
+            usePacientesStore.getState().cerrarFicha()
+          },
+        },
         { label: pacienteSeleccionado.nombre },
       ]
     }
@@ -369,6 +386,22 @@ export const App: React.FC = () => {
     }
   }, [])
 
+  // Listeners para atajos de creación (Blueprint 02 §07)
+  useEffect(() => {
+    const handleNuevaCita = () => {
+      setActiveSection('Agenda')
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('abrir_nueva_cita'))
+      }, 100)
+    }
+
+    window.addEventListener('nueva_cita', handleNuevaCita)
+
+    return () => {
+      window.removeEventListener('nueva_cita', handleNuevaCita)
+    }
+  }, [setActiveSection])
+
   // F4-02b FIX: Detectar sesión de Supabase al cargar la app
   // y restaurar perfil. IMPORTANTE: solo restaurar si NO hay logout en progreso.
   useEffect(() => {
@@ -391,7 +424,10 @@ export const App: React.FC = () => {
 
             // F7-10b: reconstruir perfil con rol contextual vía construirUserProfile
             // (lee miembros_clinica.rol filtrado por clinica_actual())
-            const userMetadata = { ...(session.user.user_metadata || {}), role: session.user.app_metadata?.role || 'recepcion' }
+            const userMetadata = {
+              ...(session.user.user_metadata || {}),
+              role: session.user.app_metadata?.role || session.user.user_metadata?.role || 'recepcion',
+            }
             const perfilRestaurado = await construirUserProfile(
               session.user.email?.toLowerCase() || '',
               userMetadata,
@@ -487,7 +523,6 @@ export const App: React.FC = () => {
       <ToastContainer />
       <AppDialogProvider />
       <CommandPalette {...commandPalette} />
-      <AtajosTecladoModal isOpen={atajosOpen} onClose={() => setAtajosOpen(false)} />
       <PerfilModal isOpen={perfilModalOpen} onClose={() => setPerfilModalOpen(false)} />
       <PreferenciasModal isOpen={preferenciasModalOpen} onClose={() => setPreferenciasModalOpen(false)} />
       <DispositivosModal isOpen={dispositivosModalOpen} onClose={() => setDispositivosModalOpen(false)} />
@@ -497,141 +532,149 @@ export const App: React.FC = () => {
         onSalir={() => setPresentationMode(false)}
       />
 
-      {/* Botón flotante para salir de Modo Foco */}
-      {focusMode && (
-        <button
-          type="button"
-          onClick={() => setFocusMode(false)}
-          className="fixed top-3 right-4 z-50 flex items-center gap-2 px-3 py-1.5 rounded-full bg-graphite-900/90 text-white text-xs font-semibold shadow-lg hover:bg-graphite-800 transition-all border border-surface cursor-pointer"
-          title="Salir de Modo Foco"
-          aria-label="Salir de Modo Foco"
-        >
-          <span>Salir de Modo Foco</span>
-          <kbd className="px-1.5 py-0.5 text-[10px] bg-graphite-800 rounded font-mono">Esc</kbd>
-        </button>
-      )}
+      {/* Features Premium: Modo Foco y Panel de Atajos */}
+      <FocusMode />
+      <KeyboardShortcutsModal />
 
       <div className="min-h-screen flex flex-col bg-canvas text-primary-surface font-sans">
-        <TopBar
-          userProfile={userProfile}
-          activeSection={activeSection}
-          pacienteSeleccionado={pacienteSeleccionado}
-          onLogout={handleLogout}
-          darkMode={darkMode}
-          theme={theme}
-          breadcrumbs={breadcrumbs}
-          accionPrimaria={accionPrimaria}
-          accionesSecundarias={accionesSecundarias}
-          onOpenSearch={() => commandPalette.toggle()}
-          onOpenAtajos={() => setAtajosOpen(true)}
-          onOpenPerfil={() => setPerfilModalOpen(true)}
-          onOpenPreferencias={() => setPreferenciasModalOpen(true)}
-          onOpenDispositivos={() => setDispositivosModalOpen(true)}
-          hamburger={<MobileHamburger />}
-        />
+        {focusMode ? (
+          <FocusModeTopBar
+            breadcrumbs={breadcrumbs}
+            pacienteSeleccionado={pacienteSeleccionado}
+          />
+        ) : (
+          <TopBar
+            userProfile={userProfile}
+            activeSection={activeSection}
+            pacienteSeleccionado={pacienteSeleccionado}
+            onLogout={handleLogout}
+            darkMode={darkMode}
+            theme={theme}
+            breadcrumbs={breadcrumbs}
+            accionPrimaria={accionPrimaria}
+            accionesSecundarias={accionesSecundarias}
+            onOpenSearch={() => commandPalette.toggle()}
+            onOpenAtajos={() => window.dispatchEvent(new CustomEvent('open-shortcuts-modal'))}
+            onOpenPerfil={() => setPerfilModalOpen(true)}
+            onOpenPreferencias={() => setPreferenciasModalOpen(true)}
+            onOpenDispositivos={() => setDispositivosModalOpen(true)}
+            hamburger={<MobileHamburger />}
+          />
+        )}
         <div className="flex flex-1">
           <Sidebar userProfile={userProfile} activeSection={activeSection} setActiveSection={setActiveSection} onLogout={handleLogout} counters={sidebarCounters} />
           <SidebarMobileOverlay userProfile={userProfile} activeSection={activeSection} setActiveSection={setActiveSection} onLogout={handleLogout} counters={sidebarCounters} />
 
           <main className="flex-1 p-8 print:p-0 overflow-x-hidden">
             <Suspense fallback={<CargandoModulo />}>
-              {activeSection === 'Dashboard' && (
-                <Dashboard
-                  setPacienteSeleccionado={setPacienteSeleccionado}
-                  setActiveSection={setActiveSection}
-                />
-              )}
-
-              {activeSection === 'Agenda' && (
-                <ErrorBoundary modulo="agenda" onReset={() => setActiveSection('Dashboard')}>
-                  <Agenda
-                    alSeleccionarPaciente={(paciente: Paciente) => {
-                      setPacienteSeleccionado(paciente)
-                      setActiveSection('Pacientes')
-                    }}
-                    citaSeleccionadaId={citaSeleccionadaId}
-                  />
-                </ErrorBoundary>
-              )}
-
-              {(activeSection === 'Urgencias y GES' || activeSection === 'Urgencias GES') && (
-                <UrgenciasGesModulo />
-              )}
-
-              {activeSection === 'Esterilización' && (
-                <EsterilizacionModulo />
-              )}
-
-              {activeSection === 'Laboratorio' && (
-                <LaboratorioModulo />
-              )}
-
-              {activeSection === 'Prestaciones' && (
-                <PrestacionesModulo />
-              )}
-
-              {activeSection === 'Presupuestos' && (
-                <ErrorBoundary modulo="presupuestos" onReset={() => setActiveSection('Dashboard')}>
-                  <Presupuestos
+              <motion.div
+                key={activeSection}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{
+                  duration: 0.35, // Token "Fluido"
+                  ease: [0.16, 1, 0.3, 1],
+                }}
+              >
+                {activeSection === 'Dashboard' && (
+                  <Dashboard
                     setPacienteSeleccionado={setPacienteSeleccionado}
                     setActiveSection={setActiveSection}
                   />
-                </ErrorBoundary>
-              )}
+                )}
 
-              {activeSection === 'Pagos' && (
-                <PagosModulo />
-              )}
-
-              {activeSection === 'Finanzas' && (
-                <FinanzasModulo />
-              )}
-
-              {activeSection === 'Comunicaciones' && (
-                <ComunicacionesModulo />
-              )}
-
-              {activeSection === 'Inventario' && <InventarioModulo />}
-
-              {activeSection === 'Reportes' && (
-                <ReportesModulo />
-              )}
-
-              {(activeSection === 'Administración DentikOS' || activeSection === 'Miembros' || activeSection === 'Configuración') && (
-                <AdministracionDentikOSModulo userProfile={userProfile} />
-              )}
-
-              {activeSection === 'Vademécum' && <AdminVademecumModulo />}
-
-              {activeSection === 'Pacientes' && (
-                <ErrorBoundary modulo="pacientes" onReset={() => { setPacienteSeleccionado(null); usePacientesStore.getState().cerrarFicha(); setActiveSection('Dashboard') }}>
-                  {(pacienteSeleccionado || pacienteActivo) ? (
-                    <FichaClinica
-                      paciente={(pacienteSeleccionado || pacienteActivo)!}
-                      pacienteId={(pacienteSeleccionado || pacienteActivo)?.id}
-                      alActualizarPaciente={handleActualizarPaciente}
-                      alEliminarPaciente={handleEliminarPaciente}
-                      alVolver={() => {
-                        setPacienteSeleccionado(null)
-                        usePacientesStore.getState().cerrarFicha()
+                {activeSection === 'Agenda' && (
+                  <ErrorBoundary modulo="agenda" onReset={() => setActiveSection('Dashboard')}>
+                    <Agenda
+                      alSeleccionarPaciente={(paciente: Paciente) => {
+                        setPacienteSeleccionado(paciente)
+                        setActiveSection('Pacientes')
                       }}
-                      navegacionClinica={navegacionClinica} /* F7-26 */
+                      citaSeleccionadaId={citaSeleccionadaId}
                     />
-                  ) : (
-                    <PacientesListado
-                      alSeleccionarPaciente={(p) => {
-                        setPacienteSeleccionado(p)
-                        usePacientesStore.getState().setPacienteActivo(p)
-                      }}
-                      alEliminarPaciente={handleEliminarPaciente}
-                      alPacienteCreado={(p) => {
-                        setPacienteSeleccionado(p as Paciente)
-                        usePacientesStore.getState().setPacienteActivo(p as Paciente)
-                      }}
+                  </ErrorBoundary>
+                )}
+
+                {(activeSection === 'Urgencias y GES' || activeSection === 'Urgencias GES') && (
+                  <UrgenciasGesModulo />
+                )}
+
+                {activeSection === 'Esterilización' && (
+                  <EsterilizacionModulo />
+                )}
+
+                {activeSection === 'Laboratorio' && (
+                  <LaboratorioModulo />
+                )}
+
+                {activeSection === 'Prestaciones' && (
+                  <PrestacionesModulo />
+                )}
+
+                {activeSection === 'Presupuestos' && (
+                  <ErrorBoundary modulo="presupuestos" onReset={() => setActiveSection('Dashboard')}>
+                    <Presupuestos
+                      setPacienteSeleccionado={setPacienteSeleccionado}
+                      setActiveSection={setActiveSection}
                     />
-                  )}
-                </ErrorBoundary>
-              )}
+                  </ErrorBoundary>
+                )}
+
+                {activeSection === 'Pagos' && (
+                  <PagosModulo />
+                )}
+
+                {activeSection === 'Finanzas' && (
+                  <FinanzasModulo />
+                )}
+
+                {activeSection === 'Comunicaciones' && (
+                  <ComunicacionesModulo />
+                )}
+
+                {activeSection === 'Inventario' && <InventarioModulo />}
+
+                {activeSection === 'Reportes' && (
+                  <ReportesModulo />
+                )}
+
+                {(activeSection === 'Administración DentikOS' || activeSection === 'Miembros' || activeSection === 'Configuración') && (
+                  <AdministracionDentikOSModulo userProfile={userProfile} />
+                )}
+
+                {activeSection === 'Vademécum' && <AdminVademecumModulo />}
+
+                {activeSection === 'Pacientes' && (
+                  <ErrorBoundary modulo="pacientes" onReset={() => { setPacienteSeleccionado(null); usePacientesStore.getState().cerrarFicha(); setActiveSection('Dashboard') }}>
+                    {(pacienteSeleccionado || pacienteActivo) ? (
+                      <FichaClinica
+                        paciente={(pacienteSeleccionado || pacienteActivo)!}
+                        pacienteId={(pacienteSeleccionado || pacienteActivo)?.id}
+                        alActualizarPaciente={handleActualizarPaciente}
+                        alEliminarPaciente={handleEliminarPaciente}
+                        alVolver={() => {
+                          setPacienteSeleccionado(null)
+                          usePacientesStore.getState().cerrarFicha()
+                        }}
+                        navegacionClinica={navegacionClinica} /* F7-26 */
+                      />
+                    ) : (
+                      <PacientesListado
+                        alSeleccionarPaciente={(p) => {
+                          setPacienteSeleccionado(p)
+                          usePacientesStore.getState().setPacienteActivo(p)
+                        }}
+                        alEliminarPaciente={handleEliminarPaciente}
+                        alPacienteCreado={(p) => {
+                          setPacienteSeleccionado(p as Paciente)
+                          usePacientesStore.getState().setPacienteActivo(p as Paciente)
+                        }}
+                      />
+                    )}
+                  </ErrorBoundary>
+                )}
+              </motion.div>
             </Suspense>
           </main>
         </div>

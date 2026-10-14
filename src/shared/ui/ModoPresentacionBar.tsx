@@ -36,7 +36,7 @@ export const ModoPresentacionBar: React.FC<ModoPresentacionBarProps> = ({
           <div className="flex items-center gap-3">
             <DentikOSLogo variant="horizontal" size="sm" opticalSize="standard" />
             <div className="h-4 w-px bg-graphite-300 dark:bg-graphite-700 hidden sm:block" />
-            <span className="text-xs font-semibold text-graphite-800 dark:text-graphite-200 hidden sm:inline">
+            <span className="text-base font-semibold text-graphite-800 dark:text-graphite-200 hidden sm:inline">
               {clinicaNombre}
             </span>
           </div>
@@ -44,11 +44,11 @@ export const ModoPresentacionBar: React.FC<ModoPresentacionBarProps> = ({
           {/* Centro/Derecha: Paciente + Botón Salir */}
           <div className="flex items-center gap-4">
             {paciente ? (
-              <span className="text-xs font-medium text-graphite-700 dark:text-graphite-300">
+              <span className="text-base font-medium text-graphite-700 dark:text-graphite-300">
                 {paciente.nombre} {paciente.edad ? `· ${paciente.edad} años` : ''}
               </span>
             ) : (
-              <span className="text-xs text-graphite-500 dark:text-graphite-400">
+              <span className="text-base text-graphite-500 dark:text-graphite-400">
                 Sin paciente seleccionado
               </span>
             )}

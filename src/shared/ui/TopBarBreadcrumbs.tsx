@@ -9,6 +9,16 @@ import { playSound } from '../utils/soundEffects'
 
 import { useGuardadoState } from '../hooks/useGuardadoState'
 
+/**
+ * Trunca texto a máximo N caracteres con "..." al INICIO
+ * Especificación BP03 §02 — Decisión del CEO
+ * Ej: "María José González Rodríguez" (29 chars, max 20) → "...González Rodríguez"
+ */
+const truncateStart = (text: string, maxLength: number = 20): string => {
+  if (!text || text.length <= maxLength) return text
+  return '…' + text.slice(-(maxLength - 1))
+}
+
 export interface TopBarBreadcrumbsProps {
   items: BreadcrumbItem[]
   pacienteId?: string | null
@@ -18,6 +28,9 @@ export const TopBarBreadcrumbs: React.FC<TopBarBreadcrumbsProps> = ({ items, pac
   const guardadoStatus = useGuardadoState()
   const timerStart = useTopBarStore((s) => s.timerStart)
   const [elapsed, setElapsed] = useState(0)
+
+  // BP03 §02: Máximo 3 niveles
+  const visibleItems = items.slice(0, 3)
 
   useEffect(() => {
     if (!pacienteId || !timerStart) {
@@ -41,27 +54,33 @@ export const TopBarBreadcrumbs: React.FC<TopBarBreadcrumbsProps> = ({ items, pac
       ? 'text-rose-500 font-bold'
       : elapsed > 15 * 60 * 1000
       ? 'text-amber-500 font-semibold'
-      : 'text-graphite-400'
+      : 'text-[#94A3B8]'
 
   return (
     <div className="flex items-center gap-2.5 min-w-0">
-      <nav aria-label="Ruta de navegación" className="flex items-center gap-1.5 text-xs">
+      <nav aria-label="Ruta de navegación" className="flex items-center gap-1.5 text-[13px]">
         <ol className="flex items-center gap-1.5">
-          {items.map((item, idx) => {
-            const isLast = idx === items.length - 1
+          {visibleItems.map((item, idx) => {
+            const isLast = idx === visibleItems.length - 1
+            const truncatedLabel = truncateStart(item.label, 20)
+
             return (
               <li key={`${item.label}-${idx}`} className="flex items-center gap-1.5">
                 {idx > 0 && (
-                  <span className="text-graphite-300 dark:text-graphite-600 font-bold select-none">
+                  <span
+                    className="text-[#CBD5E1] dark:text-[#CBD5E1] surgical:text-[#475569] font-normal select-none"
+                    aria-hidden="true"
+                  >
                     ·
                   </span>
                 )}
                 {isLast ? (
                   <span
-                    className="font-semibold text-primary truncate max-w-[180px]"
+                    className="text-[13px] font-semibold text-[#B88E3A] dark:text-[#E5C378] surgical:text-[#B88E3A] truncate max-w-[180px] leading-tight"
                     aria-current="page"
+                    title={item.label}
                   >
-                    {item.label}
+                    {truncatedLabel}
                   </span>
                 ) : (
                   <button
@@ -70,9 +89,10 @@ export const TopBarBreadcrumbs: React.FC<TopBarBreadcrumbsProps> = ({ items, pac
                       playSound('breadcrumbClick')
                       item.onClick?.()
                     }}
-                    className="text-graphite-500 dark:text-graphite-400 hover:text-primary transition-colors truncate max-w-[140px] hover:underline cursor-pointer"
+                    className="text-[13px] font-normal text-[#64748B] dark:text-[#94A3B8] surgical:text-[#334155] hover:text-[#0F172A] dark:hover:text-[#F8FAFC] surgical:hover:text-[#000000] transition-colors duration-100 truncate max-w-[140px] hover:underline cursor-pointer leading-tight"
+                    title={item.label}
                   >
-                    {item.label}
+                    {truncatedLabel}
                   </button>
                 )}
               </li>
@@ -94,7 +114,7 @@ export const TopBarBreadcrumbs: React.FC<TopBarBreadcrumbsProps> = ({ items, pac
       {/* Estado derivado de guardado (BP03 §08 Feature 3) */}
       {guardadoStatus === 'dirty' && (
         <div data-testid="topbar-dirty-indicator" className="flex items-center gap-1.5 text-[11px] text-amber-600 dark:text-amber-400 shrink-0">
-          <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+          <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse-slow" />
           <span className="hidden lg:inline">Cambios sin guardar</span>
         </div>
       )}

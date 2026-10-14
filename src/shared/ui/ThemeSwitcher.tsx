@@ -1,13 +1,32 @@
 /**
- * ThemeSwitcher — Slider físico táctil, continuo y accesible para los 3 modos de DentikOS
- * Blueprint 02 §04: Claro | Quirúrgico | Oscuro
- * Soporta click directo, arrastre (Pointer Events con snap a 250ms) y flechas ←/→
+ * ThemeSwitcher — Control Deslizante Físico (Blueprint 02 §04) — FIXED
+ * 
+ * - Thumb centrado con centros de iconos Lucide
+ * - Click directo en track o arrastre del círculo
+ * - Sin cambio accidental de tema al hacer hover
+ * - Spring animation + dragConstraints dinámicas + dragMomentum={false}
  */
-import React, { useState, useRef, useCallback } from 'react'
-import { motion } from 'framer-motion'
-import { Sun, Sparkles, Moon } from 'lucide-react'
-import { useDarkMode, type Theme } from '../hooks/useDarkMode'
-import { playThemeSound } from '../utils/themeSoundUtils'
+import React, { useState } from 'react'
+import { motion, type PanInfo } from 'framer-motion'
+import { Sun, Microscope, Moon } from 'lucide-react'
+import { useSidebarStore, type AppTheme } from '../../app/stores/useSidebarStore'
+import { soundEffects } from '../utils/soundEffects'
+
+const THEMES: AppTheme[] = ['light', 'surgical', 'dark']
+const ICONS = [Sun, Microscope, Moon]
+const TRACK_WIDTH = 160
+const THUMB_SIZE = 26
+const PADDING = 3
+
+// Posiciones X del centro del círculo para cada tema (centros en justify-around)
+const POSITIONS = [
+  TRACK_WIDTH * 0.1666, // 26.66px
+  TRACK_WIDTH * 0.5,    // 80px
+  TRACK_WIDTH * 0.8333, // 133.33px
+]
+
+// Convertir a posición del borde izquierdo del círculo
+const THUMB_POSITIONS = POSITIONS.map((x) => x - THUMB_SIZE / 2 + PADDING)
 
 export interface ThemeSwitcherProps {
   compact?: boolean
@@ -15,90 +34,57 @@ export interface ThemeSwitcherProps {
 }
 
 export const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ compact = false, className = '' }) => {
-  const { theme: currentTheme, setTheme } = useDarkMode()
-  const trackRef = useRef<HTMLDivElement>(null)
-  const isDraggingRef = useRef<boolean>(false)
-  const dragPercentRef = useRef<number | null>(null)
-  const [isDragging, setIsDragging] = useState<boolean>(false)
-  const [dragPercent, setDragPercent] = useState<number | null>(null)
+  const theme = useSidebarStore((s) => s.theme)
+  const setSidebarTheme = useSidebarStore((s) => s.setTheme)
+  const [isDragging, setIsDragging] = useState(false)
 
-  const handleSelectTheme = useCallback((targetTheme: Theme) => {
-    playThemeSound()
-    setTheme(targetTheme)
-  }, [setTheme])
+  const currentIndex = Math.max(0, THEMES.indexOf(theme))
 
-  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    try {
-      e.currentTarget.setPointerCapture?.(e.pointerId)
-    } catch {
-      // ignore
-    }
-    isDraggingRef.current = true
-    setIsDragging(true)
-    if (trackRef.current) {
-      const rect = trackRef.current.getBoundingClientRect()
-      const x = Math.max(0, Math.min(e.clientX - rect.left, rect.width))
-      const pct = rect.width > 0 ? x / rect.width : 0
-      dragPercentRef.current = pct
-      setDragPercent(pct)
-    }
+  const playThemeChangeSound = () => {
+    soundEffects.save()
   }
 
-  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!isDraggingRef.current || !trackRef.current) return
-    const rect = trackRef.current.getBoundingClientRect()
-    const x = Math.max(0, Math.min(e.clientX - rect.left, rect.width))
-    const pct = rect.width > 0 ? x / rect.width : 0
-    dragPercentRef.current = pct
-    setDragPercent(pct)
+  const switchTo = (newTheme: AppTheme) => {
+    setSidebarTheme(newTheme)
+    playThemeChangeSound()
   }
 
-  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!isDraggingRef.current) return
-    try {
-      e.currentTarget.releasePointerCapture?.(e.pointerId)
-    } catch {
-      // Ignorar error si se perdió la captura
-    }
-    isDraggingRef.current = false
+  const handleDragEnd = (_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     setIsDragging(false)
-    const currentPercent = dragPercentRef.current ?? (currentTheme === 'light' ? 0 : currentTheme === 'surgical' ? 0.5 : 1)
-    const snapped: Theme = currentPercent < 0.25 ? 'light' : currentPercent < 0.75 ? 'surgical' : 'dark'
-    dragPercentRef.current = null
-    setDragPercent(null)
-    handleSelectTheme(snapped)
+
+    // Calcular posición X final del círculo (posición inicial + desplazamiento)
+    const currentX = THUMB_POSITIONS[currentIndex]
+    const finalX = currentX + info.offset.x
+
+    // Encontrar la posición más cercana a donde soltó el usuario
+    let closestIndex = 0
+    let closestDistance = Infinity
+
+    THUMB_POSITIONS.forEach((pos, i) => {
+      const distance = Math.abs(finalX - pos)
+      if (distance < closestDistance) {
+        closestDistance = distance
+        closestIndex = i
+      }
+    })
+
+    // Solo cambiar si realmente cambió de posición
+    if (closestIndex !== currentIndex) {
+      switchTo(THEMES[closestIndex])
+    }
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
-      e.preventDefault()
-      const next: Theme = currentTheme === 'light' ? 'surgical' : 'dark'
-      handleSelectTheme(next)
-    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-      e.preventDefault()
-      const prev: Theme = currentTheme === 'dark' ? 'surgical' : 'light'
-      handleSelectTheme(prev)
+    if (e.key === 'ArrowRight' && currentIndex < THEMES.length - 1) {
+      e.preventDefault(); switchTo(THEMES[currentIndex + 1])
+    } else if (e.key === 'ArrowLeft' && currentIndex > 0) {
+      e.preventDefault(); switchTo(THEMES[currentIndex - 1])
     }
   }
 
-  // Posición del thumb deslizante
-  const getThumbOffset = (): { left: string; x: string } => {
-    if (isDragging && dragPercent !== null) {
-      return {
-        left: `${dragPercent * 100}%`,
-        x: '-50%',
-      }
-    }
-    switch (currentTheme) {
-      case 'light':
-        return { left: '0%', x: '0%' }
-      case 'surgical':
-        return { left: '50%', x: '-50%' }
-      case 'dark':
-        return { left: '100%', x: '-100%' }
-      default:
-        return { left: '0%', x: '0%' }
-    }
+  const constraints = {
+    left: THUMB_POSITIONS[0],
+    right: THUMB_POSITIONS[2],
   }
 
   if (compact) {
@@ -106,116 +92,132 @@ export const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ compact = false, c
       <button
         type="button"
         onClick={() => {
-          const next: Theme = currentTheme === 'light' ? 'surgical' : currentTheme === 'surgical' ? 'dark' : 'light'
-          handleSelectTheme(next)
+          const nextIndex = (currentIndex + 1) % THEMES.length
+          switchTo(THEMES[nextIndex])
         }}
-        title={`Tema actual: ${currentTheme}`}
-        aria-label={`Cambiar tema (actual: ${currentTheme})`}
+        title={`Tema actual: ${theme}`}
+        aria-label={`Cambiar tema (actual: ${theme})`}
         className={`w-9 h-9 mx-auto rounded-xl flex items-center justify-center bg-graphite-100 dark:bg-graphite-800 text-graphite-700 dark:text-graphite-200 transition-colors cursor-pointer shrink-0 ${className}`}
       >
-        {currentTheme === 'light' && <Sun size={16} className="text-amber-500" />}
-        {currentTheme === 'surgical' && <Sparkles size={16} className="text-primary" />}
-        {currentTheme === 'dark' && <Moon size={16} className="text-blue-400" />}
+        {theme === 'light' && <Sun size={16} className="text-amber-500" />}
+        {theme === 'surgical' && <Microscope size={16} className="text-primary" />}
+        {theme === 'dark' && <Moon size={16} className="text-blue-400" />}
       </button>
     )
   }
 
-  const thumbPos = getThumbOffset()
-  const valNow = currentTheme === 'light' ? 0 : currentTheme === 'surgical' ? 1 : 2
-
   return (
     <div
-      className={`flex flex-col items-center select-none ${className}`}
-      data-testid="theme-switcher-slider"
+      data-testid="theme-switcher"
+      className={`flex flex-col items-center gap-2 px-3 py-2 select-none ${className}`}
     >
-      {/* Contenedor del slider físico de 160px */}
+      <div className="text-[11px] font-medium text-[#94A3B8] dark:text-[#64748B] uppercase tracking-wide">
+        {theme === 'light' && 'Modo Claro'}
+        {theme === 'surgical' && 'Modo Quirúrgico'}
+        {theme === 'dark' && 'Modo Oscuro'}
+      </div>
+
       <div
-        ref={trackRef}
+        data-testid="theme-switcher-slider"
         role="slider"
         tabIndex={0}
         aria-label="Tema de interfaz"
         aria-valuemin={0}
         aria-valuemax={2}
-        aria-valuenow={valNow}
-        aria-valuetext={currentTheme === 'light' ? 'Claro' : currentTheme === 'surgical' ? 'Quirúrgico' : 'Oscuro'}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
+        aria-valuenow={currentIndex}
         onKeyDown={handleKeyDown}
-        className="w-[160px] h-[34px] bg-graphite-100 dark:bg-graphite-900/90 surgical:bg-graphite-200 p-1 rounded-full border border-surface relative flex items-center justify-between cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50"
+        onClick={(e) => {
+          const rect = e.currentTarget.getBoundingClientRect()
+          const ratio = (e.clientX - rect.left) / rect.width
+          const idx = ratio > 0.66 ? 2 : ratio > 0.33 ? 1 : 0
+          if (idx !== currentIndex) switchTo(THEMES[idx])
+        }}
+        onPointerUp={(e) => {
+          const rect = e.currentTarget.getBoundingClientRect()
+          if (!rect || rect.width === 0) return
+          const raw = e.nativeEvent as any
+          const cx = e.clientX ?? raw?.clientX ?? raw?.screenX
+          if (typeof cx !== 'number') return
+          const ratio = (cx - rect.left) / rect.width
+          const idx = ratio > 0.66 ? 2 : ratio > 0.33 ? 1 : 0
+          if (idx !== currentIndex) switchTo(THEMES[idx])
+        }}
+        className="relative bg-[#E2E8F0] dark:bg-[#1E293B] rounded-full cursor-pointer focus:outline-none focus:ring-1 focus:ring-amber-500/50"
+        style={{
+          width: `${TRACK_WIDTH}px`,
+          height: '32px',
+          touchAction: 'none',
+        }}
       >
-        {/* Thumb activo deslizante */}
-        <div className="absolute inset-y-1 left-1 right-1 pointer-events-none">
-          <div className="relative w-full h-full">
-            <motion.div
-              className="absolute top-0 w-[26px] h-[26px] rounded-full shadow-md"
-              style={{
-                background: 'linear-gradient(135deg, #E5C378 0%, #B88E3A 100%)',
-              }}
-              animate={{
-                left: thumbPos.left,
-                x: thumbPos.x,
-              }}
-              transition={
-                isDragging
-                  ? { duration: 0 }
-                  : { duration: 0.25, ease: [0.16, 1, 0.3, 1] }
-              }
+        {/* Iconos posicionados con flex justify-around */}
+        <div className="absolute inset-0 flex items-center justify-around pointer-events-none px-1">
+          {ICONS.map((Icon, i) => (
+            <Icon
+              key={i}
+              size={16}
+              className={theme === THEMES[i] ? 'text-[#B88E3A]' : 'text-[#94A3B8] dark:text-[#64748B]'}
             />
-          </div>
+          ))}
         </div>
 
-        {/* Botón 1: Modo Claro */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation()
-            handleSelectTheme('light')
-          }}
-          aria-label="Activar modo claro"
-          className="relative z-10 w-[26px] h-[26px] flex items-center justify-center rounded-full text-xs transition-colors cursor-pointer"
-          title="Modo Claro"
-        >
-          <Sun
-            size={14}
-            className={currentTheme === 'light' ? 'text-black font-bold' : 'text-graphite-500 hover:text-graphite-900 dark:text-graphite-400'}
+        {/* Zonas clickeables por posición */}
+        {THEMES.map((t, i) => (
+          <button
+            key={t}
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              switchTo(t)
+            }}
+            className="absolute top-0 h-full cursor-pointer opacity-0 z-10"
+            style={{
+              left: `${(i / THEMES.length) * TRACK_WIDTH}px`,
+              width: `${TRACK_WIDTH / THEMES.length}px`,
+            }}
+            aria-label={`Cambiar a modo ${t}`}
           />
-        </button>
+        ))}
 
-        {/* Botón 2: Modo Quirúrgico */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation()
-            handleSelectTheme('surgical')
-          }}
-          aria-label="Activar modo quirúrgico"
-          className="relative z-10 w-[26px] h-[26px] flex items-center justify-center rounded-full text-xs transition-colors cursor-pointer"
-          title="Modo Quirúrgico"
-        >
-          <Sparkles
-            size={14}
-            className={currentTheme === 'surgical' ? 'text-black font-bold' : 'text-graphite-500 hover:text-graphite-900 dark:text-graphite-400'}
-          />
-        </button>
+        {/* Botones accesibles secundarios */}
+        <div className="sr-only">
+          {THEMES.map((t) => (
+            <button
+              key={`accessible-${t}`}
+              type="button"
+              onClick={() => switchTo(t)}
+              aria-label={`Activar modo ${t === 'light' ? 'claro' : t === 'surgical' ? 'quirúrgico' : 'oscuro'}`}
+            >
+              Activar modo {t === 'light' ? 'claro' : t === 'surgical' ? 'quirúrgico' : 'oscuro'}
+            </button>
+          ))}
+        </div>
 
-        {/* Botón 3: Modo Oscuro */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation()
-            handleSelectTheme('dark')
+        {/* Círculo deslizante — EL ÚNICO que maneja drag */}
+        <motion.div
+          className="absolute rounded-full bg-gradient-to-br from-[#E5C378] to-[#B88E3A] shadow-md cursor-grab active:cursor-grabbing z-20"
+          style={{
+            width: `${THUMB_SIZE}px`,
+            height: `${THUMB_SIZE}px`,
+            top: `${PADDING}px`,
           }}
-          aria-label="Activar modo oscuro"
-          className="relative z-10 w-[26px] h-[26px] flex items-center justify-center rounded-full text-xs transition-colors cursor-pointer"
-          title="Modo Oscuro"
-        >
-          <Moon
-            size={14}
-            className={currentTheme === 'dark' ? 'text-black font-bold' : 'text-graphite-500 hover:text-graphite-900 dark:text-graphite-400'}
-          />
-        </button>
+          drag="x"
+          dragConstraints={constraints}
+          dragElastic={0.15}
+          dragMomentum={false}
+          onDragStart={() => setIsDragging(true)}
+          onDragEnd={handleDragEnd}
+          animate={{ x: THUMB_POSITIONS[currentIndex] }}
+          transition={{
+            type: 'spring',
+            stiffness: 400,
+            damping: 30,
+          }}
+          whileHover={{ scale: isDragging ? 1 : 1.08 }}
+          whileTap={{ scale: 0.95, cursor: 'grabbing' }}
+        />
       </div>
     </div>
   )
 }
+
+ThemeSwitcher.displayName = 'ThemeSwitcher'

@@ -94,13 +94,13 @@ export const buildPacienteResults = (
   onSelectPaciente: (p: Paciente) => void
 ): PaletteResult[] => {
   const list = !query.trim()
-    ? (pacientes || []).slice(0, 4)
+    ? (pacientes || []).slice(0, 5)
     : (pacientes || []).filter(
         (p) =>
           fuzzyMatch(p.nombre, query) ||
           fuzzyMatch(p.rut, query) ||
           fuzzyMatch(p.telefono != null ? String(p.telefono) : '', query)
-      ).slice(0, 4)
+      ).slice(0, 5)
 
   return list.map((p) => ({
     tipo: 'paciente',
@@ -125,8 +125,8 @@ export const buildCitaResults = (
   onOpenCita?: (id: string | number) => void
 ): PaletteResult[] => {
   const list = !query.trim()
-    ? citas.slice(0, 3)
-    : citas.filter((c) => fuzzyMatch(c.pacienteNombre, query) || fuzzyMatch(c.motivo, query)).slice(0, 3)
+    ? citas.slice(0, 5)
+    : citas.filter((c) => fuzzyMatch(c.pacienteNombre, query) || fuzzyMatch(c.motivo, query)).slice(0, 5)
 
   return list.map((c) => ({
     tipo: 'cita',
@@ -149,7 +149,7 @@ export const buildModuloResults = (
 ): PaletteResult[] => {
   const list = !query.trim()
     ? items.slice(0, 5)
-    : items.filter((m) => fuzzyMatch(m.name, query) || (m.slug && fuzzyMatch(m.slug, query)))
+    : items.filter((m) => fuzzyMatch(m.name, query) || (m.slug && fuzzyMatch(m.slug, query))).slice(0, 5)
 
   return list.map((m) => ({
     tipo: 'modulo',

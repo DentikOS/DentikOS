@@ -103,10 +103,10 @@ jobs:
           deno-version: v2.x
 
       - name: Type-check de Edge Functions
-        run: deno check supabase/functions/**/*.ts
+        run: cd supabase/functions && deno check **/*.ts
 
       - name: Ejecutar tests de Edge Functions
-        run: deno test -A supabase/functions/
+        run: cd supabase/functions && deno test -A .
 
       - name: Verificar resultado (gate obligatorio)
         if: failure()

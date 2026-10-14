@@ -29,7 +29,9 @@ Object.defineProperty(global, 'localStorage', {
 
 // Mock de rbacService
 vi.mock('../../infrastructure/auth/rbacService', () => ({
-  esRolValido: vi.fn((rol) => ['ADMIN', 'RECEPCION', 'DENTISTA', 'CONTADOR'].includes(rol)),
+  esRolValido: vi.fn((rol) =>
+    ['ADMIN', 'RECEPCION', 'DENTISTA', 'CONTADOR', 'admin', 'recepcion', 'dentista', 'contador'].includes(rol)
+  ),
   obtenerRolPorDefecto: vi.fn(() => 'RECEPCION')
 }))
 
@@ -236,6 +238,29 @@ describe('sesionStore', () => {
       useSesionStore.getState().actualizarPerfil(profile)
 
       expect(useSesionStore.getState().userProfile.rol).toBe('ADMIN')
+    })
+
+    it('debería hacer merge preservativo manteniendo rol, email y clinicaId existentes', () => {
+      useSesionStore.setState({
+        userProfile: {
+          email: 'admin@clinica.cl',
+          nombreCompleto: 'Dr. Admin Original',
+          rol: 'admin',
+          clinicaId: 'clinica-123',
+        },
+      })
+
+      useSesionStore.getState().actualizarPerfil({
+        nombreCompleto: 'Dr. Admin Actualizado',
+        especialidad: 'Ortodoncia',
+      })
+
+      const state = useSesionStore.getState().userProfile
+      expect(state.nombreCompleto).toBe('Dr. Admin Actualizado')
+      expect(state.especialidad).toBe('Ortodoncia')
+      expect(state.rol).toBe('admin')
+      expect(state.clinicaId).toBe('clinica-123')
+      expect(state.email).toBe('admin@clinica.cl')
     })
   })
 
