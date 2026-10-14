@@ -32,17 +32,10 @@ export const SelectorSede: React.FC<SelectorSedeProps> = ({
   const [isOpen, setIsOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  // Ocultar si hay 0 o 1 sede (variación aceptada)
-  if (!sedes || sedes.length <= 1) {
-    return null
-  }
-
-  const listaSedes = sedes
-  const valorActivo = sedeActivaId || sedeActiva?.id || listaSedes[0]?.id || ''
-  const sedeActivaObj = listaSedes.find((s) => (s.id || s.nombre) === valorActivo)
-
-  // Cerrar dropdown al hacer click fuera
+  // Cerrar dropdown al hacer click fuera o presionar Escape
   useEffect(() => {
+    if (!sedes || sedes.length <= 1) return
+
     const handleClickOutside = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setIsOpen(false)
@@ -59,7 +52,16 @@ export const SelectorSede: React.FC<SelectorSedeProps> = ({
       document.removeEventListener('mousedown', handleClickOutside)
       document.removeEventListener('keydown', handleEsc)
     }
-  }, [isOpen])
+  }, [isOpen, sedes])
+
+  // Ocultar si hay 0 o 1 sede (variación aceptada)
+  if (!sedes || sedes.length <= 1) {
+    return null
+  }
+
+  const listaSedes = sedes
+  const valorActivo = sedeActivaId || sedeActiva?.id || listaSedes[0]?.id || ''
+  const sedeActivaObj = listaSedes.find((s) => (s.id || s.nombre) === valorActivo)
 
   const handleSeleccion = (sedeId: string) => {
     if (sedeId === valorActivo) {
