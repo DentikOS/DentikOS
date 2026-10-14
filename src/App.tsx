@@ -12,6 +12,7 @@ import { FocusMode } from './shared/ui/FocusMode'
 import { KeyboardShortcutsModal } from './shared/ui/KeyboardShortcutsModal'
 import { useKeyboardShortcuts } from './shared/hooks/useKeyboardShortcuts'
 import { useSupabaseRealtime } from './shared/hooks/useSupabaseRealtime'
+import { useNotificationsRealtime } from './shared/hooks/useNotificationsRealtime'
 import { useSidebarStore } from './app/stores/useSidebarStore'
 import { useTopBarStore } from './app/stores/useTopBarStore'
 import { useAutoSurgicalMode } from './shared/hooks/useAutoSurgicalMode'
@@ -159,6 +160,7 @@ export const App: React.FC = () => {
   useThemeClass()
   useKeyboardShortcuts()
   useSupabaseRealtime()
+  useNotificationsRealtime()
   const logoutStore = useSesionStore((state: unknown) => (state as SesionStoreState).logout)
 
   // F6-H: Timeout de sesión + sincronización entre pestañas + manejo de errores 401
