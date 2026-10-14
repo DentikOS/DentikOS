@@ -2,6 +2,7 @@
  * Persistencia aislada para Comunicaciones, Bitácora y Plantillas
  */
 import { createTenantRepository } from '../../../../infrastructure/storage/localStorageRepository'
+import { agendaStorageService } from '../../agenda/services/agendaStorageService'
 import type {
   PlantillaComunicacion,
   MensajeHistorial
@@ -41,5 +42,41 @@ export const comunicacionesStorageService = {
   guardarPlantillas: (plantillas: PlantillaComunicacion[]): boolean => plantillasRepo.guardar(plantillas),
 
   obtenerHistorial: (defaults: MensajeHistorial[] = []): MensajeHistorial[] => historialRepo.obtener(defaults),
-  guardarHistorial: (historial: MensajeHistorial[]): boolean => historialRepo.guardar(historial)
+  obtenerMensajes: (defaults: MensajeHistorial[] = []): MensajeHistorial[] => historialRepo.obtener(defaults),
+  guardarHistorial: (historial: MensajeHistorial[]): boolean => historialRepo.guardar(historial),
+
+  /**
+   * Obtiene métricas de comunicaciones para el widget Comunicaciones del Dashboard.
+   * Retorna: sinLeerWhatsapp, porConfirmar
+   */
+  obtenerMetricasComunicacionesDashboard: (): { sinLeerWhatsapp: number; porConfirmar: number } => {
+    try {
+      const mensajes = historialRepo.obtener([]) || []
+      const citas = agendaStorageService.obtenerCitas?.([]) || []
+      const hoy = new Date().toISOString().split('T')[0]
+
+      // Mensajes de WhatsApp sin leer
+      const sinLeerWhatsapp = mensajes.filter(
+        (m: MensajeHistorial & { tipo?: string; leido?: boolean }) =>
+          (m.tipo === 'whatsapp' || m.canal === 'whatsapp') &&
+          (m.leido === false || m.estado === 'pendiente' || m.estado === 'Enviado')
+      ).length
+
+      // Citas pendientes de confirmar (hoy o mañana)
+      const manana = new Date()
+      manana.setDate(manana.getDate() + 1)
+      const mananaStr = manana.toISOString().split('T')[0]
+
+      const porConfirmar = citas.filter(
+        (c) =>
+          (c.fecha === hoy || c.fecha === mananaStr) &&
+          (c.estado === 'Pendiente' || c.estado === 'Agendado')
+      ).length
+
+      return { sinLeerWhatsapp, porConfirmar }
+    } catch (e) {
+      console.error('Error obteniendo métricas de comunicaciones:', e)
+      return { sinLeerWhatsapp: 0, porConfirmar: 0 }
+    }
+  }
 }

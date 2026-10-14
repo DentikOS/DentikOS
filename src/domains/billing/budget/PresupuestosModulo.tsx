@@ -1,4 +1,4 @@
-import React, { memo, useState } from 'react'
+import React, { memo, useState, useEffect } from 'react'
 import { ESTADOS_PRESUPUESTO } from './constants/presupuestosConstants'
 import { usePresupuestos } from './hooks/usePresupuestos'
 import { PresupuestosSummaryCards } from './components/PresupuestosSummaryCards'
@@ -35,6 +35,14 @@ export const PresupuestosModulo: React.FC<PresupuestosModuloProps> = memo(({
   const { alert: dialogAlert } = useAppDialog()
   const [presupuestoVerDocumento, setPresupuestoVerDocumento] = useState<PresupuestoLocal | null>(null)
   const [presupuestoParaPago, setPresupuestoParaPago] = useState<PresupuestoLocal | null>(null)
+
+  useEffect(() => {
+    const handleAbrirModalPresupuesto = () => {
+      setModalAbierto(true)
+    }
+    window.addEventListener('abrir_modal_presupuesto', handleAbrirModalPresupuesto)
+    return () => window.removeEventListener('abrir_modal_presupuesto', handleAbrirModalPresupuesto)
+  }, [])
 
   const {
     presupuestos,

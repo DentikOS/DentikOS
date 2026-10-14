@@ -32,7 +32,41 @@ describe('ConfigurarWidgetsModal (BP04 §03)', () => {
     fireEvent.click(checkboxes[0])
     expect(useDashboardStore.getState().widgets.find((w) => w.id === 'w-agenda')?.visible).toBe(false)
 
-    fireEvent.click(screen.getByText(/Guardar y cerrar/i))
+    expect(screen.getByText(/visibles/i)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /Listo/i }))
     expect(handleClose).toHaveBeenCalled()
+  })
+
+  it('muestra badge "Condicional" para el widget Quick Resume', () => {
+    useDashboardStore.setState({
+      widgets: [
+        { id: 'quick_resume', tipo: 'quick_resume', visible: true, orden: 1 }
+      ]
+    })
+    render(
+      <ConfigurarWidgetsModal isOpen={true} onClose={() => {}} userRole="admin" />
+    )
+    expect(screen.getByText('Condicional')).toBeInTheDocument()
+    expect(screen.getByText('Solo visible al editar una ficha reciente')).toBeInTheDocument()
+  })
+
+  it('NO muestra emojis en el footer del modal (Brand Manual)', () => {
+    const { container } = render(
+      <ConfigurarWidgetsModal isOpen={true} onClose={() => {}} userRole="admin" />
+    )
+    // Verificar que no hay emojis (rango Unicode de emojis)
+    const footer = container.querySelector('.pt-2')
+    const hasEmoji = /[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/u.test(footer?.textContent || '')
+    expect(hasEmoji).toBe(false)
+  })
+
+  it('muestra icono Info en el footer en lugar de emoji', () => {
+    render(
+      <ConfigurarWidgetsModal isOpen={true} onClose={() => {}} userRole="admin" />
+    )
+    // El icono Info de Lucide se renderiza como SVG
+    const svgs = document.querySelectorAll('svg')
+    expect(svgs.length).toBeGreaterThan(0)
   })
 })

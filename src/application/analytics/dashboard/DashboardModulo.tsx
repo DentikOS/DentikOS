@@ -13,9 +13,9 @@ import { ContextualIntelligenceCard } from '../../../shared/ui/dashboard/Context
 import { ChecklistOnboarding } from '../../../shared/ui/dashboard/ChecklistOnboarding'
 import { MiniTour } from '../../../shared/ui/dashboard/MiniTour'
 import { DashboardWidgetsGrid } from '../../../shared/ui/dashboard/DashboardWidgetsGrid'
-import { AccionesRapidas } from '../../../shared/ui/dashboard/AccionesRapidas'
 import { ConfigurarWidgetsModal } from '../../../shared/ui/dashboard/ConfigurarWidgetsModal'
 import { DashboardQuirurgico } from '../../../shared/ui/dashboard/DashboardQuirurgico'
+import { useDashboardRealtime } from '../../../shared/hooks/useDashboardRealtime'
 import type { Paciente } from '../../../domains/clinical/patient/schemas/pacienteSchema'
 
 export interface DashboardModuloProps {
@@ -24,6 +24,9 @@ export interface DashboardModuloProps {
 }
 
 export const DashboardModulo: React.FC<DashboardModuloProps> = memo(({ setPacienteSeleccionado, setActiveSection }) => {
+  // BP04 §03: Suscribir a Supabase Realtime para actualización en tiempo real
+  useDashboardRealtime()
+
   const pacientes = usePacientesStore((state) => state.pacientes || []) as Paciente[]
   const userProfile = useSesionStore((state) => state.userProfile)
   const theme = useThemeStore((state) => state.theme)
@@ -55,6 +58,8 @@ export const DashboardModulo: React.FC<DashboardModuloProps> = memo(({ setPacien
       setActiveSection(seccion)
     }
   }
+
+
 
   // BP04 §08: Modo Quirúrgico
   if (theme === 'surgical') {
@@ -153,13 +158,7 @@ export const DashboardModulo: React.FC<DashboardModuloProps> = memo(({ setPacien
         onReorderWidgets={reorderWidgets}
       />
 
-      {/* Zona Inferior: Acciones Rápidas con Gradiente Dorado */}
-      <AccionesRapidas
-        userRole={userRole}
-        onEjecutarAccion={(acc) => {
-          if (acc.seccion) handleNavegarSeccion(acc.seccion)
-        }}
-      />
+
 
       {/* Modales de soporte */}
       <ConfigurarWidgetsModal

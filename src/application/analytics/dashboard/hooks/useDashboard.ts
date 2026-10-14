@@ -76,11 +76,31 @@ export const useDashboard = (
   useEffect(() => {
     cargarDatos()
 
+    // Eventos locales (legacy)
     window.addEventListener('storage', cargarDatos)
     window.addEventListener('arancel_actualizado', cargarDatos)
+
+    // BP04 §03: Eventos de Supabase Realtime
+    const realtimeEvents = [
+      'dashboard:agenda:changed',
+      'dashboard:pacientes:changed',
+      'dashboard:alertas:changed',
+      'dashboard:esterilizacion:changed',
+      'dashboard:inventario:changed',
+      'dashboard:pagos:changed',
+      'dashboard:comunicaciones:changed'
+    ]
+
+    realtimeEvents.forEach((event) => {
+      window.addEventListener(event, cargarDatos)
+    })
+
     return () => {
       window.removeEventListener('storage', cargarDatos)
       window.removeEventListener('arancel_actualizado', cargarDatos)
+      realtimeEvents.forEach((event) => {
+        window.removeEventListener(event, cargarDatos)
+      })
     }
   }, [cargarDatos])
 

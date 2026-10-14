@@ -8,6 +8,8 @@ import {
   obtenerPresupuestosDashboard,
   obtenerAlertasOperativasDashboard,
   obtenerResumenConsultasDashboard,
+  obtenerMetricasPagosDashboard,
+  obtenerAlertasClinicasDashboard,
 } from './dashboardQueries'
 import * as paymentDomain from '../../domains/billing/payment'
 import { agendaStorageService } from '../../domains/operations/agenda'
@@ -116,6 +118,43 @@ describe('dashboardQueries (Application Service)', () => {
       expect(resumen.enEspera).toHaveLength(1)
       expect(resumen.ingresosHoy).toBe(15000)
       expect(resumen.totalPacientes).toBe(1)
+    })
+  })
+
+  describe('obtenerMetricasPagosDashboard', () => {
+    it('calcula porCobrarHoy, pagosVencidos y recaudadoHoy correctamente', () => {
+      const hoy = new Date().toLocaleDateString('en-CA')
+      vi.spyOn(paymentDomain.pagosStorageService, 'obtenerPagos').mockReturnValue([
+        { id: 'p1', fecha: hoy, monto: 50000, estado: 'pagado' },
+        { id: 'p2', fecha: hoy, monto: 30000, estado: 'pendiente' },
+        { id: 'p3', fecha: '2020-01-01', monto: 20000, estado: 'pendiente' },
+      ])
+
+      const metricas = obtenerMetricasPagosDashboard([])
+      expect(metricas.recaudadoHoy).toBe(50000)
+      expect(metricas.porCobrarHoy).toBe(30000)
+      expect(metricas.pagosVencidos).toBe(20000)
+    })
+  })
+
+  describe('obtenerAlertasClinicasDashboard', () => {
+    it('retorna alertas clínicas para pacientes con citas hoy', () => {
+      const hoy = new Date().toLocaleDateString('en-CA')
+      vi.spyOn(agendaStorageService, 'obtenerCitas').mockReturnValue([
+        { id: 'c1', fecha: hoy, pacienteId: 'pac-1', estado: 'Confirmado' },
+      ])
+
+      const mockPacientes = [
+        { id: 'pac-1', nombre: 'Juan Pérez', alergias: 'Penicilina', anticoagulantes: 'Warfarina' } as any,
+        { id: 'pac-2', nombre: 'Sin Cita', alergias: 'Latex' } as any,
+      ]
+
+      const alertas = obtenerAlertasClinicasDashboard(mockPacientes)
+      expect(alertas.length).toBe(2)
+      expect(alertas[0].pacienteNombre).toBe('Juan Pérez')
+      expect(alertas[0].tipo).toBe('alergia')
+      expect(alertas[0].mensaje).toBe('Penicilina')
+      expect(alertas[1].tipo).toBe('contraindicacion')
     })
   })
 })

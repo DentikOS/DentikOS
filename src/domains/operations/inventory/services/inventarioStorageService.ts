@@ -44,5 +44,39 @@ export const inventarioStorageService = {
   obtenerAsociacionesInsumos: (
     defaults: AsociacionesInsumos = INSUMOS_POR_PRESTACION_DEFAULT as AsociacionesInsumos
   ): AsociacionesInsumos => asociacionesRepo.obtener(defaults),
-  guardarAsociacionesInsumos: (asociaciones: AsociacionesInsumos): boolean => asociacionesRepo.guardar(asociaciones)
+  guardarAsociacionesInsumos: (asociaciones: AsociacionesInsumos): boolean => asociacionesRepo.guardar(asociaciones),
+
+  /**
+   * Obtiene items de inventario en stock crítico para el widget del Dashboard.
+   * Retorna solo items con cantidad <= minimoCritico.
+   */
+  obtenerItemsInventarioCriticoDashboard: (): Array<{
+    id: string | number
+    nombre: string
+    cantidad: number
+    minimoCritico: number
+    unidad?: string
+  }> => {
+    try {
+      const items = inventarioStorageService.obtenerItems() || []
+
+      return items
+        .filter((item) => {
+          const cantidad = Number(item.cantidad) || 0
+          const minimo = Number(item.minimoCritico) || 5
+          return cantidad <= minimo
+        })
+        .map((item) => ({
+          id: item.id,
+          nombre: item.nombre || 'Item sin nombre',
+          cantidad: Number(item.cantidad) || 0,
+          minimoCritico: Number(item.minimoCritico) || 5,
+          unidad: item.unidad || 'uds'
+        }))
+        .slice(0, 5) // Máximo 5 items para no saturar el widget
+    } catch (e) {
+      console.error('Error obteniendo inventario crítico:', e)
+      return []
+    }
+  }
 }

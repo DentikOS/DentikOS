@@ -26,6 +26,10 @@ import { WidgetInventarioCritico } from './widgets/WidgetInventarioCritico'
 import { WidgetPagosPendientes } from './widgets/WidgetPagosPendientes'
 import { WidgetComunicaciones } from './widgets/WidgetComunicaciones'
 import { WidgetQuickResume } from './widgets/WidgetQuickResume'
+import { obtenerMetricasPagosDashboard, obtenerAlertasClinicasDashboard } from '../../../application/analytics/dashboardQueries'
+import { comunicacionesStorageService } from '../../../domains/operations/communications/services/comunicacionesStorageService'
+import { esterilizacionStorageService } from '../../../domains/operations/sterilization/services/esterilizacionStorageService'
+import { inventarioStorageService } from '../../../domains/operations/inventory/services/inventarioStorageService'
 
 export interface DashboardWidgetsGridProps {
   widgets: WidgetConfig[]
@@ -109,16 +113,62 @@ export const DashboardWidgetsGrid: React.FC<DashboardWidgetsGridProps> = ({
         return <WidgetPacientesRecientes pacientes={pacientes} onVerFichaPaciente={onVerFichaPaciente} onVerTodos={() => onNavegarSeccion?.('Pacientes')} dragHandle={dragHandle} />
       case 'sala_espera':
         return <WidgetSalaEspera enEspera={citas.filter((c) => c.estado === 'En Espera')} pacientes={pacientes} onVerFichaPaciente={onVerFichaPaciente} dragHandle={dragHandle} />
-      case 'alertas_clinicas':
-        return <WidgetAlertasClinicas dragHandle={dragHandle} />
-      case 'esterilizacion':
-        return <WidgetEsterilizacion onIrEsterilizacion={() => onNavegarSeccion?.('Esterilización')} dragHandle={dragHandle} />
-      case 'inventario_critico':
-        return <WidgetInventarioCritico onIrInventario={() => onNavegarSeccion?.('Inventario')} dragHandle={dragHandle} />
-      case 'pagos_pendientes':
-        return <WidgetPagosPendientes onIrPagos={() => onNavegarSeccion?.('Pagos')} dragHandle={dragHandle} />
-      case 'comunicaciones':
-        return <WidgetComunicaciones onIrComunicaciones={() => onNavegarSeccion?.('Comunicaciones')} dragHandle={dragHandle} />
+      case 'alertas_clinicas': {
+        const alertasClinicas = obtenerAlertasClinicasDashboard(pacientes)
+        return (
+          <WidgetAlertasClinicas
+            alertas={alertasClinicas}
+            onVerAlerta={(alerta) => {
+              const paciente = pacientes.find((p) => String(p.id) === String(alerta.pacienteId))
+              if (paciente) onVerFichaPaciente?.(paciente)
+            }}
+            dragHandle={dragHandle}
+          />
+        )
+      }
+      case 'esterilizacion': {
+        const infoEsterilizacion = esterilizacionStorageService.obtenerInfoEsterilizacionDashboard()
+        return (
+          <WidgetEsterilizacion
+            info={infoEsterilizacion}
+            onIrEsterilizacion={() => onNavegarSeccion?.('Esterilización')}
+            dragHandle={dragHandle}
+          />
+        )
+      }
+      case 'inventario_critico': {
+        const itemsCriticos = inventarioStorageService.obtenerItemsInventarioCriticoDashboard()
+        return (
+          <WidgetInventarioCritico
+            items={itemsCriticos}
+            onIrInventario={() => onNavegarSeccion?.('Inventario')}
+            dragHandle={dragHandle}
+          />
+        )
+      }
+      case 'pagos_pendientes': {
+        const metricasPagos = obtenerMetricasPagosDashboard(pacientes)
+        return (
+          <WidgetPagosPendientes
+            porCobrarHoy={metricasPagos.porCobrarHoy}
+            pagosVencidos={metricasPagos.pagosVencidos}
+            recaudadoHoy={metricasPagos.recaudadoHoy}
+            onIrPagos={() => onNavegarSeccion?.('Pagos')}
+            dragHandle={dragHandle}
+          />
+        )
+      }
+      case 'comunicaciones': {
+        const metricasComunicaciones = comunicacionesStorageService.obtenerMetricasComunicacionesDashboard()
+        return (
+          <WidgetComunicaciones
+            sinLeerWhatsapp={metricasComunicaciones.sinLeerWhatsapp}
+            porConfirmar={metricasComunicaciones.porConfirmar}
+            onIrComunicaciones={() => onNavegarSeccion?.('Comunicaciones')}
+            dragHandle={dragHandle}
+          />
+        )
+      }
       case 'quick_resume':
         return <WidgetQuickResume data={quickResumeData} onRetomar={() => onNavegarSeccion?.('Pacientes')} dragHandle={dragHandle} />
       default:

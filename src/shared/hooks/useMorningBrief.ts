@@ -1,11 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { MorningBriefLine, MorningBriefData } from '../types/dashboardTypes'
 import { agendaStorageService } from '../../domains/operations/agenda/services/agendaStorageService'
-import { finanzasStorageService } from '../../domains/billing/cash-register/services/finanzasStorageService'
 import { inventarioStorageService } from '../../domains/operations/inventory/services/inventarioStorageService'
 import { esterilizacionStorageService } from '../../domains/operations/sterilization/services/esterilizacionStorageService'
-import type { CargaEsterilizacion } from '../../domains/operations/sterilization/constants/esterilizacionConstants'
-import type { ItemInventario } from '../../domains/operations/inventory/services/inventarioStorageService'
+import { usePacientesStore } from '../../app/stores/pacientesStore'
+import { obtenerMetricasPagosDashboard } from '../../application/analytics/dashboardQueries'
 
 export const useMorningBrief = (userRole = 'admin'): MorningBriefData => {
   const [data, setData] = useState<MorningBriefData>({ lineas: [], fechaActualizacion: '' })
@@ -36,40 +35,52 @@ export const useMorningBrief = (userRole = 'admin'): MorningBriefData => {
       severidad: citaConAlerta ? 'alerta' : 'info'
     }
 
-    const movs = finanzasStorageService.obtenerMovimientos?.() || []
-    const cobroAyer = movs.filter((m) => m.tipo === 'ingreso').reduce((acc, m) => acc + (Number(m.monto) || 0), 0)
+    const pacientes = usePacientesStore.getState().pacientes || []
+    const metricasPagos = obtenerMetricasPagosDashboard(pacientes)
+    let textoFinanzas = 'Sin movimientos ni pagos pendientes registrados para hoy'
+    if (metricasPagos.recaudadoHoy > 0) {
+      textoFinanzas = `$${metricasPagos.recaudadoHoy.toLocaleString('es-CL')} recaudado en caja hoy`
+    } else if (metricasPagos.porCobrarHoy > 0) {
+      textoFinanzas = `$${metricasPagos.porCobrarHoy.toLocaleString('es-CL')} por cobrar hoy`
+    } else if (metricasPagos.pagosVencidos > 0) {
+      textoFinanzas = `$${metricasPagos.pagosVencidos.toLocaleString('es-CL')} en pagos vencidos`
+    }
+
     const lineaFinanzas: MorningBriefLine = {
       id: 'finanzas',
       icono: 'wallet',
-      texto: cobroAyer > 0 ? `$${cobroAyer.toLocaleString('es-CL')} recaudado en caja` : '$180.000 por cobrar de ayer',
+      texto: textoFinanzas,
       seccion: 'Pagos',
       severidad: 'info'
     }
 
-    let cargas: CargaEsterilizacion[] = []
-    try { cargas = esterilizacionStorageService.obtenerCargas?.() || [] } catch { cargas = [] }
-    const cargaActiva = cargas.find((c) => c.estado !== 'Aprobado')
+    const infoEsterilizacion = esterilizacionStorageService.obtenerInfoEsterilizacionDashboard()
+    let textoEsterilizacion = 'Autoclave #1: todos los ciclos validados y listos'
+    if (infoEsterilizacion) {
+      if (infoEsterilizacion.estado === 'en_curso') {
+        textoEsterilizacion = `${infoEsterilizacion.equipo}: ciclo #${infoEsterilizacion.ciclo} en curso (${infoEsterilizacion.tiempoRestante})`
+      } else {
+        textoEsterilizacion = `${infoEsterilizacion.equipo}: ciclo #${infoEsterilizacion.ciclo} validado y listo`
+      }
+    }
     const lineaEsterilizacion: MorningBriefLine = {
       id: 'esterilizacion',
       icono: 'lab',
-      texto: cargaActiva
-        ? `Autoclave #1: ciclo #${cargaActiva.lote || '48'} en curso (termina 09:45)`
-        : 'Autoclave #1: todos los ciclos validados y listos',
+      texto: textoEsterilizacion,
       seccion: 'Esterilización',
       severidad: 'info'
     }
 
-    let items: ItemInventario[] = []
-    try { items = inventarioStorageService.obtenerItems?.() || [] } catch { items = [] }
-    const itemCritico = items.find((i) => (Number(i.cantidad) || 0) <= (Number(i.minimoCritico) || 5))
+    const itemsCriticos = inventarioStorageService.obtenerItemsInventarioCriticoDashboard()
+    const itemCritico = itemsCriticos[0]
     const lineaInventario: MorningBriefLine = {
       id: 'inventario',
       icono: 'package',
       texto: itemCritico
         ? `${itemCritico.nombre}: quedan ${itemCritico.cantidad} ${itemCritico.unidad || 'uds'} (stock crítico)`
-        : 'Anestesia 2%: quedan 4 unidades (stock crítico)',
+        : 'Stock de insumos en niveles óptimos',
       seccion: 'Inventario',
-      severidad: 'advertencia'
+      severidad: itemCritico ? 'advertencia' : 'info'
     }
 
     let lineas: MorningBriefLine[] = [lineaAgenda, lineaAlertas, lineaFinanzas, lineaEsterilizacion, lineaInventario]

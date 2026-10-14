@@ -17,11 +17,7 @@ export interface WidgetInventarioCriticoProps {
 }
 
 export const WidgetInventarioCritico: React.FC<WidgetInventarioCriticoProps> = ({
-  items = [
-    { id: '1', nombre: 'Anestesia Lidocaína 2%', cantidad: 4, minimoCritico: 10, unidad: 'tubos' },
-    { id: '2', nombre: 'Guantes de Nitrilo (M)', cantidad: 1, minimoCritico: 5, unidad: 'cajas' },
-    { id: '3', nombre: 'Agujas Cortas 30G', cantidad: 0, minimoCritico: 8, unidad: 'cajas' }
-  ],
+  items = [],
   onIrInventario,
   dragHandle
 }) => {

@@ -2,8 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   ACCESOS_RAPIDOS,
   WIDGETS_POR_ROL,
-  WIDGET_CONFIG,
-  ACCIONES_RAPIDAS_POR_ROL
+  WIDGET_CONFIG
 } from './dashboardConstants'
 
 describe('dashboardConstants', () => {
@@ -44,9 +43,4 @@ describe('dashboardConstants', () => {
     expect(WIDGETS_POR_ROL.asistente).toContain('esterilizacion')
   })
 
-  it('define acciones rapidas por rol incluyendo Command Palette (⌘K)', () => {
-    expect(ACCIONES_RAPIDAS_POR_ROL.admin.some((a) => a.shortcut === '⌘K')).toBe(true)
-    expect(ACCIONES_RAPIDAS_POR_ROL.dentista.some((a) => a.shortcut === '⌘K')).toBe(true)
-    expect(ACCIONES_RAPIDAS_POR_ROL.recepcion.some((a) => a.shortcut === '⌘K')).toBe(true)
-  })
 })

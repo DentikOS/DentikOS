@@ -20,4 +20,12 @@ describe('WidgetComunicaciones (BP04 §03)', () => {
     fireEvent.click(screen.getByText(/Centro de Mensajes y Confirmaciones/i))
     expect(handleIr).toHaveBeenCalled()
   })
+
+  it('renderiza métricas reales (no valores por defecto)', () => {
+    render(<WidgetComunicaciones sinLeerWhatsapp={2} porConfirmar={3} />)
+
+    expect(screen.getByText('2 pendientes')).toBeInTheDocument()
+    expect(screen.getByText('3 por enviar')).toBeInTheDocument()
+    expect(screen.queryByText('5 por enviar')).not.toBeInTheDocument()
+  })
 })

@@ -36,4 +36,75 @@ describe('DashboardSaludo (BP04 §02)', () => {
     fireEvent.click(screen.getByText(/Juan Pérez/i))
     expect(handleVerFicha).toHaveBeenCalledWith('p-123')
   })
+
+  it('renderiza botón de personalizar widgets con icono y maneja click', () => {
+    const handleAbrirConfig = vi.fn()
+    render(
+      <DashboardSaludo
+        userProfile={{ nombreCompleto: 'Dr. Roberto Gómez' }}
+        onAbrirConfig={handleAbrirConfig}
+      />
+    )
+
+    const btn = screen.getByRole('button', { name: /Personalizar widgets del Dashboard/i })
+    expect(btn).toBeInTheDocument()
+    fireEvent.click(btn)
+    expect(handleAbrirConfig).toHaveBeenCalledTimes(1)
+  })
+
+  it('muestra "Dr. [Apellido]" para rol dentista', () => {
+    render(
+      <DashboardSaludo
+        userProfile={{ nombreCompleto: 'Dr. Juan Pérez', rol: 'dentista' }}
+      />
+    )
+    expect(screen.getByText(/Dr\. Pérez/)).toBeInTheDocument()
+  })
+
+  it('muestra "Dra. [Apellido]" para rol admin con Dra.', () => {
+    render(
+      <DashboardSaludo
+        userProfile={{ nombreCompleto: 'Dra. María González', rol: 'admin' }}
+      />
+    )
+    expect(screen.getByText(/Dra\. González/)).toBeInTheDocument()
+  })
+
+  it('muestra solo el primer nombre para rol asistente', () => {
+    render(
+      <DashboardSaludo
+        userProfile={{ nombreCompleto: 'María López', rol: 'asistente' }}
+      />
+    )
+    expect(screen.getByText(/María/)).toBeInTheDocument()
+    expect(screen.queryByText(/Dra\./)).not.toBeInTheDocument()
+  })
+
+  it('muestra solo el primer nombre para rol recepcion', () => {
+    render(
+      <DashboardSaludo
+        userProfile={{ nombreCompleto: 'Ana Ruiz', rol: 'recepcion' }}
+      />
+    )
+    expect(screen.getByText(/Ana/)).toBeInTheDocument()
+    expect(screen.queryByText(/Dr\./)).not.toBeInTheDocument()
+  })
+
+  it('muestra "Asistente Dental" en el subtítulo para rol asistente', () => {
+    render(
+      <DashboardSaludo
+        userProfile={{ nombreCompleto: 'María López', rol: 'asistente' }}
+      />
+    )
+    expect(screen.getByText('Asistente Dental')).toBeInTheDocument()
+  })
+
+  it('muestra "Recepción" en el subtítulo para rol recepcion', () => {
+    render(
+      <DashboardSaludo
+        userProfile={{ nombreCompleto: 'Ana Ruiz', rol: 'recepcion' }}
+      />
+    )
+    expect(screen.getByText('Recepción')).toBeInTheDocument()
+  })
 })

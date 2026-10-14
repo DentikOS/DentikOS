@@ -178,3 +178,111 @@ export const obtenerResumenConsultasDashboard = (
     alertasOperativas,
   }
 }
+
+/**
+ * Obtiene métricas de pagos para el widget PagosPendientes del Dashboard.
+ * Retorna: porCobrarHoy, pagosVencidos, recaudadoHoy
+ */
+export const obtenerMetricasPagosDashboard = (pacientes: Paciente[] = []) => {
+  try {
+    const hoy = obtenerFechaLocalISO()
+    const todosLosPagos = obtenerTodosLosPagosDashboard(pacientes)
+
+    // Pagos de hoy
+    const pagosHoy = todosLosPagos.filter((p) => p.fecha === hoy)
+    const recaudadoHoy = pagosHoy
+      .filter((p) => p.estado === 'pagado' || p.estado === 'completado')
+      .reduce((sum, p) => sum + (Number(p.monto) || 0), 0)
+
+    // Pagos vencidos (fecha < hoy y estado != pagado)
+    const pagosVencidos = todosLosPagos
+      .filter((p) => Boolean(p.fecha && p.fecha < hoy) && p.estado !== 'pagado' && p.estado !== 'completado')
+      .reduce((sum, p) => sum + (Number(p.monto) || 0), 0)
+
+    // Por cobrar hoy (pagos de hoy pendientes)
+    const porCobrarHoy = pagosHoy
+      .filter((p) => p.estado !== 'pagado' && p.estado !== 'completado')
+      .reduce((sum, p) => sum + (Number(p.monto) || 0), 0)
+
+    return {
+      porCobrarHoy,
+      pagosVencidos,
+      recaudadoHoy,
+    }
+  } catch (e) {
+    console.error('Error obteniendo métricas de pagos:', e)
+    return {
+      porCobrarHoy: 0,
+      pagosVencidos: 0,
+      recaudadoHoy: 0,
+    }
+  }
+}
+
+/**
+ * Obtiene alertas clínicas de pacientes con citas hoy.
+ * Retorna alergias, contraindicaciones y precauciones.
+ */
+export const obtenerAlertasClinicasDashboard = (pacientes: Paciente[] = []): Array<{
+  id: string | number
+  pacienteId: string | number
+  pacienteNombre: string
+  tipo: 'alergia' | 'contraindicacion' | 'precaucion'
+  mensaje: string
+  severidad: 'critica' | 'precaucion'
+}> => {
+  try {
+    const hoy = obtenerFechaLocalISO()
+    const citasHoy = obtenerCitasDelDia(hoy)
+
+    const alertas: Array<{
+      id: string | number
+      pacienteId: string | number
+      pacienteNombre: string
+      tipo: 'alergia' | 'contraindicacion' | 'precaucion'
+      mensaje: string
+      severidad: 'critica' | 'precaucion'
+    }> = []
+
+    citasHoy.forEach((cita) => {
+      const paciente = pacientes.find((p) => String(p.id) === String(cita.pacienteId))
+      if (!paciente) return
+
+      // Alergias (críticas)
+      const alergiasStr = Array.isArray(paciente.alergias)
+        ? paciente.alergias.join(', ')
+        : (typeof paciente.alergias === 'string' ? paciente.alergias : '')
+
+      if (alergiasStr && alergiasStr.trim()) {
+        alertas.push({
+          id: `alergia-${paciente.id}`,
+          pacienteId: paciente.id,
+          pacienteNombre: paciente.nombre,
+          tipo: 'alergia',
+          mensaje: alergiasStr,
+          severidad: 'critica'
+        })
+      }
+
+      // Anticoagulantes (críticas)
+      const anticoagulantes = (paciente as unknown as { anticoagulantes?: string }).anticoagulantes
+      if (anticoagulantes && String(anticoagulantes).trim()) {
+        alertas.push({
+          id: `anticoagulante-${paciente.id}`,
+          pacienteId: paciente.id,
+          pacienteNombre: paciente.nombre,
+          tipo: 'contraindicacion',
+          mensaje: `Anticoagulantes: ${anticoagulantes}`,
+          severidad: 'critica'
+        })
+      }
+    })
+
+    return alertas
+  } catch (e) {
+    console.error('Error obteniendo alertas clínicas:', e)
+    return []
+  }
+}
+
+
