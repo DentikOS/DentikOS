@@ -20,7 +20,7 @@ export interface CreateNotificationParams {
   actionLabel?: string
   actionUrl?: string
   actionPayload?: Record<string, unknown>
-  expiresInHours?: number
+  expiresInHours?: number | null
 }
 
 export const notificationRepository = {

@@ -22,16 +22,27 @@ describe('TopBarBreadcrumbs (BP03 §08 Feature 3)', () => {
     expect(screen.queryByText(/Cambios sin guardar/i)).not.toBeInTheDocument()
   })
 
-  it('estado dirty: renderiza ● ámbar y "Cambios sin guardar"', () => {
+  it('estado dirty: renderiza ● ámbar y "Cambios sin guardar" con animación animate-pulse-slow', () => {
     render(<TopBarBreadcrumbs items={[{ label: 'Dashboard' }]} />)
 
     act(() => {
       useTopBarStore.getState().setIsDirty(true)
     })
 
-    expect(screen.getByTestId('topbar-dirty-indicator')).toBeInTheDocument()
+    const dirtyIndicator = screen.getByTestId('topbar-dirty-indicator')
+    expect(dirtyIndicator).toBeInTheDocument()
     expect(screen.getByText(/Cambios sin guardar/i)).toBeInTheDocument()
+    expect(dirtyIndicator.querySelector('.animate-pulse-slow')).toBeInTheDocument()
     expect(screen.queryByTestId('topbar-saved-indicator')).not.toBeInTheDocument()
+  })
+
+  it('timer de atención usa color #94A3B8 en estado inicial (<15 min)', () => {
+    useTopBarStore.setState({ timerStart: Date.now() })
+    render(<TopBarBreadcrumbs items={[{ label: 'Pacientes' }]} pacienteId="pac-123" />)
+
+    const timer = screen.getByTitle('Tiempo transcurrido en ficha del paciente')
+    expect(timer).toBeInTheDocument()
+    expect(timer.className).toContain('text-[#94A3B8]')
   })
 
   it('estado saved: renderiza ✓ y a 2.5s desaparece por completo', () => {

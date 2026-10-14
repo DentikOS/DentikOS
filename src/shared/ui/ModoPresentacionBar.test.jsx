@@ -28,7 +28,9 @@ describe('ModoPresentacionBar (Blueprint 03)', () => {
     expect(screen.getByText('Dentik')).toBeInTheDocument()
     expect(screen.getByText('OS')).toBeInTheDocument()
     expect(screen.getByText('DentikOS Clinical Suite')).toBeInTheDocument()
+    expect(screen.getByText('DentikOS Clinical Suite')).toHaveClass('text-base')
     expect(screen.getByText(/Carolina Rojas/)).toBeInTheDocument()
+    expect(screen.getByText(/Carolina Rojas/)).toHaveClass('text-base')
     expect(screen.getByText(/34 años/)).toBeInTheDocument()
   })
 
@@ -42,10 +44,12 @@ describe('ModoPresentacionBar (Blueprint 03)', () => {
     expect(onSalir).toHaveBeenCalledTimes(1)
   })
 
-  it('muestra "Sin paciente seleccionado" cuando paciente es null', () => {
+  it('muestra "Sin paciente seleccionado" cuando paciente es null con tipografía text-base', () => {
     render(
       <ModoPresentacionBar activo={true} paciente={null} onSalir={vi.fn()} />
     )
-    expect(screen.getByText('Sin paciente seleccionado')).toBeInTheDocument()
+    const emptyMsg = screen.getByText('Sin paciente seleccionado')
+    expect(emptyMsg).toBeInTheDocument()
+    expect(emptyMsg).toHaveClass('text-base')
   })
 })

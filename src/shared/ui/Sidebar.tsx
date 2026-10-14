@@ -3,8 +3,9 @@
  * Respetando arquitectura DDD y límite estricto de 250 líneas.
  */
 import React, { useMemo, useEffect } from 'react'
-import { motion } from 'framer-motion'
-import { useRBAC } from '../hooks/useRBAC'
+import { motion, useReducedMotion } from 'framer-motion'
+import { useIsInitialMount } from '../hooks/useCascadeAnimation'
+import { usePermissions } from '../hooks/usePermissions'
 import { SidebarHeader } from './SidebarHeader'
 import { SidebarFooter } from './SidebarFooter'
 import { SidebarItemAnimated } from './SidebarItemAnimated'
@@ -12,7 +13,6 @@ import { useSidebarStore, type SidebarMode } from '../../app/stores/useSidebarSt
 import { useDarkMode } from '../hooks/useDarkMode'
 import { useNombreClinica } from '../hooks/useNombreClinica'
 import { useSedes } from '../../domains/organization/clinic/hooks/useSedes'
-import { SECCIONES_SIDEBAR, type SidebarSeccion } from '../../constants/sidebarConstants'
 import type { PerfilUsuario } from '../../infrastructure/auth/authService'
 import type { SidebarCountersReturn } from '../hooks/useSidebarCounters'
 
@@ -38,8 +38,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const setPreSurgicalMode = useSidebarStore((s) => s.setPreSurgicalMode)
   const focusMode = useSidebarStore((s) => s.focusMode)
   const { theme } = useDarkMode()
-  const { puede } = useRBAC()
+  const { seccionesFiltradas: seccionesVisibles } = usePermissions()
   const { sedeActiva } = useSedes()
+  const prefersReducedMotion = useReducedMotion()
+  const isInitialMount = useIsInitialMount()
+  const shouldAnimate = Boolean(isInitialMount && !prefersReducedMotion)
 
   const mode = propMode ?? storeMode
   const isCollapsed = mode === 'collapsed'
@@ -84,13 +87,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
   }, [setMode, propMode])
 
-  const seccionesVisibles = useMemo((): SidebarSeccion[] => (
-    SECCIONES_SIDEBAR.map((sec) => ({
-      ...sec,
-      items: sec.items.filter((item) => !item.permisoRequerido || puede(item.permisoRequerido)),
-    })).filter((sec) => sec.items.length > 0)
-  ), [puede])
-
   if (focusMode || mode === 'hidden') return null
 
   return (
@@ -100,61 +96,97 @@ export const Sidebar: React.FC<SidebarProps> = ({
       aria-label="Menú principal"
     >
       <div>
-        {/* Header: Logo DentikOS + Identidad + Toggle colapso */}
-        <SidebarHeader
-          isCollapsed={isCollapsed}
-          onToggleCollapse={() => setMode(isCollapsed ? 'expanded' : 'collapsed')}
-          clinicaNombre={clinicaNombre}
-          sedeNombre={sedeNombre}
-        />
+        {/* Header: Logo DentikOS con fade-in 50ms */}
+        <motion.div
+          initial={shouldAnimate ? { opacity: 0 } : false}
+          animate={{ opacity: 1 }}
+          transition={{
+            duration: 0.05,
+            ease: [0, 0, 0.2, 1],
+          }}
+        >
+          <SidebarHeader
+            isCollapsed={isCollapsed}
+            onToggleCollapse={() => setMode(isCollapsed ? 'expanded' : 'collapsed')}
+            clinicaNombre={clinicaNombre}
+            sedeNombre={sedeNombre}
+          />
+        </motion.div>
 
         {/* 5 Categorías Core en cascada Framer Motion */}
-        <motion.nav
-          aria-label="Navegacion principal"
-          className="space-y-4"
-          initial="hidden"
-          animate="visible"
-          variants={{ visible: { transition: { staggerChildren: 0.03 } } }}
-        >
-          {seccionesVisibles.map((seccion) => (
-            <div key={seccion.label}>
-              {!isCollapsed ? (
-                <p className="px-2 mb-1 text-[10px] text-graphite-400 dark:text-graphite-500 font-bold uppercase tracking-wider">
-                  {seccion.label}
-                </p>
-              ) : (
-                <div className="h-px bg-graphite-200 dark:bg-graphite-800 mx-1 mb-1.5" aria-hidden="true" />
-              )}
+        <nav aria-label="Navegacion principal" className="space-y-2 mt-2">
+          {seccionesVisibles.map((seccion, categoriaIndex) => {
+            const categoriaDelay = 0.1 + categoriaIndex * 0.03
 
-              <div className="space-y-0.5">
-                {seccion.items.map((item) => {
-                  const activo = activeSection === item.name || (item.slug === 'urgencias-ges' && activeSection === 'Urgencias y GES')
-                  const contador = item.counterKey ? (counters as Record<string, unknown>)[item.counterKey] : undefined
-                  const muestraContador = typeof contador === 'number' && contador > 0
+            return (
+              <div key={seccion.categoria || seccion.label}>
+                {/* Separador con delay */}
+                <motion.div
+                  initial={shouldAnimate ? { opacity: 0, scaleX: 0 } : false}
+                  animate={{ opacity: 1, scaleX: 1 }}
+                  transition={{
+                    duration: 0.25,
+                    delay: categoriaDelay,
+                    ease: [0.16, 1, 0.3, 1],
+                  }}
+                  className="border-t border-[#E2E8F0] dark:border-[#24334A] my-2 mx-2 origin-left"
+                />
 
-                  return (
-                    <motion.div
-                      key={item.slug}
-                      variants={{ hidden: { opacity: 0, y: 8 }, visible: { opacity: 1, y: 0 } }}
-                    >
-                      <SidebarItemAnimated
-                        icon={item.icon}
-                        label={item.name}
-                        slug={item.slug}
-                        isActive={activo}
-                        onClick={() => setActiveSection(item.name)}
-                        isCollapsed={isCollapsed}
-                        badge={muestraContador ? (contador as number) : undefined}
-                        badgeColor={item.counterVariant === 'error' ? 'red' : item.counterVariant === 'warning' ? 'amber' : 'gold'}
-                        title={muestraContador ? `${item.name} (${contador})` : item.name}
-                      />
-                    </motion.div>
-                  )
-                })}
+                {/* Label de categoría con slide-up */}
+                {!isCollapsed && (
+                  <motion.div
+                    initial={shouldAnimate ? { opacity: 0, y: 10 } : false}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{
+                      duration: 0.25,
+                      delay: categoriaDelay + 0.05,
+                      ease: [0.16, 1, 0.3, 1],
+                    }}
+                  >
+                    <p className="px-2 mb-1 text-[10px] text-graphite-400 dark:text-graphite-500 font-bold uppercase tracking-wider">
+                      {seccion.label}
+                    </p>
+                  </motion.div>
+                )}
+
+                {/* Items con delay incremental de 30ms */}
+                <div className="space-y-0.5">
+                  {seccion.items.map((item, itemIndex) => {
+                    const itemDelay = categoriaDelay + 0.1 + itemIndex * 0.03
+                    const activo = activeSection === item.name || (item.slug === 'urgencias-ges' && activeSection === 'Urgencias y GES')
+                    const contador = item.counterKey ? (counters as Record<string, unknown>)[item.counterKey] : undefined
+                    const muestraContador = typeof contador === 'number' && contador > 0
+
+                    return (
+                      <motion.div
+                        key={item.slug}
+                        initial={shouldAnimate ? { opacity: 0, x: -10 } : false}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{
+                          duration: 0.35,
+                          delay: itemDelay,
+                          ease: [0.16, 1, 0.3, 1],
+                        }}
+                      >
+                        <SidebarItemAnimated
+                          icon={item.icon}
+                          label={item.name}
+                          slug={item.slug}
+                          isActive={activo}
+                          onClick={() => setActiveSection(item.name)}
+                          isCollapsed={isCollapsed}
+                          badge={muestraContador ? (contador as number) : undefined}
+                          badgeColor={item.counterVariant === 'error' ? 'red' : item.counterVariant === 'warning' ? 'amber' : 'gold'}
+                          title={muestraContador ? `${item.name} (${contador})` : item.name}
+                        />
+                      </motion.div>
+                    )
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
-        </motion.nav>
+            )
+          })}
+        </nav>
       </div>
 
       {/* Footer: SidebarFooter unificado */}

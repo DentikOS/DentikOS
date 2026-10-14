@@ -1,16 +1,17 @@
 /**
- * PerfilModal — Modal wrapper para PerfilProfesionalForm (Blueprint 03)
+ * PerfilModal — Modal wrapper para PerfilProfesionalForm (Blueprint 03 §06)
  *
  * Envuelve el formulario existente de Perfil Profesional en un modal
- * accesible con backdrop blur. Conecta con el perfil actual del usuario.
+ * accesible con backdrop blur. Sincroniza cambios persistentes con Supabase.
  */
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X } from 'lucide-react'
+import { X, Camera, Loader2 } from 'lucide-react'
 import { Icon } from './Icon'
 import { PerfilProfesionalForm } from '../../domains/organization/team/components/PerfilProfesionalForm'
 import type { PerfilProfesionalData } from '../../domains/organization/team/components/PerfilProfesionalForm'
 import { useSesionStore } from '../../app/stores/sesionStore'
+import { useProfileSync } from '../hooks/useProfileSync'
 
 export interface PerfilModalProps {
   isOpen: boolean
@@ -26,8 +27,19 @@ export const PerfilModal: React.FC<PerfilModalProps> = ({
   onGuardar,
 }) => {
   const modalRef = useRef<HTMLDivElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const storeUserProfile = useSesionStore((s) => s.userProfile)
   const userProfile = propUserProfile || (storeUserProfile as PerfilProfesionalData | null)
+  const { actualizar, subirFoto } = useProfileSync()
+  const [subiendoFoto, setSubiendoFoto] = useState(false)
+
+  const fotoUrl = (userProfile as any)?.fotoUrl as string | undefined
+  const iniciales = (userProfile?.nombreCompleto || 'U')
+    .replace('Dr. ', '')
+    .replace('Dra. ', '')
+    .trim()
+    .slice(0, 2)
+    .toUpperCase()
 
   useEffect(() => {
     if (!isOpen) return
@@ -45,10 +57,31 @@ export const PerfilModal: React.FC<PerfilModalProps> = ({
   }
 
   const handleGuardar = async (perfil: PerfilProfesionalData) => {
+    try {
+      await actualizar({
+        fullName: perfil.nombreCompleto,
+        especialidad: perfil.especialidad,
+        rut: perfil.rut,
+        telefono: (perfil as any).telefono,
+      })
+    } catch {}
+
     if (onGuardar) {
       await onGuardar(perfil)
     }
     onClose()
+  }
+
+  const handleSubirFoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setSubiendoFoto(true)
+    try {
+      await subirFoto(file)
+    } finally {
+      setSubiendoFoto(false)
+    }
   }
 
   return (
@@ -87,7 +120,59 @@ export const PerfilModal: React.FC<PerfilModalProps> = ({
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6">
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              {/* Sección de Foto de Perfil */}
+              <div className="flex items-center gap-4 p-4 rounded-xl bg-surface border border-surface">
+                <div
+                  className="w-16 h-16 rounded-full p-[2px] flex items-center justify-center shrink-0 shadow-xs overflow-hidden"
+                  style={{ background: 'linear-gradient(135deg, #E5C378 0%, #B88E3A 100%)' }}
+                >
+                  {fotoUrl ? (
+                    <img
+                      src={fotoUrl}
+                      alt={userProfile?.nombreCompleto || 'Avatar'}
+                      className="w-full h-full rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-white dark:bg-graphite-900 text-primary font-bold rounded-full flex items-center justify-center text-lg">
+                      {iniciales}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-graphite-900 dark:text-graphite-100">
+                    Foto de Perfil
+                  </p>
+                  <p className="text-[11px] text-graphite-500">
+                    JPG, PNG o WebP (máx. 5MB). Visible en el Top Bar y documentos clínicos.
+                  </p>
+                </div>
+
+                <div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleSubirFoto}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={subiendoFoto}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-graphite-100 dark:bg-graphite-800 text-graphite-700 dark:text-graphite-200 hover:bg-graphite-200 dark:hover:bg-graphite-700 transition-colors cursor-pointer"
+                  >
+                    {subiendoFoto ? (
+                      <Loader2 size={13} className="animate-spin text-primary" />
+                    ) : (
+                      <Camera size={13} className="text-graphite-500" />
+                    )}
+                    <span>{subiendoFoto ? 'Subiendo...' : 'Cambiar foto'}</span>
+                  </button>
+                </div>
+              </div>
+
               <PerfilProfesionalForm
                 userProfile={userProfile}
                 alGuardar={handleGuardar}

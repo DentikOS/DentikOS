@@ -26,6 +26,7 @@ import {
   restaurarArchivo,
   vaciarPapeleraArchivos,
   actualizarMetadataArchivo,
+  solicitaUrlUploadPerfil,
 } from './r2ArchivosService'
 
 describe('r2ArchivosService', () => {
@@ -204,6 +205,57 @@ describe('r2ArchivosService', () => {
 
       const res = await actualizarMetadataArchivo('arch-1', { tipo: 'consentimiento' })
       expect(res).toBe(true)
+    })
+  })
+
+  describe('solicitaUrlUploadPerfil', () => {
+    it('retorna null si no hay sesión activa', async () => {
+      mockGetSession.mockResolvedValueOnce({ data: { session: null } })
+      const res = await solicitaUrlUploadPerfil({
+        nombreArchivo: 'avatar.jpg',
+        mimeType: 'image/jpeg',
+        tamanoBytes: 2048,
+      })
+      expect(res).toBeNull()
+    })
+
+    it('solicita URL de upload de perfil exitosamente', async () => {
+      mockGetSession.mockResolvedValueOnce({
+        data: { session: { access_token: 'tok-abc' } },
+      })
+      global.fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          upload_url: 'https://r2/upload/avatar',
+          r2_object_key: 'usr-1/avatar.jpg',
+          expires_in: 900,
+          upload_headers: { 'Content-Type': 'image/jpeg' },
+          public_url: 'https://pub-r2.dev/usr-1/avatar.jpg',
+        }),
+      })
+
+      const res = await solicitaUrlUploadPerfil({
+        nombreArchivo: 'avatar.jpg',
+        mimeType: 'image/jpeg',
+        tamanoBytes: 2048,
+      })
+
+      expect(res).toEqual({
+        upload_url: 'https://r2/upload/avatar',
+        r2_object_key: 'usr-1/avatar.jpg',
+        expires_in: 900,
+        upload_headers: { 'Content-Type': 'image/jpeg' },
+        public_url: 'https://pub-r2.dev/usr-1/avatar.jpg',
+      })
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/functions/v1/r2-profile-upload-url'),
+        expect.objectContaining({
+          method: 'POST',
+          headers: expect.objectContaining({
+            Authorization: 'Bearer tok-abc',
+          }),
+        })
+      )
     })
   })
 })

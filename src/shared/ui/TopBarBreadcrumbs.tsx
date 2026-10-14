@@ -54,7 +54,7 @@ export const TopBarBreadcrumbs: React.FC<TopBarBreadcrumbsProps> = ({ items, pac
       ? 'text-rose-500 font-bold'
       : elapsed > 15 * 60 * 1000
       ? 'text-amber-500 font-semibold'
-      : 'text-graphite-400'
+      : 'text-[#94A3B8]'
 
   return (
     <div className="flex items-center gap-2.5 min-w-0">
@@ -114,7 +114,7 @@ export const TopBarBreadcrumbs: React.FC<TopBarBreadcrumbsProps> = ({ items, pac
       {/* Estado derivado de guardado (BP03 §08 Feature 3) */}
       {guardadoStatus === 'dirty' && (
         <div data-testid="topbar-dirty-indicator" className="flex items-center gap-1.5 text-[11px] text-amber-600 dark:text-amber-400 shrink-0">
-          <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+          <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse-slow" />
           <span className="hidden lg:inline">Cambios sin guardar</span>
         </div>
       )}

@@ -87,4 +87,24 @@ describe('SidebarItemAnimated — Trazo de Cera Quirúrgica (Blueprint 02 §02)'
     expect(screen.queryByText('Agenda')).not.toBeInTheDocument()
     expect(screen.getByTestId('sidebar-menu-agenda')).toHaveAttribute('title', 'Agenda (3)')
   })
+
+  it('en modo colapsado muestra tooltip al hacer hover', () => {
+    render(
+      <SidebarItemAnimated
+        icon={LayoutDashboard}
+        label="Agenda"
+        slug="agenda"
+        isActive={false}
+        onClick={vi.fn()}
+        isCollapsed={true}
+        badge={2}
+      />
+    )
+
+    const button = screen.getByTestId('sidebar-menu-agenda')
+    fireEvent.mouseEnter(button.parentElement!)
+
+    expect(screen.getByRole('tooltip')).toBeInTheDocument()
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Agenda')
+  })
 })

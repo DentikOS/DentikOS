@@ -1,9 +1,10 @@
 @import "tailwindcss";
 @import "./design/tokens.css";
+@import "./design/theme.css";
 
-/* F7-25: forzar dark: y surgical: a depender de clase .dark y .theme-surgical con especificidad real */
+/* F7-25: forzar dark: y surgical: a depender de clase .dark y .theme-surgical / .surgical con especificidad real */
 @custom-variant dark (&:is(.dark, .dark *));
-@custom-variant surgical (&:is(.theme-surgical, .theme-surgical *));
+@custom-variant surgical (&:is(.theme-surgical, .surgical, .theme-surgical *, .surgical *));
 
 /* Utilidades de Superficie y Canvas Adaptativas DentikOS
    @layer utilities: integración con cascade de Tailwind v4 para que
@@ -141,3 +142,18 @@
   min-height: 64px;
   font-size: 1.5em;
 }
+
+/* Custom pulse animation for Blueprint 03 §08 (3s instead of Tailwind's 2s) */
+@keyframes pulse-slow {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+

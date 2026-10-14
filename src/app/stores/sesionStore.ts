@@ -76,7 +76,7 @@ const cargarPerfilActivo = (): UserProfileSession | null => {
 /**
  * Store global de sesión/perfil de usuario (F2-01 — MASTER_ROADMAP).
  */
-export const useSesionStore = create<SesionStore>((set) => ({
+export const useSesionStore = create<SesionStore>((set, get) => ({
   userProfile: cargarPerfilActivo(),
   clinicaActual: (cargarPerfilActivo()?.clinicaId as string) || null,
   sedeActual: typeof localStorage !== 'undefined' ? localStorage.getItem('clinica_sede_activa') : null,
@@ -156,16 +156,51 @@ export const useSesionStore = create<SesionStore>((set) => ({
     }
   },
 
-  // Actualiza el perfil en memoria sin tocar localStorage
+  // Actualiza el perfil en memoria SIN perder campos existentes
+  // Usa merge preservativo: fusiona nuevos campos con el perfil actual
   actualizarPerfil: (profile: Partial<UserProfileSession> & Record<string, unknown>): void => {
-    const perfilNormalizado: UserProfileSession = {
-      email: '',
-      ...profile,
-      rol: profile.rol && esRolValido(profile.rol)
-        ? profile.rol
-        : obtenerRolPorDefecto()
+    // 1. Obtener perfil actual (preservar todos sus campos)
+    const current = get().userProfile
+    
+    // 2. Si no hay perfil actual, crear uno mínimo con email del profile entrante
+    if (!current) {
+      const perfilInicial: UserProfileSession = {
+        email: (profile.email as string) || '',
+        ...profile,
+        rol: profile.rol && esRolValido(profile.rol as string)
+          ? (profile.rol as string)
+          : obtenerRolPorDefecto(),
+      }
+      set({ userProfile: perfilInicial })
+      return
     }
-    set({ userProfile: perfilNormalizado })
+
+    // 3. MERGE PRESERVATIVO: fusionar perfil actual + cambios entrantes
+    // Los campos pasados en `profile` sobrescriben los existentes
+    // Los campos NO pasados se preservan del perfil actual
+    const merged: UserProfileSession = {
+      ...current,
+      ...profile,
+      // email nunca debe quedar vacío (protección defensiva)
+      email: (profile.email as string) || current.email || '',
+    }
+
+    // 4. Normalizar rol: preservar el actual si no viene uno nuevo válido
+    const rolFinal = merged.rol && esRolValido(merged.rol as string)
+      ? (merged.rol as string)
+      : current.rol && esRolValido(current.rol as string)
+        ? (current.rol as string)
+        : obtenerRolPorDefecto()
+
+    const perfilNormalizado: UserProfileSession = {
+      ...merged,
+      rol: rolFinal,
+    }
+
+    set({
+      userProfile: perfilNormalizado,
+      clinicaActual: (perfilNormalizado.clinicaId as string) || null,
+    })
   },
 
   // F7-26: Agrega un paciente al historial de recientes (últimos 5).

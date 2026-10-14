@@ -54,6 +54,17 @@ describe('TopBar (Blueprint 02)', () => {
       expect(screen.getByText('Juan Pérez')).toBeInTheDocument()
     })
 
+    it('ejecuta onClick al hacer click en el breadcrumb Pacientes', () => {
+      const onPacientesClick = vi.fn()
+      const breadcrumbs = [
+        { label: 'Pacientes', onClick: onPacientesClick },
+        { label: 'Juan Pérez' },
+      ]
+      render(<TopBar {...defaultProps} breadcrumbs={breadcrumbs} />)
+      fireEvent.click(screen.getByRole('button', { name: 'Pacientes' }))
+      expect(onPacientesClick).toHaveBeenCalledTimes(1)
+    })
+
     it('renderiza el nombre y rol del usuario', () => {
       render(<TopBar {...defaultProps} />)
       expect(screen.getByText('Dr. Miguel Díaz')).toBeInTheDocument()
@@ -68,9 +79,9 @@ describe('TopBar (Blueprint 02)', () => {
   })
 
   describe('avatar', () => {
-    it('muestra la inicial del nombre (sin Dr./Dra.)', () => {
+    it('muestra las iniciales del nombre (sin Dr./Dra.)', () => {
       render(<TopBar {...defaultProps} />)
-      expect(screen.getByText('M')).toBeInTheDocument()
+      expect(screen.getByText('MD')).toBeInTheDocument()
     })
 
     it('muestra U si no hay nombreCompleto', () => {
@@ -78,9 +89,9 @@ describe('TopBar (Blueprint 02)', () => {
       expect(screen.getByText('U')).toBeInTheDocument()
     })
 
-    it('maneja Dra. correctamente', () => {
+    it('maneja Dra. correctamente mostrando 2 iniciales', () => {
       render(<TopBar {...defaultProps} userProfile={{ nombreCompleto: 'Dra. Ana López', rol: 'dentista' }} />)
-      expect(screen.getByText('A')).toBeInTheDocument()
+      expect(screen.getByText('AL')).toBeInTheDocument()
     })
   })
 

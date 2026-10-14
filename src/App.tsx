@@ -9,10 +9,12 @@ import { PreferenciasModal } from './shared/ui/PreferenciasModal'
 import { DispositivosModal } from './shared/ui/DispositivosModal'
 import { PerfilModal } from './shared/ui/PerfilModal'
 import { FocusMode } from './shared/ui/FocusMode'
+import { FocusModeTopBar } from './shared/ui/FocusModeTopBar'
 import { KeyboardShortcutsModal } from './shared/ui/KeyboardShortcutsModal'
 import { useKeyboardShortcuts } from './shared/hooks/useKeyboardShortcuts'
 import { useSupabaseRealtime } from './shared/hooks/useSupabaseRealtime'
 import { useNotificationsRealtime } from './shared/hooks/useNotificationsRealtime'
+import { useNotificationTriggers } from './shared/hooks/useNotificationTriggers'
 import { useSidebarStore } from './app/stores/useSidebarStore'
 import { useTopBarStore } from './app/stores/useTopBarStore'
 import { useAutoSurgicalMode } from './shared/hooks/useAutoSurgicalMode'
@@ -42,6 +44,7 @@ import { useRestaurarPaciente } from './shared/hooks/useRestaurarPaciente'
 import { useSidebarCounters } from './shared/hooks/useSidebarCounters'
 import { useCommandPalette } from './shared/hooks/useCommandPalette'
 import { CommandPalette } from './shared/ui/CommandPalette'
+import { notificationService } from './infrastructure/notification/notificationService'
 
 // Módulos de uso diario — carga eager (Public API, Constitución v3.0.0)
 import { Agenda as AgendaModulo } from './domains/operations/agenda'
@@ -131,6 +134,8 @@ export const App: React.FC = () => {
       if (paciente?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(paciente.id))) {
         // F7-36: usa tenant-aware para aislamiento multi-tenant
         pacienteSeleccionadoRepo.guardar(String(paciente.id))
+        // 🔒 Limpiar semáforo: el usuario seleccionó un paciente manualmente
+        sessionStorage.removeItem('dentikos_skip_restore_until')
       } else {
         pacienteSeleccionadoRepo.eliminar()
       }
@@ -148,6 +153,14 @@ export const App: React.FC = () => {
     }
   }, [activeSection])
 
+  // 🔒 LIMPIEZA MIGRACIÓN: eliminar clave legacy directa si existe
+  // (los usuarios antiguos pueden tener ambas claves)
+  useEffect(() => {
+    try {
+      localStorage.removeItem('clinica_paciente_seleccionado_id')
+    } catch {}
+  }, [])
+
   const userProfile = useSesionStore((state: unknown) => (state as SesionStoreState).userProfile)
   const loginStore = useSesionStore((state: unknown) => (state as SesionStoreState).login)
   const pacienteActivo = usePacientesStore((s) => s.pacienteActivo)
@@ -161,13 +174,37 @@ export const App: React.FC = () => {
   useKeyboardShortcuts()
   useSupabaseRealtime()
   useNotificationsRealtime()
+  useNotificationTriggers()
+
+  // Listener global para ⌘S (guardar cambios)
+  useEffect(() => {
+    const handleGuardarCambios = () => {
+      const { isDirty, markSaved } = useTopBarStore.getState()
+      if (isDirty) {
+        // Aquí puedes agregar lógica de guardado específico del módulo
+        // Por ahora, solo marcamos como guardado (el sonido ya está en markSaved)
+        markSaved()
+        notificationService.success('Cambios guardados', { duracion: 2000 })
+      }
+    }
+
+    window.addEventListener('guardar_cambios', handleGuardarCambios)
+    return () => window.removeEventListener('guardar_cambios', handleGuardarCambios)
+  }, [])
+
   const logoutStore = useSesionStore((state: unknown) => (state as SesionStoreState).logout)
 
   // F6-H: Timeout de sesión + sincronización entre pestañas + manejo de errores 401
   useSessionGuard({ userProfile, logout: logoutStore })
 
   // F4-02e: Restaurar paciente seleccionado desde Supabase al recargar
-  useRestaurarPaciente(userProfile, pacienteSeleccionado, setPacienteSeleccionadoState, setActiveSection)
+  useRestaurarPaciente(
+    userProfile,
+    pacienteSeleccionado,
+    setPacienteSeleccionadoState,
+    setActiveSection,
+    pacienteSeleccionadoRepo
+  )
   // F10-B2.5: contadores para el Sidebar
   const sidebarCounters = useSidebarCounters()
 
@@ -241,8 +278,15 @@ export const App: React.FC = () => {
     const mapAction: Record<string, () => void> = {
       crearCita: () => setActiveSection('Agenda'),
       crearPaciente: () => {
+        // 🔒 Limpiar paciente guardado en localStorage PRIMERO
+        // Esto previene que useRestaurarPaciente lo restaure tras el null
+        try {
+          localStorage.removeItem('clinica_paciente_seleccionado_id')
+        } catch {}
+
         setActiveSection('Pacientes')
         setPacienteSeleccionado(null)
+        // El modal se abrirá vía el evento en PacientesListado
         setTimeout(() => window.dispatchEvent(new CustomEvent('abrir_nuevo_paciente')), 50)
       },
       crearPresupuesto: () => setActiveSection('Presupuestos'),
@@ -251,11 +295,13 @@ export const App: React.FC = () => {
       nuevoCiclo: () => setActiveSection('Esterilización'),
       ingresoGes: () => setActiveSection('Urgencias GES'),
       buscarFarmaco: () => setActiveSection('Vademécum'),
+      exportarPdf: () => {},
     }
     return {
       label: accionesConfig.primaria.label,
       icon: accionesConfig.primaria.icon,
       onClick: mapAction[accionesConfig.primaria.actionKey] || (() => {}),
+      permisoRequerido: accionesConfig.primaria.permisoRequerido,
     }
   }, [accionesConfig, setActiveSection, setPacienteSeleccionado])
 
@@ -264,8 +310,12 @@ export const App: React.FC = () => {
     return accionesConfig.secundarias.map((sec) => ({
       label: sec.label,
       icon: sec.icon,
+      permisoRequerido: sec.permisoRequerido,
       onClick: () => {
         if (sec.actionKey === 'crearPaciente') {
+          try {
+            localStorage.removeItem('clinica_paciente_seleccionado_id')
+          } catch {}
           setActiveSection('Pacientes')
           setPacienteSeleccionado(null)
           setTimeout(() => window.dispatchEvent(new CustomEvent('abrir_nuevo_paciente')), 50)
@@ -288,7 +338,21 @@ export const App: React.FC = () => {
   const breadcrumbs = useMemo(() => {
     if (activeSection === 'Pacientes' && pacienteSeleccionado) {
       return [
-        { label: 'Pacientes', onClick: () => setPacienteSeleccionado(null) },
+        {
+          label: 'Pacientes',
+          onClick: () => {
+            // 🔒 SEMÁFORO: bloquear restauración por 5 segundos
+            try {
+              const skipUntil = Date.now() + 5000
+              sessionStorage.setItem('dentikos_skip_restore_until', String(skipUntil))
+            } catch {}
+            // setPacienteSeleccionado(null) limpiará automáticamente el repo tenant-aware
+            setPacienteSeleccionado(null)
+            // 🔒 CRÍTICO: limpiar también el store para que el render condicional
+            // (pacienteSeleccionado || pacienteActivo) evalúe a false y muestre el listado
+            usePacientesStore.getState().cerrarFicha()
+          },
+        },
         { label: pacienteSeleccionado.nombre },
       ]
     }
@@ -331,22 +395,12 @@ export const App: React.FC = () => {
       }, 100)
     }
 
-    const handleNuevoPaciente = () => {
-      setActiveSection('Pacientes')
-      setPacienteSeleccionado(null)
-      setTimeout(() => {
-        window.dispatchEvent(new CustomEvent('abrir_nuevo_paciente'))
-      }, 100)
-    }
-
     window.addEventListener('nueva_cita', handleNuevaCita)
-    window.addEventListener('abrir_nuevo_paciente', handleNuevoPaciente)
 
     return () => {
       window.removeEventListener('nueva_cita', handleNuevaCita)
-      window.removeEventListener('abrir_nuevo_paciente', handleNuevoPaciente)
     }
-  }, [setActiveSection, setPacienteSeleccionado])
+  }, [setActiveSection])
 
   // F4-02b FIX: Detectar sesión de Supabase al cargar la app
   // y restaurar perfil. IMPORTANTE: solo restaurar si NO hay logout en progreso.
@@ -370,7 +424,10 @@ export const App: React.FC = () => {
 
             // F7-10b: reconstruir perfil con rol contextual vía construirUserProfile
             // (lee miembros_clinica.rol filtrado por clinica_actual())
-            const userMetadata = { ...(session.user.user_metadata || {}), role: session.user.app_metadata?.role || 'recepcion' }
+            const userMetadata = {
+              ...(session.user.user_metadata || {}),
+              role: session.user.app_metadata?.role || session.user.user_metadata?.role || 'recepcion',
+            }
             const perfilRestaurado = await construirUserProfile(
               session.user.email?.toLowerCase() || '',
               userMetadata,
@@ -481,11 +538,10 @@ export const App: React.FC = () => {
 
       <div className="min-h-screen flex flex-col bg-canvas text-primary-surface font-sans">
         {focusMode ? (
-          <div className="h-12 flex items-center px-4 bg-white dark:bg-[#0F172A] border-b border-[#E2E8F0] dark:border-[#24334A] shrink-0">
-            <span className="text-sm font-medium text-[#0F172A] dark:text-[#F8FAFC]">
-              Modo Foco — {pacienteSeleccionado?.nombre || 'Ficha Clínica'}
-            </span>
-          </div>
+          <FocusModeTopBar
+            breadcrumbs={breadcrumbs}
+            pacienteSeleccionado={pacienteSeleccionado}
+          />
         ) : (
           <TopBar
             userProfile={userProfile}
