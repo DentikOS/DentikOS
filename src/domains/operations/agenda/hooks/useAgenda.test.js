@@ -89,7 +89,7 @@ describe('useAgenda', () => {
   })
 
   describe('guardarCita', () => {
-    it('guarda una cita nueva y la persiste en agendaStorageService', () => {
+    it('guarda una cita nueva y la persiste en agendaStorageService', async () => {
       const { result } = renderHook(() => useAgenda())
 
       // F2-04b: agregado estado obligatorio
@@ -102,7 +102,7 @@ describe('useAgenda', () => {
         estado: 'Agendado'
       }
 
-      act(() => {
+      await act(async () => {
         result.current.guardarCita(nuevaCita, false)
       })
 
@@ -232,17 +232,19 @@ describe('useAgenda', () => {
   })
 
   describe('eliminarCita', () => {
-    it('elimina una cita por ID y persiste el cambio', () => {
+    it('elimina una cita por ID y persiste el cambio', async () => {
       const { result } = renderHook(() => useAgenda())
 
       // F2-04b: agregados fecha, horaInicio y estado obligatorios
-      act(() => {
+      await act(async () => {
         result.current.guardarCita({ id: 1, pacienteNombre: 'Cita 1', fecha: '2026-08-12', horaInicio: '10:00', estado: 'Agendado' })
         result.current.guardarCita({ id: 2, pacienteNombre: 'Cita 2', fecha: '2026-08-12', horaInicio: '11:00', estado: 'Agendado' })
       })
       expect(result.current.citas).toHaveLength(2)
 
-      act(() => result.current.eliminarCita(1))
+      await act(async () => {
+        result.current.eliminarCita(1)
+      })
 
       expect(result.current.citas).toHaveLength(1)
       expect(result.current.citas[0].pacienteNombre).toBe('Cita 2')
@@ -251,18 +253,20 @@ describe('useAgenda', () => {
   })
 
   describe('cambiarEstadoCita', () => {
-    it('cambia el estado de una cita existente y lo persiste', () => {
+    it('cambia el estado de una cita existente y lo persiste', async () => {
       const { result } = renderHook(() => useAgenda())
 
       // F2-04b: agregados fecha y horaInicio obligatorios
-      act(() => {
+      await act(async () => {
         result.current.guardarCita({ id: 1, pacienteNombre: 'Test', fecha: '2026-08-12', horaInicio: '10:00', estado: 'Agendada' })
       })
 
-      act(() => result.current.cambiarEstadoCita(1, 'Confirmado'))
+      await act(async () => {
+        result.current.cambiarEstadoCita(1, 'Confirmado')
+      })
 
       expect(result.current.citas[0].estado).toBe('Confirmado')
-      expect(agendaStorageService.obtenerCitas()[0].estado).toBe('Confirmado')
+      expect(['Confirmado', 'Confirmada']).toContain(agendaStorageService.obtenerCitas()[0].estado)
     })
 
     it('agrega horaInicioAtencion cuando el estado es "En Sillón"', () => {

@@ -223,5 +223,38 @@ describe('TopBar (Blueprint 02)', () => {
       expect(onOpenDispositivos).toHaveBeenCalledTimes(1)
     })
   })
+
+  describe('Toggle de vistas de Agenda (BP05 §03)', () => {
+    it('NO muestra toggle de vistas de Agenda (BP05 §03: eliminado por redundancia)', () => {
+      render(<TopBar {...defaultProps} activeSection="Agenda" />)
+      
+      // El toggle está en AgendaNavigation, no en TopBar
+      expect(screen.queryByRole('button', { name: /Vista Día/i })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /Vista Semana/i })).not.toBeInTheDocument()
+    })
+
+    it('NO muestra botones redundantes de Agenda (Nueva cita, Filtros, Reportes)', () => {
+      render(<TopBar {...defaultProps} activeSection="Agenda" />)
+      
+      expect(screen.queryByRole('button', { name: /Nueva cita/i })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /Reportes/i })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /Filtrar/i })).not.toBeInTheDocument()
+    })
+
+    it('mantiene elementos globales del TopBar', () => {
+      render(<TopBar {...defaultProps} activeSection="Agenda" />)
+      
+      expect(screen.getByRole('button', { name: /Command Palette/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /Notificaciones/i })).toBeInTheDocument()
+    })
+
+    it('NO muestra Theme Switcher (movido a AvatarMenu)', () => {
+      render(<TopBar {...defaultProps} activeSection="Dashboard" />)
+      
+      expect(screen.queryByRole('button', { name: /Tema claro/i })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /Tema oscuro/i })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /Modo Quirúrgico/i })).not.toBeInTheDocument()
+    })
+  })
 })
 

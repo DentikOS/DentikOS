@@ -44,4 +44,19 @@ describe('useAgendaStore (BP05 §01)', () => {
     removeCita('c-101')
     expect(useAgendaStore.getState().citas).toHaveLength(0)
   })
+
+  it('NO permite waiting_room como tipo de vista (BP05 §01)', () => {
+    // waiting_room es un sub-módulo (§05), no una vista de agenda
+    const validViews = ['day', 'week', 'month', 'list'] as const
+    
+    validViews.forEach(view => {
+      useAgendaStore.getState().setView(view)
+      expect(useAgendaStore.getState().currentView).toBe(view)
+    })
+    
+    expect(() => {
+      // @ts-expect-error - waiting_room no es válido
+      useAgendaStore.getState().setView('waiting_room')
+    }).not.toThrow()
+  })
 })

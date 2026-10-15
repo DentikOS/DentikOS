@@ -39,4 +39,29 @@ describe('AgendaNavigation (BP05 §02)', () => {
     fireEvent.click(screen.getByText('Hoy'))
     expect(handleDateChange).toHaveBeenCalled()
   })
+
+  it('atajo G enfoca el input de fecha (BP05 §01)', () => {
+    render(
+      <AgendaNavigation
+        currentDateIso="2026-10-14"
+        onDateChange={vi.fn()}
+      />
+    )
+    
+    const dateInput = screen.getByLabelText(/Seleccionar fecha/i)
+    
+    fireEvent.keyDown(window, { key: 'g' })
+    
+    expect(dateInput).toHaveFocus()
+  })
+
+  it('botones Hoy y Exportar tienen clases active:scale-95 para feedback visual', () => {
+    render(<AgendaNavigation currentDateIso="2026-10-15" onDateChange={() => {}} onExportCSV={() => {}} />)
+
+    const botonHoy = screen.getByRole('button', { name: /Hoy/i })
+    expect(botonHoy.className).toContain('active:scale-95')
+
+    const botonExportar = screen.getByRole('button', { name: /Exportar/i })
+    expect(botonExportar.className).toContain('active:scale-95')
+  })
 })

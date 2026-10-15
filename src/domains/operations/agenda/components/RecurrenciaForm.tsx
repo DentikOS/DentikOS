@@ -58,11 +58,14 @@ export const RecurrenciaForm: React.FC<RecurrenciaFormProps> = memo(({
             value={recurrencia}
             onChange={(e) => setRecurrencia(e.target.value)}
             className="w-full p-2 border border-graphite-200 dark:border-graphite-700 rounded-lg bg-white dark:bg-graphite-800 text-xs"
+            aria-label="Tipo de recurrencia"
           >
             <option value="ninguna">No repetir</option>
+            <option value="diario">Diario (cada día)</option>
             <option value="semanal">Semanal</option>
+            <option value="quincenal">Quincenal (cada 2 semanas)</option>
             <option value="mensual">Mensual</option>
-            <option value="anual">Anual</option>
+            <option value="personalizado">Personalizado (cada X días)</option>
           </select>
         </div>
 
@@ -83,8 +86,8 @@ export const RecurrenciaForm: React.FC<RecurrenciaFormProps> = memo(({
           </div>
         )}
 
-        {/* Día de la semana (solo semanal) */}
-        {recurrencia === 'semanal' && (
+        {/* Día de la semana (solo semanal y quincenal) */}
+        {(recurrencia === 'semanal' || recurrencia === 'quincenal') && (
           <div>
             <label className="block text-[10px] font-semibold text-graphite-600 dark:text-graphite-400 mb-1">
               Día de la semana
@@ -93,14 +96,15 @@ export const RecurrenciaForm: React.FC<RecurrenciaFormProps> = memo(({
               value={diaSemana}
               onChange={(e) => setDiaSemana(parseInt(e.target.value, 10))}
               className="w-full p-2 border border-graphite-200 dark:border-graphite-700 rounded-lg bg-white dark:bg-graphite-800 text-xs"
+              aria-label="Día de la semana"
             >
-              <option value="0">Domingo</option>
               <option value="1">Lunes</option>
               <option value="2">Martes</option>
               <option value="3">Miércoles</option>
               <option value="4">Jueves</option>
               <option value="5">Viernes</option>
               <option value="6">Sábado</option>
+              <option value="0">Domingo</option>
             </select>
           </div>
         )}
@@ -142,14 +146,15 @@ export const RecurrenciaForm: React.FC<RecurrenciaFormProps> = memo(({
         {recurrencia !== 'ninguna' && (
           <div>
             <label className="block text-[10px] font-semibold text-graphite-600 dark:text-graphite-400 mb-1">
-              Cuántas citas generar
+              Cuántas citas generar (máx. 100)
             </label>
             <input
               type="number"
               min="2"
-              max="12"
+              max="100"
+              aria-label="Cuántas citas generar (máx. 100)"
               value={numInstancias}
-              onChange={(e) => setNumInstancias(parseInt(e.target.value, 10) || 4)}
+              onChange={(e) => setNumInstancias(Math.min(parseInt(e.target.value, 10) || 2, 100))}
               className="w-full p-2 border border-graphite-200 dark:border-graphite-700 rounded-lg bg-white dark:bg-graphite-800 text-xs"
             />
           </div>

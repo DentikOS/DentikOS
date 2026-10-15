@@ -197,4 +197,71 @@ describe('validarListaCitas (F2-04b)', () => {
       expect(resultado.success).toBe(true)
     })
   })
+
+  describe('BP05 §02: 11 campos oficiales, enum confirmation_status y tramos de duracion', () => {
+    it('acepta los 11 campos completos de BP05 §02', () => {
+      const citaCompleta = {
+        id: 'cita-11-campos',
+        fecha: '2026-10-16',
+        horaInicio: '09:00',
+        horaFin: '09:45',
+        duracionMinutos: 45,
+        estado: 'Pendiente',
+        pacienteId: 'pac-123',
+        pacienteNombre: 'Juan Pérez',
+        pacienteTelefono: '+56912345678',
+        boxAsignado: 'Sillón 1',
+        trataMiento: 'Endodoncia',
+        motivo: 'Dolor agudo',
+        observaciones: 'Paciente con fobia dental',
+        presupuestoAsociado: 'pres-999',
+        notasInternas: 'Nota confidencial según Ley 20.584',
+        confirmation_status: 'confirmado'
+      }
+      const resultado = citaSchema.safeParse(citaCompleta)
+      expect(resultado.success).toBe(true)
+      if (resultado.success) {
+        expect(resultado.data.presupuestoAsociado).toBe('pres-999')
+        expect(resultado.data.notasInternas).toBe('Nota confidencial según Ley 20.584')
+        expect(resultado.data.confirmation_status).toBe('confirmado')
+      }
+    })
+
+    it('valida estrictamente los 4 valores del enum confirmation_status', () => {
+      const validStatuses = ['pendiente', 'enviado', 'confirmado', 'no_confirmado']
+      validStatuses.forEach((status) => {
+        const res = citaSchema.safeParse({
+          id: 1,
+          fecha: '2026-10-16',
+          horaInicio: '10:00',
+          estado: 'Pendiente',
+          confirmation_status: status
+        })
+        expect(res.success).toBe(true)
+      })
+
+      const resInvalido = citaSchema.safeParse({
+        id: 1,
+        fecha: '2026-10-16',
+        horaInicio: '10:00',
+        estado: 'Pendiente',
+        confirmation_status: 'invalido_status'
+      })
+      expect(resInvalido.success).toBe(false)
+    })
+
+    it('acepta los tramos de duracion oficiales [15, 30, 45, 60, 90, 120]', () => {
+      const tramos = [15, 30, 45, 60, 90, 120]
+      tramos.forEach((duracion) => {
+        const res = citaSchema.safeParse({
+          id: 1,
+          fecha: '2026-10-16',
+          horaInicio: '10:00',
+          estado: 'Pendiente',
+          duracionMinutos: duracion
+        })
+        expect(res.success).toBe(true)
+      })
+    })
+  })
 })

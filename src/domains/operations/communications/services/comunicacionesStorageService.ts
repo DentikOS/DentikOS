@@ -70,7 +70,9 @@ export const comunicacionesStorageService = {
       const porConfirmar = citas.filter(
         (c) =>
           (c.fecha === hoy || c.fecha === mananaStr) &&
-          (c.estado === 'Pendiente' || c.estado === 'Agendado')
+          c.confirmation_status !== 'confirmado' &&
+          c.estado !== 'Cancelada' &&
+          c.estado !== 'Completada'
       ).length
 
       return { sinLeerWhatsapp, porConfirmar }

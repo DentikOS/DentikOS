@@ -20,6 +20,6 @@ describe('clinicConstants', () => {
   })
 
   it('define tramos de duracion crecientes y validos', () => {
-    expect(TRAMOS_DURACION).toEqual([15, 20, 30, 45, 60])
+    expect(TRAMOS_DURACION).toEqual([15, 30, 45, 60, 90, 120])
   })
 })

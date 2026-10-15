@@ -1,6 +1,8 @@
-import React, { useState, useEffect, useMemo, useCallback, memo } from 'react'
+import React, { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react'
 import { Clock, AlertTriangle, FileText, XCircle, ChevronRight, Activity } from 'lucide-react'
 import { useThemeStore } from '../../../../app/stores/useThemeStore'
+import { usePacientesStore } from '../../../../app/stores/pacientesStore'
+import { sonidoAgendaService } from '../services/sonidoAgendaService'
 import type { Cita } from '../schemas/citaSchema'
 
 export interface AgendaQuirurgicaProps {
@@ -56,6 +58,48 @@ export const AgendaQuirurgica: React.FC<AgendaQuirurgicaProps> = memo(({
     }
   }, [citas])
 
+  const pacientes = usePacientesStore((s) => s.pacientes)
+
+  // BP05 §10: Calcular alergias reales del paciente
+  const alergiasReales = useMemo(() => {
+    if (!pacienteActual?.pacienteId) return null
+
+    const paciente = pacientes.find((p) => String(p.id) === String(pacienteActual.pacienteId))
+    if (!paciente) return null
+
+    const alergias = (paciente as { alergias?: string }).alergias
+    const contraindicaciones = (paciente as { contraindicaciones?: string }).contraindicaciones
+
+    const alertas: string[] = []
+    if (alergias && alergias.trim()) alertas.push(`⚠️ Alergias: ${alergias}`)
+    if (contraindicaciones && contraindicaciones.trim()) alertas.push(`⚠️ Contraindicaciones: ${contraindicaciones}`)
+
+    return alertas.length > 0 ? alertas : null
+  }, [pacienteActual, pacientes])
+
+  // BP05 §10: Sonido recordatorio 5min antes de próxima cita
+  const recordatorioActivadoRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (!proximaCita?.horaInicio) return
+
+    const ahora = new Date()
+    const [h, m] = proximaCita.horaInicio.split(':').map(Number)
+    const proximaHora = new Date()
+    proximaHora.setHours(h, m, 0, 0)
+
+    const diffMin = (proximaHora.getTime() - ahora.getTime()) / 60000
+
+    if (diffMin > 0 && diffMin <= 5 && recordatorioActivadoRef.current !== String(proximaCita.id)) {
+      sonidoAgendaService.play('recordatorio_5min')
+      recordatorioActivadoRef.current = String(proximaCita.id)
+    }
+
+    if (proximaCita && recordatorioActivadoRef.current !== String(proximaCita.id)) {
+      recordatorioActivadoRef.current = null
+    }
+  }, [proximaCita])
+
   const minutos = Math.floor(segundos / 60)
   const segs = segundos % 60
   const tiempoFormateado = `${String(minutos).padStart(2, '0')}:${String(segs).padStart(2, '0')}`
@@ -63,7 +107,6 @@ export const AgendaQuirurgica: React.FC<AgendaQuirurgicaProps> = memo(({
   const nombrePaciente = pacienteActual?.pacienteNombre || 'Sin paciente en box'
   const boxActual = pacienteActual?.boxAsignado || 'Box Quirúrgico'
   const motivoAtencion = pacienteActual?.trataMiento || pacienteActual?.motivo || 'Procedimiento Quirúrgico'
-  const alergias = (pacienteActual as { alergias?: string })?.alergias || 'Penicilina / AINEs (Precaución obligatoria)'
 
   return (
     <div
@@ -146,9 +189,19 @@ export const AgendaQuirurgica: React.FC<AgendaQuirurgicaProps> = memo(({
             <h3 className="text-lg font-black text-rose-950 mt-2">
               Contraindicaciones & Alergias
             </h3>
-            <p className="text-sm font-bold text-rose-900 mt-2 leading-relaxed bg-white/70 p-3 rounded-xl border border-rose-300">
-              {alergias}
-            </p>
+            {alergiasReales && alergiasReales.length > 0 ? (
+              <div className="mt-2 space-y-2">
+                {alergiasReales.map((alerta, idx) => (
+                  <p key={idx} className="text-sm font-bold text-rose-900 leading-relaxed bg-white/70 p-3 rounded-xl border border-rose-300">
+                    {alerta}
+                  </p>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm font-bold text-emerald-800 mt-2 leading-relaxed bg-emerald-50/70 p-3 rounded-xl border border-emerald-300">
+                ✅ Sin alertas clínicas registradas
+              </p>
+            )}
           </div>
           <p className="text-xs font-bold text-rose-800 mt-4">
             Aislamiento absoluto obligatorio

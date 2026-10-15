@@ -93,7 +93,7 @@ export const useSidebarCounters = (): SidebarCountersReturn => {
   useEffect(() => {
     const onStorage = (e: StorageEvent): void => {
       if (!e.key || e.key.includes('agenda') || e.key.includes('pago') || e.key.includes('inventario')) {
-        refrescar()
+        queueMicrotask(refrescar)
       }
     }
     const eventos = [
@@ -106,16 +106,21 @@ export const useSidebarCounters = (): SidebarCountersReturn => {
       REALTIME_EVENTS.PAGOS_CHANGED,
       REALTIME_EVENTS.INVENTARIO_CHANGED,
     ]
-    const onPacientesActualizados = (): void => { void refrescarPapelera() }
+    const onPacientesActualizados = (): void => {
+      queueMicrotask(() => { void refrescarPapelera() })
+    }
+    const onEvento = (): void => {
+      queueMicrotask(refrescar)
+    }
 
     window.addEventListener('storage', onStorage)
     window.addEventListener('pacientes_actualizados', onPacientesActualizados)
-    eventos.forEach((ev) => window.addEventListener(ev, refrescar))
+    eventos.forEach((ev) => window.addEventListener(ev, onEvento))
 
     return () => {
       window.removeEventListener('storage', onStorage)
       window.removeEventListener('pacientes_actualizados', onPacientesActualizados)
-      eventos.forEach((ev) => window.removeEventListener(ev, refrescar))
+      eventos.forEach((ev) => window.removeEventListener(ev, onEvento))
     }
   }, [refrescar, refrescarPapelera])
 

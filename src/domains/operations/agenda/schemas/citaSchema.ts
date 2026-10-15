@@ -43,11 +43,33 @@ export const citaSchema = z.object({
   boxAsignado: z.string().optional(),
   horaInicioAtencion: z.string().optional(),
   horaFin: z.string().optional(),
-  duracionMinutos: z.union([z.number(), z.string()]).optional(),
+  duracionMinutos: z.union([
+    z.literal(15),
+    z.literal(30),
+    z.literal(45),
+    z.literal(60),
+    z.literal(90),
+    z.literal(120),
+    z.string().transform((val) => parseInt(val, 10))
+  ]).optional(),
   doctor: z.string().optional(),
   observaciones: z.string().optional(),
+
+  // Campos BP05 §02
+  presupuestoAsociado: z.union([z.number(), z.string()]).nullable().optional(), // ID del presupuesto vinculado
+  notasInternas: z.string().optional(), // Notas no visibles al paciente (Ley 20.584)
+
   esBloqueo: z.boolean().optional(),
   motivoBloqueo: z.string().optional(),
+
+  // Recurrencia para bloqueos (BP05 §06)
+  bloqueoRecurrencia: z.enum(['ninguna', 'diario', 'semanal', 'mensual']).optional(),
+  bloqueoFechaFin: z.string().optional(), // YYYY-MM-DD
+  bloqueoDiasSemana: z.array(z.number()).optional(), // [1, 2, 3, 4, 5] para Lun-Vie
+  tipoBloqueoId: z.string().optional(),
+  colorBloqueo: z.string().optional(),
+  esInstanciaRecurrencia: z.boolean().optional(),
+  bloqueoPadreId: z.union([z.number(), z.string()]).optional(),
 
   // Campos de recurrencia (BP05 & F7-27)
   recurrencia: z.enum(['ninguna', 'diario', 'semanal', 'quincenal', 'mensual', 'anual', 'personalizado']).optional(),
@@ -57,7 +79,7 @@ export const citaSchema = z.object({
   fechaFin: z.string().optional(), // hasta cuándo repetir (YYYY-MM-DD)
   citaPadreId: z.union([z.number(), z.string()]).nullable().optional(), // ID de la cita original (para citas recurrentes)
   recurrence_group_id: z.string().optional(),
-  confirmation_status: z.string().optional(),
+  confirmation_status: z.enum(['pendiente', 'enviado', 'confirmado', 'no_confirmado']).optional(),
 }).passthrough()
 
 export type Cita = z.infer<typeof citaSchema>

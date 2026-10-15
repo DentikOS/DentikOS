@@ -11,7 +11,15 @@
  *   const proximaFecha = calcularProximaFechaRecurrencia(cita)
  */
 
-export type TipoRecurrencia = 'ninguna' | 'semanal' | 'mensual' | 'anual'
+/**
+ * 5 patrones oficiales de recurrencia BP05 §07
+ * - Diario: Cada día por X días
+ * - Semanal: Cada semana en un día específico por X semanas
+ * - Quincenal: Cada 2 semanas por X semanas
+ * - Mensual: Cada mes en un día específico por X meses
+ * - Personalizado: Cada X días/semanas/meses por Y repeticiones
+ */
+export type TipoRecurrencia = 'ninguna' | 'diario' | 'semanal' | 'quincenal' | 'mensual' | 'personalizado'
 
 export interface CitaRecurrencia {
   id?: string | number
@@ -24,6 +32,7 @@ export interface CitaRecurrencia {
   citaPadreId?: string | number | null
   diaSemana?: number | string
   diaMes?: number | string
+  recurrence_group_id?: string
   [key: string]: unknown
 }
 
@@ -45,16 +54,24 @@ export const calcularProximaFechaRecurrencia = (cita: CitaRecurrencia): string |
   const frecuencia = cita.frecuencia || 1
 
   switch (cita.recurrencia) {
+    case 'diario': {
+      fechaActual.setDate(fechaActual.getDate() + frecuencia)
+      break
+    }
     case 'semanal': {
       fechaActual.setDate(fechaActual.getDate() + (7 * frecuencia))
+      break
+    }
+    case 'quincenal': {
+      fechaActual.setDate(fechaActual.getDate() + (14 * frecuencia))
       break
     }
     case 'mensual': {
       fechaActual.setMonth(fechaActual.getMonth() + frecuencia)
       break
     }
-    case 'anual': {
-      fechaActual.setFullYear(fechaActual.getFullYear() + frecuencia)
+    case 'personalizado': {
+      fechaActual.setDate(fechaActual.getDate() + frecuencia)
       break
     }
     default:
@@ -80,15 +97,19 @@ export const generarCitasRecurrencia = <T extends CitaRecurrencia>(
 ): T[] => {
   if (!citaBase.recurrencia || citaBase.recurrencia === 'ninguna') return []
 
+  const maxInstancias = Math.min(numInstancias, 100)
   const citasGeneradas: T[] = []
-  let citaActual: T = { ...citaBase }
+  let fechaActual = new Date((citaBase.fecha || '') + 'T00:00:00')
   const citaPadreId = citaBase.id
+  const recurrenceGroupId = (citaBase as { recurrence_group_id?: string }).recurrence_group_id
 
-  for (let i = 0; i < numInstancias; i++) {
-    const proximaFecha = calcularProximaFechaRecurrencia(citaActual)
+  for (let i = 1; i < maxInstancias; i++) {
+    const proximaFecha = calcularProximaFechaRecurrencia({
+      ...citaBase,
+      fecha: `${fechaActual.getFullYear()}-${String(fechaActual.getMonth() + 1).padStart(2, '0')}-${String(fechaActual.getDate()).padStart(2, '0')}`
+    })
+
     if (!proximaFecha) break
-
-    // Verificar si excede fechaFin
     if (citaBase.fechaFin && proximaFecha > citaBase.fechaFin) break
 
     const nuevaCita = {
@@ -96,7 +117,8 @@ export const generarCitasRecurrencia = <T extends CitaRecurrencia>(
       id: `${String(citaPadreId)}_rec_${Date.now()}_${i}`,
       fecha: proximaFecha,
       citaPadreId: citaPadreId,
-      recurrencia: 'ninguna', // Las instancias generadas no son recurrentes
+      recurrence_group_id: recurrenceGroupId,
+      recurrencia: 'ninguna',
       frecuencia: undefined,
       diaSemana: undefined,
       diaMes: undefined,
@@ -104,7 +126,7 @@ export const generarCitasRecurrencia = <T extends CitaRecurrencia>(
     }
 
     citasGeneradas.push(nuevaCita)
-    citaActual = { ...citaActual, fecha: proximaFecha }
+    fechaActual = new Date(proximaFecha + 'T00:00:00')
   }
 
   return citasGeneradas

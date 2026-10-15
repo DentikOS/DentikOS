@@ -8,6 +8,7 @@ export interface EventoTimeline {
   detalles?: string
   usuario?: string
   profesional?: string
+  metadata?: Record<string, unknown>
 }
 
 const eventosExtra: Record<string, EventoTimeline[]> = {}

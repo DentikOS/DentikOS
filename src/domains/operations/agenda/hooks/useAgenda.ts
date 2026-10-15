@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import type React from 'react'
 import { agendaStorageService } from '../services/agendaStorageService'
 import { generarCitasRecurrencia } from '../../../../shared/utils/recurrenciaUtils'
 import { pacientesStorageService } from '../../../../domains/clinical/patient/services/pacientesStorageService'
 import { usePacientesStore } from '../../../../app/stores/pacientesStore'
+import { useAgendaStore } from '../../../../app/stores/useAgendaStore'
 import { obtenerFechaLocalISO } from '../../../../shared/utils/dateUtils'
 import { useWhatsAppConfirmacion, type CitaWhatsAppRef } from './useWhatsAppConfirmacion'
 import type { Cita } from '../schemas/citaSchema'
@@ -33,6 +34,7 @@ export interface UseAgendaReturn {
 
 export const useAgenda = (pacientesProp: Paciente[] | null = null): UseAgendaReturn => {
   const [citas, setCitas] = useState<Cita[]>([])
+  const citasRef = useRef<Cita[]>([])
   const [pacientes, setPacientes] = useState<Paciente[]>(pacientesProp || [])
   const [vista, setVista] = useState<string>('box')
   const [fechaSeleccionada, setFechaSeleccionada] = useState<string>(
@@ -43,28 +45,40 @@ export const useAgenda = (pacientesProp: Paciente[] | null = null): UseAgendaRet
   const [modalNuevaCitaAbierto, setModalNuevaCitaAbierto] = useState<boolean>(false)
   const [modalNuevoBloqueoAbierto, setModalNuevoBloqueoAbierto] = useState<boolean>(false)
 
+  const sincronizar = useCallback((nuevas: Cita[]): void => {
+    citasRef.current = nuevas
+    setCitas(nuevas)
+    queueMicrotask(() => {
+      useAgendaStore.getState().setCitas(nuevas)
+    })
+  }, [])
+
   // Cargar citas y pacientes de forma reactiva
+  const pacientesPropRef = useRef(pacientesProp)
+  useEffect(() => {
+    pacientesPropRef.current = pacientesProp
+    if (pacientesProp && pacientesProp.length > 0) {
+      setPacientes(pacientesProp)
+    }
+  }, [pacientesProp])
+
   const cargarDatos = useCallback((): void => {
     const citasGuardadas = agendaStorageService?.obtenerCitas ? agendaStorageService.obtenerCitas() : []
     
     // Si App.jsx envió la lista por props, se priorizan las props
-    const pacientesGuardados = pacientesProp || pacientesStorageService.obtenerPacientes()
+    const pProp = pacientesPropRef.current
+    const pacientesGuardados = (pProp && pProp.length > 0) ? pProp : pacientesStorageService.obtenerPacientes()
 
-    setCitas(citasGuardadas || [])
+    citasRef.current = citasGuardadas || []
+    sincronizar(citasGuardadas || [])
     setPacientes(pacientesGuardados || [])
-  }, [pacientesProp])
+  }, [sincronizar])
 
   useEffect(() => {
     cargarDatos()
     window.addEventListener('storage', cargarDatos)
     return () => window.removeEventListener('storage', cargarDatos)
   }, [cargarDatos])
-
-  useEffect(() => {
-    if (pacientesProp) {
-      setPacientes(pacientesProp)
-    }
-  }, [pacientesProp])
 
   const irAHoy = useCallback((): void => {
     setFechaSeleccionada(obtenerFechaLocalISO())
@@ -99,21 +113,36 @@ export const useAgenda = (pacientesProp: Paciente[] | null = null): UseAgendaRet
 
     const citaAjustada = { ...nuevaCita, pacienteId: pacienteFinalId } as Cita
 
-    setCitas(prev => {
-      const existe = prev.some(c => c.id === citaAjustada.id)
-      // F7-27: Generar citas recurrentes si aplica
-      const citasRecurrencia = (!existe && citaAjustada.recurrencia && citaAjustada.recurrencia !== 'ninguna')
-        ? (generarCitasRecurrencia(citaAjustada, 10) as unknown as Cita[])
-        : []
+    const prev = citasRef.current
+    const idStr = String(citaAjustada.id)
+    const existeIdx = prev.findIndex((c) => String(c.id) === idStr)
+    let actualizadas: Cita[]
+    if (existeIdx !== -1) {
+      actualizadas = [...prev]
+      actualizadas[existeIdx] = citaAjustada
+    } else {
+      const citasRecurrencia =
+        citaAjustada.recurrencia && citaAjustada.recurrencia !== 'ninguna'
+          ? (generarCitasRecurrencia(citaAjustada, 10) as unknown as Cita[])
+          : []
+      actualizadas = [citaAjustada, ...prev, ...citasRecurrencia]
+    }
 
-      const actualizadas = existe
-        ? prev.map(c => c.id === citaAjustada.id ? citaAjustada : c)
-        : [...prev, citaAjustada, ...citasRecurrencia]
-      
+    citasRef.current = actualizadas
+    setCitas(actualizadas)
+
+    queueMicrotask(() => {
+      useAgendaStore.getState().setCitas(actualizadas)
       if (agendaStorageService?.guardarCitas) {
-        agendaStorageService.guardarCitas(actualizadas)
+        void agendaStorageService.guardarCitas(actualizadas).then(() => {
+          const desdeCache = agendaStorageService.obtenerCitas()
+          if (desdeCache && desdeCache.length > 0) {
+            citasRef.current = desdeCache
+            setCitas(desdeCache)
+            useAgendaStore.getState().setCitas(desdeCache)
+          }
+        })
       }
-      return actualizadas
     })
 
     setModalNuevaCitaAbierto(false)
@@ -121,33 +150,41 @@ export const useAgenda = (pacientesProp: Paciente[] | null = null): UseAgendaRet
   }, [])
 
   const eliminarCita = useCallback((citaId: string | number): void => {
-    setCitas(prev => {
-      const actualizadas = prev.filter(c => c.id !== citaId)
+    const prev = citasRef.current
+    const actualizadas = prev.filter((c) => String(c.id) !== String(citaId))
+    citasRef.current = actualizadas
+    setCitas(actualizadas)
+
+    queueMicrotask(() => {
+      useAgendaStore.getState().setCitas(actualizadas)
       if (agendaStorageService?.eliminarCita) {
         agendaStorageService.eliminarCita(citaId)
       } else if (agendaStorageService?.guardarCitas) {
         agendaStorageService.guardarCitas(actualizadas)
       }
-      return actualizadas
     })
   }, [])
 
   const cambiarEstadoCita = useCallback((citaId: string | number, nuevoEstado: string): void => {
-    setCitas(prev => {
-      const actualizadas = prev.map(c => {
-        if (c.id === citaId) {
-          return {
-            ...c,
-            estado: nuevoEstado,
-            horaInicioAtencion: nuevoEstado === 'En Sillón' ? new Date().toISOString() : c.horaInicioAtencion
-          }
+    const prev = citasRef.current
+    const actualizadas = prev.map((c) => {
+      if (String(c.id) === String(citaId)) {
+        return {
+          ...c,
+          estado: nuevoEstado,
+          horaInicioAtencion: nuevoEstado === 'En Sillón' ? new Date().toISOString() : c.horaInicioAtencion
         }
-        return c
-      })
+      }
+      return c
+    })
+    citasRef.current = actualizadas
+    setCitas(actualizadas)
+
+    queueMicrotask(() => {
+      useAgendaStore.getState().setCitas(actualizadas)
       if (agendaStorageService?.guardarCitas) {
         agendaStorageService.guardarCitas(actualizadas)
       }
-      return actualizadas
     })
   }, [])
 

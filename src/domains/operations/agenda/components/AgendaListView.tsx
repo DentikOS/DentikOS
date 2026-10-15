@@ -1,5 +1,5 @@
 import React, { memo, useMemo, useState } from 'react'
-import { Calendar, Clock, User, MapPin, Stethoscope, CheckCircle, ArrowUp, ArrowDown } from 'lucide-react'
+import { Calendar, Clock, User, MapPin, Stethoscope, CheckCircle, ArrowUp, ArrowDown, Edit3, RefreshCw, MessageCircle, Trash2 } from 'lucide-react'
 import type { Cita } from '../schemas/citaSchema'
 
 const ESTADO_STYLES: Record<string, string> = {
@@ -7,13 +7,18 @@ const ESTADO_STYLES: Record<string, string> = {
   'Agendado': 'bg-clinical-info/10 dark:bg-sky-400/15 text-clinical-info dark:text-sky-300',
   'EnEspera': 'bg-clinical-warning/10 dark:bg-amber-400/15 text-clinical-warning dark:text-amber-300',
   'En Espera': 'bg-clinical-warning/10 dark:bg-amber-400/15 text-clinical-warning dark:text-amber-300',
+  'En sala de espera': 'bg-clinical-warning/10 dark:bg-amber-400/15 text-clinical-warning dark:text-amber-300',
   'EnAtencion': 'bg-clinical-success/10 dark:bg-emerald-400/15 text-clinical-success dark:text-emerald-300',
   'En Atención': 'bg-clinical-success/10 dark:bg-emerald-400/15 text-clinical-success dark:text-emerald-300',
+  'En atención': 'bg-clinical-success/10 dark:bg-emerald-400/15 text-clinical-success dark:text-emerald-300',
   'En Sillón': 'bg-clinical-success/10 dark:bg-emerald-400/15 text-clinical-success dark:text-emerald-300',
   'Completado': 'bg-graphite-100 dark:bg-graphite-700 text-graphite-600 dark:text-graphite-300',
+  'Completada': 'bg-graphite-100 dark:bg-graphite-700 text-graphite-600 dark:text-graphite-300',
   'Atendido': 'bg-graphite-100 dark:bg-graphite-700 text-graphite-600 dark:text-graphite-300',
   'Cancelada': 'bg-clinical-error/10 dark:bg-red-400/15 text-clinical-error dark:text-red-300',
   'Anulado': 'bg-clinical-error/10 dark:bg-red-400/15 text-clinical-error dark:text-red-300',
+  'Pendiente': 'bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200',
+  'Confirmada': 'bg-teal-100 dark:bg-teal-900/40 text-teal-800 dark:text-teal-200',
 }
 
 interface ColumnDef {
@@ -34,9 +39,21 @@ export interface AgendaListViewProps {
   citas?: Cita[]
   alVerFichaPaciente?: (cita: Cita) => void
   alCambiarEstadoCita?: (citaId: string | number, nuevoEstado: string) => void
+  onEditar?: (cita: Cita) => void
+  onCambiarEstado?: (cita: Cita) => void
+  onWhatsApp?: (cita: Cita) => void
+  onEliminar?: (cita: Cita) => void
 }
 
-export const AgendaListView: React.FC<AgendaListViewProps> = memo(({ citas = [], alVerFichaPaciente, alCambiarEstadoCita }) => {
+export const AgendaListView: React.FC<AgendaListViewProps> = memo(({
+  citas = [],
+  alVerFichaPaciente,
+  alCambiarEstadoCita,
+  onEditar,
+  onCambiarEstado,
+  onWhatsApp,
+  onEliminar,
+}) => {
   const [sortColumn, setSortColumn] = useState<keyof Cita>('horaInicio')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
   const [pagina, setPagina] = useState<number>(1)
@@ -127,7 +144,7 @@ export const AgendaListView: React.FC<AgendaListViewProps> = memo(({ citas = [],
             return (
               <tr key={cita.id} className="border-b border-graphite-100 dark:border-graphite-700/50 hover:bg-graphite-50 dark:hover:bg-graphite-700/30 transition-colors">
                 <td className="px-3 py-2 font-semibold text-graphite-900 dark:text-graphite-50">
-                  {cita.horaInicio}
+                  {String(cita.horaInicio).slice(0, 5)}
                 </td>
                 <td className="px-3 py-2">
                   <button
@@ -149,28 +166,44 @@ export const AgendaListView: React.FC<AgendaListViewProps> = memo(({ citas = [],
                     {cita.estado}
                   </span>
                 </td>
-                <td className="px-3 py-2 text-right">
-                  <div className="flex justify-end gap-1">
-                    {(cita.estado === 'Agendada' || cita.estado === 'Agendado') && (
-                      <button
-                        type="button"
-                        onClick={() => alCambiarEstadoCita && alCambiarEstadoCita(cita.id, 'EnEspera')}
-                        className="p-1 rounded hover:bg-graphite-100 dark:hover:bg-graphite-700 text-graphite-500 hover:text-clinical-warning transition-colors cursor-pointer"
-                        aria-label="Marcar como en espera"
-                      >
-                        <Clock size={12} />
-                      </button>
-                    )}
-                    {(cita.estado === 'EnEspera' || cita.estado === 'En Espera') && (
-                      <button
-                        type="button"
-                        onClick={() => alCambiarEstadoCita && alCambiarEstadoCita(cita.id, 'EnAtencion')}
-                        className="p-1 rounded hover:bg-graphite-100 dark:hover:bg-graphite-700 text-graphite-500 hover:text-clinical-success transition-colors cursor-pointer"
-                        aria-label="Marcar como en atención"
-                      >
-                        <CheckCircle size={12} />
-                      </button>
-                    )}
+                <td className="px-3 py-2">
+                  <div className="flex items-center justify-end gap-1">
+                    <button
+                      type="button"
+                      title="Editar cita"
+                      aria-label="Editar cita"
+                      onClick={() => onEditar?.(cita)}
+                      className="p-1.5 rounded-lg text-slate-500 hover:bg-surface-muted hover:text-[#B88E3A] transition-colors active:scale-90"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      title="Cambiar estado"
+                      aria-label="Cambiar estado"
+                      onClick={() => (onCambiarEstado ? onCambiarEstado(cita) : (alCambiarEstadoCita && alCambiarEstadoCita(cita.id, 'En sala de espera')))}
+                      className="p-1.5 rounded-lg text-slate-500 hover:bg-surface-muted hover:text-sky-600 transition-colors active:scale-90"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      title="Confirmar por WhatsApp"
+                      aria-label="Confirmar por WhatsApp"
+                      onClick={() => onWhatsApp?.(cita)}
+                      className="p-1.5 rounded-lg text-slate-500 hover:bg-emerald-50 hover:text-emerald-600 transition-colors active:scale-90"
+                    >
+                      <MessageCircle className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      title="Eliminar cita"
+                      aria-label="Eliminar cita"
+                      onClick={() => onEliminar?.(cita)}
+                      className="p-1.5 rounded-lg text-slate-500 hover:bg-rose-50 hover:text-rose-600 transition-colors active:scale-90"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </td>
               </tr>

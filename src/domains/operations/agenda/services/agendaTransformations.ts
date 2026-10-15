@@ -4,45 +4,56 @@
  */
 import { migrationStorageService } from '../../../../infrastructure/persistence/migrationStorageService'
 import { esUuidValido } from '../../../../infrastructure/supabase/migrations/uuidUtils'
+import { normalizarEstado } from '../utils/normalizarCita'
 import type { Cita } from '../schemas/citaSchema'
 
-export const ESTADO_CODIGO_A_SUPABASE: Readonly<Record<string, string>> = {
-  'Agendado': 'Agendada',
+export const ESTADO_CORE_A_SUPABASE: Record<string, string> = {
   'Pendiente': 'Agendada',
-  'Confirmado': 'Confirmada',
-  'En Sillón': 'En Curso',
-  'Completado': 'Completada',
-  'Cancelado': 'Cancelada',
-  'No Asistió': 'No Asistió',
-  'Agendada': 'Agendada',
   'Confirmada': 'Confirmada',
-  'En Curso': 'En Curso',
+  'En sala de espera': 'EnEspera',
+  'En atención': 'EnAtencion',
   'Completada': 'Completada',
-  'Cancelada': 'Cancelada'
+  'Cancelada': 'Cancelada',
+  'No-show': 'NoShow',
+  'Reagendada': 'Reagendada',
+  'Bloqueado': 'Bloqueado',
 }
 
-export const ESTADO_SUPABASE_A_CODIGO: Readonly<Record<string, string>> = {
-  'Agendada': 'Agendado',
-  'Confirmada': 'Confirmado',
-  'En Curso': 'En Sillón',
-  'Completada': 'Completado',
-  'Cancelada': 'Cancelado',
-  'No Asistió': 'No Asistió',
-  'Agendado': 'Agendado',
-  'Confirmado': 'Confirmado',
-  'En Sillón': 'En Sillón',
-  'Completado': 'Completado',
-  'Cancelado': 'Cancelado'
+export const ESTADO_SUPABASE_A_CORE: Record<string, string> = {
+  'Agendada': 'Pendiente',
+  'Agendado': 'Pendiente',
+  'Pendiente': 'Pendiente',
+  'Confirmada': 'Confirmada',
+  'Confirmado': 'Confirmada',
+  'EnEspera': 'En sala de espera',
+  'En Espera': 'En sala de espera',
+  'EnAtencion': 'En atención',
+  'En atención': 'En atención',
+  'En Curso': 'En atención',
+  'Completada': 'Completada',
+  'Completado': 'Completada',
+  'Atendido': 'Completada',
+  'Cancelada': 'Cancelada',
+  'Cancelado': 'Cancelada',
+  'NoShow': 'No-show',
+  'No-show': 'No-show',
+  'No Asistió': 'No-show',
+  'Reagendada': 'Reagendada',
+  'Bloqueado': 'Bloqueado',
 }
+
+export const ESTADO_CODIGO_A_SUPABASE = ESTADO_CORE_A_SUPABASE
+export const ESTADO_SUPABASE_A_CODIGO = ESTADO_SUPABASE_A_CORE
 
 export const normalizarEstadoParaSupabase = (estado: unknown): string => {
   if (typeof estado !== 'string') return 'Agendada'
-  return ESTADO_CODIGO_A_SUPABASE[estado] || 'Agendada'
+  const core = normalizarEstado(estado) // de utils/normalizarCita (legacy→core)
+  return ESTADO_CORE_A_SUPABASE[core] || 'Agendada'
 }
 
 export const desnormalizarEstadoParaCodigo = (estado: unknown): string => {
-  if (typeof estado !== 'string') return 'Agendado'
-  return ESTADO_SUPABASE_A_CODIGO[estado] || 'Agendado'
+  if (typeof estado !== 'string') return 'Pendiente'
+  return ESTADO_SUPABASE_A_CORE[estado] || normalizarEstado(estado)
 }
 
 export const SNAKE_TO_CAMEL_MAP: Readonly<Record<string, string>> = {
@@ -70,7 +81,6 @@ export const transformarDesdeSupabase = (
   input: Record<string, unknown>[] | Record<string, unknown> | null | undefined
 ): any => {
   if (!input) return Array.isArray(input) ? [] : null
-  console.log('[DEBUG-CITAS] transformarDesdeSupabase entrada:', input)
 
   const transformarFila = (row: Record<string, unknown>): Cita => {
     let meta: Record<string, unknown> = {}
@@ -122,14 +132,10 @@ export const transformarDesdeSupabase = (
   }
 
   if (Array.isArray(input)) {
-    const resultado = input.map(transformarFila)
-    console.log('[DEBUG-CITAS] transformarDesdeSupabase salida:', resultado)
-    return resultado
+    return input.map(transformarFila)
   }
 
-  const resultado = transformarFila(input)
-  console.log('[DEBUG-CITAS] transformarDesdeSupabase salida:', resultado)
-  return resultado
+  return transformarFila(input)
 }
 
 /**
@@ -139,7 +145,6 @@ export const transformarParaSupabase = (
   citaJs: Record<string, unknown> | null | undefined
 ): Record<string, unknown> | null => {
   if (!citaJs) return null
-  console.log('[DEBUG-CITAS] transformarParaSupabase entrada:', citaJs)
 
   const c = citaJs
   const doctorVal = c.doctorId || c.doctor || null
@@ -201,6 +206,5 @@ export const transformarParaSupabase = (
     resultado.id = String(c.id)
   }
 
-  console.log('[DEBUG-CITAS] transformarParaSupabase salida:', resultado)
   return resultado
 }

@@ -3,6 +3,7 @@ import {
   verificarDisponibilidadBox,
   calcularResumenAgenda
 } from './agendaCalculations'
+import { obtenerFechaLocalISO } from '../../../../shared/utils/dateUtils'
 
 describe('agendaCalculations', () => {
   it('detecta disponibilidad de box cuando no hay solapamiento', () => {
@@ -18,5 +19,21 @@ describe('agendaCalculations', () => {
     const res = calcularResumenAgenda([])
     expect(res.totalHoy).toBe(0)
     expect(res.agendadosCount).toBe(0)
+  })
+
+  it('cuenta citas en estado Pendiente para agendadosCount (BP05 §02)', () => {
+    const hoyIso = obtenerFechaLocalISO()
+    const citas = [
+      { id: 1, fechaIso: hoyIso, estado: 'Pendiente' },
+      { id: 2, fechaIso: hoyIso, estado: 'En sala de espera' },
+      { id: 3, fechaIso: hoyIso, estado: 'En atención' },
+      { id: 4, fechaIso: hoyIso, estado: 'Completada' }
+    ]
+    const res = calcularResumenAgenda(citas)
+    expect(res.totalHoy).toBe(4)
+    expect(res.agendadosCount).toBe(1)
+    expect(res.enEsperaCount).toBe(1)
+    expect(res.enSillonCount).toBe(1)
+    expect(res.finalizadosCount).toBe(1)
   })
 })

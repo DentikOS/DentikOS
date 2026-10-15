@@ -67,7 +67,7 @@ describe('agendaStorageService.obtenerCitasDesdeSupabase', () => {
     expect(citas.length).toBe(1)
     expect(citas[0].horaInicio).toBe('10:00')
     expect(citas[0].pacienteId).toBe('pac-1')
-    expect(citas[0].estado).toBe('Agendado')
+    expect(citas[0].estado).toBe('Pendiente')
   })
 
   it('retorna citas locales si la consulta a Supabase retorna error', async () => {
