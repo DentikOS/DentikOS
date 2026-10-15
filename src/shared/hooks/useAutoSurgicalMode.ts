@@ -1,64 +1,58 @@
-/**
- * useAutoSurgicalMode — Detección proactiva de cirugías programadas para sugerir Modo Quirúrgico
- * Blueprint 02: Alerta toast sutil si hay intervención en los próximos 15 minutos.
- */
 import { useEffect, useRef } from 'react'
-import { agendaStorageService } from '../../domains/operations/agenda/services/agendaStorageService'
+import { useThemeStore } from '../../app/stores/useThemeStore'
+import { useAgendaStore } from '../../app/stores/useAgendaStore'
 import { notificationService } from '../../infrastructure/notification/notificationService'
-import { useDarkMode } from './useDarkMode'
 
+/**
+ * BP05 §10: Activación automática del Modo Quirúrgico
+ * 
+ * Se activa automáticamente cuando:
+ * 1. El doctor inicia atención de una cita con tag "🚨 Urgencia" (esUrgencia: true)
+ * 2. El doctor inicia atención de una cita con tag "🦷 Procedimiento largo" (motivo incluye palabras clave)
+ * 
+ * Palabras clave de procedimiento largo:
+ * - cirugía, extracción, implante, endodoncia, periodoncia, quirúrgico
+ */
 export const useAutoSurgicalMode = (): void => {
-  const { theme } = useDarkMode()
-  const notificadoRef = useRef<boolean>(false)
+  const theme = useThemeStore((s) => s.theme)
+  const setTheme = useThemeStore((s) => s.setTheme)
+  const citas = useAgendaStore((s) => s.citas)
+  const activadoRef = useRef<string | null>(null) // ID de cita que activó el modo
 
   useEffect(() => {
-    const verificarCirugias = () => {
-      if (theme === 'surgical' || notificadoRef.current) return
-      try {
-        const citas = agendaStorageService.obtenerCitas()
-        if (!Array.isArray(citas) || citas.length === 0) return
-
-        const ahora = Date.now()
-        const quinceMin = 15 * 60 * 1000
-
-        const cirugiaProxima = citas.find((c) => {
-          const motivo = String(c.motivo || '')
-          const tratamiento = String((c as { tratamiento?: string }).tratamiento || '')
-          const tipo = String((c as { tipo?: string }).tipo || '')
-
-          const esCirugia =
-            tipo === 'cirugia' ||
-            /cirug|extracc|quirurg|implante/i.test(motivo) ||
-            /cirug|extracc|quirurg|implante/i.test(tratamiento)
-
-          if (!esCirugia) return false
-
-          const fechaStr = c.fecha ? `${c.fecha}T${c.hora || '00:00'}` : ''
-          const fechaCita = new Date(fechaStr).getTime()
-          if (isNaN(fechaCita)) return false
-
-          const diff = fechaCita - ahora
-          return diff > 0 && diff <= quinceMin
-        })
-
-        if (cirugiaProxima) {
-          notificadoRef.current = true
-          notificationService.info(
-            `¿Activar Modo Quirúrgico para la cirugía de las ${cirugiaProxima.hora || 'próximas horas'}?`,
-            {
-              duracion: 10000,
-              dismissable: true,
-              titulo: 'Intervención Quirúrgica Programada',
-            }
-          )
-        }
-      } catch {
-        // Fail-safe silencioso
-      }
+    if (theme !== 'surgical') {
+      activadoRef.current = null
     }
-
-    verificarCirugias()
-    const timer = setInterval(verificarCirugias, 60000)
-    return () => clearInterval(timer)
   }, [theme])
+
+  useEffect(() => {
+    // Buscar cita en atención con tag urgente/procedimiento largo
+    const citaEnAtencion = citas.find(c => 
+      c.estado === 'En atención' || c.estado === 'En Sillón'
+    )
+
+    if (!citaEnAtencion) return
+    if (theme === 'surgical') return
+    if (activadoRef.current === String(citaEnAtencion.id)) return
+
+    const esUrgencia = (citaEnAtencion as { esUrgencia?: boolean }).esUrgencia === true
+    const motivo = String(citaEnAtencion.motivo || (citaEnAtencion as { trataMiento?: string }).trataMiento || '').toLowerCase()
+    
+    const esProcedimientoLargo = 
+      /cirug|extracc|implante|endodoncia|periodoncia|quirurg|muela del juicio|tercer molar/i.test(motivo)
+
+    if (esUrgencia || esProcedimientoLargo) {
+      // Auto-activar Modo Quirúrgico
+      setTheme('surgical')
+      activadoRef.current = String(citaEnAtencion.id)
+      
+      notificationService.success(
+        `Modo Quirúrgico activado automáticamente para ${citaEnAtencion.pacienteNombre || 'paciente'}`,
+        {
+          duracion: 4000,
+          titulo: esUrgencia ? '🚨 Urgencia detectada' : '🦷 Procedimiento largo',
+        }
+      )
+    }
+  }, [citas, theme, setTheme])
 }

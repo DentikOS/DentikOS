@@ -5,11 +5,16 @@ import {
   validarConflictosRecurrencia,
 } from './recurrenciaUtils'
 
-describe('recurrenciaUtils', () => {
+describe('recurrenciaUtils (BP05 §07)', () => {
   describe('calcularProximaFechaRecurrencia', () => {
     it('retorna null si no hay recurrencia', () => {
       const cita = { fecha: '2026-09-24', recurrencia: 'ninguna' }
       expect(calcularProximaFechaRecurrencia(cita)).toBeNull()
+    })
+
+    it('calcula próxima fecha diaria', () => {
+      const cita = { fecha: '2026-10-20', recurrencia: 'diario', frecuencia: 1 }
+      expect(calcularProximaFechaRecurrencia(cita)).toBe('2026-10-21')
     })
 
     it('calcula próxima fecha semanal', () => {
@@ -17,31 +22,68 @@ describe('recurrenciaUtils', () => {
       expect(calcularProximaFechaRecurrencia(cita)).toBe('2026-10-01')
     })
 
+    it('calcula próxima fecha quincenal', () => {
+      const cita = { fecha: '2026-10-20', recurrencia: 'quincenal', frecuencia: 1 }
+      expect(calcularProximaFechaRecurrencia(cita)).toBe('2026-11-03')
+    })
+
     it('calcula próxima fecha mensual', () => {
       const cita = { fecha: '2026-09-24', recurrencia: 'mensual', frecuencia: 1 }
       expect(calcularProximaFechaRecurrencia(cita)).toBe('2026-10-24')
     })
 
-    it('calcula próxima fecha anual', () => {
-      const cita = { fecha: '2026-09-24', recurrencia: 'anual', frecuencia: 1 }
-      expect(calcularProximaFechaRecurrencia(cita)).toBe('2027-09-24')
+    it('calcula próxima fecha para personalizado', () => {
+      const cita = {
+        fecha: '2026-10-20',
+        recurrencia: 'personalizado',
+        frecuencia: 10,
+      }
+      const proxima = calcularProximaFechaRecurrencia(cita)
+      expect(proxima).toBe('2026-10-30')
     })
   })
 
   describe('generarCitasRecurrencia', () => {
-    it('genera 3 citas semanales', () => {
+    it('genera citas diarias', () => {
       const citaBase = {
-        id: 'cita_1',
-        fecha: '2026-09-24',
-        horaInicio: '10:00',
-        recurrencia: 'semanal',
+        id: '1',
+        fecha: '2026-10-20',
+        recurrencia: 'diario',
         frecuencia: 1,
       }
-      const citas = generarCitasRecurrencia(citaBase, 3)
+
+      const citas = generarCitasRecurrencia(citaBase, 5)
+
+      expect(citas).toHaveLength(4)
+      expect(citas[0].fecha).toBe('2026-10-21')
+      expect(citas[1].fecha).toBe('2026-10-22')
+    })
+
+    it('genera citas quincenales', () => {
+      const citaBase = {
+        id: '1',
+        fecha: '2026-10-20',
+        recurrencia: 'quincenal',
+        frecuencia: 1,
+      }
+
+      const citas = generarCitasRecurrencia(citaBase, 4)
+
       expect(citas).toHaveLength(3)
-      expect(citas[0].fecha).toBe('2026-10-01')
-      expect(citas[1].fecha).toBe('2026-10-08')
-      expect(citas[2].fecha).toBe('2026-10-15')
+      expect(citas[0].fecha).toBe('2026-11-03')
+      expect(citas[1].fecha).toBe('2026-11-17')
+    })
+
+    it('respeta límite de 100 citas por serie', () => {
+      const citaBase = {
+        id: '1',
+        fecha: '2026-10-20',
+        recurrencia: 'diario',
+        frecuencia: 1,
+      }
+
+      const citas = generarCitasRecurrencia(citaBase, 150)
+      expect(citas.length).toBeLessThanOrEqual(99)
     })
 
     it('retorna array vacío si no hay recurrencia', () => {
@@ -59,7 +101,7 @@ describe('recurrenciaUtils', () => {
         fechaFin: '2026-10-10',
       }
       const citas = generarCitasRecurrencia(citaBase, 10)
-      expect(citas).toHaveLength(2) // 2026-10-01 y 2026-10-08 (2026-10-15 excede fechaFin)
+      expect(citas).toHaveLength(2)
     })
   })
 

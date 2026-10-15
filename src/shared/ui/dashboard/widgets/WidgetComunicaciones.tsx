@@ -10,8 +10,8 @@ export interface WidgetComunicacionesProps {
 }
 
 export const WidgetComunicaciones: React.FC<WidgetComunicacionesProps> = ({
-  sinLeerWhatsapp = 3,
-  porConfirmar = 5,
+  sinLeerWhatsapp = 0,
+  porConfirmar = 0,
   onIrComunicaciones,
   dragHandle
 }) => {

@@ -19,8 +19,21 @@ describe('validarTransicionEstado (BP05 §03)', () => {
     expect(validarTransicion('Confirmada', 'Confirmada')).toBe(true)
   })
 
-  it('exporta matriz completa de transiciones permitidas', () => {
+  it('exporta matriz completa de transiciones permitidas para los estados core y Bloqueado', () => {
+    expect(Object.keys(TRANSICIONES_PERMITIDAS)).toEqual([
+      'Pendiente',
+      'Confirmada',
+      'En sala de espera',
+      'En atención',
+      'Completada',
+      'Cancelada',
+      'No-show',
+      'Reagendada',
+      'Bloqueado'
+    ])
     expect(TRANSICIONES_PERMITIDAS.Pendiente).toContain('Confirmada')
     expect(TRANSICIONES_PERMITIDAS.Completada).toEqual([])
+    expect(TRANSICIONES_PERMITIDAS.Bloqueado).toEqual([])
+    expect(validarTransicion('Agendado', 'Confirmado')).toBe(false)
   })
 })

@@ -1,28 +1,43 @@
-import React, { memo, useMemo, useState, useEffect } from 'react'
-import { Ban, Plus, Armchair, Calendar } from 'lucide-react'
+import React, { memo, useMemo, useEffect, useState, useCallback } from 'react'
+import { Ban, Plus, Calendar, Settings, AlertTriangle, UserX, Users } from 'lucide-react'
 import { Button } from '../../../shared/ui/ui/Button'
 import { PageHeader } from '../../../shared/ui/ui/PageHeader'
-import { EmptyState } from '../../../shared/ui/ui/EmptyState'
 import { useAgenda } from './hooks/useAgenda'
-import { AgendaSummaryCards } from './components/AgendaSummaryCards'
-import { AgendaViewSelector } from './components/AgendaViewSelector'
-import { CitaCard } from './components/CitaCard'
 import { ModalNuevaCita } from './components/ModalNuevaCita'
 import { ModalNuevoBloqueo } from './components/ModalNuevoBloqueo'
+import { ModalConfiguracionHorarios } from './components/ModalConfiguracionHorarios'
+import { ModalConfirmacionCita } from './components/ModalConfirmacionCita'
+import { ModalEdicionSerie } from './components/ModalEdicionSerie'
+import { ModalDiasFestivos } from './components/ModalDiasFestivos'
+import { ModalDoctorAusente } from './components/ModalDoctorAusente'
+import { ModalReasignarCita } from './components/ModalReasignarCita'
+import { SalaEsperaDrawer } from './components/SalaEsperaDrawer'
 import { AgendaListView } from './components/AgendaListView'
-import { AgendaProfesionalView } from './components/AgendaProfesionalView'
-import { AgendaDayView } from './components/AgendaDayView'
+import { AgendaDayView, type MovePayload } from './components/AgendaDayView'
 import { AgendaWeekView } from './components/AgendaWeekView'
 import { AgendaMonthView } from './components/AgendaMonthView'
 import { AgendaNavigation } from './components/AgendaNavigation'
-import { WaitingRoomPanel } from './components/WaitingRoomPanel'
 import { AgendaQuirurgica } from './components/AgendaQuirurgica'
+import { DoctorWaitingRoomBar } from './components/DoctorWaitingRoomBar'
+import { waitingRoomService } from './services/waitingRoomService'
+import { sonidoAgendaService } from './services/sonidoAgendaService'
+import { editarCitaRecurrencia, cancelarCitaRecurrencia } from './services/recurrenciaService'
 import { useAgendaStore } from '../../../app/stores/useAgendaStore'
 import { useThemeStore } from '../../../app/stores/useThemeStore'
+import { useSesionStore } from '../../../app/stores/sesionStore'
+import { usePermisosAgenda, puedeArrastrarCita } from './utils/permisosAgenda'
+import { FILTROS_DOCTOR } from './constants/doctorConstants'
+import { agendaConfigService, type DoctorAgenda } from './services/agendaConfigService'
+import { registrarCambioEstado } from './utils/auditoriaCita'
+import { validarTransicion } from './utils/validarTransicionEstado'
 import { exportarCitasCSV } from '../../../shared/utils/csvExport'
-import { SILLONES_DENTALES } from './constants/agendaConstants'
 import { usePacientesStore } from '../../../app/stores/pacientesStore'
 import { agendaStorageService } from './services/agendaStorageService'
+import { normalizarCita, normalizarEstado } from './utils/normalizarCita'
+import { deduplicarCitas } from './utils/deduplicarCitas'
+import { ModalCambiarEstado } from './components/ModalCambiarEstado'
+import { useAppDialog } from '../../../shared/hooks/useAppDialog'
+import { timelineService } from '../../clinical/patient/services/timelineService'
 import type { Cita } from './schemas/citaSchema'
 import type { Paciente } from '../../../domains/clinical/patient/schemas/pacienteSchema'
 
@@ -33,24 +48,30 @@ export interface AgendaModuloProps {
 
 export const AgendaModulo: React.FC<AgendaModuloProps> = memo(({ alSeleccionarPaciente, alVerFichaPaciente }) => {
   const pacientesProp = usePacientesStore((state: { pacientes: Paciente[] }) => state.pacientes)
+  const permisos = usePermisosAgenda()
+  const userProfile = useSesionStore((s) => s.userProfile)
+  const { confirm: dialogConfirm } = useAppDialog()
+  const [modalHorariosAbierto, setModalHorariosAbierto] = useState(false)
+  const [citaParaConfirmar, setCitaParaConfirmar] = useState<Cita | null>(null)
+  const [modalConfirmacionAbierto, setModalConfirmacionAbierto] = useState(false)
+  const [citaParaEditar, setCitaParaEditar] = useState<Cita | null>(null)
+  const [modalEdicionSerieAbierto, setModalEdicionSerieAbierto] = useState(false)
+  const [modalDiasFestivosAbierto, setModalDiasFestivosAbierto] = useState(false)
+  const [modalDoctorAusenteAbierto, setModalDoctorAusenteAbierto] = useState(false)
+  const [salaEsperaAbierta, setSalaEsperaAbierta] = useState(false)
+  const [citaParaReasignar, setCitaParaReasignar] = useState<Cita | null>(null)
+  const [modalReasignarAbierto, setModalReasignarAbierto] = useState(false)
+  const [citaParaEstado, setCitaParaEstado] = useState<Cita | null>(null)
+  const [citaAEditar, setCitaAEditar] = useState<Cita | null>(null)
+  const [doctores, setDoctores] = useState<DoctorAgenda[]>([])
+  const [loadingDoctores, setLoadingDoctores] = useState(true)
 
   const {
-    citas,
-    pacientes,
-    fechaSeleccionada,
-    setFechaSeleccionada,
-    boxFiltro,
-    setBoxFiltro,
-    doctorFiltro,
-    setDoctorFiltro,
-    modalNuevaCitaAbierto,
-    setModalNuevaCitaAbierto,
-    modalNuevoBloqueoAbierto,
-    setModalNuevoBloqueoAbierto,
-    guardarCita,
-    eliminarCita,
-    cambiarEstadoCita,
-    enviarWhatsAppConfirmacion
+    citas, pacientes, fechaSeleccionada, setFechaSeleccionada,
+    boxFiltro, doctorFiltro, setDoctorFiltro,
+    modalNuevaCitaAbierto, setModalNuevaCitaAbierto,
+    modalNuevoBloqueoAbierto, setModalNuevoBloqueoAbierto,
+    guardarCita, cambiarEstadoCita, eliminarCita
   } = useAgenda(pacientesProp)
 
   const currentView = useAgendaStore((state) => state.currentView)
@@ -59,345 +80,498 @@ export const AgendaModulo: React.FC<AgendaModuloProps> = memo(({ alSeleccionarPa
   const storeDateIso = useAgendaStore((state) => state.currentDateIso)
   const theme = useThemeStore((state) => state.theme)
 
-  useEffect(() => {
-    if (storeDateIso) {
-      setFechaSeleccionada(storeDateIso.split('T')[0])
+  const cargarDoctores = useCallback(async () => {
+    setLoadingDoctores(true)
+    try {
+      const res = await agendaConfigService.obtenerDoctoresAgenda()
+      setDoctores(res)
+    } catch {
+      setDoctores([])
+    } finally {
+      setLoadingDoctores(false)
     }
-  }, [storeDateIso, setFechaSeleccionada])
-
-  useEffect(() => {
-    const cargarCitas = async () => {
-      try {
-        const citasDB = await agendaStorageService.obtenerCitasDesdeSupabase()
-        if (citasDB && citasDB.length > 0) {
-          useAgendaStore.getState().setCitas(citasDB)
-        }
-      } catch (error) {
-        console.error('Error cargando citas desde Supabase:', error)
-      }
-    }
-    cargarCitas()
   }, [])
 
+  useEffect(() => { cargarDoctores() }, [cargarDoctores])
+  useEffect(() => { if (storeDateIso) setFechaSeleccionada(storeDateIso.split('T')[0]) }, [storeDateIso, setFechaSeleccionada])
   useEffect(() => {
-    const handleAbrirModalCita = () => {
-      setModalNuevaCitaAbierto(true)
-    }
-    window.addEventListener('abrir_modal_cita', handleAbrirModalCita)
-    window.addEventListener('abrir_nueva_cita', handleAbrirModalCita)
-    return () => {
-      window.removeEventListener('abrir_modal_cita', handleAbrirModalCita)
-      window.removeEventListener('abrir_nueva_cita', handleAbrirModalCita)
-    }
+    agendaStorageService.obtenerCitasDesdeSupabase().then((res) => {
+      if (res?.length) useAgendaStore.getState().setCitas(res)
+    }).catch(console.error)
+  }, [])
+  useEffect(() => {
+    const onAbrir = () => setModalNuevaCitaAbierto(true)
+    window.addEventListener('abrir_modal_cita', onAbrir); window.addEventListener('abrir_nueva_cita', onAbrir)
+    return () => { window.removeEventListener('abrir_modal_cita', onAbrir); window.removeEventListener('abrir_nueva_cita', onAbrir) }
   }, [setModalNuevaCitaAbierto])
 
-  // F7-27: Estado de vista de agenda
-  const [vista, setVista] = useState<string>('box')
-  const [busqueda, setBusqueda] = useState<string>('')
+  const mapaDoctores = useMemo(() => {
+    const m: Record<string, string> = {}
+    doctores.forEach((d) => { m[d.userId] = d.nombreCompleto })
+    return m
+  }, [doctores])
 
-  const todasLasCitas = useMemo(() => {
-    if (storeCitas && storeCitas.length > 0) return storeCitas
-    return citas
-  }, [storeCitas, citas])
-
+  const todasLasCitas = useMemo(() =>
+    deduplicarCitas(
+      (storeCitas?.length ? storeCitas : citas).map((c) => normalizarCita(c, mapaDoctores))
+    ),
+    [storeCitas, citas, mapaDoctores])
   const citasDelDia = useMemo(() => {
-    let filtradas = todasLasCitas.filter(c => (c.fecha || '').split('T')[0] === (fechaSeleccionada || '').split('T')[0])
-    if (busqueda && busqueda.trim()) {
-      const termino = busqueda.toLowerCase().trim()
-      filtradas = filtradas.filter(c =>
-        (c.pacienteNombre || '').toLowerCase().includes(termino) ||
-        (c.pacienteRut || '').toLowerCase().includes(termino) ||
-        (c.trataMiento || '').toLowerCase().includes(termino) ||
-        String(c.pacienteTelefono || '').toLowerCase().includes(termino)
-      )
-    }
-    return filtradas
-  }, [todasLasCitas, fechaSeleccionada, busqueda])
+    return todasLasCitas.filter(c => (c.fecha || '').split('T')[0] === (fechaSeleccionada || '').split('T')[0])
+  }, [todasLasCitas, fechaSeleccionada])
 
-  // F7-27: Handler de exportación CSV
-  const handleExportarCSV = (): void => {
-    exportarCitasCSV(citasDelDia, `agenda_${fechaSeleccionada}`)
-  }
+  const doctorActualNombre = userProfile?.nombreCompleto || (typeof userProfile?.nombre === 'string' ? userProfile.nombre : '')
+  const doctorFiltroEfectivo: string = useMemo(() => {
+    if (doctorFiltro === FILTROS_DOCTOR.SOLO_YO) return doctorActualNombre
+    return doctorFiltro
+  }, [doctorFiltro, doctorActualNombre])
+
+  const handleExportarCSV = (): void => exportarCitasCSV(citasDelDia, `agenda_${fechaSeleccionada}`)
+
+  const handleAbrirConfirmacion = useCallback((targetCita: Cita) => {
+    setCitaParaConfirmar(targetCita)
+    setModalConfirmacionAbierto(true)
+  }, [])
+
+  const handleAbrirEdicionSerie = useCallback((cita: Cita) => {
+    if (cita.recurrence_group_id) {
+      setCitaParaEditar(cita)
+      setModalEdicionSerieAbierto(true)
+    }
+  }, [])
+
+  const handleEditarSerie = useCallback(async (alcance: 'solo_esta' | 'esta_y_futuras' | 'toda_la_serie') => {
+    if (!citaParaEditar) return
+    await editarCitaRecurrencia(citaParaEditar.id, {}, alcance)
+    const res = await agendaStorageService.obtenerCitasDesdeSupabase()
+    if (res?.length) useAgendaStore.getState().setCitas(res)
+    setModalEdicionSerieAbierto(false)
+    setCitaParaEditar(null)
+  }, [citaParaEditar])
+
+  const handleCancelarSerie = useCallback(async (alcance: 'solo_esta' | 'esta_y_futuras' | 'toda_la_serie') => {
+    if (!citaParaEditar) return
+    const motivo = window.prompt('Motivo de cancelación (opcional):')
+    await cancelarCitaRecurrencia(citaParaEditar.id, alcance, motivo || undefined)
+    const res = await agendaStorageService.obtenerCitasDesdeSupabase()
+    if (res?.length) useAgendaStore.getState().setCitas(res)
+    setModalEdicionSerieAbierto(false)
+    setCitaParaEditar(null)
+  }, [citaParaEditar])
+
+  const registrarEnTimelinePaciente = useCallback(async (cita: Cita, descripcion: string, tipo: string = 'cita') => {
+    const pacienteId = cita.pacienteId
+    if (!pacienteId || String(pacienteId).startsWith('express_')) return
+    await timelineService.agregarEvento(String(pacienteId), {
+      tipo,
+      titulo: descripcion,
+      fecha: new Date().toISOString(),
+      usuario: (userProfile as { nombreCompleto?: string })?.nombreCompleto || 'Usuario',
+      profesional: cita.doctor || undefined,
+      metadata: { citaId: String(cita.id) },
+    })
+  }, [userProfile])
+
+  const handleConfirmarCita = useCallback(async (citaId: string | number, tipo: 'telefono' | 'presencial' | 'whatsapp_enviado') => {
+    const c = todasLasCitas.find((item) => String(item.id) === String(citaId))
+    if (!c) return
+    await guardarCita({ ...c, estado: 'Confirmada', confirmation_status: 'confirmado' })
+    const uId = (userProfile as { id?: string })?.id || 'local'
+    await registrarCambioEstado(citaId, c.estado, 'Confirmada', uId, `Confirmación manual vía ${tipo}`)
+    const desc = `Confirmación de cita vía ${tipo === 'telefono' ? 'llamada telefónica' : tipo === 'presencial' ? 'presencial' : 'WhatsApp'}`
+    await registrarEnTimelinePaciente(c, desc, 'cita')
+  }, [todasLasCitas, guardarCita, userProfile, registrarEnTimelinePaciente])
+
+  const handleCancelarCita = useCallback(async (citaId: string | number, motivo: string) => {
+    const c = todasLasCitas.find((item) => String(item.id) === String(citaId))
+    if (!c) return
+    await guardarCita({
+      ...c, estado: 'Cancelada', confirmation_status: 'no_confirmado',
+      observaciones: `${c.observaciones || ''}\n[Cancelación] ${motivo}`.trim(),
+    })
+    const uId = (userProfile as { id?: string })?.id || 'local'
+    await registrarCambioEstado(citaId, c.estado, 'Cancelada', uId, motivo)
+    await registrarEnTimelinePaciente(c, `Cita cancelada: ${motivo}`, 'cita')
+  }, [todasLasCitas, guardarCita, userProfile, registrarEnTimelinePaciente])
+
+  const handleCambiarEstado = useCallback(async (citaId: string | number, nuevoEstado: string) => {
+    const cita = todasLasCitas.find((c) => String(c.id) === String(citaId))
+    if (!cita) return
+    const estadoActual = normalizarEstado(cita.estado)   // ← normalizar ANTES de validar
+    if (estadoActual === nuevoEstado) return
+    if (!validarTransicion(estadoActual, nuevoEstado)) return
+    await guardarCita({ ...cita, estado: nuevoEstado })
+    const uId = (userProfile as { id?: string })?.id || 'local-user'
+    await registrarCambioEstado(citaId, estadoActual, nuevoEstado, uId, `Cambio de estado a ${nuevoEstado}`)
+    await registrarEnTimelinePaciente(cita, `Estado de cita cambiado a ${nuevoEstado}`, 'cambio_estado')
+  }, [todasLasCitas, guardarCita, userProfile, registrarEnTimelinePaciente])
+
+  const handleEliminarCita = useCallback(async (cita: Cita) => {
+    const ok = await dialogConfirm({
+      title: 'Eliminar cita',
+      description: `¿Eliminar la cita de ${cita.pacienteNombre || 'paciente'} del ${cita.fecha} ${String(cita.horaInicio).slice(0, 5)}? Esta acción no se puede deshacer.`,
+      confirmText: 'Eliminar',
+      cancelText: 'Cancelar',
+      variant: 'danger',
+    })
+    if (!ok) return
+    await eliminarCita(cita.id)
+    await registrarCambioEstado(cita.id, cita.estado, 'Eliminada', (userProfile as { id?: string })?.id || 'local', 'Cita eliminada')
+    await registrarEnTimelinePaciente(cita, 'Cita eliminada de la agenda', 'cita')
+    if (citaAEditar && String(citaAEditar.id) === String(cita.id)) {
+      setCitaAEditar(null)
+      setModalNuevaCitaAbierto(false)
+    }
+  }, [dialogConfirm, eliminarCita, userProfile, registrarEnTimelinePaciente, citaAEditar, setModalNuevaCitaAbierto])
+
+  const handleEditarCita = useCallback((cita: Cita) => {
+    setCitaAEditar(cita)
+    setModalNuevaCitaAbierto(true)
+  }, [setModalNuevaCitaAbierto])
+
+  const handleAppointmentMove = useCallback(async (citaId: string | number, payload: MovePayload) => {
+    const cita = todasLasCitas.find((c) => String(c.id) === String(citaId))
+    if (!cita) return
+    if (!puedeArrastrarCita(permisos, cita, userProfile)) return
+
+    const cambios: Partial<Cita> = { horaInicio: payload.horaInicio }
+    if (payload.fecha) cambios.fecha = payload.fecha
+    if (payload.box) cambios.boxAsignado = payload.box
+    cambios.doctor = !payload.doctor || payload.doctor === 'Sin asignar' ? undefined : payload.doctor
+
+    if (cita.duracionMinutos) {
+      const [h, m] = payload.horaInicio.split(':').map(Number)
+      const total = (h || 0) * 60 + (m || 0) + (Number(cita.duracionMinutos) || 30)
+      cambios.horaFin = `${String(Math.floor(total / 60) % 24).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
+    }
+
+    await guardarCita({ ...cita, ...cambios })
+    const uId = (userProfile as { id?: string })?.id || 'local-user'
+    await registrarCambioEstado(
+      citaId,
+      cita.estado,
+      cita.estado,
+      uId,
+      `Movió cita a ${payload.fecha ? payload.fecha + ' ' : ''}${payload.horaInicio}${payload.doctor ? ` (${payload.doctor})` : ''}`
+    )
+    sonidoAgendaService.play('cita_movida')
+  }, [todasLasCitas, permisos, userProfile, guardarCita])
+
+  const handleLlamarSiguiente = useCallback(async (cita: Cita) => {
+    await waitingRoomService.registrarEvento({
+      appointmentId: cita.id, tipo: 'llamar_siguiente',
+      doctorNombre: cita.doctor, boxAsignado: cita.boxAsignado,
+    })
+    window.dispatchEvent(new CustomEvent('sala_espera:llamada', {
+      detail: { citaId: cita.id, doctor: cita.doctor, box: cita.boxAsignado }
+    }))
+  }, [])
+
+  const handleReasignarCita = useCallback(async (citaId: string | number, nuevoDoctor?: string, nuevoBox?: string) => {
+    const cita = todasLasCitas.find(c => String(c.id) === String(citaId))
+    if (!cita) return
+    const cambios: Partial<Cita> = {}
+    if (nuevoDoctor && nuevoDoctor !== cita.doctor) cambios.doctor = nuevoDoctor
+    if (nuevoBox && nuevoBox !== cita.boxAsignado) cambios.boxAsignado = nuevoBox
+    await guardarCita({ ...cita, ...cambios })
+    const uId = (userProfile as { id?: string })?.id || 'local-user'
+    await registrarCambioEstado(
+      citaId,
+      cita.estado,
+      cita.estado,
+      uId,
+      `Reasignó cita: doctor ${cita.doctor || 'sin'} → ${nuevoDoctor || 'sin'}, box ${cita.boxAsignado || 'sin'} → ${nuevoBox || 'sin'}`
+    )
+    await registrarEnTimelinePaciente(cita, `Cita reasignada a ${nuevoDoctor || 'sin doctor'}`, 'cita')
+  }, [todasLasCitas, guardarCita, userProfile, registrarEnTimelinePaciente])
 
   const funcionVerFicha = (target: string | number | Cita | undefined): void => {
     if (!target) return
-    let pacienteParaNavegar: Paciente | undefined
-
-    if (typeof target === 'object' && 'rut' in target && 'nombre' in target) {
-      pacienteParaNavegar = target as unknown as Paciente
-    } else {
-      const pId = typeof target === 'object' ? target.pacienteId : target
-      pacienteParaNavegar = pacientes.find(p => String(p.id) === String(pId))
-      if (!pacienteParaNavegar && typeof target === 'object') {
-        pacienteParaNavegar = {
-          id: target.pacienteId || target.id,
-          nombre: target.pacienteNombre || 'Paciente',
-          rut: target.pacienteRut || '',
-          telefono: target.pacienteTelefono
-        }
-      }
-    }
-
-    if (pacienteParaNavegar) {
-      if (alSeleccionarPaciente) {
-        alSeleccionarPaciente(pacienteParaNavegar)
-      } else if (alVerFichaPaciente) {
-        alVerFichaPaciente(pacienteParaNavegar)
-      }
-    }
+    const pId = typeof target === 'object' ? ('pacienteId' in target ? target.pacienteId : target.id) : target
+    const pac = pacientes.find(p => String(p.id) === String(pId)) ||
+      (typeof target === 'object' && 'rut' in target ? (target as unknown as Paciente) : undefined)
+    if (pac) (alSeleccionarPaciente || alVerFichaPaciente)?.(pac)
   }
 
   if (theme === 'surgical') {
     return (
-      <AgendaQuirurgica
-        citas={citasDelDia}
-        onAbrirFicha={funcionVerFicha}
-      />
+      <div 
+        className="animate-in fade-in duration-[350ms] ease-[cubic-bezier(0.16,1,0.3,1)]"
+        key="surgical-mode"
+      >
+        <AgendaQuirurgica 
+          citas={citasDelDia} 
+          onAbrirFicha={funcionVerFicha} 
+        />
+      </div>
     )
   }
 
-  const boxesAMostrar = boxFiltro === 'Todos'
-    ? SILLONES_DENTALES
-    : SILLONES_DENTALES.filter(b => b.nombre === boxFiltro)
+  if (!loadingDoctores && doctores.length === 0) {
+    return (
+      <div className="p-8 text-center bg-surface border border-surface-border rounded-2xl shadow-xs">
+        <h2 className="text-xl font-bold text-graphite-900 dark:text-white mb-2">Configura los doctores de tu clínica</h2>
+        <p className="text-graphite-600 dark:text-graphite-300 mb-4">Para ver la agenda multi-doctor, primero configura el equipo de tu clínica.</p>
+        <Button type="button" onClick={() => window.dispatchEvent(new CustomEvent('navegar_seccion', { detail: 'Administración' }))} variant="primary">Ir a Administración → Equipo</Button>
+      </div>
+    )
+  }
 
   return (
-    <div className="space-y-6" role="main" aria-label="Agenda de citas">
-      {/* PageHeader con acciones */}
+    <div 
+      className="animate-in fade-in duration-[350ms] ease-[cubic-bezier(0.16,1,0.3,1)] space-y-6" 
+      role="main" 
+      aria-label="Agenda de citas"
+      key="normal-mode"
+    >
       <PageHeader
         icon={Calendar}
         title="Agenda multi-box y control de sillones"
         description="Gestión inteligente de citas, ocupación de Boxes y confirmación omnicanal."
         actions={
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-2.5 w-full sm:w-auto">
+            {permisos.configurarHorariosDoctor && (
+              <Button
+                type="button"
+                onClick={() => setModalHorariosAbierto(true)}
+                variant="secondary"
+                size="sm"
+                icon={Settings}
+              >
+                Horarios
+              </Button>
+            )}
+            {permisos.gestionarDiasFestivos && (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setModalDiasFestivosAbierto(true)}
+                icon={Calendar}
+              >
+                Festivos
+              </Button>
+            )}
+            {permisos.gestionarDoctoresAusentes && (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setModalDoctorAusenteAbierto(true)}
+                icon={UserX}
+                title="Marcar doctor como ausente"
+              >
+                Doctor ausente
+              </Button>
+            )}
             <Button
               type="button"
-              onClick={() => setModalNuevoBloqueoAbierto(true)}
-              variant="danger"
+              variant="secondary"
               size="sm"
-              icon={Ban}
+              onClick={() => setSalaEsperaAbierta(true)}
+              icon={Users}
             >
-              Añadir bloqueo
+              Sala de Espera
             </Button>
-            <Button
-              type="button"
-              onClick={() => setModalNuevaCitaAbierto(true)}
-              variant="primary"
-              icon={Plus}
-            >
-              Agendar nueva cita
-            </Button>
+            {permisos.crearBloqueos && (
+              <Button
+                type="button"
+                onClick={() => setModalNuevoBloqueoAbierto(true)}
+                variant="secondary"
+                size="sm"
+                icon={Ban}
+              >
+                Bloqueo
+              </Button>
+            )}
+            {permisos.crearCitas && (
+              <Button
+                type="button"
+                variant="danger"
+                size="sm"
+                onClick={() => {
+                  setModalNuevaCitaAbierto(true)
+                  window.dispatchEvent(new CustomEvent('nueva_cita_urgencia'))
+                }}
+                icon={AlertTriangle}
+                title="Crear cita urgente (permite sobrecupo)"
+              >
+                Urgencia
+              </Button>
+            )}
+            {permisos.crearCitas && (
+              <Button
+                type="button"
+                onClick={() => setModalNuevaCitaAbierto(true)}
+                variant="primary"
+                size="sm"
+                icon={Plus}
+              >
+                Nueva cita
+              </Button>
+            )}
           </div>
         }
       />
 
-      {/* Navegación temporal y de vistas */}
-      <AgendaNavigation
-        currentDateIso={fechaSeleccionada}
-        onDateChange={(nuevaFecha) => setFechaSeleccionada(nuevaFecha)}
-      />
+      <AgendaNavigation currentDateIso={fechaSeleccionada} onDateChange={(nuevaFecha) => setFechaSeleccionada(nuevaFecha)} onExportCSV={handleExportarCSV} doctorFiltro={doctorFiltro} setDoctorFiltro={setDoctorFiltro} doctores={doctores} />
 
-      {/* Selector de Fecha + Filtro por Box/Doctor */}
-      <AgendaViewSelector
-        fechaSeleccionadaIso={fechaSeleccionada}
-        setFechaSeleccionadaIso={setFechaSeleccionada}
-        boxFiltro={boxFiltro}
-        setBoxFiltro={setBoxFiltro}
-        doctorFiltro={doctorFiltro}
-        setDoctorFiltro={setDoctorFiltro}
-        doctoresDisponibles={[]}
-        vista={vista}
-        setVista={(v) => {
-          setVista(v)
-          if (v === 'day' || v === 'week' || v === 'month' || v === 'list') {
-            setStoreView(v)
-          }
-        }}
-        onExportarCSV={handleExportarCSV}
-        onBusquedaChange={setBusqueda}
-      />
-
-      {/* F7-27: Indicador de resultados de búsqueda */}
-      {busqueda && busqueda.trim() && (
-        <div className="bg-clinical-info/10 dark:bg-sky-400/15 border border-clinical-info/30 dark:border-sky-400/30 rounded-xl px-4 py-2 text-xs text-clinical-info dark:text-sky-300 font-semibold flex items-center justify-between">
-          <span>
-            Búsqueda: <strong>"{busqueda}"</strong> — {citasDelDia.length} resultado{citasDelDia.length === 1 ? '' : 's'}
-          </span>
-          <button
-            type="button"
-            onClick={() => setBusqueda('')}
-            className="px-2 py-0.5 rounded-lg hover:bg-clinical-info/20 transition-colors cursor-pointer"
-            aria-label="Limpiar búsqueda"
-          >
-            Limpiar
-          </button>
-        </div>
+      {currentView === 'day' && (
+        <>
+          <DoctorWaitingRoomBar
+            onLlamarSiguiente={(citaId) => {
+              const cita = todasLasCitas.find((c) => String(c.id) === String(citaId))
+              if (cita) handleLlamarSiguiente(cita)
+            }}
+          />
+          <AgendaDayView
+            appointments={citasDelDia}
+            doctors={doctores.map((d) => ({ id: d.userId, nombre: d.nombreCompleto, colorIdentidad: d.colorIdentidad }))}
+            currentDateIso={fechaSeleccionada}
+            selectedDoctor={doctorFiltroEfectivo} selectedBox={boxFiltro}
+            onAppointmentClick={(c) => {
+              if (c.recurrence_group_id) handleAbrirEdicionSerie(c)
+              else funcionVerFicha(c)
+            }}
+            onSlotClick={() => {
+              if (permisos.crearCitas) setModalNuevaCitaAbierto(true)
+            }}
+            onAppointmentMove={handleAppointmentMove}
+            onWhatsAppClick={(c) => handleAbrirConfirmacion(c)}
+            onLlamarSiguiente={(c) => handleLlamarSiguiente(c)}
+            onAbrirCambiarEstado={(c) => setCitaParaEstado(c)}
+            onEstadoChange={handleCambiarEstado}
+            onReasignar={(c) => {
+              setCitaParaReasignar(c)
+              setModalReasignarAbierto(true)
+            }}
+            onEditar={handleEditarCita}
+          />
+        </>
       )}
 
-      {/* KPI Cards */}
-      <AgendaSummaryCards citas={citasDelDia} />
-
-      {/* F7-27: Renderizado condicional de vistas de agenda */}
-      {(vista === 'box' && currentView !== 'week' && currentView !== 'month' && currentView !== 'waiting_room' && currentView !== 'day') && (
-        <div className="bg-canvas dark:bg-graphite-950 surgical:bg-graphite-300 border border-surface rounded-xl p-4 md:p-6" role="region" aria-label="Parrilla de sillones dentales">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-            {boxesAMostrar.map(box => {
-              const citasBox = citasDelDia.filter(
-                c => c.boxAsignado === box.nombre || c.boxAsignado === 'Todos los Boxes' || (!c.boxAsignado && box.id === 'sillon_1')
-              )
-
-              return (
-                <div key={box.id} className="bg-surface border border-surface rounded-lg p-4 space-y-4 flex flex-col justify-between">
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center border-b border-surface pb-2">
-                      <div>
-                        <h3 className="font-semibold text-xs text-graphite-900 dark:text-graphite-50 surgical:text-black uppercase tracking-wider">
-                          {box.nombre}
-                        </h3>
-                        <span className="text-[10px] font-medium text-graphite-500 dark:text-graphite-400 surgical:text-graphite-700">
-                          {box.especialidad}
-                        </span>
-                      </div>
-                      <span
-                        className="w-2.5 h-2.5 rounded-full bg-clinical-success animate-pulse"
-                        title="Sillón Operativo"
-                      />
-                    </div>
-
-                    <div className="space-y-3 min-h-[300px]">
-                      {citasBox.length === 0 ? (
-                        <EmptyState
-                          compact
-                          icon={Armchair}
-                          title="Sin citas agendadas en este Box"
-                          description="Disponible para reservas"
-                          aria-live="polite"
-                        />
-                      ) : (
-                        citasBox.map(cita => (
-                          <CitaCard
-                            key={cita.id}
-                            cita={cita}
-                            alCambiarEstado={cambiarEstadoCita}
-                            alEnviarWhatsApp={enviarWhatsAppConfirmacion}
-                            alVerFicha={funcionVerFicha}
-                            alEliminar={eliminarCita}
-                          />
-                        ))
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
-      {((currentView === 'day' && vista !== 'box' && vista !== 'lista' && vista !== 'profesional') || vista === 'day') && (
-        <AgendaDayView
-          appointments={citasDelDia}
-          currentDateIso={fechaSeleccionada}
-          selectedDoctor={doctorFiltro}
-          selectedBox={boxFiltro}
-          onAppointmentClick={(cita) => funcionVerFicha(cita)}
-          onSlotClick={() => setModalNuevaCitaAbierto(true)}
-          onAppointmentMove={(id, nuevaHora, col) => {
-            const citaExistente = todasLasCitas.find((c) => String(c.id) === String(id))
-            if (citaExistente) {
-              guardarCita({ ...citaExistente, horaInicio: nuevaHora, ...(col ? { doctor: col } : {}) })
+      {currentView === 'week' && (
+        <AgendaWeekView
+          appointments={todasLasCitas} currentDateIso={fechaSeleccionada}
+          onAppointmentClick={(c) => {
+            if (c.recurrence_group_id) handleAbrirEdicionSerie(c)
+            else funcionVerFicha(c)
+          }}
+          onDayClick={(iso) => { setFechaSeleccionada(iso); setStoreView('day') }}
+          onNewAppointment={(iso) => {
+            if (permisos.crearCitas) {
+              setFechaSeleccionada(iso)
+              setModalNuevaCitaAbierto(true)
             }
           }}
-          onWhatsAppClick={enviarWhatsAppConfirmacion}
+          onAppointmentMove={handleAppointmentMove}
         />
       )}
 
-      {(currentView === 'week' || vista === 'week') && (
-        <AgendaWeekView
-          appointments={todasLasCitas}
-          currentDateIso={fechaSeleccionada}
-          onAppointmentClick={(cita) => funcionVerFicha(cita)}
-          onDayClick={(iso) => {
-            setFechaSeleccionada(iso)
-            setStoreView('day')
-            setVista('day')
-          }}
-          onNewAppointment={(iso) => {
-            setFechaSeleccionada(iso)
-            setModalNuevaCitaAbierto(true)
-          }}
-        />
-      )}
-
-      {(currentView === 'month' || vista === 'month') && (
+      {currentView === 'month' && (
         <AgendaMonthView
-          appointments={todasLasCitas}
-          currentDateIso={fechaSeleccionada}
-          onDayClick={(iso) => {
-            setFechaSeleccionada(iso)
-            setStoreView('day')
-            setVista('day')
-          }}
+          appointments={todasLasCitas} currentDateIso={fechaSeleccionada}
+          onDayClick={(iso) => { setFechaSeleccionada(iso); setStoreView('day') }}
+          onAppointmentMove={handleAppointmentMove}
         />
       )}
 
-      {vista === 'lista' && (
+      {currentView === 'list' && (
         <AgendaListView
           citas={citasDelDia}
-          alVerFichaPaciente={funcionVerFicha}
+          alVerFichaPaciente={(c) => {
+            if (typeof c === 'object' && c && 'recurrence_group_id' in c && c.recurrence_group_id) {
+              handleAbrirEdicionSerie(c as Cita)
+            } else {
+              funcionVerFicha(c)
+            }
+          }}
           alCambiarEstadoCita={cambiarEstadoCita}
+          onEditar={handleEditarCita}
+          onCambiarEstado={(c) => setCitaParaEstado(c)}
+          onWhatsApp={(c) => handleAbrirConfirmacion(c)}
+          onEliminar={handleEliminarCita}
         />
       )}
 
-      {vista === 'profesional' && (
-        <AgendaProfesionalView
-          citas={citasDelDia}
-          doctoresDisponibles={[]}
-          alVerFichaPaciente={funcionVerFicha}
-        />
-      )}
-
-      {currentView === 'waiting_room' && (
-        <WaitingRoomPanel
-          pacientes={citasDelDia
-            .filter((c) => c.estado === 'En sala de espera' || c.estado === 'En Espera')
-            .map((c) => ({
-              id: c.id,
-              citaId: c.id,
-              nombre: c.pacienteNombre || 'Paciente',
-              horaLlegada: c.horaInicio,
-              boxAsignado: c.boxAsignado,
-              doctor: c.doctor,
-              confirmadoWhatsApp: c.confirmacionWhatsApp === 'confirmado' || c.estado === 'Confirmado' || c.estado === 'Confirmada',
-              enAtencion: false
-            }))}
-          totalEnAtencion={citasDelDia.filter((c) => c.estado === 'En atención' || c.estado === 'En Sillón').length}
-          totalCompletadasHoy={citasDelDia.filter((c) => c.estado === 'Completada' || c.estado === 'Atendido').length}
-          onIniciarAtencion={(id) => cambiarEstadoCita(id, 'En atención')}
-          onMarcarNoShow={(id) => cambiarEstadoCita(id, 'No-show')}
-          onAvisarPaciente={(id) => cambiarEstadoCita(id, 'En sala de espera')}
-          onLlamarSiguiente={(id) => cambiarEstadoCita(id, 'En sala de espera')}
-        />
-      )}
-
-      {/* Modales */}
       {modalNuevaCitaAbierto && (
         <ModalNuevaCita
           pacientes={pacientes}
           fechaPredeterminada={fechaSeleccionada}
           alGuardar={guardarCita}
-          alCerrar={() => setModalNuevaCitaAbierto(false)}
+          alCerrar={() => {
+            setModalNuevaCitaAbierto(false)
+            setCitaAEditar(null)
+          }}
           citasExistentes={citas}
+          citaAEditar={citaAEditar}
+          onEliminar={handleEliminarCita}
         />
       )}
-
       {modalNuevoBloqueoAbierto && (
-        <ModalNuevoBloqueo
-          fechaPredeterminada={fechaSeleccionada}
-          alGuardar={guardarCita}
-          alCerrar={() => setModalNuevoBloqueoAbierto(false)}
-          citasExistentes={citas}
+        <ModalNuevoBloqueo fechaPredeterminada={fechaSeleccionada} alGuardar={guardarCita} alCerrar={() => setModalNuevoBloqueoAbierto(false)} citasExistentes={citas} />
+      )}
+      {modalHorariosAbierto && (
+        <ModalConfiguracionHorarios isOpen={modalHorariosAbierto} alCerrar={() => setModalHorariosAbierto(false)} alGuardar={cargarDoctores} />
+      )}
+      {modalConfirmacionAbierto && (
+        <ModalConfirmacionCita
+          isOpen={modalConfirmacionAbierto} cita={citaParaConfirmar}
+          alCerrar={() => { setModalConfirmacionAbierto(false); setCitaParaConfirmar(null) }}
+          alConfirmar={handleConfirmarCita} alCancelar={handleCancelarCita}
         />
       )}
+      {modalEdicionSerieAbierto && (
+        <ModalEdicionSerie
+          isOpen={modalEdicionSerieAbierto} cita={citaParaEditar}
+          alCerrar={() => { setModalEdicionSerieAbierto(false); setCitaParaEditar(null) }}
+          alEditar={handleEditarSerie} alCancelar={handleCancelarSerie}
+        />
+      )}
+      <ModalDiasFestivos
+        isOpen={modalDiasFestivosAbierto}
+        alCerrar={() => setModalDiasFestivosAbierto(false)}
+      />
+      <ModalDoctorAusente
+        isOpen={modalDoctorAusenteAbierto}
+        doctoresDisponibles={doctores}
+        citasActuales={todasLasCitas}
+        alCerrar={() => setModalDoctorAusenteAbierto(false)}
+        alProcesar={(resultado) => {
+          console.log('Ausencia procesada:', resultado)
+          agendaStorageService.obtenerCitasDesdeSupabase().then((res) => {
+            if (res?.length) useAgendaStore.getState().setCitas(res)
+          }).catch(console.error)
+        }}
+      />
+      <SalaEsperaDrawer
+        open={salaEsperaAbierta}
+        citasHoy={citasDelDia}
+        alCerrar={() => setSalaEsperaAbierta(false)}
+        alCheckIn={(id) => handleCambiarEstado(id, 'En sala de espera')}
+        alLlamar={(id) => {
+          const c = todasLasCitas.find((item) => String(item.id) === String(id))
+          if (c) handleLlamarSiguiente(c)
+        }}
+        alIniciar={(id) => handleCambiarEstado(id, 'En atención')}
+        alNoShow={(id) => handleCambiarEstado(id, 'No-show')}
+      />
+      <ModalReasignarCita
+        isOpen={modalReasignarAbierto}
+        cita={citaParaReasignar}
+        doctores={doctores}
+        alCerrar={() => {
+          setModalReasignarAbierto(false)
+          setCitaParaReasignar(null)
+        }}
+        alReasignar={handleReasignarCita}
+      />
+      <ModalCambiarEstado
+        isOpen={citaParaEstado !== null}
+        cita={citaParaEstado}
+        alCerrar={() => setCitaParaEstado(null)}
+        alCambiar={handleCambiarEstado}
+      />
     </div>
   )
 })

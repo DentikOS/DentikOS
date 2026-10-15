@@ -2,8 +2,8 @@
  * TopBar — Blueprint 03: 3 Zonas (Contexto 40%, Búsqueda 30%, Identidad/Acciones 30%)
  * Altura 56px desktop / 52px tablet / 48px mobile. Acento contextual por módulo.
  */
-import React, { useState, useMemo } from 'react'
-import { Search, Bell } from 'lucide-react'
+import React, { useState, useEffect, useMemo } from 'react'
+import { Search, Bell, X } from 'lucide-react'
 import { ClinicaSelector } from './ClinicaSelector'
 import { SelectorSede } from './SelectorSede'
 import { NotificationCenter } from './NotificationCenter'
@@ -75,6 +75,32 @@ export const TopBar: React.FC<TopBarProps> = ({
   hamburger,
 }) => {
   const [notifOpen, setNotifOpen] = useState(false)
+  const [notificacionSalaEspera, setNotificacionSalaEspera] = useState<{
+    doctor: string
+    box: string
+    citaId: string | number
+  } | null>(null)
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout | undefined
+    const handleLlamada = (e: Event) => {
+      const custom = e as CustomEvent
+      setNotificacionSalaEspera({
+        doctor: custom.detail?.doctor || 'Doctor',
+        box: custom.detail?.box || 'Box asignado',
+        citaId: custom.detail?.citaId,
+      })
+      if (timer) clearTimeout(timer)
+      timer = setTimeout(() => setNotificacionSalaEspera(null), 10000)
+    }
+
+    window.addEventListener('sala_espera:llamada', handleLlamada)
+    return () => {
+      window.removeEventListener('sala_espera:llamada', handleLlamada)
+      if (timer) clearTimeout(timer)
+    }
+  }, [])
+
   const notificaciones = useNotifications()
   const focusMode = useSidebarStore((s) => s.focusMode)
   const presentationMode = useTopBarStore((s) => s.presentationMode)
@@ -91,6 +117,25 @@ export const TopBar: React.FC<TopBarProps> = ({
       <header className="sticky top-0 z-40 bg-white dark:bg-surface surgical:bg-surface border-b border-surface shadow-2xs transition-all flex flex-col">
         {/* Acento por módulo activo (borde superior de 2px) */}
         <div className="h-[2px] w-full shrink-0 transition-colors" style={{ backgroundColor: acentoColor }} />
+
+        {notificacionSalaEspera && (
+          <div className="flex items-center justify-between px-4 py-1.5 bg-amber-50 dark:bg-amber-950/40 border-b border-amber-300 dark:border-amber-700 animate-in slide-in-from-top-2 text-xs">
+            <div className="flex items-center gap-2 min-w-0">
+              <Bell className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+              <span className="font-bold text-amber-900 dark:text-amber-200 truncate">
+                {notificacionSalaEspera.doctor} solicita siguiente paciente - {notificacionSalaEspera.box}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setNotificacionSalaEspera(null)}
+              className="text-amber-600 hover:text-amber-800 transition-colors cursor-pointer shrink-0 ml-2"
+              aria-label="Cerrar notificación"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
 
         <div className="flex items-center justify-between px-3 sm:px-4 lg:px-6 h-12 sm:h-[52px] lg:h-[56px] gap-2 sm:gap-3">
           {/* Zona Izquierda 40%: Breadcrumbs, Timer, isDirty y Contextual Intelligence */}
@@ -117,7 +162,7 @@ export const TopBar: React.FC<TopBarProps> = ({
               onClick={onOpenSearch}
               className="flex items-center justify-between w-full max-w-[200px] sm:max-w-[240px] px-2 sm:px-2.5 py-1 sm:py-1.5 text-xs text-graphite-500 dark:text-graphite-400 bg-graphite-100/80 dark:bg-graphite-800/80 hover:bg-graphite-200 dark:hover:bg-graphite-700/80 rounded-lg border border-surface transition-colors cursor-pointer"
               title="Buscar (⌘K)"
-              aria-label="Buscar pacientes y módulos"
+              aria-label="Buscar pacientes y módulos (Command Palette ⌘K)"
             >
               <div className="flex items-center gap-1 sm:gap-1.5 truncate">
                 <Search size={13} className="text-primary shrink-0" />
@@ -131,12 +176,14 @@ export const TopBar: React.FC<TopBarProps> = ({
 
           {/* Zona Derecha 30%: Acciones contextuales, Pill Sede, Bell 36px y Avatar 32px */}
           <div className="flex items-center justify-end gap-1 sm:gap-2 w-[30%] shrink-0">
-            {/* Acciones contextuales (primaria dorada + menú ⋯) */}
-            <TopBarActions
-              primaria={accionPrimaria}
-              secundarias={accionesSecundarias}
-              className="hidden lg:flex"
-            />
+            {/* Acciones contextuales (primaria dorada + menú ⋯) - Ocultas en Agenda por redundancia con botones del módulo */}
+            {activeSection !== 'Agenda' && (
+              <TopBarActions
+                primaria={accionPrimaria}
+                secundarias={accionesSecundarias}
+                className="hidden lg:flex"
+              />
+            )}
 
             {/* Pill Sede compacta (alto 32px, max-w-[160px]) */}
             <div className="hidden md:flex items-center shrink-0">

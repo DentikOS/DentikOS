@@ -10,7 +10,7 @@
  */
 import React, { useState, useRef, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { User, Settings, Terminal, Maximize2, Smartphone, LogOut } from 'lucide-react'
+import { User, Settings, Terminal, Maximize2, Smartphone, LogOut, Sun, Moon, Microscope } from 'lucide-react'
 import { Badge } from './ui/Badge'
 import { useSidebarStore } from '../../app/stores/useSidebarStore'
 import { NOMBRES_ROLES } from '../../constants/rbacConstants'
@@ -36,6 +36,8 @@ export const TopBarAvatarMenu: React.FC<TopBarAvatarMenuProps> = ({
   const [isOpen, setIsOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement | null>(null)
   const toggleFocusMode = useSidebarStore((s) => s.toggleFocusMode)
+  const theme = useSidebarStore((s) => s.theme)
+  const setTheme = useSidebarStore((s) => s.setTheme)
 
   // Iniciales (máximo 2 caracteres)
   const iniciales = useMemo(() => {
@@ -76,63 +78,12 @@ export const TopBarAvatarMenu: React.FC<TopBarAvatarMenuProps> = ({
   }, [isOpen])
 
   const SECCIONES = [
-    {
-      id: 'perfil',
-      label: 'Perfil',
-      icon: User,
-      onClick: () => {
-        setIsOpen(false)
-        onOpenPerfil?.()
-      },
-    },
-    {
-      id: 'preferencias',
-      label: 'Preferencias',
-      icon: Settings,
-      onClick: () => {
-        setIsOpen(false)
-        onOpenPreferencias?.()
-      },
-    },
-    {
-      id: 'atajos',
-      label: 'Panel de Atajos',
-      icon: Terminal,
-      shortcut: '?',
-      onClick: () => {
-        setIsOpen(false)
-        onOpenAtajos?.()
-      },
-    },
-    {
-      id: 'foco',
-      label: 'Modo Foco',
-      icon: Maximize2,
-      shortcut: '⌘⇧F',
-      onClick: () => {
-        setIsOpen(false)
-        toggleFocusMode()
-      },
-    },
-    {
-      id: 'dispositivos',
-      label: 'Dispositivos',
-      icon: Smartphone,
-      onClick: () => {
-        setIsOpen(false)
-        onOpenDispositivos?.()
-      },
-    },
-    {
-      id: 'logout',
-      label: 'Cerrar sesión',
-      icon: LogOut,
-      danger: true,
-      onClick: () => {
-        setIsOpen(false)
-        onLogout?.()
-      },
-    },
+    { id: 'perfil', label: 'Perfil', icon: User, onClick: () => { setIsOpen(false); onOpenPerfil?.() } },
+    { id: 'preferencias', label: 'Preferencias', icon: Settings, onClick: () => { setIsOpen(false); onOpenPreferencias?.() } },
+    { id: 'atajos', label: 'Panel de Atajos', icon: Terminal, shortcut: '?', onClick: () => { setIsOpen(false); onOpenAtajos?.() } },
+    { id: 'foco', label: 'Modo Foco', icon: Maximize2, shortcut: '⌘⇧F', onClick: () => { setIsOpen(false); toggleFocusMode() } },
+    { id: 'dispositivos', label: 'Dispositivos', icon: Smartphone, onClick: () => { setIsOpen(false); onOpenDispositivos?.() } },
+    { id: 'logout', label: 'Cerrar sesión', icon: LogOut, danger: true, onClick: () => { setIsOpen(false); onLogout?.() } },
   ]
 
   const fotoUrl = (userProfile as any)?.fotoUrl as string | undefined
@@ -200,42 +151,70 @@ export const TopBarAvatarMenu: React.FC<TopBarAvatarMenuProps> = ({
               </div>
             </div>
 
-            {/* 6 Secciones del Blueprint 03 */}
+            {/* 6 Secciones del Blueprint 03 + Tema */}
             <div className="py-1">
               {SECCIONES.map((sec) => (
-                <div key={sec.id} className="group">
-                  <button
-                    role="menuitem"
-                    type="button"
-                    onClick={sec.onClick}
-                    className={`w-full flex items-center justify-between px-4 py-2.5 text-xs transition-all duration-150 ease-out cursor-pointer ${
-                      sec.danger
-                        ? 'text-[#E11D48] hover:bg-[#FEE2E2] dark:hover:bg-red-950/30 active:bg-[#FECACA] dark:active:bg-red-950/50'
-                        : 'text-graphite-700 dark:text-graphite-200 hover:bg-[#F1F5F9] dark:hover:bg-graphite-700 active:bg-[#E2E8F0] dark:active:bg-graphite-600'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div
-                        className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors duration-150 ${
-                          sec.danger
-                            ? 'bg-red-50 dark:bg-red-950/30 group-hover:bg-red-100'
-                            : 'bg-graphite-100 dark:bg-graphite-800 group-hover:bg-[#E2E8F0] dark:group-hover:bg-graphite-700'
-                        }`}
+                <React.Fragment key={sec.id}>
+                  {sec.id === 'logout' && (
+                    <div className="border-t border-[#E2E8F0] dark:border-[#24334A] pt-2 px-2 my-1">
+                      <p className="text-[10px] font-bold text-graphite-500 uppercase px-2 mb-1">Tema</p>
+                      <button
+                        type="button"
+                        onClick={() => setTheme('light')}
+                        className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs cursor-pointer ${theme === 'light' ? 'bg-surface-muted font-bold text-graphite-900 dark:text-white' : 'hover:bg-surface-muted text-graphite-700 dark:text-graphite-300'}`}
                       >
-                        <sec.icon
-                          size={14}
-                          className={sec.danger ? 'text-[#E11D48]' : 'text-graphite-600 dark:text-graphite-400'}
-                        />
-                      </div>
-                      <span className="truncate font-medium">{sec.label}</span>
+                        <Sun className="w-3.5 h-3.5 text-amber-500" /> Claro
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTheme('dark')}
+                        className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs cursor-pointer ${theme === 'dark' ? 'bg-surface-muted font-bold text-graphite-900 dark:text-white' : 'hover:bg-surface-muted text-graphite-700 dark:text-graphite-300'}`}
+                      >
+                        <Moon className="w-3.5 h-3.5 text-indigo-400" /> Oscuro
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTheme('surgical')}
+                        className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs cursor-pointer ${theme === 'surgical' ? 'bg-surface-muted font-bold text-graphite-900 dark:text-white' : 'hover:bg-surface-muted text-graphite-700 dark:text-graphite-300'}`}
+                      >
+                        <Microscope className="w-3.5 h-3.5 text-teal-500" /> Quirúrgico
+                      </button>
                     </div>
-                    {sec.shortcut && (
-                      <kbd className="px-1.5 py-0.5 text-[9px] font-mono bg-graphite-100 dark:bg-graphite-800 rounded border border-graphite-200 dark:border-graphite-700 text-graphite-500 dark:text-graphite-400">
-                        {sec.shortcut}
-                      </kbd>
-                    )}
-                  </button>
-                </div>
+                  )}
+                  <div className="group">
+                    <button
+                      role="menuitem"
+                      type="button"
+                      onClick={sec.onClick}
+                      className={`w-full flex items-center justify-between px-4 py-2.5 text-xs transition-all duration-150 ease-out cursor-pointer ${
+                        sec.danger
+                          ? 'text-[#E11D48] hover:bg-[#FEE2E2] dark:hover:bg-red-950/30 active:bg-[#FECACA] dark:active:bg-red-950/50'
+                          : 'text-graphite-700 dark:text-graphite-200 hover:bg-[#F1F5F9] dark:hover:bg-graphite-700 active:bg-[#E2E8F0] dark:active:bg-graphite-600'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div
+                          className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors duration-150 ${
+                            sec.danger
+                              ? 'bg-red-50 dark:bg-red-950/30 group-hover:bg-red-100'
+                              : 'bg-graphite-100 dark:bg-graphite-800 group-hover:bg-[#E2E8F0] dark:group-hover:bg-graphite-700'
+                          }`}
+                        >
+                          <sec.icon
+                            size={14}
+                            className={sec.danger ? 'text-[#E11D48]' : 'text-graphite-600 dark:text-graphite-400'}
+                          />
+                        </div>
+                        <span className="truncate font-medium">{sec.label}</span>
+                      </div>
+                      {sec.shortcut && (
+                        <kbd className="px-1.5 py-0.5 text-[9px] font-mono bg-graphite-100 dark:bg-graphite-800 rounded border border-graphite-200 dark:border-graphite-700 text-graphite-500 dark:text-graphite-400">
+                          {sec.shortcut}
+                        </kbd>
+                      )}
+                    </button>
+                  </div>
+                </React.Fragment>
               ))}
             </div>
           </motion.div>

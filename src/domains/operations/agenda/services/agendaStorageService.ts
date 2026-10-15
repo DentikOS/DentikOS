@@ -38,6 +38,8 @@ import {
 import { useSesionStore } from '../../../../app/stores/sesionStore'
 import { getClinicaActivaSync } from '../../../../infrastructure/auth/authService'
 import { tenantCache } from '../../../../infrastructure/tenant/tenantCache'
+import { normalizarCita } from '../utils/normalizarCita'
+import { deduplicarCitas } from '../utils/deduplicarCitas'
 
 const log = createLogger('agendaStorageService')
 
@@ -86,7 +88,8 @@ const obtenerCitas = (defaults: Cita[] = []): Cita[] => {
   if (!cacheInicializado) {
     inicializarCache(defaults)
   }
-  return citasCache ?? defaults
+  const raw = citasCache ?? defaults
+  return deduplicarCitas(raw.map((c) => normalizarCita(c)))
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -135,17 +138,13 @@ const sanitizarParaSupabase = (fila: Record<string, unknown>): Record<string, un
  * Guarda la lista completa de citas con logs de depuración (FIX-1).
  */
 const guardarCitas = async (citas: unknown): Promise<boolean> => {
-  console.log('[DEBUG-CITAS] guardarCitas llamado con', citas)
-
   // (F2-04b) — validación Zod antes de persistir
   const validacion = validarListaCitas(citas)
   if (!validacion.valido || !validacion.datos) {
-    console.error('[DEBUG-CITAS] Validación Zod falló:', validacion.error)
     log.error('Error de validación al guardar citas (F2-04b):', validacion.error)
     return false
   }
   const datos = validacion.datos
-  console.log('[DEBUG-CITAS] Validación Zod OK, datos:', datos.length, 'citas')
 
   // 1. Actualizar caché en memoria inmediatamente
   citasCache = datos
@@ -153,10 +152,8 @@ const guardarCitas = async (citas: unknown): Promise<boolean> => {
 
   // 2. Persistir en localStorage como caché
   citasRepo.guardar(datos)
-  console.log('[DEBUG-CITAS] Guardado en localStorage')
 
   if (!USE_SUPABASE || !supabase) {
-    console.log('[DEBUG-CITAS] Supabase no disponible')
     return true
   }
 
@@ -164,10 +161,8 @@ const guardarCitas = async (citas: unknown): Promise<boolean> => {
   try {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
-      console.error('[DEBUG-CITAS] No hay usuario autenticado')
       return true
     }
-    console.log('[DEBUG-CITAS] Usuario autenticado:', user.id)
 
     // Obtener clinicaId de la sesión
     const sesionStore = useSesionStore.getState()
@@ -178,10 +173,8 @@ const guardarCitas = async (citas: unknown): Promise<boolean> => {
       ((sesionStore as unknown as Record<string, unknown>).clinicaActiva as { id?: string } | undefined)?.id ||
       getClinicaActivaSync()
     ) as string | null
-    console.log('[DEBUG-CITAS] clinicaId:', clinicaId)
 
     if (!clinicaId) {
-      console.error('[DEBUG-CITAS] No hay clinicaId en sesión')
       return false
     }
 
@@ -196,13 +189,10 @@ const guardarCitas = async (citas: unknown): Promise<boolean> => {
       }
     }
 
-    console.log('[DEBUG-CITAS] A insertar:', aInsertar.length, 'A actualizar:', aActualizar.length)
-
     // INSERT
     if (aInsertar.length > 0) {
       const paraInsert = aInsertar.map((c: Cita) => {
         const transformado = transformarParaSupabase(c) || {}
-        console.log('[DEBUG-CITAS] Cita a insertar (transformada):', transformado)
         const limpio = sanitizarParaSupabase({
           ...transformado,
           clinica_id: clinicaId,
@@ -212,18 +202,15 @@ const guardarCitas = async (citas: unknown): Promise<boolean> => {
         return limpio
       })
 
-      console.log('[DEBUG-CITAS] Ejecutando INSERT en Supabase:', paraInsert)
       const { error: insertError, data: insertData } = await supabase
         .from('citas')
         .insert(paraInsert)
         .select()
 
       if (insertError) {
-        console.error('[DEBUG-CITAS] Error INSERT:', insertError)
         log.error('Error insertando citas en Supabase:', insertError)
         return false
       }
-      console.log('[DEBUG-CITAS] INSERT exitoso, datos:', insertData)
 
       // Actualizar mapeo legacy -> UUID en caché y storage
       if (Array.isArray(insertData) && insertData.length > 0 && citasCache) {
@@ -246,7 +233,6 @@ const guardarCitas = async (citas: unknown): Promise<boolean> => {
     if (aActualizar.length > 0) {
       const paraUpdate = aActualizar.map((c: Cita) => {
         const transformado = transformarParaSupabase(c) || {}
-        console.log('[DEBUG-CITAS] Cita a actualizar (transformada):', transformado)
         return sanitizarParaSupabase({
           ...transformado,
           clinica_id: clinicaId,
@@ -254,17 +240,14 @@ const guardarCitas = async (citas: unknown): Promise<boolean> => {
         })
       })
 
-      console.log('[DEBUG-CITAS] Ejecutando UPDATE en Supabase:', paraUpdate)
       const { error: updateError } = await supabase
         .from('citas')
         .upsert(paraUpdate, { onConflict: 'id' })
 
       if (updateError) {
-        console.error('[DEBUG-CITAS] Error UPDATE:', updateError)
         log.error('Error actualizando citas en Supabase:', updateError)
         return false
       }
-      console.log('[DEBUG-CITAS] UPDATE exitoso')
     }
 
     // P0-1: Procesar eliminaciones pendientes explícitas (soft-delete vía UPDATE)
@@ -305,10 +288,8 @@ const guardarCitas = async (citas: unknown): Promise<boolean> => {
       citasRepo.guardar(citasCache)
     }
 
-    console.log('[DEBUG-CITAS] Sincronización con Supabase completada')
     return true
   } catch (error: unknown) {
-    console.error('[DEBUG-CITAS] Excepción:', error)
     log.error('Excepción sincronizando citas con Supabase:', error)
     return false
   }
@@ -374,10 +355,7 @@ const eliminarCita = async (citaId: unknown): Promise<boolean> => {
 // ═══════════════════════════════════════════════════════════════════
 
 const obtenerCitasDesdeSupabase = async (): Promise<Cita[]> => {
-  console.log('[DEBUG-CITAS] obtenerCitasDesdeSupabase llamado')
-
   if (!USE_SUPABASE || !supabase) {
-    console.log('[DEBUG-CITAS] Supabase no disponible')
     return obtenerCitas()
   }
 
@@ -391,17 +369,13 @@ const obtenerCitasDesdeSupabase = async (): Promise<Cita[]> => {
       getClinicaActivaSync() ||
       tenantCache.getClinicaId?.()
     ) as string | null
-    console.log('[DEBUG-CITAS] clinicaId:', clinicaId)
 
     if (!clinicaId) {
-      console.error('[DEBUG-CITAS] No hay clinicaId en sesión')
       // F7-36: Sin clinicaId válido, retornar array vacío.
       // NO hacer fallback a localStorage porque puede contener datos
       // de otra clínica (violación de aislamiento multi-tenant).
       return []
     }
-
-    console.log('[DEBUG-CITAS] Ejecutando SELECT en Supabase para clinicaId:', clinicaId)
 
     let query: any = supabase.from('citas').select('*')
 
@@ -420,7 +394,6 @@ const obtenerCitasDesdeSupabase = async (): Promise<Cita[]> => {
     const { data, error } = await query
 
     if (error) {
-      console.error('[DEBUG-CITAS] Error SELECT:', error)
       log.error('Error obteniendo citas de Supabase:', error)
       // En caso de error de Supabase, retornar array vacío para evitar
       // contaminación cross-tenant. El fallback a localStorage solo está
@@ -428,12 +401,10 @@ const obtenerCitasDesdeSupabase = async (): Promise<Cita[]> => {
       return []
     }
 
-    console.log('[DEBUG-CITAS] SELECT exitoso, rows:', data?.length || 0)
-    console.log('[DEBUG-CITAS] Datos crudos de Supabase:', data)
-
     const citasTransformadas = transformarDesdeSupabase(data || [])
-    const resultadoFinal: Cita[] = Array.isArray(citasTransformadas) ? citasTransformadas : []
-    console.log('[DEBUG-CITAS] Citas transformadas:', resultadoFinal.length)
+    const resultadoFinal: Cita[] = deduplicarCitas(
+      (Array.isArray(citasTransformadas) ? citasTransformadas : []).map((c) => normalizarCita(c))
+    )
 
     citasCache = resultadoFinal
     cacheInicializado = true
@@ -441,7 +412,6 @@ const obtenerCitasDesdeSupabase = async (): Promise<Cita[]> => {
 
     return resultadoFinal
   } catch (error) {
-    console.error('[DEBUG-CITAS] Excepción:', error)
     log.error('Excepción obteniendo citas de Supabase:', error)
     return []
   }

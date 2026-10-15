@@ -1,17 +1,26 @@
-import React, { memo, useState, useMemo } from 'react'
-import { Plus, User, Zap, ShieldAlert } from 'lucide-react'
+import React, { memo, useState, useMemo, useEffect } from 'react'
+import { Plus, User, Zap, ShieldAlert, AlertCircle, Trash2 } from 'lucide-react'
 import { Icon } from '../../../../shared/ui/Icon'
-import { SILLONES_DENTALES } from '../constants/agendaConstants'
+import { SILLONES_DENTALES, calcularDuracionRecomendada } from '../constants/agendaConstants'
 import { obtenerFechaLocalISO } from '../../../../shared/utils/dateUtils'
 import { Modal } from '../../../../shared/ui/ui/Modal'
 import { Button } from '../../../../shared/ui/ui/Button'
 import { useAppDialog } from '../../../../shared/hooks/useAppDialog'
 import { CamposFormularioCita } from './CamposFormularioCita'
 import { RecurrenciaForm } from './RecurrenciaForm'
-import { generarCitasRecurrencia, validarConflictosRecurrencia } from '../../../../shared/utils/recurrenciaUtils'
+import {
+  generarCitasRecurrencia,
+  validarConflictosRecurrencia,
+  type TipoRecurrencia
+} from '../../../../shared/utils/recurrenciaUtils'
+import { generarRecurrenceGroupId } from '../services/recurrenciaService'
 import { confirmarConflictosRecurrencia } from '../utils/validarConflictosRecurrencia'
 import { validarConflictoCitaUnica } from '../utils/validarConflictoCitaUnica'
 import { usePacientesStore } from '../../../../app/stores/pacientesStore'
+import { usePrestacionesStore } from '../../../../app/stores/prestacionesStore'
+import { usePermisosAgenda } from '../utils/permisosAgenda'
+import { clinicConfigService } from '../services/clinicConfigService'
+import { agendaConfigService, type DoctorAgenda } from '../services/agendaConfigService'
 import type { Cita } from '../schemas/citaSchema'
 import type { Paciente } from '../../../../domains/clinical/patient/schemas/pacienteSchema'
 
@@ -21,6 +30,8 @@ export interface ModalNuevaCitaProps {
   alGuardar: (cita: Cita, autoCrearFicha?: boolean) => void
   alCerrar: () => void
   citasExistentes?: Cita[]
+  citaAEditar?: Cita | null
+  onEliminar?: (cita: Cita) => void
 }
 
 export const ModalNuevaCita: React.FC<ModalNuevaCitaProps> = memo(({
@@ -28,8 +39,20 @@ export const ModalNuevaCita: React.FC<ModalNuevaCitaProps> = memo(({
   fechaPredeterminada,
   alGuardar,
   alCerrar,
-  citasExistentes = []
+  citasExistentes = [],
+  citaAEditar,
+  onEliminar,
 }) => {
+  const permisos = usePermisosAgenda()
+
+  // Validar permiso al montar (aunque el botón ya está condicionado, es doble check)
+  useEffect(() => {
+    if (!permisos.crearCitas) {
+      console.warn('Usuario sin permiso de crear citas')
+      alCerrar()
+    }
+  }, [permisos.crearCitas, alCerrar])
+
   const [esPacienteExpress, setEsPacienteExpress] = useState<boolean>(false)
   const [pacienteSeleccionadoId, setPacienteSeleccionadoId] = useState<string>('')
   
@@ -44,9 +67,70 @@ export const ModalNuevaCita: React.FC<ModalNuevaCitaProps> = memo(({
   const [horaInicio, setHoraInicio] = useState<string>('09:00')
   const [duracionMinutos, setDuracionMinutos] = useState<number | string>(30)
   const [observaciones, setObservaciones] = useState<string>('')
+  const [esUrgencia, setEsUrgencia] = useState<boolean>(false)
 
-  // F7-27: Estados de recurrencia
-  const [recurrencia, setRecurrencia] = useState<'ninguna' | 'semanal' | 'mensual' | 'anual'>('ninguna')
+  const [doctores, setDoctores] = useState<DoctorAgenda[]>([])
+  const [doctorSeleccionadoId, setDoctorSeleccionadoId] = useState<string>('')
+  const [doctorSeleccionadoNombre, setDoctorSeleccionadoNombre] = useState<string>('')
+
+  useEffect(() => {
+    let activo = true
+    agendaConfigService.obtenerDoctoresAgenda()
+      .then((docs) => {
+        if (!activo) return
+        setDoctores(docs || [])
+        if (docs?.length === 1) {
+          setDoctorSeleccionadoId(docs[0].userId)
+          setDoctorSeleccionadoNombre(docs[0].nombreCompleto)
+        }
+      })
+      .catch(() => {
+        if (activo) setDoctores([])
+      })
+    return () => { activo = false }
+  }, [])
+
+  const [esDiaFestivo, setEsDiaFestivo] = useState(false)
+  const [nombreFestivo, setNombreFestivo] = useState('')
+
+  useEffect(() => {
+    const validar = async () => {
+      const resultado = await clinicConfigService.esDiaFestivo(fecha)
+      setEsDiaFestivo(resultado.esFestivo)
+      setNombreFestivo(resultado.nombre || '')
+    }
+    if (fecha) validar()
+  }, [fecha])
+
+  useEffect(() => {
+    const handleUrgencia = () => {
+      setEsUrgencia(true)
+      setTratamiento('Atención de Urgencia Dental')
+    }
+    window.addEventListener('nueva_cita_urgencia', handleUrgencia)
+    return () => window.removeEventListener('nueva_cita_urgencia', handleUrgencia)
+  }, [])
+
+  useEffect(() => {
+    if (citaAEditar) {
+      setPacienteNombre(citaAEditar.pacienteNombre || '')
+      setPacienteTelefono(String(citaAEditar.pacienteTelefono || ''))
+      setPacienteRut(citaAEditar.pacienteRut || '')
+      setPacienteSeleccionadoId(citaAEditar.pacienteId ? String(citaAEditar.pacienteId) : '')
+      setFecha(citaAEditar.fecha || obtenerFechaLocalISO())
+      setHoraInicio(citaAEditar.horaInicio || '09:00')
+      setDuracionMinutos(Number(citaAEditar.duracionMinutos) || 30)
+      setTratamiento(citaAEditar.trataMiento || citaAEditar.motivo || 'Evaluación / Diagnóstico Inicial')
+      if (citaAEditar.boxAsignado) setBoxAsignado(citaAEditar.boxAsignado)
+      if (citaAEditar.observaciones) setObservaciones(citaAEditar.observaciones)
+      if (citaAEditar.doctor) setDoctorSeleccionadoNombre(citaAEditar.doctor)
+      if (citaAEditar.doctorId) setDoctorSeleccionadoId(String(citaAEditar.doctorId))
+      if (citaAEditar.esUrgencia) setEsUrgencia(true)
+    }
+  }, [citaAEditar])
+
+  // F7-27 & BP05 §07: Estados de recurrencia
+  const [recurrencia, setRecurrencia] = useState<TipoRecurrencia>('ninguna')
   const [frecuencia, setFrecuencia] = useState<number>(1)
   const [diaSemana, setDiaSemana] = useState<number>(1) // 0=Dom, 1=Lun, ..., 6=Sáb
   const [diaMes, setDiaMes] = useState<number>(1) // 1-31
@@ -55,6 +139,8 @@ export const ModalNuevaCita: React.FC<ModalNuevaCitaProps> = memo(({
 
   const { alert: dialogAlert, confirm: dialogConfirm } = useAppDialog()
 
+  const [prestacionSeleccionadaId, setPrestacionSeleccionadaId] = useState<string>('')
+  const prestaciones = usePrestacionesStore((s) => s.prestaciones || s.prestacionesArancel || [])
   const pacientesStore = usePacientesStore((s) => s.pacientes)
   const listaPacientes = pacientes.length > 0 ? pacientes : pacientesStore
   const [alertaBloqueo, setAlertaBloqueo] = useState<{ mensaje: string; accion: string } | null>(null)
@@ -99,6 +185,20 @@ export const ModalNuevaCita: React.FC<ModalNuevaCitaProps> = memo(({
     return `${hFin}:${mFin}`
   }, [horaInicio, duracionMinutos])
 
+  // BP05 §02: Precargar duración inteligente según prestación seleccionada
+  useEffect(() => {
+    if (!prestacionSeleccionadaId) return
+    const prestacion = prestaciones.find(p => String(p.id) === String(prestacionSeleccionadaId))
+    if (prestacion) {
+      const duracionRecomendada = calcularDuracionRecomendada(prestacion)
+      setDuracionMinutos(duracionRecomendada)
+      // También actualizar tratamiento si no fue editado manualmente
+      if (prestacion.nombre && (tratamiento === 'Evaluación / Diagnóstico Inicial' || !tratamiento)) {
+        setTratamiento(prestacion.nombre)
+      }
+    }
+  }, [prestacionSeleccionadaId, prestaciones, tratamiento])
+
   // F7-27: Calcular próximas citas de recurrencia (preview)
   const proximasCitas = useMemo(() => {
     if (recurrencia === 'ninguna') return []
@@ -134,9 +234,10 @@ export const ModalNuevaCita: React.FC<ModalNuevaCitaProps> = memo(({
 
     const duracionNum = typeof duracionMinutos === 'number' ? duracionMinutos : parseInt(duracionMinutos, 10)
 
-    // F7-27: Si hay recurrencia, generar citas futuras
+    // F7-27 & BP05 §07: Si hay recurrencia, generar citas futuras
     if (recurrencia !== 'ninguna' && proximasCitas.length > 0) {
       const citaPadreId = Date.now()
+      const recurrenceGroupId = generarRecurrenceGroupId()
       const citasAGuardar: Cita[] = []
 
       // Cita original (la primera)
@@ -148,38 +249,44 @@ export const ModalNuevaCita: React.FC<ModalNuevaCitaProps> = memo(({
         pacienteRut,
         trataMiento: tratamiento,
         boxAsignado,
+        doctor: doctorSeleccionadoNombre || undefined,
+        doctorId: doctorSeleccionadoId || undefined,
         fecha,
         horaInicio,
         horaFin: horaFinCalculada,
         duracionMinutos: duracionNum,
         observaciones,
-        estado: 'Agendado',
+        estado: 'Pendiente',
         recurrencia,
         frecuencia,
         diaSemana,
         diaMes,
         fechaFin: fechaFin || undefined,
+        recurrence_group_id: recurrenceGroupId,
         citaPadreId: null, // Es la cita original
       })
 
       // Citas recurrentes generadas
-      proximasCitas.forEach((citaRec) => {
+      proximasCitas.forEach((citaRec, index) => {
         citasAGuardar.push({
-          id: Date.now() + Math.random() * 1000,
+          id: Date.now() + index + 1,
           pacienteId: pacienteSeleccionadoId || `express_${Date.now()}`,
           pacienteNombre,
           pacienteTelefono,
           pacienteRut,
           trataMiento: tratamiento,
           boxAsignado,
+          doctor: doctorSeleccionadoNombre || undefined,
+          doctorId: doctorSeleccionadoId || undefined,
           fecha: citaRec.fecha,
           horaInicio,
           horaFin: horaFinCalculada,
           duracionMinutos: duracionNum,
           observaciones,
-          estado: 'Agendado',
-          recurrencia: 'ninguna', // Las instancias generadas no son recurrentes
+          estado: 'Pendiente',
+          recurrencia: 'ninguna', // Las instancias generadas son independientes
           citaPadreId: citaPadreId,
+          recurrence_group_id: recurrenceGroupId,
         })
       })
 
@@ -194,32 +301,39 @@ export const ModalNuevaCita: React.FC<ModalNuevaCitaProps> = memo(({
       }
 
       // Guardar todas las citas
-      citasAGuardar.forEach((cita, index) => {
-        alGuardar(cita, index === 0 && esPacienteExpress ? autoCrearFicha : false)
-      })
+      for (const cita of citasAGuardar) {
+        await alGuardar(cita, citasAGuardar.indexOf(cita) === 0 && esPacienteExpress ? autoCrearFicha : false)
+      }
 
-      dialogAlert({
-        title: 'Citas recurrentes agendadas',
+      await dialogAlert({
+        title: 'Serie de citas creada',
         description: `Se agendaron ${citasAGuardar.length} citas (${recurrencia}). La primera es el ${fecha}.`,
         variant: 'success',
         confirmText: 'Entendido'
       })
+
+      alCerrar()
+      return
     } else {
       // Cita única (sin recurrencia)
       const citaUnica: Cita = {
-        id: Date.now(),
-        pacienteId: pacienteSeleccionadoId || `express_${Date.now()}`,
+        id: citaAEditar ? citaAEditar.id : Date.now(),
+        pacienteId: pacienteSeleccionadoId || citaAEditar?.pacienteId || `express_${Date.now()}`,
         pacienteNombre,
         pacienteTelefono,
         pacienteRut,
         trataMiento: tratamiento,
+        motivo: esUrgencia ? 'Urgencia' : tratamiento,
         boxAsignado,
+        doctor: doctorSeleccionadoNombre || undefined,
+        doctorId: doctorSeleccionadoId || undefined,
         fecha,
         horaInicio,
         horaFin: horaFinCalculada,
         duracionMinutos: duracionNum,
         observaciones,
-        estado: 'Agendado'
+        estado: citaAEditar ? citaAEditar.estado : 'Pendiente',
+        esUrgencia: esUrgencia || undefined,
       }
 
       // F7-27 fix: validar conflictos antes de guardar cita única
@@ -241,7 +355,7 @@ export const ModalNuevaCita: React.FC<ModalNuevaCitaProps> = memo(({
     <Modal
       isOpen={true}
       onClose={alCerrar}
-      title="Agendar cita médica"
+      title={citaAEditar ? 'Editar cita' : 'Agendar cita médica'}
       size="lg"
     >
       <p className="text-[11px] text-graphite-500 dark:text-graphite-400 mb-4">
@@ -282,9 +396,43 @@ export const ModalNuevaCita: React.FC<ModalNuevaCitaProps> = memo(({
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-3 text-xs">
+        {/* Selector de Doctor (BP05 §03 - Multi-doctor) */}
+        <div>
+          <label className="block text-xs font-semibold text-graphite-700 dark:text-graphite-300 mb-1">
+            Profesional asignado {doctores.length > 0 && <span className="text-graphite-400">({doctores.length} disponibles)</span>}
+          </label>
+          {doctores.length === 0 ? (
+            <p className="text-[11px] text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-2">
+              ⚠️ No hay profesionales configurados. Ve a &quot;Horarios&quot; para agregar doctores.
+            </p>
+          ) : (
+            <select
+              value={doctorSeleccionadoId}
+              onChange={(e) => {
+                const id = e.target.value
+                setDoctorSeleccionadoId(id)
+                const doc = doctores.find(d => d.userId === id)
+                setDoctorSeleccionadoNombre(doc?.nombreCompleto || '')
+              }}
+              className="w-full p-2.5 rounded-xl border border-graphite-300 dark:border-graphite-600 font-semibold bg-graphite-50 dark:bg-graphite-900 focus:bg-white dark:focus:bg-graphite-800 dark:text-graphite-100 text-xs"
+              aria-label="Profesional asignado"
+            >
+              <option value="">Sin asignar</option>
+              {doctores.map((doc) => (
+                <option key={doc.userId} value={doc.userId}>
+                  {doc.nombreCompleto} {doc.especialidad ? `— ${doc.especialidad}` : ''}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+
         <CamposFormularioCita
           pacientes={listaPacientes}
           sillonesDentales={SILLONES_DENTALES}
+          prestaciones={prestaciones}
+          prestacionSeleccionadaId={prestacionSeleccionadaId}
+          setPrestacionSeleccionadaId={setPrestacionSeleccionadaId}
           esPacienteExpress={esPacienteExpress}
           pacienteSeleccionadoId={pacienteSeleccionadoId}
           pacienteNombre={pacienteNombre}
@@ -326,10 +474,10 @@ export const ModalNuevaCita: React.FC<ModalNuevaCitaProps> = memo(({
           </div>
         )}
 
-        {/* F7-27: Formulario de recurrencia */}
+        {/* F7-27 & BP05 §07: Formulario de recurrencia */}
         <RecurrenciaForm
           recurrencia={recurrencia}
-          setRecurrencia={(rec: string) => setRecurrencia(rec as 'ninguna' | 'semanal' | 'mensual' | 'anual')}
+          setRecurrencia={(rec: string) => setRecurrencia(rec as TipoRecurrencia)}
           frecuencia={frecuencia}
           setFrecuencia={setFrecuencia}
           diaSemana={diaSemana}
@@ -344,24 +492,53 @@ export const ModalNuevaCita: React.FC<ModalNuevaCitaProps> = memo(({
           fechaMinima={fecha}
         />
 
+        {esDiaFestivo && (
+          <div className="p-2.5 rounded-lg bg-rose-50/50 dark:bg-rose-950/20 border border-rose-300 dark:border-rose-700 flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 text-rose-700 dark:text-rose-400 shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="text-[11px] font-bold text-rose-900 dark:text-rose-200">
+                Día festivo: {nombreFestivo}
+              </p>
+              <p className="text-[10px] text-rose-800 dark:text-rose-300 mt-0.5">
+                ¿Confirmar agendar de todas formas?
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Botones */}
-        <div className="flex justify-end gap-2 pt-3 border-t border-gray-100 dark:border-graphite-700">
-          <Button
-            type="button"
-            onClick={alCerrar}
-            variant="ghost"
-          >
-            Cancelar
-          </Button>
-          <Button
-            type="submit"
-            variant="primary"
-            icon={Plus}
-            disabled={Boolean(alertaBloqueo)}
-            data-testid="btn-confirmar-cita"
-          >
-            Confirmar cita
-          </Button>
+        <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-graphite-700">
+          <div>
+            {citaAEditar && (
+              <Button
+                type="button"
+                variant="danger"
+                size="sm"
+                icon={Trash2}
+                onClick={() => onEliminar?.(citaAEditar)}
+              >
+                Eliminar cita
+              </Button>
+            )}
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              onClick={alCerrar}
+              variant="ghost"
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              icon={Plus}
+              disabled={Boolean(alertaBloqueo)}
+              data-testid="btn-confirmar-cita"
+            >
+              {citaAEditar ? 'Guardar cambios' : 'Confirmar cita'}
+            </Button>
+          </div>
         </div>
       </form>
     </Modal>

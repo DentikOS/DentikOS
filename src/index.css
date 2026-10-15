@@ -72,6 +72,11 @@
   to   { opacity: 1; }
 }
 
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 @keyframes ds-zoom-in-95 {
   from { opacity: 0; transform: scale(0.95); }
   to   { opacity: 1; transform: scale(1); }
@@ -83,12 +88,11 @@
 }
 
 .animate-in {
-  animation-duration: 250ms;
+  animation: fade-in 350ms cubic-bezier(0.16, 1, 0.3, 1);
   animation-fill-mode: both;
-  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.fade-in { animation-name: ds-fade-in; }
+.fade-in { animation-name: fade-in; }
 .zoom-in-95 { animation-name: ds-zoom-in-95; }
 
 .animate-slide-in {

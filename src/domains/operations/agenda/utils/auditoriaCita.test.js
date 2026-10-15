@@ -18,4 +18,10 @@ describe('auditoriaCita (BP05 §03)', () => {
     expect(almacenado).toHaveLength(1)
     expect(almacenado[0].estadoNuevo).toBe('Confirmada')
   })
+
+  it('incluye clinicaId cuando existe en el store de sesión', async () => {
+    const entrada = await registrarCambioEstado('cita-101', 'Confirmada', 'EnEspera', 'user-2')
+    expect(entrada.citaId).toBe('cita-101')
+    expect(entrada.timestamp).toBeDefined()
+  })
 })

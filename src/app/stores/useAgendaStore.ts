@@ -3,7 +3,16 @@ import { persist } from 'zustand/middleware'
 import type { Cita } from '../../domains/operations/agenda/schemas/citaSchema'
 import { obtenerFechaLocalISO } from '../../shared/utils/dateUtils'
 
-export type AgendaViewType = 'day' | 'week' | 'month' | 'list' | 'waiting_room'
+/**
+ * Vistas oficiales de la Agenda (BP05 §01)
+ * - day: Timeline vertical (08:00-20:00)
+ * - week: Grid 7 columnas (Lun-Dom)
+ * - month: Calendario mensual
+ * - list: Lista lineal de citas
+ * 
+ * Nota: "waiting_room" NO es una vista de agenda, es un sub-módulo (BP05 §05)
+ */
+export type AgendaViewType = 'day' | 'week' | 'month' | 'list'
 
 export interface BloqueoAgendaItem {
   id: string | number
@@ -13,6 +22,15 @@ export interface BloqueoAgendaItem {
   motivoBloqueo: string
   boxAsignado?: string
   doctor?: string
+
+  // Recurrencia (BP05 §06)
+  bloqueoRecurrencia?: 'ninguna' | 'diario' | 'semanal' | 'mensual'
+  bloqueoFechaFin?: string
+  bloqueoDiasSemana?: number[]
+
+  // Metadata
+  tipoBloqueoId?: string
+  colorBloqueo?: string
 }
 
 export interface PacienteEsperaItem {

@@ -1,19 +1,13 @@
 /**
- * agendaConflictos — Detección de conflictos de horario (F10-C3.13)
+ * agendaConflictos — Detección de conflictos de horario (F10-C3.13 / BP05 §02)
  */
 
-const ESTADOS_EXCLUIR = ['Anulado']
+const ESTADOS_EXCLUIR = ['Cancelada', 'Anulado']
 const TODOS_LOS_BOXES = 'Todos los Boxes'
 
 export interface CitaParaConflicto {
-  id?: string | number
-  estado?: string
-  fecha?: string
-  fechaIso?: string
-  horaInicio?: string
-  horaFin?: string
-  boxAsignado?: string
-  [key: string]: unknown
+  id?: string | number; estado?: string; fecha?: string; fechaIso?: string
+  horaInicio?: string; horaFin?: string; boxAsignado?: string; [key: string]: unknown
 }
 
 export interface ResultadoConflicto {
