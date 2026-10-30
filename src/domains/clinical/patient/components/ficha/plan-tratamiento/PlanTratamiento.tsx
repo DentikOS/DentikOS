@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { Layers, DollarSign, Stethoscope } from 'lucide-react'
 import { Button } from '../../../../../../shared/ui/ui/Button'
 import { FichaDerivacionModal } from './FichaDerivacionModal'
+import { derivacionesService, type DerivacionClinica } from './derivacionesService'
 import { PresupuestosPaciente } from './PresupuestosPaciente'
 import { useOdontogramaStore } from '../../../../../../app/stores/odontogramaStore'
 import { usePresupuestosStore } from '../../../../../../app/stores/usePresupuestosStore'
@@ -46,9 +47,19 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
   const [odontogramaDesactualizado, setOdontogramaDesactualizado] = useState(false)
   const [error, setError] = useState('')
   const [mostrarDerivacion, setMostrarDerivacion] = useState(false)
+  const [derivaciones, setDerivaciones] = useState<DerivacionClinica[]>([])
   const [modalPresupuestoAbierto, setModalPresupuestoAbierto] = useState(false)
   const planOdontogramaStampRef = useRef<string | null>(null)
   const planCargadoRef = useRef(false)
+
+  useEffect(() => {
+    let vigente = true
+    setDerivaciones([])
+    if (pacienteId) void derivacionesService.listar(pacienteId)
+      .then((lista) => { if (vigente) setDerivaciones(lista) })
+      .catch(() => { if (vigente) setDerivaciones([]) })
+    return () => { vigente = false }
+  }, [pacienteId])
 
   useEffect(() => {
     let vigente = true
@@ -198,6 +209,15 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
 
       {error && <p role="alert" className="text-xs text-rose-600">{error}</p>}
 
+      {derivaciones.length > 0 && <section aria-label="Derivaciones emitidas" className="p-4 border border-surface rounded-xl text-xs space-y-2">
+        <h4 className="font-bold">Derivaciones emitidas</h4>
+        {derivaciones.map((derivacion) => <div key={derivacion.id} className="border-t border-surface pt-2">
+          <span className="font-semibold">{derivacion.especialidad}</span> · {derivacion.prioridad} · {new Date(derivacion.fecha).toLocaleDateString('es-CL')}
+          {derivacion.especialista && <span> · {derivacion.especialista}</span>}
+          <p className="mt-1 whitespace-pre-wrap">{derivacion.motivo}</p>
+        </div>)}
+      </section>}
+
       {odontogramaDesactualizado && (
         <div role="alert" className="p-4 border border-amber-500/50 rounded-xl text-xs text-amber-700">
           El odontograma cambió desde que se guardó este plan. Conservamos las decisiones clínicas anteriores. Revisa los hallazgos antes de continuar.
@@ -333,7 +353,10 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
         <FichaDerivacionModal
           nombrePaciente={nombrePaciente}
           onCerrar={() => setMostrarDerivacion(false)}
-          onDerivar={(d) => window.alert(`Derivación emitida a ${d.especialidad} (${d.prioridad}).`)}
+          onDerivar={async (input) => {
+            const emitida = await derivacionesService.emitir(pacienteId, input)
+            setDerivaciones((actuales) => [emitida, ...actuales])
+          }}
         />
       )}
 

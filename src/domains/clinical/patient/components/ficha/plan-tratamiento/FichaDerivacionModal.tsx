@@ -1,16 +1,12 @@
 import React, { useState } from 'react'
 import { Send, X, Stethoscope } from 'lucide-react'
 import { Button } from '../../../../../../shared/ui/ui/Button'
+import type { DerivacionInput } from './derivacionesService'
 
 interface FichaDerivacionModalProps {
   nombrePaciente: string
   onCerrar: () => void
-  onDerivar: (derivacion: {
-    especialidad: string
-    especialista: string
-    motivo: string
-    prioridad: 'urgente' | 'normal'
-  }) => void
+  onDerivar: (derivacion: DerivacionInput) => Promise<void>
 }
 
 const ESPECIALIDADES = [
@@ -32,11 +28,22 @@ export const FichaDerivacionModal: React.FC<FichaDerivacionModalProps> = ({
   const [especialista, setEspecialista] = useState('')
   const [motivo, setMotivo] = useState('')
   const [prioridad, setPrioridad] = useState<'normal' | 'urgente'>('normal')
+  const [guardando, setGuardando] = useState(false)
+  const [error, setError] = useState('')
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault()
-    onDerivar({ especialidad, especialista, motivo, prioridad })
-    onCerrar()
+    if (guardando) return
+    setGuardando(true)
+    setError('')
+    try {
+      await onDerivar({ especialidad, especialista, motivo, prioridad })
+      onCerrar()
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'No se pudo emitir la derivación.')
+    } finally {
+      setGuardando(false)
+    }
   }
 
   return (
@@ -133,12 +140,13 @@ export const FichaDerivacionModal: React.FC<FichaDerivacionModalProps> = ({
             </label>
           </div>
 
+          {error && <p role="alert" className="text-rose-700">{error}</p>}
           <div className="flex items-center justify-end gap-2 pt-3 border-t border-surface">
             <Button type="button" variant="ghost" size="sm" onClick={onCerrar}>
               Cancelar
             </Button>
-            <Button type="submit" variant="primary" size="sm" icon={Send}>
-              Emitir Derivación
+            <Button type="submit" variant="primary" size="sm" icon={Send} disabled={guardando}>
+              {guardando ? 'Guardando…' : 'Emitir Derivación'}
             </Button>
           </div>
         </form>
