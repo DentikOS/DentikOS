@@ -5,6 +5,8 @@ import { FichaDerivacionModal } from './FichaDerivacionModal'
 import { derivacionesService, type DerivacionClinica } from './derivacionesService'
 import { PresupuestosPaciente } from './PresupuestosPaciente'
 import { useOdontogramaStore } from '../../../../../../app/stores/odontogramaStore'
+import { useSesionStore } from '../../../../../../app/stores/sesionStore'
+import { useRBAC } from '../../../../../../shared/hooks/useRBAC'
 import { usePresupuestosStore } from '../../../../../../app/stores/usePresupuestosStore'
 import { ModalNuevoPresupuesto } from '../../../../../billing/budget/components/modal/ModalNuevoPresupuesto'
 import { timelineService } from '../../../services/timelineService'
@@ -39,6 +41,8 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
   setActiveSection,
 }) => {
   const odontograma = useOdontogramaStore((s) => s.odontograma)
+  const { rol } = useRBAC()
+  const emisor = useSesionStore((s) => s.userProfile)
   const odontogramaPacienteId = useOdontogramaStore((s) => s.pacienteId)
   const [fases, setFases] = useState<FasePlan[]>(fasesVacias)
   const prestaciones = usePrestacionesStore((s) => s.prestacionesArancel)
@@ -249,9 +253,9 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <Button type="button" size="sm" variant="secondary" icon={Stethoscope} onClick={() => setMostrarDerivacion(true)}>
+          {(rol === 'admin' || rol === 'dentista') && <Button type="button" size="sm" variant="secondary" icon={Stethoscope} onClick={() => setMostrarDerivacion(true)}>
             Ficha Derivación
-          </Button>
+          </Button>}
           <Button type="button" size="sm" variant="secondary" onClick={guardarPlan} disabled={!pacienteId || guardando} data-testid="btn-guardar-plan">
             {guardando ? 'Guardando…' : planGuardado ? 'Plan guardado' : 'Guardar plan'}
           </Button>
@@ -301,6 +305,12 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
           <span className="font-semibold">{derivacion.especialidad}</span> · {derivacion.prioridad} · {new Date(derivacion.fecha).toLocaleDateString('es-CL')}
           {derivacion.especialista && <span> · {derivacion.especialista}</span>}
           <p className="mt-1 whitespace-pre-wrap">{derivacion.motivo}</p>
+          {derivacion.diagnostico && <p className="mt-1">Diagnóstico: {derivacion.diagnostico}</p>}
+          {derivacion.emisor && <p>Emitida por: {derivacion.emisor}</p>}
+          {(derivacion.archivoIds?.length || derivacion.incluirOdontograma || derivacion.incluirEvoluciones) &&
+            <p>Antecedentes referenciados: {derivacion.archivoIds?.length || 0} archivo(s)
+              {derivacion.incluirOdontograma ? ' · odontograma' : ''}
+              {derivacion.incluirEvoluciones ? ' · evoluciones' : ''}</p>}
         </div>)}
       </section>}
 
@@ -437,7 +447,9 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
 
       {mostrarDerivacion && (
         <FichaDerivacionModal
+          pacienteId={pacienteId}
           nombrePaciente={nombrePaciente}
+          nombreEmisor={emisor?.nombreCompleto || emisor?.email}
           onCerrar={() => setMostrarDerivacion(false)}
           onDerivar={async (input) => {
             const emitida = await derivacionesService.emitir(pacienteId, input)

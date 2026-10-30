@@ -14,12 +14,15 @@ describe('derivacionesService', () => {
 
   it('persiste la derivación con motivo y prioridad en el timeline del paciente', async () => {
     const derivacion = await derivacionesService.emitir('paciente-1', {
-      especialidad: 'Endodoncia', especialista: 'Dra. R', motivo: 'Hallazgo revisado', prioridad: 'urgente',
+      especialidad: 'Endodoncia', especialista: 'Dra. R', motivo: 'Hallazgo revisado', diagnostico: 'Pulpitis',
+      prioridad: 'urgente', incluirOdontograma: true, archivoIds: ['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'],
     })
     expect(estado.agregarEvento).toHaveBeenCalledWith('paciente-1', expect.objectContaining({
       id: derivacion.id,
       tipo: 'derivacion',
-      metadata: expect.objectContaining({ motivo: 'Hallazgo revisado', prioridad: 'urgente' }),
+      metadata: expect.objectContaining({ motivo: 'Hallazgo revisado', diagnostico: 'Pulpitis',
+        prioridad: 'urgente', incluirOdontograma: true,
+        archivoIds: ['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'] }),
     }))
   })
 

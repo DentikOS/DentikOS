@@ -4,6 +4,7 @@ import { beforeEach, describe, it, expect, vi } from 'vitest'
 import { PlanTratamiento } from './PlanTratamiento'
 import { useOdontogramaStore } from '../../../../../../app/stores/odontogramaStore'
 import { usePrestacionesStore } from '../../../../../../app/stores/prestacionesStore'
+import { useSesionStore } from '../../../../../../app/stores/sesionStore'
 import { fichasClinicasStorageService } from '../../../services/fichasClinicasStorageService'
 import { presupuestosStorageService } from '../../../../../billing/budget/services/presupuestosStorageService'
 import { presupuestoPlanSyncService } from '../../../../../billing/budget/services/presupuestoPlanSyncService'
@@ -30,6 +31,7 @@ const pacienteId = 'pac-test'
 describe('PlanTratamiento BP06', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    useSesionStore.setState({ userProfile: null })
     vi.mocked(fichasClinicasStorageService.obtenerFichaClinica).mockResolvedValue(null)
     vi.mocked(fichasClinicasStorageService.guardarSeccionFicha).mockResolvedValue(true)
     vi.spyOn(presupuestosStorageService, 'sincronizarDesdeSupabase').mockResolvedValue([])
@@ -46,6 +48,13 @@ describe('PlanTratamiento BP06', () => {
     expect(screen.getByText(/Fase 4: Estética/i)).toBeInTheDocument()
     expect(screen.getByText('No hay patologías registradas')).toBeInTheDocument()
     expect(screen.queryByText(/Profilaxis y control preventivo/i)).not.toBeInTheDocument()
+  })
+
+  it('ofrece la emisión clínica solo a dentista o administración', () => {
+    render(<PlanTratamiento pacienteId={pacienteId} />)
+    expect(screen.queryByRole('button', { name: 'Ficha Derivación' })).not.toBeInTheDocument()
+    act(() => useSesionStore.setState({ userProfile: { email: 'dentista@example.test', rol: 'dentista' } }))
+    expect(screen.getByRole('button', { name: 'Ficha Derivación' })).toBeInTheDocument()
   })
 
   it('deja hallazgos sin precio y exige prestación y fase revisadas', async () => {
