@@ -6,6 +6,7 @@ import { derivacionesService, type DerivacionClinica } from './derivacionesServi
 import { PresupuestosPaciente } from './PresupuestosPaciente'
 import { useOdontogramaStore } from '../../../../../../app/stores/odontogramaStore'
 import { useSesionStore } from '../../../../../../app/stores/sesionStore'
+import { usePacientesStore } from '../../../../../../app/stores/pacientesStore'
 import { useRBAC } from '../../../../../../shared/hooks/useRBAC'
 import { usePresupuestosStore } from '../../../../../../app/stores/usePresupuestosStore'
 import { ModalNuevoPresupuesto } from '../../../../../billing/budget/components/modal/ModalNuevoPresupuesto'
@@ -43,6 +44,7 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
   const odontograma = useOdontogramaStore((s) => s.odontograma)
   const { rol } = useRBAC()
   const emisor = useSesionStore((s) => s.userProfile)
+  const abrirPestanaFicha = usePacientesStore((s) => s.setPestanaActiva)
   const odontogramaPacienteId = useOdontogramaStore((s) => s.pacienteId)
   const [fases, setFases] = useState<FasePlan[]>(fasesVacias)
   const prestaciones = usePrestacionesStore((s) => s.prestacionesArancel)
@@ -308,9 +310,17 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
           {derivacion.diagnostico && <p className="mt-1">Diagnóstico: {derivacion.diagnostico}</p>}
           {derivacion.emisor && <p>Emitida por: {derivacion.emisor}</p>}
           {(derivacion.archivoIds?.length || derivacion.incluirOdontograma || derivacion.incluirEvoluciones) &&
-            <p>Antecedentes referenciados: {derivacion.archivoIds?.length || 0} archivo(s)
-              {derivacion.incluirOdontograma ? ' · odontograma' : ''}
-              {derivacion.incluirEvoluciones ? ' · evoluciones' : ''}</p>}
+            <div className="flex flex-wrap items-center gap-2 mt-1">
+              <span>Antecedentes de la ficha:</span>
+              {(derivacion.archivoIds?.length || 0) > 0 && <button type="button" className="underline"
+                onClick={() => abrirPestanaFicha('recetas-consentimientos')}>
+                Ver {derivacion.archivoIds?.length} archivo(s)
+              </button>}
+              {derivacion.incluirOdontograma && <button type="button" className="underline"
+                onClick={() => abrirPestanaFicha('odontograma')}>Ver odontograma</button>}
+              {derivacion.incluirEvoluciones && <button type="button" className="underline"
+                onClick={() => abrirPestanaFicha('evoluciones')}>Ver evoluciones</button>}
+            </div>}
         </div>)}
       </section>}
 

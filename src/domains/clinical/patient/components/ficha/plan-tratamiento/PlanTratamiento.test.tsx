@@ -5,9 +5,11 @@ import { PlanTratamiento } from './PlanTratamiento'
 import { useOdontogramaStore } from '../../../../../../app/stores/odontogramaStore'
 import { usePrestacionesStore } from '../../../../../../app/stores/prestacionesStore'
 import { useSesionStore } from '../../../../../../app/stores/sesionStore'
+import { usePacientesStore } from '../../../../../../app/stores/pacientesStore'
 import { fichasClinicasStorageService } from '../../../services/fichasClinicasStorageService'
 import { presupuestosStorageService } from '../../../../../billing/budget/services/presupuestosStorageService'
 import { presupuestoPlanSyncService } from '../../../../../billing/budget/services/presupuestoPlanSyncService'
+import { derivacionesService } from './derivacionesService'
 
 vi.mock('../../../services/fichasClinicasStorageService', () => ({
   fichasClinicasStorageService: {
@@ -30,6 +32,7 @@ const pacienteId = 'pac-test'
 
 describe('PlanTratamiento BP06', () => {
   beforeEach(() => {
+    vi.restoreAllMocks()
     vi.clearAllMocks()
     useSesionStore.setState({ userProfile: null })
     vi.mocked(fichasClinicasStorageService.obtenerFichaClinica).mockResolvedValue(null)
@@ -55,6 +58,19 @@ describe('PlanTratamiento BP06', () => {
     expect(screen.queryByRole('button', { name: 'Ficha Derivación' })).not.toBeInTheDocument()
     act(() => useSesionStore.setState({ userProfile: { email: 'dentista@example.test', rol: 'dentista' } }))
     expect(screen.getByRole('button', { name: 'Ficha Derivación' })).toBeInTheDocument()
+  })
+
+  it('abre los antecedentes referenciados de una derivación desde la ficha', async () => {
+    vi.spyOn(derivacionesService, 'listar').mockResolvedValue([{
+      id: 'derivacion-1', fecha: '2026-10-30T10:00:00Z', especialidad: 'Endodoncia',
+      especialista: 'Dra. R', motivo: 'Hallazgo revisado', prioridad: 'normal',
+      archivoIds: ['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'], incluirOdontograma: true,
+    }])
+    render(<PlanTratamiento pacienteId={pacienteId} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Ver 1 archivo(s)' }))
+    expect(usePacientesStore.getState().pestanaActiva).toBe('recetas-consentimientos')
+    fireEvent.click(screen.getByRole('button', { name: 'Ver odontograma' }))
+    expect(usePacientesStore.getState().pestanaActiva).toBe('odontograma')
   })
 
   it('deja hallazgos sin precio y exige prestación y fase revisadas', async () => {
