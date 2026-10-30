@@ -7,7 +7,7 @@ import { ModalNuevoPresupuesto } from './components/ModalNuevoPresupuesto'
 import { ModalRegistrarPago } from './components/ModalRegistrarPago'
 import { DocumentoPresupuestoImprimible, type UserProfilePresupuesto } from './components/DocumentoPresupuestoImprimible'
 import { usePacientesStore } from '../../../app/stores/pacientesStore'
-import { prestacionesStorageService } from '../../organization/prestations/services/prestacionesStorageService'
+import { usePrestacionesStore } from '../../../app/stores/prestacionesStore'
 import { useSesionStore } from '../../../app/stores/sesionStore'
 import { useAppDialog } from '../../../shared/hooks/useAppDialog'
 import { ClipboardList } from 'lucide-react'
@@ -29,7 +29,7 @@ export const PresupuestosModulo: React.FC<PresupuestosModuloProps> = memo(({
   // setActiveSection son navegación local de App.jsx, fuera del alcance de F2-01,
   // así que se quedan como props.
   const pacientes = usePacientesStore((state) => state.pacientes)
-  const prestaciones = prestacionesStorageService.obtenerPrestaciones([]) || []
+  const prestaciones = usePrestacionesStore((state) => state.prestacionesArancel)
   const userProfile = useSesionStore((state) => state.userProfile)
 
   const [modalAbierto, setModalAbierto] = useState<boolean>(false)

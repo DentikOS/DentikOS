@@ -7,8 +7,7 @@ import { usePresupuestosStore } from '../../../../../../app/stores/usePresupuest
 import { ModalNuevoPresupuesto } from '../../../../../billing/budget/components/modal/ModalNuevoPresupuesto'
 import { timelineService } from '../../../services/timelineService'
 import { fichasClinicasStorageService } from '../../../services/fichasClinicasStorageService'
-import { prestacionesStorageService } from '../../../../../organization/prestations/services/prestacionesStorageService'
-import type { Prestacion } from '../../../../../organization/prestations/schemas/prestacionSchema'
+import { usePrestacionesStore } from '../../../../../../app/stores/prestacionesStore'
 import { presupuestosStorageService } from '../../../../../billing/budget/services/presupuestosStorageService'
 import {
   generarFasesDesdeOdontograma,
@@ -38,7 +37,7 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
   const odontograma = useOdontogramaStore((s) => s.odontograma)
   const odontogramaPacienteId = useOdontogramaStore((s) => s.pacienteId)
   const [fases, setFases] = useState<FasePlan[]>(fasesVacias)
-  const [prestaciones, setPrestaciones] = useState<Prestacion[]>([])
+  const prestaciones = usePrestacionesStore((s) => s.prestacionesArancel)
   const [odontogramaActualizadoAt, setOdontogramaActualizadoAt] = useState<string | undefined>()
   const [guardando, setGuardando] = useState(false)
   const [planGuardado, setPlanGuardado] = useState(false)
@@ -51,7 +50,6 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
     let vigente = true
     setFases(fasesVacias())
     planOdontogramaStampRef.current = null
-    setPrestaciones(prestacionesStorageService.obtenerPrestaciones() || [])
     setPlanGuardado(false)
     if (!pacienteId) return
     fichasClinicasStorageService.obtenerFichaClinica(pacienteId).then((ficha) => {

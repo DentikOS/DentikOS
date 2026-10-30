@@ -3,6 +3,7 @@ import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { beforeEach, describe, it, expect, vi } from 'vitest'
 import { PlanTratamiento } from './PlanTratamiento'
 import { useOdontogramaStore } from '../../../../../../app/stores/odontogramaStore'
+import { usePrestacionesStore } from '../../../../../../app/stores/prestacionesStore'
 import { fichasClinicasStorageService } from '../../../services/fichasClinicasStorageService'
 
 vi.mock('../../../services/fichasClinicasStorageService', () => ({
@@ -18,6 +19,7 @@ vi.mock('../../../../../organization/prestations/services/prestacionesStorageSer
       id: 'prest-1', nombre: 'Restauración clínica configurada', especialidad: 'Operatoria',
       precioParticular: 42000, precioFonasa: 42000, codigoFonasa: '01-02-010',
     }]),
+    guardarPrestaciones: vi.fn(() => true),
   },
 }))
 
@@ -28,6 +30,10 @@ describe('PlanTratamiento BP06', () => {
     vi.clearAllMocks()
     vi.mocked(fichasClinicasStorageService.obtenerFichaClinica).mockResolvedValue(null)
     vi.mocked(fichasClinicasStorageService.guardarSeccionFicha).mockResolvedValue(true)
+    usePrestacionesStore.setState({ prestacionesArancel: [{
+      id: 'prest-1', nombre: 'Restauración clínica configurada', especialidad: 'Operatoria',
+      precioParticular: 42000, precioFonasa: 42000, codigoFonasa: '01-02-010',
+    }] })
     act(() => useOdontogramaStore.getState().setOdontograma(null, pacienteId))
   })
 
@@ -59,6 +65,20 @@ describe('PlanTratamiento BP06', () => {
     await waitFor(() => expect(screen.getByText('Plan guardado')).toBeInTheDocument())
     fireEvent.click(screen.getByTestId('btn-generar-presupuesto-plan'))
     expect(screen.getByTestId('modal-nuevo-presupuesto')).toBeInTheDocument()
+  })
+
+  it('actualiza el selector cuando se agrega una prestación en otra sección de la app', () => {
+    usePrestacionesStore.setState({ prestacionesArancel: [] })
+    act(() => useOdontogramaStore.getState().setOdontograma({ piezas: [
+      { numero: '1.6', estado: 'patologia', tipoPatologia: 'caries' },
+    ] }, pacienteId))
+    render(<PlanTratamiento pacienteId={pacienteId} />)
+    expect(screen.queryByRole('option', { name: /Restauración clínica configurada/ })).not.toBeInTheDocument()
+    act(() => usePrestacionesStore.getState().setPrestacionesArancel([{
+      id: 'prest-1', nombre: 'Restauración clínica configurada', especialidad: 'Operatoria',
+      precioParticular: 42000, precioFonasa: 42000, codigoFonasa: '01-02-010',
+    }]))
+    expect(screen.getByRole('option', { name: /Restauración clínica configurada/ })).toBeInTheDocument()
   })
 
   it('no muestra hallazgos guardados de otro paciente', () => {
