@@ -56,7 +56,6 @@ describe('ModalRegistrarPago (BP07 §19)', () => {
       expect.objectContaining({
         monto: 150000,
         nuevoEstado: 'en_curso',
-        boletaSii: expect.objectContaining({ emitida: true }),
       })
     )
   })

@@ -28,11 +28,10 @@ describe('pagosService (BP07)', () => {
       monto: 40000,
       medioPago: 'transferencia',
       recibidoPor: 'Dra. Martínez',
-      generarBoletaSII: true,
     })
 
     expect(res.exito).toBe(true)
-    expect(res.boletaSii?.emitida).toBe(true)
+    expect(res).toEqual({ exito: true })
     const p = usePresupuestosStore.getState().presupuestos[0]
     expect(p.montoAbonado).toBe(40000)
     expect(p.estado).toBe('en-curso')

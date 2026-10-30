@@ -6,6 +6,10 @@ describe('timelineService', () => {
     localStorage.clear()
   })
 
+  it('no inventa eventos clínicos para una ficha sin historial', () => {
+    expect(timelineService.obtenerTimeline('paciente-sin-eventos')).toEqual([])
+  })
+
   it('agrega evento de cambio_estado y lo recupera en obtenerTimeline', async () => {
     const evento: EventoTimeline = {
       tipo: 'cambio_estado',

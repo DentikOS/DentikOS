@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { X, DollarSign, CreditCard, Receipt, UserCheck, ShieldCheck, CheckCircle2 } from 'lucide-react'
+import { X, CheckCircle2 } from 'lucide-react'
 import { Button } from '../../../../../shared/ui/ui/Button'
 
 export type MedioPago = 'efectivo' | 'tarjeta' | 'transferencia' | 'cheque'
@@ -12,11 +12,6 @@ export interface PagoRegistrado {
   recibidoPor: string
   fecha: string
   nuevoEstado: 'en_curso' | 'completado'
-  boletaSii?: {
-    folio: string
-    hash: string
-    emitida: boolean
-  }
 }
 
 interface ModalRegistrarPagoProps {
@@ -40,7 +35,6 @@ export const ModalRegistrarPago: React.FC<ModalRegistrarPagoProps> = ({
   const [medioPago, setMedioPago] = useState<MedioPago>('tarjeta')
   const [referencia, setReferencia] = useState('')
   const [recibidoPor, setRecibidoPor] = useState('Recepción Clínica')
-  const [generarBoletaSII, setGenerarBoletaSII] = useState(true)
   const [errorMonto, setErrorMonto] = useState('')
 
   const handleMontoChange = (val: number) => {
@@ -61,17 +55,6 @@ export const ModalRegistrarPago: React.FC<ModalRegistrarPagoProps> = ({
     const nuevoSaldo = saldoPendiente - monto
     const nuevoEstado: 'en_curso' | 'completado' = nuevoSaldo === 0 ? 'completado' : 'en_curso'
 
-    const randomHash = Array.from(crypto.getRandomValues(new Uint8Array(8)))
-      .map((b) => b.toString(16).padStart(2, '0')).join('').toUpperCase()
-
-    const boletaSii = generarBoletaSII
-      ? {
-          folio: `DTE-${Date.now().toString().slice(-6)}`,
-          hash: `SII-SHA256-${randomHash}`,
-          emitida: true,
-        }
-      : undefined
-
     const pago: PagoRegistrado = {
       id: crypto.randomUUID(),
       monto,
@@ -80,7 +63,6 @@ export const ModalRegistrarPago: React.FC<ModalRegistrarPagoProps> = ({
       recibidoPor,
       fecha: new Date().toISOString(),
       nuevoEstado,
-      boletaSii,
     }
 
     onRegistrarPago(pago)
@@ -179,25 +161,6 @@ export const ModalRegistrarPago: React.FC<ModalRegistrarPagoProps> = ({
               onChange={(e) => setReferencia(e.target.value)}
               className="w-full p-2 bg-surface border border-surface rounded-xl text-xs"
               data-testid="input-referencia-pago"
-            />
-          </div>
-
-          <div className="p-3 bg-surface-hover/60 border border-surface rounded-xl flex items-center justify-between text-xs">
-            <div className="flex items-center gap-2">
-              <Receipt className="w-4 h-4 text-primary" />
-              <div>
-                <span className="font-semibold block text-graphite-800 dark:text-graphite-200">
-                  Emitir Boleta Electrónica SII
-                </span>
-                <span className="text-[10px] text-graphite-400">Generación de DTE con timbre fiscal digital</span>
-              </div>
-            </div>
-            <input
-              type="checkbox"
-              checked={generarBoletaSII}
-              onChange={(e) => setGenerarBoletaSII(e.target.checked)}
-              className="w-4 h-4 rounded text-primary focus:ring-primary cursor-pointer"
-              data-testid="checkbox-boleta-sii"
             />
           </div>
 

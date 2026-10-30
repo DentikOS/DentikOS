@@ -94,7 +94,7 @@ describe('Flujo Clínico E2E de Persistencia BP06 + BP07', () => {
     })
   })
 
-  it('emite presupuesto con convenio ISAPRE y luego registra pago manual con boleta SII', () => {
+  it('emite presupuesto con convenio ISAPRE y luego registra pago manual', () => {
     const onGuardarPresupuesto = vi.fn()
     render(
       <ModalNuevoPresupuesto
@@ -135,7 +135,6 @@ describe('Flujo Clínico E2E de Persistencia BP06 + BP07', () => {
       expect.objectContaining({
         monto: 300000,
         nuevoEstado: 'completado',
-        boletaSii: expect.objectContaining({ emitida: true }),
       })
     )
   })
