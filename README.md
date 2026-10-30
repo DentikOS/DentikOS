@@ -1,132 +1,76 @@
-# Studio Dental OS 🦷
+# Studio Dental 🦷
 
-Aplicación web de gestión clínica odontológica con 14 módulos especializados, desarrollada con React 19 + Vite + Zustand + Tailwind CSS.
+Aplicación web de gestión odontológica multi-clínica. Reúne agenda, pacientes y fichas clínicas, prestaciones, presupuestos, pagos, inventario y otras áreas de operación clínica.
 
-## 🏗️ Arquitectura
+## Tecnologías y funcionamiento
 
-- **Frontend:** React 19 + Vite 8
-- **Estado global:** Zustand 5 (3 stores: sesión, pacientes, prestaciones)
-- **Persistencia:** LocalStorage + IndexedDB (adjuntos clínicos)
-- **Validación:** Zod 4 (esquemas de datos)
-- **Estilos:** Tailwind CSS 4
-- **Testing:** Vitest 3 + @testing-library/react
-- **Linting:** oxlint
-- **CI/CD:** GitHub Actions (4 jobs: lint, test, build, architecture)
+- **Interfaz:** React 19, TypeScript, Vite 8, Tailwind CSS 4 y Framer Motion.
+- **Estado y validación:** Zustand y Zod.
+- **Backend:** Supabase Auth, PostgreSQL con políticas RLS, Realtime y Edge Functions.
+- **Archivos:** Supabase Storage y Cloudflare R2, según el flujo.
+- **Uso local:** LocalStorage, IndexedDB y PWA. Algunos servicios conservan una caché por clínica y colas de operaciones pendientes para sincronizar al recuperar la conexión.
+- **Pruebas y calidad:** Vitest, Testing Library, Playwright, oxlint y GitHub Actions.
 
-## 📚 Documentación
+`src/main.tsx` monta `src/App.tsx`. La aplicación restaura la sesión, comprueba si se necesita configurar una clínica y muestra la navegación una vez autenticado el usuario. Los módulos acceden a datos mediante hooks, stores y servicios. El aislamiento de datos entre clínicas depende de la autorización y las políticas del backend; la caché local también se separa por clínica.
 
-- 📖 **[Constitución de Arquitectura](docs/01-Constitucion_Arquitectura_Studio_Dental_v3.md)** — reglas técnicas detalladas (tamaño de archivos, exportaciones, barreras públicas, etc.)
-- 📋 **[MASTER_ROADMAP](docs/MASTER_ROADMAP.md)** — plan técnico ejecutable con todas las tareas, bitácoras y decisiones
-- 🤝 **[Guía de Contribución](CONTRIBUTING.md)** — convención de commits y flujo de trabajo con ramas
+## Inicio local
 
-## 🚀 Comandos disponibles
+Requiere Node.js y npm. Para conectarse a Supabase, configura las variables indicadas en `.env.example` en un archivo `.env` local. No incluyas claves secretas o `service_role` en variables `VITE_`, porque se exponen al navegador.
 
 ```bash
-# Desarrollo
-npm run dev                      # Servidor de desarrollo (http://localhost:5173)
-
-# Calidad (ejecutar todos antes de commit)
-npm run lint                     # oxlint (0 warnings, 0 errors)
-npm run test                     # Vitest (144 tests)
-npm run build                    # Build de producción
-npm run validate:architecture    # Validación arquitectónica
-
-# Otros
-npm run preview                  # Preview del build de producción
-npm run test:watch               # Tests en modo watch
-npm run test:coverage            # Tests con reporte de cobertura
+npm ci
+npm run dev
 ```
 
-## 📦 Módulos del sistema
+Vite muestra la dirección local al iniciar; normalmente es `http://localhost:5173/`. La interfaz requiere una cuenta y una clínica autorizada para usar los flujos conectados a Supabase.
 
-**Módulos eager (cargan al inicio):**
-- 📅 **Agenda** — gestión de citas y bloqueos horarios
-- 👥 **Pacientes** — fichas clínicas completas con 7 secciones
-- 📊 **Dashboard** — indicadores clave y métricas
+## Comandos
 
-**Módulos lazy (cargan bajo demanda):**
-- 💰 Finanzas, Pagos, Presupuestos, Prestaciones
-- 🦷 Odontograma, Periodontograma, Quirúrgico, Odontopediatría
-- ✨ DSD (Diseño de Sonrisa), Laboratorio, Esterilización
-- 📞 Comunicaciones, Reportes, Urgencias GES, Configuración
+| Comando | Uso |
+| --- | --- |
+| `npm run dev` | Servidor de desarrollo |
+| `npm run build` | Build de producción |
+| `npm run preview` | Vista local del build |
+| `npm run typecheck` | Comprobación de TypeScript |
+| `npm run lint` | Análisis con oxlint |
+| `npm run test` | Pruebas unitarias y de componentes con Vitest |
+| `npm run test:security` | Suite de regresión de seguridad |
+| `npm run test:coverage` | Pruebas con cobertura |
+| `npm run validate:architecture` | Reglas de arquitectura del proyecto |
+| `npm run test:e2e` | Pruebas Playwright; requieren entorno y credenciales de prueba |
 
-## 🛡️ Red de seguridad automatizada
+Los comandos de base de datos (`db:reset`, `db:push`, `db:pull`, `db:diff`, `db:seed`, `db:verify`) están en `package.json`. Revisa el entorno enlazado antes de ejecutar operaciones sobre la base de datos.
 
-Cada PR a `main` ejecuta 4 checks obligatorios vía GitHub Actions:
+## Estructura
 
-1. ✅ **Lint** — oxlint sin warnings
-2. ✅ **Tests** — 144 tests pasando (Vitest)
-3. ✅ **Build** — build de producción exitoso
-4. ✅ **Architecture** — reglas de la Constitución cumplidas
-
-Los PRs con cualquier check fallido son bloqueados automáticamente por branch protection.
-
-## 📊 Métricas del proyecto
-
-- **Tests:** 144 tests en 10 archivos (`*.test.js`)
-- **Lint:** 0 warnings, 0 errors (235 archivos)
-- **Bundle inicial:** 594.74 kB (148.75 kB gzip)
-- **Módulos:** 14 (3 eager + 11 lazy-loaded)
-- **Líneas de código:** ~16,000 (src/)
-
-## 📝 Convención de commits
-
-Este proyecto usa **Conventional Commits**. Ver [CONTRIBUTING.md](CONTRIBUTING.md) para detalles.
-
-Formato: `tipo(alcance): descripción (ID-tarea)`
-
-Ejemplo: `feat(inventario): add modal for selecting materials (F2-12)`
-
-## 🗂️ Estructura del proyecto
-
-```
-Studio Dental/
-├── src/
-│   ├── App.jsx                          # Componente raíz (único export default)
-│   ├── main.jsx                         # Entry point
-│   ├── components/                      # Componentes compartidos
-│   ├── store/                           # Zustand stores (3)
-│   ├── services/                        # Servicios transversales
-│   ├── utils/                           # Utilidades globales
-│   └── modules/                         # 14 módulos de dominio
-│       ├── agenda/
-│       ├── pacientes/
-│       ├── inventario/
-│       └── ... (11 más)
-├── scripts/
-│   ├── validate-architecture.js         # Script de validación arquitectónica
-│   └── architecture-allowlist.json      # Allowlist de archivos excepcionales
-├── docs/
-│   ├── 01-Constitucion_Arquitectura_Studio_Dental_v3.md
-│   └── MASTER_ROADMAP.md
-├── CONTRIBUTING.md                      # Guía de contribución
-├── package.json
-└── README.md                            # Este archivo
+```text
+src/
+├── main.tsx                 Entrada de React
+├── App.tsx                  Sesión, navegación y composición de módulos
+├── app/stores/              Estado compartido con Zustand
+├── application/             Casos de uso y analítica de aplicación
+├── domains/                 Áreas clínicas, financieras y operativas
+├── infrastructure/          Auth, Supabase, almacenamiento y sincronización
+├── shared/                  Hooks, componentes, tipos y utilidades comunes
+├── design/                  Tokens y temas visuales
+└── test/                    Soporte y pruebas de seguridad
+supabase/
+├── migrations/              Cambios versionados de PostgreSQL, RLS y funciones
+├── functions/               Edge Functions
+└── seeds/                   Datos de prueba por entorno
+e2e/                        Pruebas de navegador con Playwright
+scripts/                    Validaciones y utilidades del proyecto
+docs/                       Arquitectura, decisiones y guías operativas
 ```
 
----
+Los módulos de `src/domains/` se agrupan en `clinical`, `operations`, `billing`, `organization`, `specialty` y `addons`. La navegación de `App.tsx` carga Agenda y Dashboard al inicio y varios módulos mediante `React.lazy` cuando se abren.
 
-*Última actualización: Agosto 2026 (Fase 3 — Calidad, Gobernanza y Equipo)*
+## Verificación y documentación
 
----
+El workflow de [CI](.github/workflows/ci.yml) ejecuta lint, tests, regresión de seguridad, comprobaciones de Edge Functions con Deno, build, validación de arquitectura y cobertura. El job E2E está deshabilitado mientras no exista un entorno de staging disponible. La configuración actual de cobertura mide archivos fuente JavaScript/JSX; no representa la cobertura del código TypeScript/TSX.
 
-## Información del template original de Vite (referencia)
-
-Este proyecto fue creado con el template React + Vite. Información original del template:
-
-### React + Vite
-
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
-
-Currently, two official plugins are available:
-
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-### React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-### Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+- [Reglas para agentes](AGENTS.md)
+- [Constitución de arquitectura](docs/01-Constitucion_Arquitectura_Studio_Dental_v3.md)
+- [Roadmap](docs/MASTER_ROADMAP.md)
+- [Guía de contribución](CONTRIBUTING.md)
+- [Migraciones de Supabase](supabase/README_MIGRATIONS.md)
