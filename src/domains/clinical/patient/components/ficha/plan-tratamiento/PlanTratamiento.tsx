@@ -336,6 +336,16 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
               {derivacion.incluirEvoluciones && <button type="button" className="underline"
                 onClick={() => abrirPestanaFicha('evoluciones')}>Ver evoluciones</button>}
             </div>}
+          <button type="button" className="mt-1 underline font-semibold" onClick={async () => {
+            try {
+              const { derivacionPDFService } = await import('./derivacionPDFService')
+              await derivacionPDFService.descargar({ pacienteId, pacienteNombre: nombrePaciente,
+                pacienteRut, derivacion })
+              setError('')
+            } catch {
+              setError('No se pudo descargar la ficha de derivación. Revisa la clínica y los antecedentes disponibles.')
+            }
+          }}>Descargar ficha de derivación</button>
         </div>)}
       </section>}
 
