@@ -12,6 +12,8 @@ import { ReajusteMasivoModal } from './components/ReajusteMasivoModal'
 import { usePrestacionesStore } from '../../../app/stores/prestacionesStore'
 import type { Prestacion } from './services/prestacionesStorageService'
 import { USE_SUPABASE } from '../../../infrastructure/supabase/supabaseClient'
+import { useRBAC } from '../../../shared/hooks/useRBAC'
+import { ImportarArancelLocal } from './components/ImportarArancelLocal'
 
 interface PrestacionesStoreState {
   prestacionesArancel: Prestacion[]
@@ -19,6 +21,7 @@ interface PrestacionesStoreState {
 }
 
 export const PrestacionesModulo: React.FC = memo(() => {
+  const { rol } = useRBAC()
   // (F2-02) — prestacionesArancel/setPrestacionesArancel ya no llegan como prop desde App.jsx: se leen directo del store.
   const prestacionesProp = usePrestacionesStore(
     (state: PrestacionesStoreState) => state.prestacionesArancel
@@ -72,6 +75,7 @@ export const PrestacionesModulo: React.FC = memo(() => {
         {estadoRemoto === 'error' && <button type="button" className="ml-2 underline" onClick={() => void usePrestacionesStore.getState().sincronizarDesdeSupabase()}>Reintentar</button>}
       </div>}
       {errorOperacion && <p role="alert" className="text-red-700 text-xs">{errorOperacion}</p>}
+      {USE_SUPABASE && (rol === 'admin' || rol === 'dentista') && <ImportarArancelLocal />}
       <div className="flex justify-between items-center flex-wrap gap-3 print:hidden">
         <div>
           <h2 className="text-xl font-bold text-gray-900 dark:text-graphite-50 uppercase tracking-wider flex items-center gap-2">
