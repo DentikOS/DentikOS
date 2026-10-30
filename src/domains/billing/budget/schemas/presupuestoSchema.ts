@@ -91,6 +91,11 @@ export const presupuestoSchema = z.object({
   presupuestoComparativo: z.any().optional(),
   planTratamientoId: z.string().optional(),
   version: z.number().optional(),
+  origenPlan: z.boolean().optional(),
+  planRevision: z.string().optional(),
+  versionGrupoId: z.string().optional(),
+  requiereRevision: z.boolean().optional(),
+  descuentoGlobalPct: z.number().optional(),
 }).passthrough()
 
 export type Presupuesto = z.infer<typeof presupuestoSchema>

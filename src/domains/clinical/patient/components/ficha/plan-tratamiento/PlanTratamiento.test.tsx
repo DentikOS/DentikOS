@@ -5,6 +5,8 @@ import { PlanTratamiento } from './PlanTratamiento'
 import { useOdontogramaStore } from '../../../../../../app/stores/odontogramaStore'
 import { usePrestacionesStore } from '../../../../../../app/stores/prestacionesStore'
 import { fichasClinicasStorageService } from '../../../services/fichasClinicasStorageService'
+import { presupuestosStorageService } from '../../../../../billing/budget/services/presupuestosStorageService'
+import { presupuestoPlanSyncService } from '../../../../../billing/budget/services/presupuestoPlanSyncService'
 
 vi.mock('../../../services/fichasClinicasStorageService', () => ({
   fichasClinicasStorageService: {
@@ -30,6 +32,7 @@ describe('PlanTratamiento BP06', () => {
     vi.clearAllMocks()
     vi.mocked(fichasClinicasStorageService.obtenerFichaClinica).mockResolvedValue(null)
     vi.mocked(fichasClinicasStorageService.guardarSeccionFicha).mockResolvedValue(true)
+    vi.spyOn(presupuestosStorageService, 'sincronizarDesdeSupabase').mockResolvedValue([])
     usePrestacionesStore.setState({ prestacionesArancel: [{
       id: 'prest-1', nombre: 'Restauración clínica configurada', especialidad: 'Operatoria',
       precioParticular: 42000, precioFonasa: 42000, codigoFonasa: '01-02-010',
@@ -141,5 +144,52 @@ describe('PlanTratamiento BP06', () => {
     render(<PlanTratamiento pacienteId={pacienteId} />)
     await waitFor(() => expect(fichasClinicasStorageService.obtenerFichaClinica).toHaveBeenCalledWith(pacienteId))
     expect(screen.getByText('No hay patologías registradas')).toBeInTheDocument()
+  })
+
+  it('ofrece nueva versión sin alterar el presupuesto aprobado anterior', async () => {
+    vi.mocked(fichasClinicasStorageService.obtenerFichaClinica).mockResolvedValue({
+      odontograma: { piezas: [] },
+      plan_tratamiento: { actualizadoAt: 'revision-nueva', fases: [{
+        id: 'fase-urgencias', nombre: 'Fase 1: Urgencias', subtitulo: '', procedimientos: [{
+          id: 'proc-1', descripcion: 'Tratamiento revisado', pieza: '1.6', hallazgo: 'caries',
+          prestacionId: 'prest-1', faseAsignada: 'urgencias', costo: 42000, requiereRevision: false,
+        }],
+      }] },
+    } as any)
+    vi.mocked(presupuestosStorageService.sincronizarDesdeSupabase).mockResolvedValue([{
+      id: '33333333-3333-4333-8333-333333333333', pacienteId, origenPlan: true,
+      versionGrupoId: '44444444-4444-4444-8444-444444444444', version: 1,
+      planRevision: 'revision-anterior', estado: 'aprobado', folio: 'PRE-1', items: [],
+    }])
+    const crear = vi.spyOn(presupuestoPlanSyncService, 'crearVersionDesdePlan').mockResolvedValue('55555555-5555-4555-8555-555555555555')
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    render(<PlanTratamiento pacienteId={pacienteId} />)
+    const boton = await screen.findByRole('button', { name: 'Crear nueva versión' })
+    fireEvent.click(boton)
+    await waitFor(() => expect(crear).toHaveBeenCalledWith(expect.objectContaining({ folio: 'PRE-1', estado: 'aprobado' }),
+      pacienteId, 'revision-nueva', expect.any(Array)))
+  })
+
+  it('permite retomar la actualización de un borrador cuando se pospuso al guardar el plan', async () => {
+    vi.mocked(fichasClinicasStorageService.obtenerFichaClinica).mockResolvedValue({
+      odontograma: { piezas: [] },
+      plan_tratamiento: { actualizadoAt: 'revision-nueva', fases: [{
+        id: 'fase-urgencias', nombre: 'Fase 1: Urgencias', subtitulo: '', procedimientos: [{
+          id: 'proc-1', descripcion: 'Tratamiento revisado', pieza: '1.6', hallazgo: 'caries',
+          prestacionId: 'prest-1', faseAsignada: 'urgencias', costo: 42000, requiereRevision: false,
+        }],
+      }] },
+    } as any)
+    vi.mocked(presupuestosStorageService.sincronizarDesdeSupabase).mockResolvedValue([{
+      id: '33333333-3333-4333-8333-333333333333', pacienteId, origenPlan: true,
+      versionGrupoId: '44444444-4444-4444-8444-444444444444', version: 1,
+      planRevision: 'revision-anterior', estado: 'borrador', folio: 'PRE-1', items: [],
+    }])
+    const actualizar = vi.spyOn(presupuestoPlanSyncService, 'actualizarBorrador').mockResolvedValue()
+    render(<PlanTratamiento pacienteId={pacienteId} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Actualizar borrador' }))
+    await waitFor(() => expect(actualizar).toHaveBeenCalledWith(expect.objectContaining({ folio: 'PRE-1', estado: 'borrador' }),
+      pacienteId, 'revision-nueva', expect.any(Array)))
+    expect(screen.queryByRole('button', { name: 'Actualizar borrador' })).not.toBeInTheDocument()
   })
 })

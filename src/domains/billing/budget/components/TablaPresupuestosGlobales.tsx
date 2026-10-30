@@ -11,6 +11,7 @@ export interface TablaPresupuestosGlobalesProps {
   onVerDocumento: (presupuesto: PresupuestoLocal) => void
   onArchivar: (presupuestoId: string | number) => void
   onRegistrarPago?: (presupuesto: PresupuestoLocal) => void
+  onConfirmarRevision?: (presupuesto: PresupuestoLocal) => void
 }
 
 export const TablaPresupuestosGlobales: React.FC<TablaPresupuestosGlobalesProps> = memo(({
@@ -19,7 +20,8 @@ export const TablaPresupuestosGlobales: React.FC<TablaPresupuestosGlobalesProps>
   onVerFichaPaciente,
   onVerDocumento,
   onArchivar,
-  onRegistrarPago
+  onRegistrarPago,
+  onConfirmarRevision
 }) => {
   if (presupuestos.length === 0) {
     return (
@@ -68,6 +70,7 @@ export const TablaPresupuestosGlobales: React.FC<TablaPresupuestosGlobalesProps>
                   <span className="text-[10px] text-graphite-500 dark:text-graphite-400 surgical:text-black tabular-nums">
                     RUT: {p.pacienteRut}
                   </span>
+                  {p.requiereRevision && <span className="block mt-1 text-[10px] font-bold text-amber-700">Pendiente de revisión clínica</span>}
                 </td>
 
                 <td className="p-3">
@@ -83,7 +86,7 @@ export const TablaPresupuestosGlobales: React.FC<TablaPresupuestosGlobalesProps>
                   <select
                     value={p.estado}
                     onChange={(e) => onCambiarEstado(p.id, e.target.value)}
-                    disabled={!TRANSICIONES_MANUALES_PRESUPUESTO[p.estado || '']?.length}
+                    disabled={p.requiereRevision || !TRANSICIONES_MANUALES_PRESUPUESTO[p.estado || '']?.length}
                     className={`px-2 py-1 rounded-lg font-bold text-[10px] border bg-surface cursor-pointer ${configEstado.colorText} ${configEstado.colorBorder}`}
                   >
                     {ESTADOS_PRESUPUESTO.filter((e) => e.id === p.estado ||
@@ -108,6 +111,12 @@ export const TablaPresupuestosGlobales: React.FC<TablaPresupuestosGlobalesProps>
                 </td>
 
                 <td className="p-3 text-right print:hidden space-x-1 whitespace-nowrap">
+                  {p.requiereRevision && onConfirmarRevision && <button type="button"
+                    onClick={() => onConfirmarRevision(p)}
+                    className="p-1.5 bg-amber-600 text-white text-[10px] font-bold rounded-lg cursor-pointer"
+                    title="Revisar los ítems y confirmar los importes antes de enviar">
+                    Confirmar revisión
+                  </button>}
                   {estadoAdmitePago && saldo > 0 && onRegistrarPago && (
                     <button
                       type="button"

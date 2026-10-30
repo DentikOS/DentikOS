@@ -14,6 +14,7 @@ import { useRBAC } from '../../../shared/hooks/useRBAC'
 import { ClipboardList } from 'lucide-react'
 import type { PresupuestoLocal } from './services/presupuestosStorageService'
 import { pagosService } from './services/pagosService'
+import { presupuestoPlanSyncService } from './services/presupuestoPlanSyncService'
 import type { PacienteFormRef, PrestacionFormRef } from './components/CamposFormularioPresupuesto'
 
 export interface PresupuestosModuloProps {
@@ -36,7 +37,7 @@ export const PresupuestosModulo: React.FC<PresupuestosModuloProps> = memo(({
   const puedeRegistrarPago = rol === 'admin' || rol === 'dentista' || rol === 'recepcion'
 
   const [modalAbierto, setModalAbierto] = useState<boolean>(false)
-  const { alert: dialogAlert } = useAppDialog()
+  const { alert: dialogAlert, confirm } = useAppDialog()
   const [presupuestoVerDocumento, setPresupuestoVerDocumento] = useState<PresupuestoLocal | null>(null)
   const [presupuestoParaPago, setPresupuestoParaPago] = useState<PresupuestoLocal | null>(null)
 
@@ -153,6 +154,21 @@ export const PresupuestosModulo: React.FC<PresupuestosModuloProps> = memo(({
             onVerDocumento={setPresupuestoVerDocumento}
             onArchivar={archivarPresupuesto}
             onRegistrarPago={puedeRegistrarPago ? (p) => setPresupuestoParaPago(p) : undefined}
+          onConfirmarRevision={rol === 'admin' || rol === 'dentista' ? async (p) => {
+            const revisado = await confirm({
+              title: 'Confirmar revisión clínica',
+              description: `Revisa los ítems y descuentos del presupuesto ${p.folio} por $${Number(p.montoTotal || 0).toLocaleString('es-CL')} antes de habilitar su envío.`,
+              variant: 'warning', confirmText: 'Confirmar revisión',
+            })
+            if (!revisado) return
+            try {
+              await presupuestoPlanSyncService.confirmarRevision(String(p.id))
+            } catch (cause) {
+              await dialogAlert({ title: 'No se pudo confirmar',
+                description: cause instanceof Error ? cause.message : 'Revisa el estado del presupuesto.',
+                variant: 'warning', confirmText: 'Entendido' })
+            }
+          } : undefined}
           />
         </>
       )}

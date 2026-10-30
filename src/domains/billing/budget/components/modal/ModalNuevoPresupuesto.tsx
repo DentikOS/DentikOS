@@ -11,6 +11,7 @@ interface ModalNuevoPresupuestoProps {
   pacienteNombre: string
   pacienteRut?: string
   itemsIniciales?: ItemPresupuesto[]
+  planRevision?: string
   onGuardar: (presupuesto: Presupuesto) => boolean | void | Promise<boolean | void>
   onCerrar: () => void
 }
@@ -20,6 +21,7 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = ({
   pacienteNombre,
   pacienteRut,
   itemsIniciales = [],
+  planRevision,
   onGuardar,
   onCerrar,
 }) => {
@@ -80,6 +82,8 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = ({
       id: crypto.randomUUID(), folio, pacienteId: String(pacienteId), pacienteNombre, pacienteRut,
       items, totalBruto, totalDescuentos: totalDescuento, totalAPagar: totalPagar, total: totalPagar, montoTotal: totalPagar,
       estado: 'borrador', prevision, validezDias, fechaVencimiento: new Date(Date.now() + validezDias * 86400000).toISOString(),
+      origenPlan: Boolean(planRevision), planRevision, versionGrupoId: planRevision ? crypto.randomUUID() : undefined,
+      version: 1, requiereRevision: false, descuentoGlobalPct: descuentoTotalPct,
       motivoDescuento: motivoDescuento.trim() || undefined, autorizadoPor: autorizadoPor.trim() || undefined,
       planCuotas: planCuotas ? { cuotas: planCuotas.cuotas, valorCuota: planCuotas.valorCuota, modalidad: planCuotas.modalidad } : undefined,
       createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),

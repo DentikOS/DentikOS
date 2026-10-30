@@ -10,7 +10,9 @@ import { ModalNuevoPresupuesto } from '../../../../../billing/budget/components/
 import { timelineService } from '../../../services/timelineService'
 import { fichasClinicasStorageService } from '../../../services/fichasClinicasStorageService'
 import { usePrestacionesStore } from '../../../../../../app/stores/prestacionesStore'
-import { presupuestosStorageService } from '../../../../../billing/budget/services/presupuestosStorageService'
+import { presupuestosStorageService, type PresupuestoLocal } from '../../../../../billing/budget/services/presupuestosStorageService'
+import { presupuestoPlanSyncService } from '../../../../../billing/budget/services/presupuestoPlanSyncService'
+import type { ItemDesdePlan } from '../../../../../billing/budget/utils/planBudgetMerge'
 import {
   generarFasesDesdeOdontograma,
   fasesVacias,
@@ -44,6 +46,9 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
   const [piezasActuales, setPiezasActuales] = useState<Parameters<typeof generarFasesDesdeOdontograma>[0]>([])
   const [guardando, setGuardando] = useState(false)
   const [planGuardado, setPlanGuardado] = useState(false)
+  const [planRevision, setPlanRevision] = useState<string | undefined>()
+  const [versionables, setVersionables] = useState<PresupuestoLocal[]>([])
+  const [borradoresDesactualizados, setBorradoresDesactualizados] = useState<PresupuestoLocal[]>([])
   const [odontogramaDesactualizado, setOdontogramaDesactualizado] = useState(false)
   const [error, setError] = useState('')
   const [mostrarDerivacion, setMostrarDerivacion] = useState(false)
@@ -63,10 +68,35 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
 
   useEffect(() => {
     let vigente = true
+    setVersionables([])
+    setBorradoresDesactualizados([])
+    if (pacienteId && planRevision) void presupuestosStorageService.sincronizarDesdeSupabase()
+      .then((lista) => {
+        if (!vigente) return
+        const porGrupo = new Map<string, PresupuestoLocal>()
+        for (const presupuesto of lista) {
+          if (!presupuesto.origenPlan || !presupuesto.versionGrupoId || String(presupuesto.pacienteId) !== pacienteId) continue
+          const actual = porGrupo.get(presupuesto.versionGrupoId)
+          if (!actual || Number(presupuesto.version || 1) > Number(actual.version || 1)) {
+            porGrupo.set(presupuesto.versionGrupoId, presupuesto)
+          }
+        }
+        const desactualizados = [...porGrupo.values()].filter((p) => p.planRevision !== planRevision && p.sincronizado !== false)
+        setBorradoresDesactualizados(desactualizados.filter((p) => ['borrador', 'Borrador'].includes(p.estado || '')))
+        setVersionables(desactualizados.filter((p) =>
+          ['enviado', 'Emitido', 'Pendiente', 'aprobado', 'Aprobado', 'en-curso', 'EnTratamiento'].includes(p.estado || '')))
+      })
+      .catch(() => { if (vigente) { setVersionables([]); setBorradoresDesactualizados([]) } })
+    return () => { vigente = false }
+  }, [pacienteId, planRevision])
+
+  useEffect(() => {
+    let vigente = true
     setFases(fasesVacias())
     planOdontogramaStampRef.current = null
     planCargadoRef.current = false
     setPlanGuardado(false)
+    setPlanRevision(undefined)
     setOdontogramaDesactualizado(false)
     if (!pacienteId) return
     fichasClinicasStorageService.obtenerFichaClinica(pacienteId).then((ficha) => {
@@ -79,12 +109,13 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
       }))
       setOdontogramaActualizadoAt(od?.actualizadoAt)
       setPiezasActuales(piezas as Parameters<typeof generarFasesDesdeOdontograma>[0])
-      const plan = ficha.plan_tratamiento as { fases?: FasePlan[]; odontogramaActualizadoAt?: string } | null
+      const plan = ficha.plan_tratamiento as { fases?: FasePlan[]; odontogramaActualizadoAt?: string; actualizadoAt?: string } | null
       if (Array.isArray(plan?.fases)) {
         planCargadoRef.current = true
         planOdontogramaStampRef.current = plan.odontogramaActualizadoAt || null
         setFases(plan.fases)
         setPlanGuardado(true)
+        setPlanRevision(plan.actualizadoAt)
         setOdontogramaDesactualizado(plan.odontogramaActualizadoAt !== od?.actualizadoAt)
       } else {
         setFases(generarFasesDesdeOdontograma(piezas))
@@ -139,13 +170,34 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
     setGuardando(true)
     setError('')
     try {
+      const revision = new Date().toISOString()
       const ok = await fichasClinicasStorageService.guardarSeccionFicha(pacienteId, 'plan_tratamiento', {
         fases,
         odontogramaActualizadoAt,
-        actualizadoAt: new Date().toISOString(),
+        actualizadoAt: revision,
       })
       setPlanGuardado(ok)
-      if (ok) planOdontogramaStampRef.current = odontogramaActualizadoAt || null
+      if (ok) {
+        planOdontogramaStampRef.current = odontogramaActualizadoAt || null
+        setPlanRevision(revision)
+        try {
+          const sinRevision = fases.some((fase) => fase.id === 'fase-revision' && fase.procedimientos.length > 0)
+          if (!sinRevision && itemsPresupuesto.length > 0) {
+            const presupuestos = await presupuestosStorageService.sincronizarDesdeSupabase()
+            const borradores = presupuestos.filter((p) => p.origenPlan &&
+              String(p.pacienteId) === pacienteId && p.sincronizado !== false &&
+              ['borrador', 'Borrador'].includes(p.estado || '') && p.planRevision !== revision)
+            if (borradores.length > 0 && window.confirm(`El plan cambió. ¿Actualizar ${borradores.length} presupuesto(s) borrador vinculados? Se conservarán los ítems manuales y descuentos; quedarán pendientes de revisión antes de enviarlos.`)) {
+              for (const presupuesto of borradores) {
+                await presupuestoPlanSyncService.actualizarBorrador(
+                  presupuesto, pacienteId, revision, itemsPresupuesto as ItemDesdePlan[])
+              }
+            }
+          }
+        } catch {
+          setError('El plan se guardó, pero no se pudo sincronizar un borrador. Revísalo en Presupuestos antes de enviarlo.')
+        }
+      }
       if (!ok) setError('No se pudo guardar el plan. Revisa la clínica activa y vuelve a intentar.')
     } catch {
       setPlanGuardado(false)
@@ -165,12 +217,14 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
         precioUnitario: p.costo || 0,
         subtotal: p.costo || 0,
         descuento: 0,
+        origenPlanProcedimientoId: p.id,
+        precioPlanOriginal: p.costo || 0,
         faseClinica: f.id.replace('fase-', '') as FaseClinica,
       }))
   ), [fases])
 
   const handleGenerarPresupuesto = () => {
-    if (!pacienteId || !planGuardado || odontogramaDesactualizado || fases.some((fase) => fase.id === 'fase-revision' && fase.procedimientos.length > 0) || itemsPresupuesto.length === 0) {
+    if (!pacienteId || !planGuardado || !planRevision || odontogramaDesactualizado || fases.some((fase) => fase.id === 'fase-revision' && fase.procedimientos.length > 0) || itemsPresupuesto.length === 0) {
       setError('Guarda el plan y resuelve cada hallazgo con prestación y fase antes de generar el presupuesto.')
       return
     }
@@ -208,6 +262,38 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
       </div>
 
       {error && <p role="alert" className="text-xs text-rose-600">{error}</p>}
+
+      {borradoresDesactualizados.map((presupuesto) => <div key={String(presupuesto.id)} className="p-4 border border-amber-400 rounded-xl text-xs text-amber-900">
+        El borrador {presupuesto.folio} v{presupuesto.version || 1} corresponde a una revisión anterior del plan. Actualízalo y confirma la revisión clínica antes de enviarlo.
+        <button type="button" className="ml-2 underline font-bold" onClick={async () => {
+          if (!planRevision || !planGuardado || odontogramaDesactualizado || itemsPresupuesto.length === 0 ||
+            fases.some((fase) => fase.id === 'fase-revision' && fase.procedimientos.length > 0)) {
+            setError('Resuelve la revisión clínica del plan antes de actualizar el borrador.')
+            return
+          }
+          try {
+            await presupuestoPlanSyncService.actualizarBorrador(presupuesto, pacienteId, planRevision, itemsPresupuesto as ItemDesdePlan[])
+            setBorradoresDesactualizados((actuales) => actuales.filter((item) => item.id !== presupuesto.id))
+            setError('')
+          } catch (cause) {
+            setError(cause instanceof Error ? cause.message : 'No se pudo actualizar el borrador.')
+          }
+        }}>Actualizar borrador</button>
+      </div>)}
+
+      {versionables.map((presupuesto) => <div key={String(presupuesto.id)} className="p-4 border border-amber-400 rounded-xl text-xs text-amber-900">
+        El plan cambió después del presupuesto {presupuesto.folio} v{presupuesto.version || 1}. Sus importes aprobados o enviados se conservarán.
+        <button type="button" className="ml-2 underline font-bold" onClick={async () => {
+          if (!planRevision || !planGuardado || !window.confirm(`¿Crear una nueva versión en borrador de ${presupuesto.folio}? Se conservarán los ajustes manuales y descuentos; revisa los importes antes de enviarla.`)) return
+          try {
+            await presupuestoPlanSyncService.crearVersionDesdePlan(presupuesto, pacienteId, planRevision, itemsPresupuesto as ItemDesdePlan[])
+            setVersionables((actuales) => actuales.filter((item) => item.id !== presupuesto.id))
+            setError('')
+          } catch (cause) {
+            setError(cause instanceof Error ? cause.message : 'No se pudo crear la nueva versión.')
+          }
+        }}>Crear nueva versión</button>
+      </div>)}
 
       {derivaciones.length > 0 && <section aria-label="Derivaciones emitidas" className="p-4 border border-surface rounded-xl text-xs space-y-2">
         <h4 className="font-bold">Derivaciones emitidas</h4>
@@ -366,6 +452,7 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
           pacienteNombre={nombrePaciente}
           pacienteRut={pacienteRut}
           itemsIniciales={itemsPresupuesto}
+          planRevision={planRevision}
           onGuardar={async (presupuesto) => {
             const guardado = await presupuestosStorageService.guardarPresupuesto(presupuesto as any)
             if (!guardado) {

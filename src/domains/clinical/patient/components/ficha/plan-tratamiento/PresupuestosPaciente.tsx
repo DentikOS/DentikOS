@@ -51,6 +51,7 @@ export const PresupuestosPaciente: React.FC<{ pacienteId: string }> = ({ pacient
             <div>
               <p className="font-bold">{p.folio || 'Presupuesto'} · {p.estado || 'borrador'}</p>
               <p className="text-graphite-500">Total ${total.toLocaleString('es-CL')} · Saldo ${saldo.toLocaleString('es-CL')}</p>
+              {p.requiereRevision && <p className="text-amber-700 font-semibold">Pendiente de revisión clínica antes del envío</p>}
             </div>
             {puedeRegistrar && admitePago && saldo > 0 && (
               <button type="button" disabled={!sincronizado} title={sincronizado ? 'Registrar abono manual' : 'Espera la sincronización del presupuesto'}

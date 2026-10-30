@@ -65,6 +65,12 @@ export interface PresupuestoLocal extends Omit<Partial<Presupuesto>, 'pacienteId
   sincronizado?: boolean
   clinicaId?: string | null
   items?: PresupuestoItemLocal[]
+  origenPlan?: boolean
+  planRevision?: string
+  versionGrupoId?: string
+  requiereRevision?: boolean
+  descuentoGlobalPct?: number
+  version?: number
   [key: string]: unknown
 }
 
@@ -108,6 +114,11 @@ export interface PresupuestoSupabaseRow {
   descuentos?: unknown[]
   plan_pago?: unknown
   version?: number
+  origen_plan?: boolean
+  plan_revision?: string | null
+  version_grupo_id?: string | null
+  requiere_revision?: boolean
+  descuento_global_pct?: number | null
   archivado_at?: string | null
   created_at?: string
   updated_at?: string
@@ -225,6 +236,11 @@ export const transformarPresupuestoParaSupabase = (
     descuentos: Array.isArray(p.descuentos) ? p.descuentos : [],
     plan_pago: p.planPago || p.planCuotas || null,
     version: Number(p.version ?? 1),
+    origen_plan: p.origenPlan === true,
+    plan_revision: p.planRevision || null,
+    version_grupo_id: p.versionGrupoId || null,
+    requiere_revision: p.requiereRevision === true,
+    descuento_global_pct: p.descuentoGlobalPct ?? null,
     archivado_at: typeof p.archivadoAt === 'string' ? p.archivadoAt : null,
   }
 
@@ -918,6 +934,11 @@ export const sincronizarPresupuestosDesdeSupabaseHelper = async ({
       descuentos: Array.isArray(p.descuentos) ? p.descuentos as Presupuesto['descuentos'] : [],
       planPago: p.plan_pago as Presupuesto['planPago'],
       version: Number(p.version || 1),
+      origenPlan: p.origen_plan === true,
+      planRevision: typeof p.plan_revision === 'string' ? p.plan_revision : undefined,
+      versionGrupoId: typeof p.version_grupo_id === 'string' ? p.version_grupo_id : undefined,
+      requiereRevision: p.requiere_revision === true,
+      descuentoGlobalPct: typeof p.descuento_global_pct === 'number' ? p.descuento_global_pct : undefined,
       archivadoAt: typeof p.archivado_at === 'string' ? p.archivado_at : undefined,
       estado: String(p.estado || ''),
       observacion: String(p.observacion || ''),
