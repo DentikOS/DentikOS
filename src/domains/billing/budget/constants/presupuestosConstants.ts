@@ -20,7 +20,7 @@ export const ESTADOS_PRESUPUESTO: readonly EstadoPresupuestoConfig[] = [
   { id: 'enviado', nombre: 'Enviado', colorBg: 'bg-blue-50', colorText: 'text-blue-800', colorBorder: 'border-blue-300' },
   { id: 'aprobado', nombre: 'Aprobado', colorBg: 'bg-emerald-50', colorText: 'text-emerald-800', colorBorder: 'border-emerald-300' },
   { id: 'en-curso', nombre: 'En curso', colorBg: 'bg-purple-50', colorText: 'text-purple-800', colorBorder: 'border-purple-300' },
-  { id: 'completado', nombre: 'Completado', colorBg: 'bg-emerald-50', colorText: 'text-emerald-800', colorBorder: 'border-emerald-300' },
+  { id: 'completado', nombre: 'Pago completado', colorBg: 'bg-emerald-50', colorText: 'text-emerald-800', colorBorder: 'border-emerald-300' },
   { id: 'rechazado', nombre: 'Rechazado', colorBg: 'bg-red-50', colorText: 'text-red-800', colorBorder: 'border-red-300' },
   { id: 'vencido', nombre: 'Vencido', colorBg: 'bg-red-50', colorText: 'text-red-800', colorBorder: 'border-red-300' },
   { id: 'archivado', nombre: 'Archivado', colorBg: 'bg-gray-100', colorText: 'text-gray-800', colorBorder: 'border-gray-300' },

@@ -15,7 +15,9 @@ import { fichasClinicasStorageService } from '../../../services/fichasClinicasSt
 import { usePrestacionesStore } from '../../../../../../app/stores/prestacionesStore'
 import { presupuestosStorageService, type PresupuestoLocal } from '../../../../../billing/budget/services/presupuestosStorageService'
 import { presupuestoPlanSyncService } from '../../../../../billing/budget/services/presupuestoPlanSyncService'
+import { getClinicaActivaSync } from '../../../../../../infrastructure/auth/authService'
 import type { ItemDesdePlan } from '../../../../../billing/budget/utils/planBudgetMerge'
+import { evaluarEstadoPlanTratamiento } from './estadoPlanTratamiento'
 import {
   generarFasesDesdeOdontograma,
   fasesVacias,
@@ -44,6 +46,7 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
   const odontograma = useOdontogramaStore((s) => s.odontograma)
   const { rol } = useRBAC()
   const emisor = useSesionStore((s) => s.userProfile)
+  const clinicaActual = useSesionStore((s) => s.clinicaActual)
   const abrirPestanaFicha = usePacientesStore((s) => s.setPestanaActiva)
   const odontogramaPacienteId = useOdontogramaStore((s) => s.pacienteId)
   const [fases, setFases] = useState<FasePlan[]>(fasesVacias)
@@ -54,6 +57,7 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
   const [planGuardado, setPlanGuardado] = useState(false)
   const [planRevision, setPlanRevision] = useState<string | undefined>()
   const [versionables, setVersionables] = useState<PresupuestoLocal[]>([])
+  const [presupuestosPlan, setPresupuestosPlan] = useState<PresupuestoLocal[]>([])
   const [borradoresDesactualizados, setBorradoresDesactualizados] = useState<PresupuestoLocal[]>([])
   const [odontogramaDesactualizado, setOdontogramaDesactualizado] = useState(false)
   const [error, setError] = useState('')
@@ -62,6 +66,15 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
   const [modalPresupuestoAbierto, setModalPresupuestoAbierto] = useState(false)
   const planOdontogramaStampRef = useRef<string | null>(null)
   const planCargadoRef = useRef(false)
+
+  useEffect(() => {
+    const cargar = () => setPresupuestosPlan(getClinicaActivaSync()
+      ? presupuestosStorageService.obtenerPresupuestos([]).filter((p) => String(p.pacienteId) === pacienteId)
+      : [])
+    cargar()
+    window.addEventListener('presupuestos_actualizados', cargar)
+    return () => window.removeEventListener('presupuestos_actualizados', cargar)
+  }, [pacienteId, clinicaActual])
 
   useEffect(() => {
     let vigente = true
@@ -149,6 +162,9 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
     () => fases.reduce((sum, f) => sum + f.procedimientos.reduce((pSum, p) => pSum + (p.costo || 0), 0), 0),
     [fases]
   )
+  const estadoPlan = useMemo(() => evaluarEstadoPlanTratamiento(
+    fases, presupuestosPlan, pacienteId, planGuardado ? planRevision : undefined
+  ), [fases, presupuestosPlan, pacienteId, planGuardado, planRevision])
 
   const actualizarProcedimiento = (procId: string, cambio: Partial<ProcedimientoPlan>) => {
     setFases((prev) => {
@@ -263,6 +279,12 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
           <p className="text-xs text-graphite-500 mt-1">
             Los hallazgos del odontograma requieren selección de prestación y fase por un profesional.
           </p>
+          {planGuardado && <p className="text-xs font-semibold mt-1" data-testid="estado-plan-tratamiento">
+            {estadoPlan.completado ? 'Plan completado: tratamientos realizados y saldo pagado' :
+              estadoPlan.tratamientosRealizados ? 'Tratamientos realizados · presupuesto o saldo pendiente' :
+              estadoPlan.saldoCubierto ? 'Saldo del plan pagado · tratamientos pendientes' :
+              'Plan en curso: revisar tratamientos y presupuesto'}
+          </p>}
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">

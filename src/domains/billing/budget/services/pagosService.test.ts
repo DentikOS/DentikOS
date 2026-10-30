@@ -30,6 +30,11 @@ describe('pagosService (BP07)', () => {
   })
 
   it('actualiza el estado local solo tras confirmación del RPC', async () => {
+    usePresupuestosStore.setState({ presupuestos: [{
+      ...usePresupuestosStore.getState().presupuestos[0],
+      items: [{ id: 'item-1', nombrePrestacion: 'Control', cantidad: 1, precioUnitario: 100000,
+        subtotal: 100000, descuento: 0, estado: 'pendiente' }],
+    } as any] })
     vi.mocked(supabase!.rpc).mockImplementation(async (_name, args) => ({
       data: [{ pago_id: args.p_pago_id, monto_abonado: 40000, estado_presupuesto: 'en-curso' }],
       error: null,
@@ -43,6 +48,7 @@ describe('pagosService (BP07)', () => {
     }))
     expect(presupuestosStorageService.aplicarAbonoConfirmado).toHaveBeenCalledWith(presupuestoId, 40000, 'en-curso')
     expect(usePresupuestosStore.getState().presupuestos[0].montoAbonado).toBe(40000)
+    expect(usePresupuestosStore.getState().presupuestos[0].items?.[0].estado).toBe('pendiente')
   })
 
   it('falla sin clínica activa o con identificador inválido sin llamar al RPC', async () => {

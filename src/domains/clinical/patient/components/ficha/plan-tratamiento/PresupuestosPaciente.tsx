@@ -50,6 +50,7 @@ export const PresupuestosPaciente: React.FC<{ pacienteId: string }> = ({ pacient
   return (
     <section className="rounded-2xl border border-surface bg-surface/80 p-5 space-y-3" aria-label="Presupuestos del paciente">
       <h4 className="text-sm font-bold text-graphite-900 dark:text-graphite-50">Presupuestos del paciente</h4>
+      <p className="text-xs text-graphite-500">Los abonos reducen el saldo total. Ninguna prestación se marca pagada sin asignar el abono a esa prestación.</p>
       {errorSync && <p role="alert" className="text-xs text-amber-700">No se pudo actualizar el listado. Comprueba la conexión antes de registrar un pago.</p>}
       {presupuestos.length === 0 && <p className="text-xs text-graphite-500">Aún no hay presupuestos formales para este paciente.</p>}
       {presupuestos.map((p) => {
@@ -60,7 +61,7 @@ export const PresupuestosPaciente: React.FC<{ pacienteId: string }> = ({ pacient
         return (
           <div key={String(p.id)} className="flex items-center justify-between gap-3 rounded-xl border border-surface p-3 text-xs">
             <div>
-              <p className="font-bold">{p.folio || 'Presupuesto'} · {p.estado || 'borrador'}</p>
+              <p className="font-bold">{p.folio || 'Presupuesto'} · {p.estado === 'completado' ? 'Pago completado' : p.estado || 'borrador'}</p>
               <p className="text-graphite-500">Total ${total.toLocaleString('es-CL')} · Saldo ${saldo.toLocaleString('es-CL')}</p>
               {p.requiereRevision && <p className="text-amber-700 font-semibold">Pendiente de revisión clínica antes del envío</p>}
             </div>

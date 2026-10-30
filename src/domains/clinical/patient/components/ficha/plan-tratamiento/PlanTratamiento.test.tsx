@@ -10,6 +10,7 @@ import { fichasClinicasStorageService } from '../../../services/fichasClinicasSt
 import { presupuestosStorageService } from '../../../../../billing/budget/services/presupuestosStorageService'
 import { presupuestoPlanSyncService } from '../../../../../billing/budget/services/presupuestoPlanSyncService'
 import { derivacionesService } from './derivacionesService'
+import * as authService from '../../../../../../infrastructure/auth/authService'
 
 vi.mock('../../../services/fichasClinicasStorageService', () => ({
   fichasClinicasStorageService: {
@@ -136,6 +137,32 @@ describe('PlanTratamiento BP06', () => {
     }, pacienteId))
     expect(screen.getByText('Prestación revisada (P.1.6)')).toBeInTheDocument()
     expect(screen.getByText('Plan guardado')).toBeInTheDocument()
+  })
+
+  it('muestra el plan completado al confirmarse el saldo y realizarse el tratamiento', async () => {
+    vi.spyOn(authService, 'getClinicaActivaSync').mockReturnValue('aaaaaaaa-0000-4000-8000-000000000001')
+    const presupuesto = {
+      id: 'bbbbbbbb-1111-4222-8333-444444444444', pacienteId, origenPlan: true,
+      planRevision: 'revision-anterior', versionGrupoId: 'grupo-1', version: 1,
+      montoTotal: 42000, montoAbonado: 0, estado: 'en-curso', sincronizado: true,
+      items: [{ id: 'item-1', origenPlanProcedimientoId: 'proc-1', codigoPrestacion: 'prest-1', precioPlanOriginal: 42000 }],
+    }
+    const obtener = vi.spyOn(presupuestosStorageService, 'obtenerPresupuestos').mockReturnValue([presupuesto])
+    vi.mocked(fichasClinicasStorageService.obtenerFichaClinica).mockResolvedValue({
+      odontograma: { actualizadoAt: 'od-1', piezas: [] },
+      plan_tratamiento: { actualizadoAt: 'revision-clinica-nueva', odontogramaActualizadoAt: 'od-1', fases: [{
+        id: 'fase-urgencias', nombre: 'Urgencias', subtitulo: '', procedimientos: [{
+          id: 'proc-1', descripcion: 'Control', prestacionId: 'prest-1', faseAsignada: 'urgencias',
+          costo: 42000, requiereRevision: false, estado: 'realizado',
+        }],
+      }] },
+    } as any)
+
+    render(<PlanTratamiento pacienteId={pacienteId} />)
+    await waitFor(() => expect(screen.getByTestId('estado-plan-tratamiento')).toHaveTextContent('saldo pendiente'))
+    obtener.mockReturnValue([{ ...presupuesto, montoAbonado: 42000, estado: 'completado' }])
+    act(() => window.dispatchEvent(new Event('presupuestos_actualizados')))
+    await waitFor(() => expect(screen.getByTestId('estado-plan-tratamiento')).toHaveTextContent('Plan completado'))
   })
 
   it('conserva el plan clínico y bloquea el presupuesto cuando cambia el odontograma', async () => {
