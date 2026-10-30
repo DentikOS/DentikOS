@@ -25,6 +25,7 @@ const { estadoMock, mockFrom } = vi.hoisted(() => ({
     user: { id: 'user-dentista-presupuestos' },
     supabaseError: null,
     supabasePadreError: null,
+    supabaseItemError: null,
     remotePresupuestos: [],
     remoteItems: [],
     presupuestosInsertados: [],
@@ -67,6 +68,7 @@ import {
   procesarPendingDeletesPresupuestos,
   obtenerPendingPresupuestos,
   obtenerPendingPresupuestoItems,
+  guardarPendingPresupuestoItems,
   obtenerPendingDeletesPresupuestos,
   obtenerPendingDeletesPresupuestoItems,
   sincronizarDesdeSupabase
@@ -84,6 +86,7 @@ describe('P1-3: Cola de Presupuestos (pendingPresupuestos + items)', () => {
     presupuestosStorageService.resetCache()
     estadoMock.supabaseError = null
     estadoMock.supabasePadreError = null
+    estadoMock.supabaseItemError = null
     estadoMock.remotePresupuestos = []
     estadoMock.remoteItems = []
     estadoMock.presupuestosInsertados = []
@@ -177,8 +180,8 @@ describe('P1-3: Cola de Presupuestos (pendingPresupuestos + items)', () => {
             return Promise.resolve({ data: payload, error: null })
           }),
           upsert: vi.fn((payload) => {
-            if (estadoMock.supabaseError) {
-              return Promise.resolve({ error: estadoMock.supabaseError })
+            if (estadoMock.supabaseError || estadoMock.supabaseItemError) {
+              return Promise.resolve({ error: estadoMock.supabaseError || estadoMock.supabaseItemError })
             }
             estadoMock.itemsInsertados.push(payload)
             return Promise.resolve({ error: null })
@@ -222,6 +225,104 @@ describe('P1-3: Cola de Presupuestos (pendingPresupuestos + items)', () => {
     })
     expect(estadoMock.presupuestosInsertados).toHaveLength(1)
     expect(estadoMock.presupuestosInsertados[0]).not.toHaveProperty('monto_abonado')
+  })
+
+  it('reintenta ítems fallidos sin reenviar una cabecera ya subida ni habilitar pagos antes de completar la sincronización', async () => {
+    estadoMock.supabaseItemError = new Error('Ítems temporalmente no disponibles')
+    const presupuesto = await guardarPresupuesto({
+      id: 901,
+      folio: 'PRES-PARCIAL',
+      pacienteId: 'aaaaaaaa-1111-2222-3333-444444444444',
+      pacienteNombre: 'Paciente',
+      montoTotal: 10000,
+      estado: 'Borrador',
+      items: [{ id: 'bbbbbbbb-1111-4222-8333-444444444444', prestacionNombre: 'Control', valor: 10000 }]
+    })
+
+    expect(presupuesto.sincronizado).toBe(false)
+    expect(estadoMock.presupuestosInsertados).toHaveLength(1)
+    expect(obtenerPendingPresupuestos()).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: presupuesto.id, padreSubido: true })
+    ]))
+    expect(obtenerPendingPresupuestoItems()).toHaveLength(1)
+
+    estadoMock.remotePresupuestos = [{
+      ...estadoMock.presupuestosInsertados[0],
+      monto_abonado: 4000,
+      detalle_items: presupuesto.items
+    }]
+    const refrescados = await sincronizarDesdeSupabase()
+    expect(refrescados.find((p) => p.id === presupuesto.id)).toMatchObject({
+      sincronizado: false,
+      montoAbonado: 4000
+    })
+
+    estadoMock.supabaseItemError = null
+    const resultado = await procesarColaPresupuestos()
+    expect(resultado.fallidos).toBe(0)
+    expect(estadoMock.presupuestosInsertados).toHaveLength(1)
+    expect(estadoMock.itemsInsertados).toHaveLength(1)
+    expect(obtenerPendingPresupuestos()).toHaveLength(0)
+    expect(obtenerPendingPresupuestoItems()).toHaveLength(0)
+    expect(presupuestosStorageService.obtenerPresupuestos().find((p) => p.id === presupuesto.id)).toMatchObject({
+      sincronizado: true,
+      montoAbonado: 4000
+    })
+  })
+
+  it('conserva el avance parcial al procesar la cola y evita duplicar el padre en el siguiente intento', async () => {
+    estadoMock.supabasePadreError = new Error('Sin conexión')
+    await guardarPresupuesto({
+      id: 902,
+      folio: 'PRES-COLA-PARCIAL',
+      pacienteId: 'aaaaaaaa-1111-2222-3333-444444444444',
+      pacienteNombre: 'Paciente',
+      montoTotal: 10000,
+      estado: 'Borrador',
+      items: [{ id: 'cccccccc-1111-4222-8333-444444444444', prestacionNombre: 'Control', valor: 10000 }]
+    })
+    estadoMock.supabasePadreError = null
+    estadoMock.supabaseItemError = new Error('Fallo del ítem')
+
+    const parcial = await procesarColaPresupuestos()
+    expect(parcial.fallidos).toBe(1)
+    expect(estadoMock.presupuestosInsertados).toHaveLength(1)
+    expect(obtenerPendingPresupuestos()[0]).toMatchObject({ padreSubido: true, idOriginal: 902 })
+    expect(presupuestosStorageService.obtenerPresupuestos().find((p) => p.folio === 'PRES-COLA-PARCIAL').sincronizado).toBe(false)
+
+    estadoMock.supabaseItemError = null
+    const reintento = await procesarColaPresupuestos()
+    expect(reintento.fallidos).toBe(0)
+    expect(estadoMock.presupuestosInsertados).toHaveLength(1)
+    expect(estadoMock.itemsInsertados).toHaveLength(1)
+    expect(obtenerPendingPresupuestos()).toHaveLength(0)
+    expect(obtenerPendingPresupuestoItems()).toHaveLength(0)
+  })
+
+  it('recupera ítems huérfanos de una cola antigua sin reenviar el presupuesto', async () => {
+    const id = 'dddddddd-1111-4222-8333-444444444444'
+    await guardarPresupuesto({
+      id,
+      folio: 'PRES-HUERFANO',
+      pacienteId: 'aaaaaaaa-1111-2222-3333-444444444444',
+      pacienteNombre: 'Paciente',
+      montoTotal: 10000,
+      estado: 'Borrador',
+      items: []
+    })
+    guardarPendingPresupuestoItems([{
+      id: 'eeeeeeee-1111-4222-8333-444444444444',
+      presupuestoId: id,
+      clinicaId: estadoMock.clinicaId,
+      prestacionNombre: 'Control',
+      valor: 10000
+    }])
+
+    const resultado = await procesarColaPresupuestos()
+    expect(resultado.procesados).toBe(1)
+    expect(estadoMock.presupuestosInsertados).toHaveLength(1)
+    expect(estadoMock.itemsInsertados).toHaveLength(1)
+    expect(obtenerPendingPresupuestoItems()).toHaveLength(0)
   })
 
   it('1. Encolado offline de presupuesto nuevo: guarda en localStorage con sincronizado: false y encola en pendingPresupuestos y pendingPresupuestoItems', async () => {
