@@ -41,6 +41,14 @@ Vite muestra la dirección local al iniciar; normalmente es `http://localhost:51
 
 Los comandos de base de datos (`db:reset`, `db:push`, `db:pull`, `db:diff`, `db:seed`, `db:verify`) están en `package.json`. Revisa el entorno enlazado antes de ejecutar operaciones sobre la base de datos.
 
+## BP06 y BP07: CORE de pacientes y presupuestos
+
+La ficha clínica mantiene el odontograma y el plan por paciente y clínica activa. Un hallazgo del odontograma queda **sin precio y pendiente de revisión clínica** hasta que un profesional seleccione una prestación configurada y una fase. El presupuesto se crea como borrador con los ítems y totales revisados; el módulo global permite aprobar o rechazar manualmente estados permitidos, archivar sin eliminar el historial y registrar abonos manuales vinculados al presupuesto. El abono se confirma mediante una función de PostgreSQL antes de actualizar el saldo local. El timeline registra eventos reales vinculados al paciente.
+
+Las migraciones [de integridad clínica y presupuestos](supabase/migrations/20261030000001_bp06_bp07_core_integrity.sql) y [de abonos manuales](supabase/migrations/20261030000002_bp07_manual_payments.sql) deben aplicarse **en ese orden**, primero en un entorno de pruebas. Incluyen columnas aditivas, restricciones, políticas RLS por clínica activa y paciente, auditoría de ficha y la función de registro de abonos. La interfaz puede iniciar con datos locales, pero estas operaciones conectadas no están listas para validación E2E hasta aplicar y probar ambas migraciones en una base de pruebas. Ninguna de estas migraciones se aplica al iniciar Vite.
+
+Las integraciones con SII, Mercado Pago, Transbank, WhatsApp y firma remota/biométrica quedan para una entrega posterior; este CORE no genera documentos fiscales ni confirmaciones externas. La sincronización offline de presupuestos conserva una cola local; el registro de abonos exige conexión para evitar saldos financieros ambiguos.
+
 ## Estructura
 
 ```text
