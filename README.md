@@ -51,6 +51,10 @@ Las migraciones [de integridad clínica y presupuestos](supabase/migrations/2026
 
 Las integraciones con SII, Mercado Pago, Transbank, WhatsApp y firma remota/biométrica quedan para una entrega posterior; este CORE no genera documentos fiscales ni confirmaciones externas. La sincronización offline de presupuestos conserva una cola local; el registro de abonos exige conexión para evitar saldos financieros ambiguos.
 
+### Estado de implementación pendiente
+
+El CORE de ambos blueprints aún no está completo. El arancel de prestaciones se comparte de forma reactiva entre módulos de una instalación, pero se guarda en `localStorage`; `public.prestaciones` no es todavía la fuente de datos. Por ello, una prestación configurada en otro navegador no se sincroniza. La ficha de derivación del plan solo muestra una confirmación visual y no persiste un documento clínico. El presupuesto toma una copia de los ítems del plan al crearse, pero los cambios posteriores del plan no se propagan a presupuestos existentes. La cola offline de presupuestos sube cabecera e ítems por separado y no garantiza atomicidad entre ambas tablas. Estos flujos requieren trabajo adicional antes de declarar BP06/BP07 completos.
+
 ## Estructura
 
 ```text

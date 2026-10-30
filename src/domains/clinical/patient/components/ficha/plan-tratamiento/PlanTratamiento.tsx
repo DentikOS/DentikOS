@@ -39,18 +39,23 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
   const [fases, setFases] = useState<FasePlan[]>(fasesVacias)
   const prestaciones = usePrestacionesStore((s) => s.prestacionesArancel)
   const [odontogramaActualizadoAt, setOdontogramaActualizadoAt] = useState<string | undefined>()
+  const [piezasActuales, setPiezasActuales] = useState<Parameters<typeof generarFasesDesdeOdontograma>[0]>([])
   const [guardando, setGuardando] = useState(false)
   const [planGuardado, setPlanGuardado] = useState(false)
+  const [odontogramaDesactualizado, setOdontogramaDesactualizado] = useState(false)
   const [error, setError] = useState('')
   const [mostrarDerivacion, setMostrarDerivacion] = useState(false)
   const [modalPresupuestoAbierto, setModalPresupuestoAbierto] = useState(false)
   const planOdontogramaStampRef = useRef<string | null>(null)
+  const planCargadoRef = useRef(false)
 
   useEffect(() => {
     let vigente = true
     setFases(fasesVacias())
     planOdontogramaStampRef.current = null
+    planCargadoRef.current = false
     setPlanGuardado(false)
+    setOdontogramaDesactualizado(false)
     if (!pacienteId) return
     fichasClinicasStorageService.obtenerFichaClinica(pacienteId).then((ficha) => {
       if (!vigente || !ficha) return
@@ -61,11 +66,14 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
         tipoPatologia: data.estadoGeneral || Object.values(data.caras || {}).find((cara) => cara !== 'sano') || 'sano',
       }))
       setOdontogramaActualizadoAt(od?.actualizadoAt)
+      setPiezasActuales(piezas as Parameters<typeof generarFasesDesdeOdontograma>[0])
       const plan = ficha.plan_tratamiento as { fases?: FasePlan[]; odontogramaActualizadoAt?: string } | null
-      if (Array.isArray(plan?.fases) && plan?.odontogramaActualizadoAt === od?.actualizadoAt) {
-        planOdontogramaStampRef.current = od?.actualizadoAt || null
+      if (Array.isArray(plan?.fases)) {
+        planCargadoRef.current = true
+        planOdontogramaStampRef.current = plan.odontogramaActualizadoAt || null
         setFases(plan.fases)
         setPlanGuardado(true)
+        setOdontogramaDesactualizado(plan.odontogramaActualizadoAt !== od?.actualizadoAt)
       } else {
         setFases(generarFasesDesdeOdontograma(piezas))
       }
@@ -75,7 +83,13 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
 
   useEffect(() => {
     if (odontogramaPacienteId === pacienteId && odontograma &&
-      !(planOdontogramaStampRef.current && odontograma.actualizadoAt === planOdontogramaStampRef.current)) {
+      !(planCargadoRef.current && odontograma.actualizadoAt === planOdontogramaStampRef.current)) {
+      setPiezasActuales(odontograma.piezas)
+      if (planCargadoRef.current) {
+        setOdontogramaActualizadoAt(odontograma.actualizadoAt)
+        setOdontogramaDesactualizado(true)
+        return
+      }
       setFases(generarFasesDesdeOdontograma(odontograma.piezas))
       setOdontogramaActualizadoAt(odontograma.actualizadoAt)
       setPlanGuardado(false)
@@ -106,7 +120,10 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
   }
 
   const guardarPlan = async () => {
-    if (!pacienteId) return
+    if (!pacienteId || odontogramaDesactualizado) {
+      setError('El odontograma cambió. Revisa el plan antes de guardarlo.')
+      return
+    }
     setGuardando(true)
     setError('')
     try {
@@ -141,7 +158,7 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
   ), [fases])
 
   const handleGenerarPresupuesto = () => {
-    if (!pacienteId || !planGuardado || fases[4].procedimientos.length > 0 || itemsPresupuesto.length === 0) {
+    if (!pacienteId || !planGuardado || odontogramaDesactualizado || fases.some((fase) => fase.id === 'fase-revision' && fase.procedimientos.length > 0) || itemsPresupuesto.length === 0) {
       setError('Guarda el plan y resuelve cada hallazgo con prestación y fase antes de generar el presupuesto.')
       return
     }
@@ -179,6 +196,21 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
       </div>
 
       {error && <p role="alert" className="text-xs text-rose-600">{error}</p>}
+
+      {odontogramaDesactualizado && (
+        <div role="alert" className="p-4 border border-amber-500/50 rounded-xl text-xs text-amber-700">
+          El odontograma cambió desde que se guardó este plan. Conservamos las decisiones clínicas anteriores. Revisa los hallazgos antes de continuar.
+          <button type="button" className="ml-2 underline font-semibold" onClick={() => {
+            if (!window.confirm('¿Reemplazar el plan actual por los hallazgos del odontograma? Se perderán las selecciones clínicas del plan anterior.')) return
+            setFases(generarFasesDesdeOdontograma(piezasActuales))
+            planOdontogramaStampRef.current = null
+            planCargadoRef.current = false
+            setPlanGuardado(false)
+            setOdontogramaDesactualizado(false)
+            setError('')
+          }}>Recrear plan desde odontograma</button>
+        </div>
+      )}
 
       {fases.every((fase) => fase.procedimientos.length === 0) && (
         <div className="p-4 bg-surface/60 border border-surface rounded-xl text-center text-xs text-graphite-500" data-testid="msg-sin-patologias">

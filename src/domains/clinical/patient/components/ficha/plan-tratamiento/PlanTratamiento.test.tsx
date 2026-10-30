@@ -110,6 +110,30 @@ describe('PlanTratamiento BP06', () => {
     expect(screen.getByText('Plan guardado')).toBeInTheDocument()
   })
 
+  it('conserva el plan clínico y bloquea el presupuesto cuando cambia el odontograma', async () => {
+    const actualizadoAt = '2026-10-30T12:00:00Z'
+    vi.mocked(fichasClinicasStorageService.obtenerFichaClinica).mockResolvedValue({
+      odontograma: { actualizadoAt, piezas: [{ numero: '1.6', estado: 'patologia', tipoPatologia: 'caries' }] },
+      plan_tratamiento: { odontogramaActualizadoAt: actualizadoAt, fases: [
+        { id: 'fase-urgencias', nombre: 'Fase 1: Urgencias', subtitulo: 'Asignación clínica', procedimientos: [{
+          id: 'hallazgo-1.6-0', descripcion: 'Prestación revisada (P.1.6)', pieza: '1.6',
+          hallazgo: 'caries', prestacionId: 'prest-1', faseAsignada: 'urgencias', costo: 42000,
+          requiereRevision: false, estado: 'pendiente',
+        }] },
+      ] },
+    } as any)
+    render(<PlanTratamiento pacienteId={pacienteId} />)
+    await waitFor(() => expect(screen.getByText('Prestación revisada (P.1.6)')).toBeInTheDocument())
+    act(() => useOdontogramaStore.getState().setOdontograma({
+      actualizadoAt: '2026-10-30T13:00:00Z', piezas: [{ numero: '2.4', estado: 'patologia', tipoPatologia: 'fractura' }],
+    }, pacienteId))
+    expect(screen.getByText('Prestación revisada (P.1.6)')).toBeInTheDocument()
+    expect(screen.getByText(/El odontograma cambió desde que se guardó este plan/)).toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('btn-generar-presupuesto-plan'))
+    expect(screen.queryByTestId('modal-nuevo-presupuesto')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Hallazgo fractura/)).not.toBeInTheDocument()
+  })
+
   it('no convierte una pieza sana en patología al leer la ficha', async () => {
     vi.mocked(fichasClinicasStorageService.obtenerFichaClinica).mockResolvedValue({
       odontograma: { piezasData: { '1.6': { estadoGeneral: 'sano', caras: { oclusal: 'sano' } } } },
