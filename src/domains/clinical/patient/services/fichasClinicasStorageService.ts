@@ -48,6 +48,8 @@ export const fichasClinicasStorageService = {
    */
   async obtenerFichaClinica(pacienteId: string): Promise<FichaClinicaRecord | null> {
     if (!pacienteId) return null
+    const clinicaId = getClinicaActivaSync()
+    if (!clinicaId) return null
     const cacheKey = `ficha_clinica_${pacienteId}`
 
     if (USE_SUPABASE && supabase && esUuidValido(pacienteId)) {
@@ -56,9 +58,10 @@ export const fichasClinicasStorageService = {
           .from('fichas_clinicas')
           .select('*')
           .eq('paciente_id', pacienteId)
+          .eq('clinica_id', clinicaId)
           .maybeSingle()
 
-        if (!error && data) {
+        if (!error && data?.clinica_id === clinicaId && data?.paciente_id === pacienteId) {
           try {
             tenantCache.escribirTenant(cacheKey, data)
           } catch {
@@ -73,12 +76,11 @@ export const fichasClinicasStorageService = {
 
     try {
       const cached = tenantCache.leerTenant<FichaClinicaRecord>(cacheKey, null as unknown as FichaClinicaRecord)
-      if (cached) return cached
+      if (cached?.clinica_id === clinicaId && cached?.paciente_id === pacienteId) return cached
     } catch {
       // Sin tenant cache
     }
 
-    const clinicaId = getClinicaActivaSync() || 'clinica-default'
     return {
       paciente_id: pacienteId,
       clinica_id: clinicaId,
@@ -95,29 +97,16 @@ export const fichasClinicasStorageService = {
     datos: unknown
   ): Promise<boolean> {
     if (!pacienteId) return false
+    const clinicaId = getClinicaActivaSync()
+    if (!clinicaId) return false
     const cacheKey = `ficha_clinica_${pacienteId}`
-    const clinicaId = getClinicaActivaSync() || 'clinica-default'
-
-    // Actualizar cache local
-    try {
-      const current = tenantCache.leerTenant<FichaClinicaRecord>(cacheKey, {
-        paciente_id: pacienteId,
-        clinica_id: clinicaId,
-        ...FICHA_VACIA,
-      } as FichaClinicaRecord)
-
-      const updated = {
-        ...current,
-        [seccion]: datos,
-        updated_at: new Date().toISOString(),
-      }
-      tenantCache.escribirTenant(cacheKey, updated)
-    } catch {
-      // Ignorar si tenantCache no tiene contexto
-    }
+    const current = tenantCache.leerTenant<FichaClinicaRecord | null>(cacheKey, null)
+    if (current && (current.clinica_id !== clinicaId || current.paciente_id !== pacienteId)) return false
+    const updatedAt = new Date().toISOString()
 
     // Persistir en Supabase
-    if (USE_SUPABASE && supabase && esUuidValido(pacienteId) && esUuidValido(clinicaId)) {
+    if (USE_SUPABASE && supabase) {
+      if (!esUuidValido(pacienteId) || !esUuidValido(clinicaId)) return false
       try {
         const { error } = await supabase
           .from('fichas_clinicas')
@@ -126,7 +115,7 @@ export const fichasClinicasStorageService = {
               paciente_id: pacienteId,
               clinica_id: clinicaId,
               [seccion]: datos,
-              updated_at: new Date().toISOString(),
+              updated_at: updatedAt,
             },
             { onConflict: 'clinica_id,paciente_id' }
           )
@@ -135,6 +124,11 @@ export const fichasClinicasStorageService = {
           log.error(`Error guardando ${String(seccion)} en Supabase:`, error.message)
           return false
         }
+        tenantCache.escribirTenant(cacheKey, {
+          ...(current || { paciente_id: pacienteId, clinica_id: clinicaId, ...FICHA_VACIA }),
+          [seccion]: datos,
+          updated_at: updatedAt,
+        })
         return true
       } catch (err) {
         log.error(`Excepción guardando ${String(seccion)} en Supabase:`, err)
@@ -142,7 +136,11 @@ export const fichasClinicasStorageService = {
       }
     }
 
-    return true
+    return tenantCache.escribirTenant(cacheKey, {
+      ...(current || { paciente_id: pacienteId, clinica_id: clinicaId, ...FICHA_VACIA }),
+      [seccion]: datos,
+      updated_at: updatedAt,
+    })
   },
 
   /**
