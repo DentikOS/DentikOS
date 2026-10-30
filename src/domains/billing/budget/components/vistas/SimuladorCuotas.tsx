@@ -1,14 +1,14 @@
 import React, { useState, useMemo } from 'react'
-import { CreditCard, Calendar, ExternalLink, Check, ShieldCheck, Zap } from 'lucide-react'
+import { CreditCard, Calendar, Check, Zap } from 'lucide-react'
 import { Button } from '../../../../../shared/ui/ui/Button'
 
 interface SimuladorCuotasProps {
-  montoTotal?: number
+  montoTotal: number
   onSeleccionarPlan?: (plan: { cuotas: number; valorCuota: number; total: number }) => void
 }
 
 export const SimuladorCuotas: React.FC<SimuladorCuotasProps> = ({
-  montoTotal = 650000,
+  montoTotal,
   onSeleccionarPlan,
 }) => {
   const [cuotasSeleccionadas, setCuotasSeleccionadas] = useState<number>(3)
@@ -18,21 +18,21 @@ export const SimuladorCuotas: React.FC<SimuladorCuotasProps> = ({
       {
         cuotas: 1,
         titulo: 'Pago Único Contado',
-        descripcion: 'Efectivo, Débito o Transferencia directa',
+        descripcion: 'Proyección de un único pago manual',
         valorCuota: montoTotal,
         sinInteres: true,
       },
       {
         cuotas: 3,
-        titulo: '3 Cuotas Sin Interés',
-        descripcion: 'Pago directo en clínica o tarjeta bancaria',
+        titulo: '3 cuotas iguales',
+        descripcion: 'Proyección matemática para revisión de la clínica',
         valorCuota: Math.round(montoTotal / 3),
         sinInteres: true,
       },
       {
         cuotas: 6,
-        titulo: '6 Cuotas Sin Interés',
-        descripcion: 'Convenio con tarjetas de crédito bancarias',
+        titulo: '6 cuotas iguales',
+        descripcion: 'Proyección matemática para revisión de la clínica',
         valorCuota: Math.round(montoTotal / 6),
         sinInteres: true,
       },
@@ -49,7 +49,7 @@ export const SimuladorCuotas: React.FC<SimuladorCuotasProps> = ({
       return {
         numero: i + 1,
         fecha: fechaCuota.toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' }),
-        monto: cuotaMonto,
+        monto: i === cuotasSeleccionadas - 1 ? montoTotal - cuotaMonto * (cuotasSeleccionadas - 1) : cuotaMonto,
       }
     })
   }, [montoTotal, cuotasSeleccionadas])
@@ -71,11 +71,11 @@ export const SimuladorCuotas: React.FC<SimuladorCuotasProps> = ({
           <div className="flex items-center gap-2">
             <CreditCard className="w-5 h-5 text-primary" />
             <h3 className="text-base font-bold text-graphite-900 dark:text-graphite-50">
-              Simulador Inteligente de Financiamiento & Cuotas (BP07 §09)
+              Simulación de cuotas
             </h3>
           </div>
           <p className="text-xs text-graphite-500 mt-0.5">
-            Planes de pago flexibles en cuotas sin interés y pasarelas bancarias.
+            Proyección informativa; la clínica debe confirmar cualquier plan de pago.
           </p>
         </div>
         <div className="text-right">
@@ -101,11 +101,6 @@ export const SimuladorCuotas: React.FC<SimuladorCuotasProps> = ({
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-xs font-bold text-graphite-900 dark:text-graphite-100">{p.titulo}</span>
-                  {p.sinInteres && (
-                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 font-bold text-[10px]">
-                      0% Interés
-                    </span>
-                  )}
                 </div>
                 <p className="text-[11px] text-graphite-500 mb-3">{p.descripcion}</p>
               </div>
@@ -129,7 +124,7 @@ export const SimuladorCuotas: React.FC<SimuladorCuotasProps> = ({
           <span className="text-xs font-bold text-graphite-700 dark:text-graphite-300 flex items-center gap-1.5">
             <Calendar className="w-4 h-4 text-primary" /> Calendario Proyectado de Vencimientos ({calendarioPagos.length} cuotas)
           </span>
-          <span className="text-[11px] text-graphite-400 font-mono">Sin costos de apertura</span>
+          <span className="text-[11px] text-graphite-400 font-mono">Proyección, no cobro programado</span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -143,24 +138,6 @@ export const SimuladorCuotas: React.FC<SimuladorCuotasProps> = ({
             </div>
           ))}
         </div>
-      </div>
-
-      <div className="p-3 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 border border-blue-500/20 rounded-xl flex items-center justify-between gap-3 text-xs">
-        <div className="flex items-center gap-2">
-          <ShieldCheck className="w-5 h-5 text-blue-500 shrink-0" />
-          <div>
-            <span className="font-bold text-graphite-900 dark:text-graphite-100">¿Necesita hasta 12 cuotas con su banco?</span>
-            <p className="text-[11px] text-graphite-500">Pague online con Webpay Plus o MercadoPago con las promociones de su tarjeta.</p>
-          </div>
-        </div>
-        <a
-          href="https://www.webpay.cl"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="px-3 py-1.5 rounded-lg bg-blue-600 text-white font-semibold flex items-center gap-1 hover:bg-blue-700 whitespace-nowrap text-xs"
-        >
-          Transbank / Webpay <ExternalLink className="w-3 h-3" />
-        </a>
       </div>
 
       <div className="flex items-center justify-end pt-2">

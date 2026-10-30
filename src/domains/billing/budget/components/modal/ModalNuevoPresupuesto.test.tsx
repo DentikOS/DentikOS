@@ -1,48 +1,59 @@
 import React from 'react'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 import { ModalNuevoPresupuesto } from './ModalNuevoPresupuesto'
 
+vi.mock('../../../cash-register/services/finanzasStorageService', () => ({
+  finanzasStorageService: { obtenerConvenios: vi.fn(() => []) },
+}))
+
+const props = {
+  pacienteId: 'paciente-1',
+  pacienteNombre: 'Paciente Real',
+  onGuardar: vi.fn(),
+  onCerrar: vi.fn(),
+}
+
+const itemsIniciales = [{
+  id: 'item-1', nombrePrestacion: 'Prestación revisada', cantidad: 1,
+  precioUnitario: 42000, descuento: 0, subtotal: 42000, faseClinica: 'estabilizacion' as const,
+}]
+
 describe('ModalNuevoPresupuesto BP07', () => {
-  it('renderiza modal con vista simplificada por defecto', () => {
-    render(<ModalNuevoPresupuesto onCerrar={vi.fn()} />)
-    expect(screen.getByTestId('modal-nuevo-presupuesto')).toBeInTheDocument()
+  it('abre sin prestaciones ficticias ni descuentos automáticos', () => {
+    render(<ModalNuevoPresupuesto {...props} />)
     expect(screen.getByTestId('presupuesto-vista-simplificada')).toBeInTheDocument()
     expect(screen.getByText(/Fase urgencias/i)).toBeInTheDocument()
+    expect(screen.getByText(/Total Bruto:/i)).toHaveTextContent('$0')
+    expect(screen.queryByText(/Evaluación y Diagnóstico Integral/i)).not.toBeInTheDocument()
   })
 
-  it('permite alternar entre vista simplificada y detallada', () => {
-    render(<ModalNuevoPresupuesto onCerrar={vi.fn()} />)
-
-    // Cambiar a detallada
+  it('alterna vistas y configura cuotas sobre items reales', () => {
+    render(<ModalNuevoPresupuesto {...props} itemsIniciales={itemsIniciales} />)
     fireEvent.click(screen.getByTestId('btn-vista-detallada'))
     expect(screen.getByTestId('presupuesto-vista-detallada')).toBeInTheDocument()
-
-    // Volver a simplificada
     fireEvent.click(screen.getByTestId('btn-vista-simplificada'))
     expect(screen.getByTestId('presupuesto-vista-simplificada')).toBeInTheDocument()
-  })
-
-  it('crea el presupuesto y llama a onGuardar con boton Guardar presupuesto', () => {
-    const onGuardar = vi.fn()
-    render(<ModalNuevoPresupuesto onGuardar={onGuardar} onCerrar={vi.fn()} />)
-
-    fireEvent.click(screen.getByTestId('btn-guardar-presupuesto'))
-    expect(onGuardar).toHaveBeenCalledWith(
-      expect.objectContaining({ estado: 'borrador' })
-    )
-  })
-
-  it('abre modal para configurar cuota', () => {
-    render(<ModalNuevoPresupuesto onCerrar={vi.fn()} />)
     fireEvent.click(screen.getByTestId('btn-configurar-cuota'))
     expect(screen.getByTestId('modal-configurar-cuotas')).toBeInTheDocument()
   })
 
-  it('aplica bonificación automática de convenio FONASA o ISAPRE', () => {
-    render(<ModalNuevoPresupuesto onCerrar={vi.fn()} />)
-    const select = screen.getByRole('combobox')
-    fireEvent.change(select, { target: { value: 'fonasa' } })
-    expect(screen.getByText(/Descuento Convenio:/i)).toHaveTextContent('15%')
+  it('guarda un borrador solo con prestaciones revisadas', async () => {
+    const onGuardar = vi.fn().mockResolvedValue(true)
+    const onCerrar = vi.fn()
+    render(<ModalNuevoPresupuesto {...props} itemsIniciales={itemsIniciales} onGuardar={onGuardar} onCerrar={onCerrar} />)
+    fireEvent.click(screen.getByTestId('btn-guardar-presupuesto'))
+    await waitFor(() => expect(onGuardar).toHaveBeenCalledWith(expect.objectContaining({
+      pacienteId: 'paciente-1', estado: 'borrador', totalAPagar: 42000,
+    })))
+    expect(onCerrar).toHaveBeenCalled()
+  })
+
+  it('mantiene abierto el borrador cuando falla el guardado', async () => {
+    const onCerrar = vi.fn()
+    render(<ModalNuevoPresupuesto {...props} itemsIniciales={itemsIniciales} onGuardar={vi.fn().mockResolvedValue(false)} onCerrar={onCerrar} />)
+    fireEvent.click(screen.getByTestId('btn-guardar-presupuesto'))
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('No se pudo guardar'))
+    expect(onCerrar).not.toHaveBeenCalled()
   })
 })

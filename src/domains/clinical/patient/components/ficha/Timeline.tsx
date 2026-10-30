@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Clock, FileText, CreditCard, ShieldCheck, Pill, Calendar, Activity, ShieldAlert } from 'lucide-react'
 import { timelineService, type EventoTimeline } from '../../services/timelineService'
 import { Badge } from '../../../../../shared/ui/ui/Badge'
@@ -30,7 +30,15 @@ const BADGES_TIPO: Record<string, { label: string; variant: 'success' | 'warning
 }
 
 export const Timeline: React.FC<TimelineProps> = ({ pacienteId }) => {
-  const eventos = useMemo(() => timelineService.obtenerTimeline(pacienteId), [pacienteId])
+  const [eventos, setEventos] = useState<EventoTimeline[]>(() => timelineService.obtenerTimeline(pacienteId))
+  useEffect(() => {
+    let vigente = true
+    setEventos(timelineService.obtenerTimeline(pacienteId))
+    timelineService.cargarTimeline(pacienteId).then((cargados) => {
+      if (vigente) setEventos(cargados)
+    }).catch(() => {})
+    return () => { vigente = false }
+  }, [pacienteId])
 
   return (
     <div className="space-y-6" data-testid="timeline-paciente">

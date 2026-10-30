@@ -24,6 +24,7 @@ import { supabase, USE_SUPABASE } from '../../../../infrastructure/supabase/supa
 import { migrationStorageService } from '../../../../infrastructure/persistence/migrationStorageService'
 import { esUuidValido } from '../../../../infrastructure/supabase/migrations/uuidUtils'
 import { createLogger } from '../../../../infrastructure/logging/logger'
+import { TRANSICIONES_MANUALES_PRESUPUESTO } from '../constants/presupuestosConstants'
 import {
   guardarPresupuestoHelper,
   guardarItemPresupuestoHelper,
@@ -254,6 +255,44 @@ export const resetCache = (): void => {
   cacheInicializado = false
 }
 
+export const aplicarAbonoConfirmado = (
+  presupuestoId: string | number,
+  montoAbonado: number,
+  estado: string
+): void => {
+  const existentes = obtenerPresupuestos([])
+  actualizarPresupuestosLocal(existentes.map((p) =>
+    String(p.id) === String(presupuestoId) ? { ...p, montoAbonado, estado } : p
+  ))
+}
+
+export const archivarPresupuesto = async (presupuestoId: string | number): Promise<boolean> => {
+  const presupuesto = obtenerPresupuestos([]).find((p) => String(p.id) === String(presupuestoId))
+  if (!presupuesto || presupuesto.estado === 'archivado' || !presupuesto.pacienteId) return false
+  const guardado = await guardarPresupuesto({
+    ...presupuesto,
+    estado: 'archivado',
+    archivadoAt: new Date().toISOString(),
+    version: Number(presupuesto.version || 1) + 1,
+  })
+  return Boolean(guardado)
+}
+
+export const actualizarEstadoPresupuesto = async (
+  presupuestoId: string | number,
+  nuevoEstado: string
+): Promise<boolean> => {
+  const presupuesto = obtenerPresupuestos([]).find((p) => String(p.id) === String(presupuestoId))
+  if (!presupuesto || !presupuesto.pacienteId ||
+    !TRANSICIONES_MANUALES_PRESUPUESTO[presupuesto.estado || '']?.includes(nuevoEstado)) return false
+  const guardado = await guardarPresupuesto({
+    ...presupuesto,
+    estado: nuevoEstado,
+    version: Number(presupuesto.version || 1) + 1,
+  })
+  return Boolean(guardado)
+}
+
 export const presupuestosStorageService = {
   obtenerPresupuestos,
   guardarPresupuestos,
@@ -265,6 +304,9 @@ export const presupuestosStorageService = {
   procesarPendingDeletesPresupuestos,
   sincronizarDesdeSupabase,
   resetCache,
+  aplicarAbonoConfirmado,
+  archivarPresupuesto,
+  actualizarEstadoPresupuesto,
   obtenerPendingPresupuestos,
   guardarPendingPresupuestos,
   obtenerPendingPresupuestoItems,
@@ -322,22 +364,6 @@ export const presupuestosStorageService = {
           }
         }
       }
-    }
-  },
-
-  actualizarEstadoPresupuesto: (presupuestoId: string | number, nuevoEstado: string): void => {
-    const guardados = presupuestosCache || presupuestosRepo.obtener([])
-    const actualizados = guardados.map((p) =>
-      p.id === presupuestoId ? { ...p, estado: nuevoEstado } : p
-    )
-    presupuestosCache = actualizados
-    presupuestosRepo.guardar(actualizados)
-
-    if (USE_SUPABASE && supabase && esUuidValido(presupuestoId)) {
-      supabase.from('presupuestos').update({ estado: nuevoEstado }).eq('id', presupuestoId)
-        .then(({ error }: { error: { message: string } | null }) => {
-          if (error) log.error('Error al actualizar estado en Supabase:', error)
-        })
     }
   },
 

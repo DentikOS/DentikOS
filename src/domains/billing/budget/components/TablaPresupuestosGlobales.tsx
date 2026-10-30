@@ -1,18 +1,14 @@
 import React, { memo } from 'react'
-import { ESTADOS_PRESUPUESTO } from '../constants/presupuestosConstants'
-import { FileText, Trash2, Users } from 'lucide-react'
-import type { PresupuestoLocal, PresupuestoItemLocal } from '../services/presupuestosStorageService'
+import { ESTADOS_PRESUPUESTO, TRANSICIONES_MANUALES_PRESUPUESTO } from '../constants/presupuestosConstants'
+import { FileText, Archive, Users } from 'lucide-react'
+import type { PresupuestoLocal } from '../services/presupuestosStorageService'
 
 export interface TablaPresupuestosGlobalesProps {
   presupuestos: PresupuestoLocal[]
-  onCambiarEstado: (presupuestoId: string | number, nuevoEstado: string) => void
+  onCambiarEstado: (presupuestoId: string | number, nuevoEstado: string) => Promise<boolean>
   onVerFichaPaciente: (presupuesto: PresupuestoLocal) => void
   onVerDocumento: (presupuesto: PresupuestoLocal) => void
-  onEliminar: (
-    presupuestoId: string | number,
-    pacienteId: string | number,
-    items?: PresupuestoItemLocal[]
-  ) => void
+  onArchivar: (presupuestoId: string | number) => void
   onRegistrarPago?: (presupuesto: PresupuestoLocal) => void
 }
 
@@ -21,7 +17,7 @@ export const TablaPresupuestosGlobales: React.FC<TablaPresupuestosGlobalesProps>
   onCambiarEstado,
   onVerFichaPaciente,
   onVerDocumento,
-  onEliminar,
+  onArchivar,
   onRegistrarPago
 }) => {
   if (presupuestos.length === 0) {
@@ -84,9 +80,11 @@ export const TablaPresupuestosGlobales: React.FC<TablaPresupuestosGlobalesProps>
                   <select
                     value={p.estado}
                     onChange={(e) => onCambiarEstado(p.id, e.target.value)}
+                    disabled={!TRANSICIONES_MANUALES_PRESUPUESTO[p.estado || '']?.length}
                     className={`px-2 py-1 rounded-lg font-bold text-[10px] border bg-surface cursor-pointer ${configEstado.colorText} ${configEstado.colorBorder}`}
                   >
-                    {ESTADOS_PRESUPUESTO.map((e) => (
+                    {ESTADOS_PRESUPUESTO.filter((e) => e.id === p.estado ||
+                      TRANSICIONES_MANUALES_PRESUPUESTO[p.estado || '']?.includes(e.id)).map((e) => (
                       <option key={e.id} value={e.id}>
                         {e.nombre}
                       </option>
@@ -138,13 +136,13 @@ export const TablaPresupuestosGlobales: React.FC<TablaPresupuestosGlobalesProps>
                     </span>
                   </button>
 
-                  <button
-                    onClick={() => p.pacienteId && onEliminar(p.id, p.pacienteId, p.items as PresupuestoItemLocal[] | undefined)}
-                    className="p-1.5 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 font-semibold rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30 transition-micro cursor-pointer"
-                    title="Eliminar presupuesto"
+                  {p.estado !== 'archivado' && <button
+                    onClick={() => onArchivar(p.id)}
+                    className="p-1.5 text-graphite-500 hover:text-graphite-700 font-semibold rounded-lg hover:bg-surface-hover transition-micro cursor-pointer"
+                    title="Archivar presupuesto"
                   >
-                    <Trash2 size={12} />
-                  </button>
+                    <Archive size={12} />
+                  </button>}
                 </td>
               </tr>
             )

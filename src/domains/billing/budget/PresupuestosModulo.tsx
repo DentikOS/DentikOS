@@ -7,11 +7,12 @@ import { ModalNuevoPresupuesto } from './components/ModalNuevoPresupuesto'
 import { ModalRegistrarPago } from './components/ModalRegistrarPago'
 import { DocumentoPresupuestoImprimible, type UserProfilePresupuesto } from './components/DocumentoPresupuestoImprimible'
 import { usePacientesStore } from '../../../app/stores/pacientesStore'
-import { usePrestacionesStore } from '../../../app/stores/prestacionesStore'
+import { prestacionesStorageService } from '../../organization/prestations/services/prestacionesStorageService'
 import { useSesionStore } from '../../../app/stores/sesionStore'
 import { useAppDialog } from '../../../shared/hooks/useAppDialog'
 import { ClipboardList } from 'lucide-react'
-import { presupuestosStorageService, type PresupuestoLocal } from './services/presupuestosStorageService'
+import type { PresupuestoLocal } from './services/presupuestosStorageService'
+import { pagosService } from './services/pagosService'
 import type { PacienteFormRef, PrestacionFormRef } from './components/CamposFormularioPresupuesto'
 
 export interface PresupuestosModuloProps {
@@ -28,7 +29,7 @@ export const PresupuestosModulo: React.FC<PresupuestosModuloProps> = memo(({
   // setActiveSection son navegación local de App.jsx, fuera del alcance de F2-01,
   // así que se quedan como props.
   const pacientes = usePacientesStore((state) => state.pacientes)
-  const prestaciones = usePrestacionesStore((state) => state.prestacionesArancel)
+  const prestaciones = prestacionesStorageService.obtenerPrestaciones([]) || []
   const userProfile = useSesionStore((state) => state.userProfile)
 
   const [modalAbierto, setModalAbierto] = useState<boolean>(false)
@@ -53,7 +54,7 @@ export const PresupuestosModulo: React.FC<PresupuestosModuloProps> = memo(({
     setEstadoFiltro,
     agregarPresupuesto,
     cambiarEstadoPresupuesto,
-    eliminarPresupuesto
+    archivarPresupuesto
   } = usePresupuestos(pacientes)
 
   const handleVerFichaPaciente = async (presupuesto: PresupuestoLocal): Promise<void> => {
@@ -87,7 +88,7 @@ export const PresupuestosModulo: React.FC<PresupuestosModuloProps> = memo(({
           onClick={() => setModalAbierto(true)}
           className="bg-primary hover:bg-champagne-600 dark:bg-gold-satin dark:hover:bg-primary text-white dark:text-graphite-950 text-xs font-bold px-4 py-2.5 rounded-lg transition-micro shadow-xs cursor-pointer"
         >
-          + Emitir Presupuesto
+          + Nuevo borrador
         </button>
       </div>
 
@@ -114,6 +115,7 @@ export const PresupuestosModulo: React.FC<PresupuestosModuloProps> = memo(({
                 className="p-2 border border-surface rounded-lg bg-white dark:bg-graphite-800 surgical:bg-graphite-200 text-graphite-900 dark:text-graphite-100 surgical:text-black font-semibold flex-1 sm:flex-initial focus:ring-2 focus:ring-primary/40 cursor-pointer"
               >
                 <option value="Todos">Todos los estados</option>
+                <option value="Archivados">Archivados</option>
                 {ESTADOS_PRESUPUESTO.map((e) => (
                   <option key={e.id} value={e.id}>
                     {e.nombre}
@@ -133,10 +135,19 @@ export const PresupuestosModulo: React.FC<PresupuestosModuloProps> = memo(({
 
           <TablaPresupuestosGlobales
             presupuestos={presupuestos}
-            onCambiarEstado={cambiarEstadoPresupuesto}
+            onCambiarEstado={async (id, estado) => {
+              try {
+                const ok = await cambiarEstadoPresupuesto(id, estado)
+                if (!ok) await dialogAlert({ title: 'Estado no actualizado', description: 'Revisa el presupuesto y vuelve a intentar.', variant: 'warning', confirmText: 'Entendido' })
+                return ok
+              } catch {
+                await dialogAlert({ title: 'Estado no actualizado', description: 'Revisa el presupuesto y vuelve a intentar.', variant: 'warning', confirmText: 'Entendido' })
+                return false
+              }
+            }}
             onVerFichaPaciente={handleVerFichaPaciente}
             onVerDocumento={setPresupuestoVerDocumento}
-            onEliminar={eliminarPresupuesto}
+            onArchivar={archivarPresupuesto}
             onRegistrarPago={(p) => setPresupuestoParaPago(p)}
           />
         </>
@@ -158,15 +169,18 @@ export const PresupuestosModulo: React.FC<PresupuestosModuloProps> = memo(({
           folioPresupuesto={presupuestoParaPago.folio}
           pacienteNombre={presupuestoParaPago.pacienteNombre}
           onRegistrarPago={async (pago) => {
-            const nuevoAbonado = (presupuestoParaPago.montoAbonado || 0) + pago.monto
-            await presupuestosStorageService.guardarPresupuesto({
-              ...presupuestoParaPago,
-              montoAbonado: nuevoAbonado,
-              estado: nuevoAbonado >= (presupuestoParaPago.montoTotal || 0) ? 'Completado' : presupuestoParaPago.estado,
-            })
-            setPresupuestoParaPago(null)
-            if (setActiveSection) {
-              setActiveSection('Pagos')
+            try {
+              await pagosService.registrarPagoManual({
+                pagoId: pago.id,
+                presupuestoId: presupuestoParaPago.id,
+                monto: pago.monto,
+                medioPago: pago.medioPago,
+                referencia: pago.referencia,
+              })
+              setPresupuestoParaPago(null)
+              return true
+            } catch {
+              return false
             }
           }}
           onCerrar={() => setPresupuestoParaPago(null)}

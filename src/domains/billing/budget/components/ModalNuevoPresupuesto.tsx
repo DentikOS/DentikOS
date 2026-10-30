@@ -4,10 +4,7 @@
  */
 import React, { memo, useState, useEffect } from 'react'
 import { generarFolioPresupuesto } from '../utils/presupuestosCalculations'
-import {
-  presupuestosStorageService,
-  type PresupuestoLocal
-} from '../services/presupuestosStorageService'
+import type { PresupuestoLocal } from '../services/presupuestosStorageService'
 import { obtenerFechaLocalISO } from '../../../../shared/utils/dateUtils'
 import { odontogramaStorageService } from '../../../clinical/odontogram'
 import { createLogger } from '../../../../infrastructure/logging/logger'
@@ -21,13 +18,14 @@ import {
   type ItemSeleccionadoPresupuesto
 } from './CamposFormularioPresupuesto'
 import { useAppDialog } from '../../../../shared/hooks/useAppDialog'
+import { finanzasStorageService } from '../../cash-register/services/finanzasStorageService'
 
 const log = createLogger('ModalNuevoPresupuesto')
 
 export interface ModalNuevoPresupuestoProps {
   pacientes?: PacienteFormRef[]
   prestaciones?: PrestacionFormRef[]
-  alGuardar: (nuevoPresupuesto: PresupuestoLocal) => void
+  alGuardar: (nuevoPresupuesto: PresupuestoLocal) => boolean | Promise<boolean>
   alCerrar: () => void
 }
 
@@ -40,7 +38,9 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = memo(
   const [pacienteId, setPacienteId] = useState<string>('')
   const { alert: dialogAlert } = useAppDialog()
   const [convenio, setConvenio] = useState<string>('Particular')
+  const [convenios] = useState(() => finanzasStorageService.obtenerConvenios([]))
   const [observacion, setObservacion] = useState<string>('')
+  const [guardando, setGuardando] = useState(false)
 
   const [itemsSeleccionados, setItemsSeleccionados] = useState<ItemSeleccionadoPresupuesto[]>([])
   const [prestacionSelId, setPrestacionSelId] = useState<string>('')
@@ -49,6 +49,7 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = memo(
   const [hallazgosOdontograma, setHallazgosOdontograma] = useState<HallazgoOdontograma[]>([])
 
   useEffect(() => {
+    setItemsSeleccionados([])
     if (!pacienteId) {
       setHallazgosOdontograma([])
       return
@@ -89,12 +90,12 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = memo(
     if (!prest) return
 
     const nuevoItem: ItemSeleccionadoPresupuesto = {
-      id: Date.now(),
+      id: crypto.randomUUID(),
       pieza: piezaDental || 'General',
       prestacion: prest.nombre,
       convenio,
-      precioBase: parseFloat(String(prest.precioParticular ?? prest.precio ?? 0)) || 0,
-      valor: parseFloat(String(prest.precioParticular ?? prest.precio ?? 0)) || 0,
+      precioBase: Number(prest.precioParticular ?? prest.precio ?? 0),
+      valor: Number(prest.precioParticular ?? prest.precio ?? 0),
       estado: 'Pendiente'
     }
 
@@ -104,28 +105,8 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = memo(
   }
 
   const handleImportarHallazgo = (hallazgo: HallazgoOdontograma): void => {
-    const prestacionEncontrada =
-      prestaciones.find((p) =>
-        p.nombre.toLowerCase().includes(hallazgo.diagnostico.toLowerCase())
-      ) || prestaciones[0]
-
-    const precio = prestacionEncontrada
-      ? parseFloat(String(prestacionEncontrada.precioParticular ?? prestacionEncontrada.precio ?? 0)) || 0
-      : 35000
-
-    const nuevoItem: ItemSeleccionadoPresupuesto = {
-      id: Date.now() + Math.random(),
-      pieza: hallazgo.pieza,
-      prestacion: prestacionEncontrada
-        ? `${hallazgo.diagnostico} — ${prestacionEncontrada.nombre}`
-        : hallazgo.diagnostico,
-      convenio,
-      precioBase: precio,
-      valor: precio,
-      estado: 'Pendiente'
-    }
-
-    setItemsSeleccionados((prev) => [...prev, nuevoItem])
+    setPiezaDental(hallazgo.pieza)
+    setPrestacionSelId('')
   }
 
   const handleEliminarItem = (itemId: string | number): void => {
@@ -136,6 +117,7 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = memo(
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault()
+    if (guardando) return
     if (!pacienteId) {
       await dialogAlert({
         title: 'Paciente requerido',
@@ -145,10 +127,10 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = memo(
       })
       return
     }
-    if (itemsSeleccionados.length === 0) {
+    if (itemsSeleccionados.length === 0 || itemsSeleccionados.some((item) => Number(item.valor) <= 0)) {
       await dialogAlert({
         title: 'Prestaciones requeridas',
-        description: 'Agrega al menos una prestación al presupuesto.',
+        description: 'Agrega prestaciones configuradas y revisa sus precios antes de guardar.',
         variant: 'warning',
         confirmText: 'Entendido'
       })
@@ -156,9 +138,10 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = memo(
     }
 
     const pac = pacientes.find((p) => String(p.id) === String(pacienteId))
+    if (!pac) return
 
     const nuevoPresupuesto: PresupuestoLocal = {
-      id: Date.now(),
+      id: crypto.randomUUID(),
       folio: generarFolioPresupuesto(),
       pacienteId: pac?.id,
       pacienteNombre: pac?.nombre || 'Paciente',
@@ -168,24 +151,35 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = memo(
       convenio,
       montoTotal,
       montoAbonado: 0,
-      estado: 'Emitido',
+      estado: 'borrador',
+      fechaVencimiento: new Date(Date.now() + 30 * 86400000).toISOString(),
+      version: 1,
       items: itemsSeleccionados,
       observacion
     }
 
-    if (pac?.id) {
-      presupuestosStorageService.sincronizarConFichaPaciente(
-        pac.id,
-        itemsSeleccionados,
-        convenio
-      )
+    setGuardando(true)
+    let guardado = false
+    try {
+      guardado = await alGuardar(nuevoPresupuesto)
+    } catch {
+      guardado = false
+    } finally {
+      setGuardando(false)
+    }
+    if (!guardado) {
+      await dialogAlert({
+        title: 'No se pudo guardar',
+        description: 'Revisa la clínica activa y el paciente antes de intentar de nuevo.',
+        variant: 'warning',
+        confirmText: 'Entendido'
+      })
+      return
     }
 
-    alGuardar(nuevoPresupuesto)
-
     await dialogAlert({
-      title: 'Presupuesto creado',
-      description: `Presupuesto ${nuevoPresupuesto.folio} creado exitosamente para ${pac?.nombre || 'paciente'}.`,
+      title: 'Borrador guardado',
+      description: `Presupuesto ${nuevoPresupuesto.folio} guardado como borrador para ${pac?.nombre || 'paciente'}. Si estás sin conexión, quedará pendiente de sincronización.`,
       variant: 'success',
       confirmText: 'Entendido'
     })
@@ -197,17 +191,18 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = memo(
     <Modal
       isOpen={true}
       onClose={alCerrar}
-      title="Emitir Presupuesto Formal Cotizado"
+      title="Nuevo borrador de presupuesto"
       size="lg"
     >
       <p className="text-[11px] text-graphite-500 dark:text-graphite-400 mb-4">
-        Sincronizado con la Ficha Clínica y el Arancel Oficial.
+        Selecciona prestaciones del arancel configurado para esta clínica. Los hallazgos requieren revisión clínica.
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-3">
         <CamposFormularioPresupuesto
           pacientes={pacientes}
           prestaciones={prestaciones}
+          convenios={convenios}
           pacienteId={pacienteId}
           convenio={convenio}
           hallazgosOdontograma={hallazgosOdontograma}
@@ -231,8 +226,8 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = memo(
           <Button type="button" onClick={alCerrar} variant="ghost" fullWidth>
             Cancelar
           </Button>
-          <Button type="submit" variant="primary" fullWidth>
-            Guardar y Emitir
+          <Button type="submit" variant="primary" fullWidth disabled={guardando}>
+            {guardando ? 'Guardando…' : 'Guardar borrador'}
           </Button>
         </div>
       </form>

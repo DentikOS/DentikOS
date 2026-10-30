@@ -9,6 +9,7 @@ import { Input } from '../../../../shared/ui/ui/Input'
 import { X } from 'lucide-react'
 
 import type { PresupuestoItemLocal } from '../services/presupuestosStorageService'
+import type { ConvenioConfig } from '../../cash-register/constants/finanzasConstants'
 
 export interface HallazgoOdontograma {
   pieza: string
@@ -36,6 +37,7 @@ export interface PrestacionFormRef {
 export interface CamposFormularioPresupuestoProps {
   pacientes: PacienteFormRef[]
   prestaciones: PrestacionFormRef[]
+  convenios: ConvenioConfig[]
   pacienteId: string | number
   convenio: string
   hallazgosOdontograma: HallazgoOdontograma[]
@@ -57,6 +59,7 @@ export interface CamposFormularioPresupuestoProps {
 export const CamposFormularioPresupuesto: React.FC<CamposFormularioPresupuestoProps> = ({
   pacientes,
   prestaciones,
+  convenios,
   pacienteId,
   convenio,
   hallazgosOdontograma,
@@ -87,7 +90,8 @@ export const CamposFormularioPresupuesto: React.FC<CamposFormularioPresupuestoPr
             onChange={(e) => {
               setPacienteId(e.target.value)
               const pac = pacientes.find((p) => String(p.id) === String(e.target.value))
-              if (pac?.prevision) setConvenio(pac.prevision)
+              const configurado = convenios.find((item) => item.id.toLowerCase() === pac?.prevision?.toLowerCase() || item.nombre.toLowerCase() === pac?.prevision?.toLowerCase())
+              setConvenio(configurado?.nombre || 'Particular')
             }}
             className="w-full p-2.5 rounded-xl border border-gray-300 dark:border-graphite-600 bg-white dark:bg-graphite-900 font-bold cursor-pointer dark:text-graphite-100"
           >
@@ -110,9 +114,9 @@ export const CamposFormularioPresupuesto: React.FC<CamposFormularioPresupuestoPr
             className="w-full p-2.5 rounded-xl border border-gray-300 dark:border-graphite-600 bg-white dark:bg-graphite-900 font-semibold cursor-pointer dark:text-graphite-100"
           >
             <option value="Particular">Particular</option>
-            <option value="Fonasa">Fonasa (-15%)</option>
-            <option value="Isapre">Isapre (-20%)</option>
-            <option value="Empresa">Convenio Empresa (-25%)</option>
+            {convenios.filter((item) => item.id !== 'particular').map((item) => (
+              <option key={item.id} value={item.nombre}>{item.nombre} ({item.descuentoDefecto}%)</option>
+            ))}
           </select>
         </div>
       </div>
@@ -134,7 +138,7 @@ export const CamposFormularioPresupuesto: React.FC<CamposFormularioPresupuestoPr
                 onClick={() => handleImportarHallazgo(h)}
                 className="bg-white dark:bg-graphite-800 border border-blue-300 dark:border-blue-700 hover:bg-blue-100 dark:hover:bg-blue-900/30 text-blue-900 dark:text-blue-200 font-bold px-2 py-1 rounded-lg text-[10px] cursor-pointer transition-colors shadow-2xs"
               >
-                + Pieza {h.pieza}: {h.diagnostico}
+                Revisar pieza {h.pieza}: {h.diagnostico}
               </button>
             ))}
           </div>

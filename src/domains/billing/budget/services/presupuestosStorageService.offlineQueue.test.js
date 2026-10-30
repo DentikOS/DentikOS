@@ -21,7 +21,7 @@ global.localStorage = {
 
 const { estadoMock, mockFrom } = vi.hoisted(() => ({
   estadoMock: {
-    clinicaId: 'clinica-A',
+    clinicaId: 'aaaaaaaa-0000-4000-8000-000000000001',
     user: { id: 'user-dentista-presupuestos' },
     supabaseError: null,
     supabasePadreError: null,
@@ -80,7 +80,7 @@ describe('P1-3: Cola de Presupuestos (pendingPresupuestos + items)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     localStorageStore.clear()
-    configurarClinica('clinica-A')
+    configurarClinica('aaaaaaaa-0000-4000-8000-000000000001')
     presupuestosStorageService.resetCache()
     estadoMock.supabaseError = null
     estadoMock.supabasePadreError = null
@@ -209,6 +209,21 @@ describe('P1-3: Cola de Presupuestos (pendingPresupuestos + items)', () => {
   // ──────────────────────────────────────────────────────────────────────────
   // TEST 1: Encolado offline de presupuesto nuevo
   // ──────────────────────────────────────────────────────────────────────────
+  it('una edición en cola no puede sobrescribir el saldo confirmado por pagos', async () => {
+    await guardarPresupuesto({
+      id: 'bbbbbbbb-2222-3333-4444-555555555555',
+      folio: 'PRES-SALDO',
+      pacienteId: 'aaaaaaaa-1111-2222-3333-444444444444',
+      pacienteNombre: 'Paciente',
+      montoTotal: 100000,
+      montoAbonado: 40000,
+      estado: 'Aprobado',
+      items: [],
+    })
+    expect(estadoMock.presupuestosInsertados).toHaveLength(1)
+    expect(estadoMock.presupuestosInsertados[0]).not.toHaveProperty('monto_abonado')
+  })
+
   it('1. Encolado offline de presupuesto nuevo: guarda en localStorage con sincronizado: false y encola en pendingPresupuestos y pendingPresupuestoItems', async () => {
     estadoMock.supabaseError = new Error('Offline (red no disponible)')
 
@@ -568,7 +583,7 @@ describe('P1-3: Cola de Presupuestos (pendingPresupuestos + items)', () => {
   // TEST 10: Aislamiento multi-tenant
   // ──────────────────────────────────────────────────────────────────────────
   it('10. Aislamiento multi-tenant: pendingPresupuestos de Clínica A no se procesa cuando la sesión activa es Clínica B', async () => {
-    configurarClinica('clinica-A')
+    configurarClinica('aaaaaaaa-0000-4000-8000-000000000001')
     estadoMock.supabaseError = new Error('Offline')
 
     await guardarPresupuesto({
@@ -584,7 +599,7 @@ describe('P1-3: Cola de Presupuestos (pendingPresupuestos + items)', () => {
     expect(obtenerPendingPresupuestos().length).toBe(1)
 
     // Cambiar a Clínica B
-    configurarClinica('clinica-B')
+    configurarClinica('bbbbbbbb-0000-4000-8000-000000000002')
     presupuestosStorageService.resetCache()
     estadoMock.supabaseError = null
 
@@ -595,7 +610,7 @@ describe('P1-3: Cola de Presupuestos (pendingPresupuestos + items)', () => {
     expect(resB.procesados).toBe(0)
 
     // Regresar a Clínica A: su presupuesto pendiente sigue intacto
-    configurarClinica('clinica-A')
+    configurarClinica('aaaaaaaa-0000-4000-8000-000000000001')
     presupuestosStorageService.resetCache()
     const pendingA = obtenerPendingPresupuestos()
     expect(pendingA.length).toBe(1)

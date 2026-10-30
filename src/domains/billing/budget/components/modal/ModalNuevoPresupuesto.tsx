@@ -1,33 +1,25 @@
 import React, { useState, useMemo } from 'react'
 import { X, Layers, List, DollarSign, Calendar } from 'lucide-react'
 import { Button } from '../../../../../shared/ui/ui/Button'
-import { usePresupuestosStore } from '../../../../../app/stores/usePresupuestosStore'
-import { timelineService } from '../../../../clinical/patient/services/timelineService'
 import type { Presupuesto, ItemPresupuesto } from '../../schemas/presupuestoSchema'
+import { finanzasStorageService } from '../../../cash-register/services/finanzasStorageService'
 import { ModalConfigurarCuotas, type PlanCuotasConfig } from './ModalConfigurarCuotas'
 import { ModalPresupuestoItemsView } from './ModalPresupuestoItemsView'
 
 interface ModalNuevoPresupuestoProps {
-  pacienteId?: string | number
-  pacienteNombre?: string
+  pacienteId: string | number
+  pacienteNombre: string
   pacienteRut?: string
-  onGuardar?: (presupuesto: Presupuesto) => void
+  itemsIniciales?: ItemPresupuesto[]
+  onGuardar: (presupuesto: Presupuesto) => boolean | void | Promise<boolean | void>
   onCerrar: () => void
 }
 
-const CONVENIOS: Record<string, { label: string; pct: number }> = {
-  particular: { label: 'Particular (Sin convenio)', pct: 0 },
-  fonasa: { label: 'FONASA (15% Bonificación)', pct: 15 },
-  banmedica: { label: 'Banmédica (20%)', pct: 20 },
-  consalud: { label: 'Consalud (20%)', pct: 20 },
-  cruzblanca: { label: 'CruzBlanca (20%)', pct: 20 },
-  colmena: { label: 'Colmena (20%)', pct: 20 },
-}
-
 export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = ({
-  pacienteId = 'pac-1',
-  pacienteNombre = 'Paciente de Prueba',
-  pacienteRut = '12.345.678-9',
+  pacienteId,
+  pacienteNombre,
+  pacienteRut,
+  itemsIniciales = [],
   onGuardar,
   onCerrar,
 }) => {
@@ -39,21 +31,17 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = ({
   const [descuentoManualPct, setDescuentoManualPct] = useState(0)
   const [showConfigCuotas, setShowConfigCuotas] = useState(false)
   const [planCuotas, setPlanCuotas] = useState<PlanCuotasConfig | null>(null)
+  const [guardando, setGuardando] = useState(false)
+  const [error, setError] = useState('')
+  const [convenios] = useState(() => finanzasStorageService.obtenerConvenios([]))
 
-  const presupuestoActivo = usePresupuestosStore((s) => s.presupuestoActivo)
-  const [items, setItems] = useState<ItemPresupuesto[]>(() => {
-    if (presupuestoActivo?.items?.length) return presupuestoActivo.items as ItemPresupuesto[]
-    return [
-      { id: 'it-1', codigoPrestacion: 'PREST-01', nombrePrestacion: 'Evaluación y Diagnóstico Integral', cantidad: 1, precioUnitario: 35000, descuento: 0, subtotal: 35000, faseClinica: 'urgencias' },
-      { id: 'it-2', codigoPrestacion: 'PREST-02', nombrePrestacion: 'Destartraje y Profilaxis Bimaxilar', cantidad: 1, precioUnitario: 45000, descuento: 0, subtotal: 45000, faseClinica: 'estabilizacion' },
-    ]
-  })
+  const [items, setItems] = useState<ItemPresupuesto[]>(itemsIniciales)
 
-  const descuentoConvenioPct = CONVENIOS[prevision]?.pct || 0
+  const descuentoConvenioPct = convenios.find((convenio) => convenio.id === prevision)?.descuentoDefecto || 0
   const descuentoTotalPct = Math.min(100, descuentoConvenioPct + descuentoManualPct)
 
   const handleAgregarItem = (fase: ItemPresupuesto['faseClinica'] = 'estabilizacion') => {
-    setItems((prev) => [...prev, { id: crypto.randomUUID(), nombrePrestacion: 'Nueva Prestación Clínica', cantidad: 1, precioUnitario: 30000, descuento: 0, subtotal: 30000, faseClinica: fase }])
+    setItems((prev) => [...prev, { id: crypto.randomUUID(), nombrePrestacion: '', cantidad: 1, precioUnitario: 0, descuento: 0, subtotal: 0, faseClinica: fase }])
   }
 
   const handleEliminarItem = (id: string | number) => setItems((prev) => prev.filter((it) => it.id !== id))
@@ -78,12 +66,13 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = ({
     onCerrar()
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (items.length === 0) { window.alert('Debe incluir al menos 1 prestación en el presupuesto.'); return }
-    if (totalPagar <= 0) { window.alert('El total a pagar debe ser mayor a $0.'); return }
+    if (!pacienteId || !pacienteNombre.trim()) { setError('Debe seleccionar un paciente válido.'); return }
+    if (items.length === 0 || items.some((item) => !item.nombrePrestacion.trim() || item.precioUnitario <= 0)) { setError('Cada prestación necesita nombre y precio revisado.'); return }
+    if (totalPagar <= 0) { setError('El total a pagar debe ser mayor a $0.'); return }
     if (descuentoManualPct > 0 && (!motivoDescuento.trim() || !autorizadoPor.trim())) {
-      window.alert('Motivo y profesional autorizador obligatorios para descuentos manuales.'); return
+      setError('Motivo y profesional autorizador obligatorios para descuentos manuales.'); return
     }
 
     const folio = `PRE-${Date.now().toString().slice(-6)}`
@@ -96,17 +85,17 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = ({
       createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
     } as unknown as Presupuesto
 
-    timelineService.agregarEvento(String(pacienteId), {
-      id: crypto.randomUUID(),
-      fecha: new Date().toISOString(),
-      tipo: 'presupuesto',
-      titulo: `Presupuesto creado (${folio})`,
-      profesional: autorizadoPor.trim() || 'Profesional tratante',
-      detalles: `Presupuesto emitido en estado BORRADOR por $${totalPagar.toLocaleString('es-CL')}.`,
-    })
-
-    onGuardar?.(nuevoPresupuesto)
-    onCerrar()
+    setGuardando(true)
+    setError('')
+    try {
+      const resultado = await onGuardar(nuevoPresupuesto)
+      if (resultado === false) { setError('No se pudo guardar el presupuesto.'); return }
+      onCerrar()
+    } catch {
+      setError('No se pudo guardar el presupuesto.')
+    } finally {
+      setGuardando(false)
+    }
   }
 
   return (
@@ -135,7 +124,8 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = ({
             <div>
               <label className="block font-semibold mb-1">Convenio / Previsión del Paciente</label>
               <select value={prevision} onChange={(e) => setPrevision(e.target.value)} className="w-full p-2 bg-surface border border-surface rounded-lg">
-                {Object.entries(CONVENIOS).map(([k, v]) => (<option key={k} value={k}>{v.label}</option>))}
+                <option value="particular">Particular (sin descuento)</option>
+                {convenios.filter((convenio) => convenio.id !== 'particular').map((convenio) => <option key={convenio.id} value={convenio.id}>{convenio.nombre} ({convenio.descuentoDefecto}%)</option>)}
               </select>
             </div>
             <div>
@@ -145,6 +135,7 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = ({
           </div>
 
           <ModalPresupuestoItemsView vista={vista} items={items} onAgregarItem={handleAgregarItem} onEliminarItem={handleEliminarItem} onUpdateItem={handleUpdateItem} />
+          {error && <p role="alert" className="text-xs text-rose-600">{error}</p>}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-surface/50 border border-surface rounded-xl text-xs">
             <div>
@@ -187,6 +178,7 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = ({
               </Button>
               <button
                 type="submit"
+                disabled={guardando}
                 className="px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-[#E5C378] to-[#B88E3A] text-[#070B14] hover:brightness-105 active:scale-95 transition-all shadow-md flex items-center gap-1.5"
                 data-testid="btn-guardar-presupuesto"
               >

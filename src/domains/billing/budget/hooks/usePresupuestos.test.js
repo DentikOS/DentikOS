@@ -10,8 +10,9 @@ vi.mock('../services/presupuestosStorageService', () => ({
     obtenerPresupuestos: vi.fn(),
     consolidarPresupuestosDesdePacientes: vi.fn(),
     guardarPresupuestos: vi.fn(),
+    guardarPresupuesto: vi.fn(),
     actualizarEstadoPresupuesto: vi.fn(),
-    eliminarPresupuestoYFicha: vi.fn()
+    archivarPresupuesto: vi.fn()
   }
 }))
 
@@ -38,8 +39,9 @@ describe('usePresupuestos', () => {
     presupuestosStorageService.obtenerPresupuestos.mockReturnValue(mockPresupuestosDirectos)
     // Fix F10-C3.12: ya no se llama a consolidarPresupuestosDesdePacientes
     presupuestosStorageService.guardarPresupuestos.mockImplementation(() => {})
-    presupuestosStorageService.actualizarEstadoPresupuesto.mockImplementation(() => {})
-    presupuestosStorageService.eliminarPresupuestoYFicha.mockImplementation(() => {})
+    presupuestosStorageService.guardarPresupuesto.mockImplementation(async (presupuesto) => presupuesto)
+    presupuestosStorageService.actualizarEstadoPresupuesto.mockResolvedValue(true)
+    presupuestosStorageService.archivarPresupuesto.mockResolvedValue(true)
     
     calcularResumenPresupuestos.mockReturnValue({
       total: 3,
@@ -174,91 +176,97 @@ describe('usePresupuestos', () => {
   })
 
   describe('agregarPresupuesto', () => {
-    it('agrega presupuesto al inicio del array', () => {
+    it('guarda el presupuesto una sola vez por la cola transaccional', async () => {
       const { result } = renderHook(() => usePresupuestos(mockPacientes))
       const nuevoPresupuesto = { id: 100, folio: 'P-100', pacienteNombre: 'Nuevo', estado: 'Pendiente', total: 50000 }
 
-      act(() => {
-        result.current.agregarPresupuesto(nuevoPresupuesto)
+      await act(async () => {
+        expect(await result.current.agregarPresupuesto(nuevoPresupuesto)).toBe(true)
       })
 
-      expect(presupuestosStorageService.guardarPresupuestos).toHaveBeenCalled()
-      const savedPresupuestos = presupuestosStorageService.guardarPresupuestos.mock.calls[0][0]
-      expect(savedPresupuestos[0].id).toBe(100)
+      expect(presupuestosStorageService.guardarPresupuesto).toHaveBeenCalledWith(nuevoPresupuesto)
+      expect(presupuestosStorageService.guardarPresupuestos).not.toHaveBeenCalled()
     })
 
-    it('recarga presupuestos después de agregar', () => {
+    it('recarga presupuestos después de agregar', async () => {
       const { result } = renderHook(() => usePresupuestos(mockPacientes))
       const nuevoPresupuesto = { id: 100, folio: 'P-100', estado: 'Pendiente' }
 
-      act(() => {
-        result.current.agregarPresupuesto(nuevoPresupuesto)
-      })
-
-      // 1 llamada inicial + 1 en agregarPresupuesto + 1 en cargarPresupuestos = 3 llamadas
-      expect(presupuestosStorageService.obtenerPresupuestos).toHaveBeenCalledTimes(3)
-    })
-  })
-
-  describe('cambiarEstadoPresupuesto', () => {
-    it('actualiza estado de un presupuesto', () => {
-      const { result } = renderHook(() => usePresupuestos(mockPacientes))
-
-      act(() => {
-        result.current.cambiarEstadoPresupuesto(1, 'Aprobado')
-      })
-
-      expect(presupuestosStorageService.actualizarEstadoPresupuesto).toHaveBeenCalledWith(1, 'Aprobado')
-    })
-
-    it('recarga presupuestos después de cambiar estado', () => {
-      const { result } = renderHook(() => usePresupuestos(mockPacientes))
-
-      act(() => {
-        result.current.cambiarEstadoPresupuesto(1, 'Aprobado')
+      await act(async () => {
+        await result.current.agregarPresupuesto(nuevoPresupuesto)
       })
 
       expect(presupuestosStorageService.obtenerPresupuestos).toHaveBeenCalledTimes(2)
     })
   })
 
-  describe('eliminarPresupuesto', () => {
-    it('elimina presupuesto si usuario confirma', async () => {
+  describe('cambiarEstadoPresupuesto', () => {
+    it('actualiza estado de un presupuesto', async () => {
       const { result } = renderHook(() => usePresupuestos(mockPacientes))
-      const items = [{ id: 1, descripcion: 'Item 1' }]
 
       await act(async () => {
-        const promise = result.current.eliminarPresupuesto(1, 1, items)
+        await result.current.cambiarEstadoPresupuesto(1, 'Aprobado')
+      })
+
+      expect(presupuestosStorageService.actualizarEstadoPresupuesto).toHaveBeenCalledWith(1, 'Aprobado')
+    })
+
+    it('recarga presupuestos después de cambiar estado', async () => {
+      const { result } = renderHook(() => usePresupuestos(mockPacientes))
+
+      await act(async () => {
+        await result.current.cambiarEstadoPresupuesto(1, 'Aprobado')
+      })
+
+      expect(presupuestosStorageService.obtenerPresupuestos).toHaveBeenCalledTimes(2)
+    })
+
+    it('conserva estado local si la actualización se rechaza', async () => {
+      presupuestosStorageService.actualizarEstadoPresupuesto.mockResolvedValue(false)
+      const { result } = renderHook(() => usePresupuestos(mockPacientes))
+      await act(async () => {
+        expect(await result.current.cambiarEstadoPresupuesto(1, 'Aprobado')).toBe(false)
+      })
+      expect(presupuestosStorageService.obtenerPresupuestos).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  describe('archivarPresupuesto', () => {
+    it('archiva presupuesto si usuario confirma', async () => {
+      const { result } = renderHook(() => usePresupuestos(mockPacientes))
+
+      await act(async () => {
+        const promise = result.current.archivarPresupuesto(1)
         // F10-C3.5: verificar que el diálogo se abrió
         expect(useDialogStore.getState().dialog).not.toBeNull()
-        expect(useDialogStore.getState().dialog.title).toBe('Eliminar presupuesto')
-        expect(useDialogStore.getState().dialog.variant).toBe('danger')
+        expect(useDialogStore.getState().dialog.title).toBe('Archivar presupuesto')
+        expect(useDialogStore.getState().dialog.variant).toBe('warning')
         // Resolver con true (confirmar)
         useDialogStore.getState().closeDialog(true)
         await promise
       })
 
-      expect(presupuestosStorageService.eliminarPresupuestoYFicha).toHaveBeenCalledWith(1, 1, items)
+      expect(presupuestosStorageService.archivarPresupuesto).toHaveBeenCalledWith(1)
     })
 
-    it('no elimina si usuario cancela', async () => {
+    it('no archiva si usuario cancela', async () => {
       const { result } = renderHook(() => usePresupuestos(mockPacientes))
 
       await act(async () => {
-        const promise = result.current.eliminarPresupuesto(1, 1, [])
+        const promise = result.current.archivarPresupuesto(1)
         // F10-C3.5: resolver con false (cancelar)
         useDialogStore.getState().closeDialog(false)
         await promise
       })
 
-      expect(presupuestosStorageService.eliminarPresupuestoYFicha).not.toHaveBeenCalled()
+      expect(presupuestosStorageService.archivarPresupuesto).not.toHaveBeenCalled()
     })
 
-    it('recarga presupuestos después de eliminar', async () => {
+    it('recarga presupuestos después de archivar', async () => {
       const { result } = renderHook(() => usePresupuestos(mockPacientes))
 
       await act(async () => {
-        const promise = result.current.eliminarPresupuesto(1, 1, [])
+        const promise = result.current.archivarPresupuesto(1)
         // F10-C3.5: resolver el diálogo con true (confirmar)
         useDialogStore.getState().closeDialog(true)
         await promise

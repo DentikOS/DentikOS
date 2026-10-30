@@ -9,7 +9,6 @@ export interface PagoRegistrado {
   monto: number
   medioPago: MedioPago
   referencia: string
-  recibidoPor: string
   fecha: string
   nuevoEstado: 'en_curso' | 'completado'
 }
@@ -19,14 +18,14 @@ interface ModalRegistrarPagoProps {
   totalPresupuesto: number
   folioPresupuesto?: string
   pacienteNombre?: string
-  onRegistrarPago: (pago: PagoRegistrado) => void
+  onRegistrarPago: (pago: PagoRegistrado) => boolean | void | Promise<boolean | void>
   onCerrar: () => void
 }
 
 export const ModalRegistrarPago: React.FC<ModalRegistrarPagoProps> = ({
-  saldoPendiente = 450000,
-  totalPresupuesto = 650000,
-  folioPresupuesto = 'PRE-2026-0042',
+  saldoPendiente,
+  totalPresupuesto,
+  folioPresupuesto,
   pacienteNombre = 'Paciente',
   onRegistrarPago,
   onCerrar,
@@ -34,8 +33,10 @@ export const ModalRegistrarPago: React.FC<ModalRegistrarPagoProps> = ({
   const [monto, setMonto] = useState<number>(saldoPendiente)
   const [medioPago, setMedioPago] = useState<MedioPago>('tarjeta')
   const [referencia, setReferencia] = useState('')
-  const [recibidoPor, setRecibidoPor] = useState('Recepción Clínica')
   const [errorMonto, setErrorMonto] = useState('')
+  const [errorRegistro, setErrorRegistro] = useState('')
+  const [registrando, setRegistrando] = useState(false)
+  const [pagoId] = useState(() => crypto.randomUUID())
 
   const handleMontoChange = (val: number) => {
     setMonto(val)
@@ -48,7 +49,7 @@ export const ModalRegistrarPago: React.FC<ModalRegistrarPagoProps> = ({
     }
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (monto <= 0 || monto > saldoPendiente) return
 
@@ -56,17 +57,25 @@ export const ModalRegistrarPago: React.FC<ModalRegistrarPagoProps> = ({
     const nuevoEstado: 'en_curso' | 'completado' = nuevoSaldo === 0 ? 'completado' : 'en_curso'
 
     const pago: PagoRegistrado = {
-      id: crypto.randomUUID(),
+      id: pagoId,
       monto,
       medioPago,
       referencia: referencia.trim() || `Transacción ${medioPago}`,
-      recibidoPor,
       fecha: new Date().toISOString(),
       nuevoEstado,
     }
 
-    onRegistrarPago(pago)
-    onCerrar()
+    setRegistrando(true)
+    setErrorRegistro('')
+    try {
+      const resultado = await onRegistrarPago(pago)
+      if (resultado === false) { setErrorRegistro('No se pudo registrar el pago.'); return }
+      onCerrar()
+    } catch {
+      setErrorRegistro('No se pudo registrar el pago. Comprueba el estado y saldo del presupuesto.')
+    } finally {
+      setRegistrando(false)
+    }
   }
 
   return (
@@ -119,7 +128,7 @@ export const ModalRegistrarPago: React.FC<ModalRegistrarPagoProps> = ({
             {errorMonto && <p className="text-xs text-rose-500 mt-1 font-medium">{errorMonto}</p>}
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div>
             <div>
               <label className="block text-xs font-semibold mb-1 text-graphite-700 dark:text-graphite-300">
                 Medio de Pago
@@ -136,19 +145,8 @@ export const ModalRegistrarPago: React.FC<ModalRegistrarPagoProps> = ({
                 <option value="cheque">Cheque</option>
               </select>
             </div>
-            <div>
-              <label className="block text-xs font-semibold mb-1 text-graphite-700 dark:text-graphite-300">
-                Recibido Por
-              </label>
-              <input
-                type="text"
-                value={recibidoPor}
-                onChange={(e) => setRecibidoPor(e.target.value)}
-                className="w-full p-2 bg-surface border border-surface rounded-xl text-xs"
-                required
-              />
-            </div>
           </div>
+          <p className="text-[11px] text-graphite-500">El pago se atribuye al usuario autenticado de la clínica.</p>
 
           <div>
             <label className="block text-xs font-semibold mb-1 text-graphite-700 dark:text-graphite-300">
@@ -170,6 +168,7 @@ export const ModalRegistrarPago: React.FC<ModalRegistrarPagoProps> = ({
               {monto >= saldoPendiente ? 'COMPLETADO (100% Pagado)' : 'EN CURSO (Pago Parcial)'}
             </span>
           </div>
+          {errorRegistro && <p role="alert" className="text-xs text-rose-600">{errorRegistro}</p>}
 
           <div className="flex items-center justify-end gap-2 pt-2 border-t border-surface">
             <Button type="button" variant="ghost" size="sm" onClick={onCerrar}>
@@ -180,7 +179,7 @@ export const ModalRegistrarPago: React.FC<ModalRegistrarPagoProps> = ({
               variant="primary"
               size="sm"
               icon={CheckCircle2}
-              disabled={Boolean(errorMonto) || monto <= 0}
+              disabled={Boolean(errorMonto) || monto <= 0 || registrando}
               data-testid="btn-confirmar-registro-pago"
             >
               Registrar Pago (${monto.toLocaleString('es-CL')})

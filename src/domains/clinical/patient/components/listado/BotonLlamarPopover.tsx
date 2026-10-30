@@ -19,19 +19,19 @@ export const BotonLlamarPopover: React.FC<BotonLlamarPopoverProps> = ({
   const [copiado, setCopiado] = useState(false)
   const telStr = telefono ? String(telefono).trim() : ''
 
-  const registrarLlamada = () => {
+  const registrarAccionTelefono = async (accion: 'Marcador abierto' | 'Número copiado') => {
     const ahora = new Date()
     const fecha = ahora.toLocaleDateString('es-CL')
     const hora = ahora.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })
     const nombre = paciente.nombre || paciente.nombreCompleto || 'Paciente'
 
-    timelineService.agregarEvento(paciente.id, {
+    const registrado = await timelineService.agregarEvento(paciente.id, {
       id: crypto.randomUUID(),
       fecha: ahora.toISOString(),
-      tipo: 'llamada',
-      titulo: `${fecha} ${hora} · Llamada saliente a ${nombre}`,
+      tipo: accion === 'Número copiado' ? 'admin' : 'llamada',
+      titulo: `${fecha} ${hora} · ${accion} para ${nombre}`,
     })
-    notificationService.mostrar(`Llamada registrada en timeline para ${nombre}`, { tipo: 'info' })
+    if (registrado) notificationService.mostrar(`${accion} en timeline para ${nombre}`, { tipo: 'info' })
   }
 
   const handleClick = (e: React.MouseEvent) => {
@@ -43,20 +43,27 @@ export const BotonLlamarPopover: React.FC<BotonLlamarPopoverProps> = ({
 
     const esMovil = typeof navigator !== 'undefined' && /Mobi|Android/i.test(navigator.userAgent)
     if (esMovil) {
-      registrarLlamada()
+      registrarAccionTelefono('Marcador abierto')
       window.location.href = `tel:${telStr.replace(/\s+/g, '')}`
     } else {
       setAbierto((prev) => !prev)
     }
   }
 
-  const handleCopiar = (e: React.MouseEvent) => {
+  const handleCopiar = async (e: React.MouseEvent) => {
     e.stopPropagation()
-    if (navigator?.clipboard?.writeText) {
-      navigator.clipboard.writeText(telStr)
+    if (!navigator?.clipboard?.writeText) {
+      notificationService.mostrar('No se pudo copiar el número en este navegador', { tipo: 'warning' })
+      return
+    }
+    try {
+      await navigator.clipboard.writeText(telStr)
+    } catch {
+      notificationService.mostrar('No se pudo copiar el número', { tipo: 'warning' })
+      return
     }
     setCopiado(true)
-    registrarLlamada()
+    await registrarAccionTelefono('Número copiado')
     setTimeout(() => {
       setCopiado(false)
       setAbierto(false)
@@ -112,7 +119,7 @@ export const BotonLlamarPopover: React.FC<BotonLlamarPopoverProps> = ({
               <a
                 href={`tel:${telStr.replace(/\s+/g, '')}`}
                 onClick={() => {
-                  registrarLlamada()
+                  registrarAccionTelefono('Marcador abierto')
                   setAbierto(false)
                 }}
                 className="py-1.5 px-2 bg-surface-hover border border-surface rounded-lg text-graphite-700 dark:text-graphite-200 font-bold flex items-center justify-center text-[11px]"

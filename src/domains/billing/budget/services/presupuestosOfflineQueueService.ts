@@ -32,6 +32,9 @@ export interface PresupuestoItemLocal {
   pacienteId?: string | number | null
   prestacionId?: string | number | null
   prestacionNombre?: string
+  nombrePrestacion?: string
+  precioUnitario?: number
+  subtotal?: number
   nombre?: string
   prestacion?: string
   valor?: number | string
@@ -95,9 +98,17 @@ export interface PresupuestoSupabaseRow {
   fecha_emision: string
   convenio: string
   monto_total: number
-  monto_abonado: number
+  monto_abonado?: number
   estado: string
   observacion: string
+  detalle_items?: PresupuestoItemLocal[]
+  total_bruto?: number
+  total_descuentos?: number
+  fecha_vencimiento?: string | null
+  descuentos?: unknown[]
+  plan_pago?: unknown
+  version?: number
+  archivado_at?: string | null
   created_at?: string
   updated_at?: string
   [key: string]: unknown
@@ -203,11 +214,18 @@ export const transformarPresupuestoParaSupabase = (
     paciente_nombre: p.pacienteNombre || 'Sin nombre',
     paciente_rut: p.pacienteRut || null,
     fecha_emision: p.fechaEmision || new Date().toISOString().split('T')[0],
-    convenio: p.convenio || 'Particular',
-    monto_total: p.montoTotal || p.total || 0,
-    monto_abonado: p.montoAbonado || 0,
+    convenio: p.convenio || String(p.prevision || 'Particular'),
+    monto_total: Number(p.totalAPagar ?? p.total ?? p.montoTotal ?? 0),
     estado: p.estado || 'Emitido',
-    observacion: p.observacion || ''
+    observacion: p.observacion || '',
+    detalle_items: p.items || [],
+    total_bruto: Number(p.totalBruto ?? 0),
+    total_descuentos: Number(p.totalDescuentos ?? 0),
+    fecha_vencimiento: typeof p.fechaVencimiento === 'string' ? p.fechaVencimiento : null,
+    descuentos: Array.isArray(p.descuentos) ? p.descuentos : [],
+    plan_pago: p.planPago || p.planCuotas || null,
+    version: Number(p.version ?? 1),
+    archivado_at: typeof p.archivadoAt === 'string' ? p.archivadoAt : null,
   }
 
   if (p.pacienteId) {
@@ -236,9 +254,9 @@ export const transformarItemParaSupabase = (
   const itemOut: PresupuestoItemSupabaseRow = {
     presupuesto_id: presupuestoUuid || null,
     paciente_id: pacienteUuid || null,
-    prestacion_id: item.prestacionId || null,
-    prestacion_nombre: item.prestacionNombre || item.nombre || item.prestacion || 'Sin nombre',
-    valor: parseInt(String(item.valor || item.precio || 0), 10) || 0,
+    prestacion_id: esUuidValido(item.prestacionId) ? item.prestacionId! : null,
+    prestacion_nombre: item.prestacionNombre || item.nombrePrestacion || item.nombre || item.prestacion || 'Sin nombre',
+    valor: Number(item.subtotal ?? item.valor ?? item.precio ?? item.precioUnitario ?? 0),
     convenio: item.convenio || 'Particular',
     estado: item.estado || 'Pendiente'
   }
@@ -327,6 +345,11 @@ export const guardarPresupuestoHelper = async (
 
   const id = presupuesto.id || Date.now()
   const clinicaIdActual = obtenerClinicaId()
+  if (!clinicaIdActual || !esUuidValido(clinicaIdActual) || !presupuesto.pacienteId) return null
+  const pacienteUuid = esUuidValido(presupuesto.pacienteId)
+    ? String(presupuesto.pacienteId)
+    : migrationStorageService.obtenerSupabaseId(presupuesto.pacienteId)
+  if (!pacienteUuid || !esUuidValido(pacienteUuid)) return null
 
   const presupuestoLocal: PresupuestoLocal = {
     ...presupuesto,
@@ -886,7 +909,16 @@ export const sincronizarPresupuestosDesdeSupabaseHelper = async ({
       fechaEmision: String(p.fecha_emision || ''),
       convenio: String(p.convenio || ''),
       montoTotal: Number(p.monto_total || 0),
+      totalAPagar: Number(p.monto_total || 0),
+      totalBruto: Number(p.total_bruto || 0),
+      totalDescuentos: Number(p.total_descuentos || 0),
       montoAbonado: Number(p.monto_abonado || 0),
+      fechaVencimiento: typeof p.fecha_vencimiento === 'string' ? p.fecha_vencimiento : undefined,
+      items: Array.isArray(p.detalle_items) ? p.detalle_items as PresupuestoItemLocal[] : [],
+      descuentos: Array.isArray(p.descuentos) ? p.descuentos as Presupuesto['descuentos'] : [],
+      planPago: p.plan_pago as Presupuesto['planPago'],
+      version: Number(p.version || 1),
+      archivadoAt: typeof p.archivado_at === 'string' ? p.archivado_at : undefined,
       estado: String(p.estado || ''),
       observacion: String(p.observacion || ''),
       createdAt: p.created_at as string | undefined,

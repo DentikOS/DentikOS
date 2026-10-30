@@ -29,6 +29,7 @@ export const Odontograma: React.FC<OdontogramaProps> = ({ pacienteId, onGuardar 
   const [progresoTemporal, setProgresoTemporal] = useState<number>(100)
   const [mostrarTemporales, setMostrarTemporales] = useState<boolean>(false)
   const [guardado, setGuardado] = useState<boolean>(false)
+  const [errorGuardado, setErrorGuardado] = useState(false)
 
   const [piezaSeleccionada, setPiezaSeleccionada] = useState<string | null>(null)
   const [panelAbierto, setPanelAbierto] = useState<boolean>(false)
@@ -39,15 +40,28 @@ export const Odontograma: React.FC<OdontogramaProps> = ({ pacienteId, onGuardar 
   >({})
 
   useEffect(() => {
+    useOdontogramaStore.getState().setOdontograma(null, pacienteId)
+    setPiezasData({})
     if (!pacienteId) return
+    let vigente = true
     fichasClinicasStorageService.obtenerFichaClinica(pacienteId).then((ficha) => {
+      if (!vigente) return
       if (ficha?.odontograma && typeof ficha.odontograma === 'object') {
-        const od = ficha.odontograma as { piezasData?: Record<string, any> }
+        const od = ficha.odontograma as { piezasData?: Record<string, any>; actualizadoAt?: string }
         if (od.piezasData) {
           setPiezasData(od.piezasData)
+          const piezas = Object.entries(od.piezasData).map(([numero, data]) => ({
+            numero,
+            estado: (data.estadoGeneral && data.estadoGeneral !== 'sano') || Object.values(data.caras || {}).some((c) => c !== 'sano') ? 'patologia' : 'sano',
+            tipoPatologia: data.estadoGeneral || Object.values(data.caras || {}).find((c) => c !== 'sano') || 'sano',
+          }))
+          useOdontogramaStore.getState().setOdontograma({ piezas, actualizadoAt: od.actualizadoAt }, pacienteId)
+        } else if (Array.isArray((od as { piezas?: unknown[] }).piezas)) {
+          useOdontogramaStore.getState().setOdontograma(od as { piezas: Array<{ numero: string; estado: string; tipoPatologia?: string }> }, pacienteId)
         }
       }
     })
+    return () => { vigente = false }
   }, [pacienteId])
 
   const handleSeleccionarCara = (pieza: string | number, cara: CaraDental) => {
@@ -160,29 +174,36 @@ export const Odontograma: React.FC<OdontogramaProps> = ({ pacienteId, onGuardar 
             size="sm"
             variant="primary"
             icon={guardado ? Check : Save}
+            disabled={!pacienteId}
             onClick={async () => {
-              if (pacienteId) {
-                await fichasClinicasStorageService.guardarSeccionFicha(pacienteId, 'odontograma', {
+              setErrorGuardado(false)
+              if (!pacienteId) return
+              const actualizadoAt = new Date().toISOString()
+              const guardadoCorrectamente = await fichasClinicasStorageService.guardarSeccionFicha(pacienteId, 'odontograma', {
                   piezasData,
                   modoVista,
-                  actualizadoAt: new Date().toISOString(),
+                  actualizadoAt,
                 })
+              if (!guardadoCorrectamente) {
+                setErrorGuardado(true)
+                return
               }
               const piezasLista = Object.entries(piezasData).map(([numero, data]) => ({
                 numero,
-                estado: data.estadoGeneral ? 'patologia' : Object.values(data.caras).some((c) => c !== 'sano') ? 'patologia' : 'sano',
+                estado: (data.estadoGeneral && data.estadoGeneral !== 'sano') || Object.values(data.caras).some((c) => c !== 'sano') ? 'patologia' : 'sano',
                 tipoPatologia: data.estadoGeneral || Object.values(data.caras).find((c) => c !== 'sano') || 'sano',
               }))
-              useOdontogramaStore.getState().setOdontograma({ piezas: piezasLista })
+              useOdontogramaStore.getState().setOdontograma({ piezas: piezasLista, actualizadoAt }, pacienteId)
               onGuardar?.(piezasData)
               setGuardado(true)
               setTimeout(() => setGuardado(false), 2000)
             }}
           >
-            {guardado ? 'Guardado en Supabase' : 'Guardar Odontograma'}
+            {guardado ? 'Odontograma guardado' : 'Guardar Odontograma'}
           </Button>
         </div>
       </div>
+      {errorGuardado && <p role="alert" className="text-xs text-rose-600">No se pudo guardar el odontograma. Revisa la clínica activa y vuelve a intentar.</p>}
 
       {/* Cuadrantes Dentales (32 Permanentes + 20 Temporales) */}
       <div className="p-4 bg-surface/90 border border-surface rounded-2xl space-y-4 shadow-xs">

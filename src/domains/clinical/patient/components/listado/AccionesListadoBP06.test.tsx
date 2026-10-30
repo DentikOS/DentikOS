@@ -1,5 +1,5 @@
 import React from 'react'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { AccionesFilaPaciente } from './AccionesFilaPaciente'
 import { VistaTabla } from './VistaTabla'
@@ -8,6 +8,14 @@ import { timelineService } from '../../services/timelineService'
 import { useSesionStore } from '../../../../../app/stores/sesionStore'
 import { usePacientesStore } from '../../../../../app/stores/pacientesStore'
 import type { Paciente } from '../../schemas/pacienteSchema'
+
+const eventosMock = vi.hoisted(() => [] as Array<{ titulo: string }>)
+vi.mock('../../services/timelineService', () => ({
+  timelineService: {
+    agregarEvento: vi.fn(async (_pacienteId, evento) => { eventosMock.push(evento); return true }),
+    obtenerTimeline: vi.fn(() => eventosMock),
+  },
+}))
 
 const mockPacienteActivo: Paciente = {
   id: 'pac-1',
@@ -37,6 +45,7 @@ const mockPacienteBloqueado: Paciente = {
 describe('Acciones Rápidas y Menú Contextual (BP06 §01 + §05 + §06)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    eventosMock.length = 0
     useSesionStore.setState({ userProfile: { rol: 'admin', email: 'admin@dental.cl' } })
   })
 
@@ -103,7 +112,8 @@ describe('Acciones Rápidas y Menú Contextual (BP06 §01 + §05 + §06)', () =>
     expect(screen.getByText('Bloquear paciente (Admin)')).toBeInTheDocument()
   })
 
-  it('click-to-call en desktop abre popover y registra llamada en Timeline', () => {
+  it('click-to-call en desktop registra que se copió el número, no una llamada', async () => {
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: vi.fn().mockResolvedValue(undefined) } })
     render(
       <AccionesFilaPaciente
         paciente={mockPacienteActivo}
@@ -119,8 +129,10 @@ describe('Acciones Rápidas y Menú Contextual (BP06 §01 + §05 + §06)', () =>
 
     // Copiar número
     fireEvent.click(screen.getByText('Copiar'))
-    const eventos = timelineService.obtenerTimeline('pac-1')
-    expect(eventos.some((e) => e.titulo.includes('Llamada saliente a Ignacio Valenzuela'))).toBe(true)
+    await waitFor(() => {
+      const eventos = timelineService.obtenerTimeline('pac-1')
+      expect(eventos.some((e) => e.titulo.includes('Número copiado para Ignacio Valenzuela'))).toBe(true)
+    })
   })
 
   it('VistaTabla renderiza las 6 columnas fijas y botón de configuración Columnas', () => {

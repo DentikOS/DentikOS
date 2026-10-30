@@ -1,6 +1,5 @@
 import React, { useState } from 'react'
-import { GitCommit, History, ArrowRight, ShieldCheck, ChevronDown, ChevronUp, FileText } from 'lucide-react'
-import { Button } from '../../../../../shared/ui/ui/Button'
+import { History, ArrowRight, ShieldCheck, ChevronDown, ChevronUp, FileText } from 'lucide-react'
 
 export interface VersionPresupuesto {
   version: number
@@ -19,47 +18,11 @@ interface HistorialVersionesProps {
   folioPresupuesto?: string
 }
 
-const VERSIONES_MOCK: VersionPresupuesto[] = [
-  {
-    version: 3,
-    fecha: '2026-03-02T15:30:00.000Z',
-    usuario: 'Dra. Valentina Ríos (Rehabilitadora)',
-    tipoModificacion: 'Ajuste de convenio y piezas',
-    motivo: 'Paciente solicitó cambio a implante guiado y convenio Isapre Colmena',
-    totalAnterior: 780000,
-    totalNuevo: 650000,
-    hashSha256: 'SHA256:7F4B2A8D9E1C3F5A0B4D8E2F1A7C3B9E',
-    cambios: ['Se aplicó 20% bonificación Isapre Colmena', 'Pieza 2.1 modificada a implante con carga inmediata'],
-  },
-  {
-    version: 2,
-    fecha: '2026-02-28T11:15:00.000Z',
-    usuario: 'Dr. Matías Soto (Cirujano)',
-    tipoModificacion: 'Adición de fase quirúrgica',
-    motivo: 'Evaluación CBCT reveló necesidad de regeneración ósea guiada',
-    totalAnterior: 520000,
-    totalNuevo: 780000,
-    hashSha256: 'SHA256:3A1B9C5D7E2F4A8B0C3D6E9F1A4B7C2D',
-    cambios: ['Agregada regeneración ósea con biomaterial e injerto', 'Ajuste de tiempo quirúrgico a 90 minutos'],
-  },
-  {
-    version: 1,
-    fecha: '2026-02-25T09:00:00.000Z',
-    usuario: 'Dra. Valentina Ríos (Rehabilitadora)',
-    tipoModificacion: 'Creación de presupuesto inicial',
-    motivo: 'Evaluación clínica diagnóstica inicial',
-    totalAnterior: 0,
-    totalNuevo: 520000,
-    hashSha256: 'SHA256:1C2D3E4F5A6B7C8D9E0F1A2B3C4D5E6F',
-    cambios: ['Presupuesto emitido en estado BORRADOR desde odontograma'],
-  },
-]
-
 export const HistorialVersiones: React.FC<HistorialVersionesProps> = ({
-  versiones = VERSIONES_MOCK,
-  folioPresupuesto = 'PRE-2026-0042',
+  versiones = [],
+  folioPresupuesto = 'Sin folio',
 }) => {
-  const [versionExpandida, setVersionExpandida] = useState<number | null>(3)
+  const [versionExpandida, setVersionExpandida] = useState<number | null>(null)
 
   return (
     <div className="p-5 bg-surface/90 border border-surface rounded-2xl space-y-4 shadow-xs" data-testid="historial-versiones">
@@ -68,19 +31,20 @@ export const HistorialVersiones: React.FC<HistorialVersionesProps> = ({
           <History className="w-5 h-5 text-primary" />
           <div>
             <h3 className="text-sm font-bold text-graphite-900 dark:text-graphite-50">
-              Historial de Versiones & Trazabilidad Forense (BP07 §15)
+              Historial de versiones
             </h3>
             <p className="text-[11px] text-graphite-500">
-              Folio: <span className="font-mono font-semibold text-graphite-700 dark:text-graphite-300">{folioPresupuesto}</span> &bull; {versiones.length} versiones auditadas
+              Folio: <span className="font-mono font-semibold text-graphite-700 dark:text-graphite-300">{folioPresupuesto}</span> &bull; {versiones.length} versiones registradas
             </p>
           </div>
         </div>
-        <span className="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full flex items-center gap-1 font-semibold">
-          <ShieldCheck className="w-3.5 h-3.5" /> Hash Inmutable SHA-256
-        </span>
+        {versiones.length > 0 && versiones.every((v) => Boolean(v.hashSha256)) && <span className="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full flex items-center gap-1 font-semibold">
+          <ShieldCheck className="w-3.5 h-3.5" /> Hash SHA-256 registrado
+        </span>}
       </div>
 
       <div className="space-y-3">
+        {versiones.length === 0 && <p className="text-xs text-graphite-500">No hay versiones registradas para este presupuesto.</p>}
         {versiones.map((v) => {
           const isExpandida = versionExpandida === v.version
           const diferencia = v.totalNuevo - v.totalAnterior

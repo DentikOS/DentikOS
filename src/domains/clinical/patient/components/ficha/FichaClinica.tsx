@@ -233,7 +233,9 @@ export const FichaClinica: React.FC<FichaClinicaProps> = ({
         )}
         {pestanaActual === 'presupuestos' && (
           <PlanTratamiento
+            pacienteId={String(pacienteFinal.id)}
             nombrePaciente={pacienteFinal.nombreCompleto || pacienteFinal.nombre}
+            pacienteRut={pacienteFinal.rut}
             onGenerarPresupuesto={onGenerarPresupuesto}
           />
         )}

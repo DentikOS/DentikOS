@@ -94,29 +94,25 @@ describe('Flujo Clínico E2E de Persistencia BP06 + BP07', () => {
     })
   })
 
-  it('emite presupuesto con convenio ISAPRE y luego registra pago manual', () => {
+  it('crea un borrador con una prestación revisada y registra pago manual', async () => {
     const onGuardarPresupuesto = vi.fn()
     render(
       <ModalNuevoPresupuesto
         pacienteId="pac-e2e"
         pacienteNombre="Francisca Lagos"
+        itemsIniciales={[{ id: 'item-e2e', nombrePrestacion: 'Prestación revisada', cantidad: 1, precioUnitario: 300000, descuento: 0, subtotal: 300000, faseClinica: 'estabilizacion' }]}
         onGuardar={onGuardarPresupuesto}
         onCerrar={vi.fn()}
       />
     )
 
-    // Seleccionar previsión Banmédica (20% convenio)
-    const selectPrevision = screen.getByRole('combobox')
-    fireEvent.change(selectPrevision, { target: { value: 'banmedica' } })
-    expect(screen.getAllByText(/20%/i).length).toBeGreaterThan(0)
-
     fireEvent.click(screen.getByTestId('btn-guardar-presupuesto'))
-    expect(onGuardarPresupuesto).toHaveBeenCalledWith(
+    await waitFor(() => expect(onGuardarPresupuesto).toHaveBeenCalledWith(
       expect.objectContaining({
         estado: 'borrador',
-        prevision: 'banmedica',
+        totalAPagar: 300000,
       })
-    )
+    ))
 
     // Registrar pago para liquidar presupuesto
     const onRegistrarPago = vi.fn()
