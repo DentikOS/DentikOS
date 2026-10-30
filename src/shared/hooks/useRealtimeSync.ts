@@ -6,6 +6,7 @@
 import { useEffect } from 'react'
 import { useRealtimeSubscription } from './useRealtimeSubscription'
 import { usePacientesStore } from '../../app/stores/pacientesStore'
+import { usePrestacionesStore } from '../../app/stores/prestacionesStore'
 import { useSesionStore } from '../../app/stores/sesionStore'
 import { USE_SUPABASE } from '../../infrastructure/supabase/supabaseClient'
 import { notificationService } from '../../infrastructure/notification/notificationService'
@@ -61,6 +62,10 @@ export const useRealtimeSync = (): void => {
       )
       return
     }
+    if (tabla === 'prestaciones') {
+      void usePrestacionesStore.getState().sincronizarDesdeSupabase()
+      return
+    }
 
     const evento = (TABLAS_REALTIME as Record<string, string>)[tabla]
     if (evento) {
@@ -70,6 +75,7 @@ export const useRealtimeSync = (): void => {
 
   // Suscripciones a cada tabla crítica (explícitas por reglas de hooks)
   useRealtimeSubscription('pacientes', crearHandler('pacientes'), { enabled })
+  useRealtimeSubscription('prestaciones', crearHandler('prestaciones'), { enabled })
   useRealtimeSubscription('citas', crearHandler('citas'), { enabled })
   useRealtimeSubscription('presupuestos', crearHandler('presupuestos'), { enabled })
   useRealtimeSubscription('presupuesto_items', crearHandler('presupuesto_items'), { enabled })

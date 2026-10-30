@@ -11,6 +11,7 @@ import { ModalNuevaPrestacion } from './components/ModalNuevaPrestacion'
 import { ReajusteMasivoModal } from './components/ReajusteMasivoModal'
 import { usePrestacionesStore } from '../../../app/stores/prestacionesStore'
 import type { Prestacion } from './services/prestacionesStorageService'
+import { USE_SUPABASE } from '../../../infrastructure/supabase/supabaseClient'
 
 interface PrestacionesStoreState {
   prestacionesArancel: Prestacion[]
@@ -25,11 +26,13 @@ export const PrestacionesModulo: React.FC = memo(() => {
   const setPrestacionesProp = usePrestacionesStore(
     (state: PrestacionesStoreState) => state.setPrestacionesArancel
   )
+  const estadoRemoto = usePrestacionesStore((state) => state.estadoRemoto)
 
   const [tabActual, setTabActual] = useState<'arancel' | 'paquetes'>('arancel')
   const [modalAbierto, setModalAbierto] = useState<boolean>(false)
   const [modalReajusteAbierto, setModalReajusteAbierto] = useState<boolean>(false)
   const [prestacionEditar, setPrestacionEditar] = useState<Prestacion | null>(null)
+  const [errorOperacion, setErrorOperacion] = useState('')
 
   const {
     prestaciones,
@@ -58,6 +61,17 @@ export const PrestacionesModulo: React.FC = memo(() => {
 
   return (
     <div className="space-y-6">
+      {USE_SUPABASE && <div className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-xs" role="status">
+        {estadoRemoto === 'cargando' || estadoRemoto === 'pendiente'
+          ? 'Cargando arancel compartido de la clínica…'
+          : estadoRemoto === 'error'
+            ? 'No se pudo cargar el arancel compartido. Revisa la conexión y vuelve a intentar.'
+            : prestacionesProp.length === 0
+              ? 'La clínica aún no tiene prestaciones sincronizadas. Registra las prestaciones y sus precios clínicos aquí.'
+              : 'Arancel compartido con Plan de Tratamiento y Presupuestos.'}
+        {estadoRemoto === 'error' && <button type="button" className="ml-2 underline" onClick={() => void usePrestacionesStore.getState().sincronizarDesdeSupabase()}>Reintentar</button>}
+      </div>}
+      {errorOperacion && <p role="alert" className="text-red-700 text-xs">{errorOperacion}</p>}
       <div className="flex justify-between items-center flex-wrap gap-3 print:hidden">
         <div>
           <h2 className="text-xl font-bold text-gray-900 dark:text-graphite-50 uppercase tracking-wider flex items-center gap-2">
@@ -74,6 +88,8 @@ export const PrestacionesModulo: React.FC = memo(() => {
             <>
               <button
                 onClick={() => setModalReajusteAbierto(true)}
+                disabled={USE_SUPABASE}
+                title={USE_SUPABASE ? 'Disponible cuando exista un reajuste atómico del arancel compartido' : undefined}
                 className="bg-gray-100 dark:bg-graphite-800 text-gray-800 dark:text-graphite-100 text-xs font-bold px-3 py-2.5 rounded-xl hover:bg-gray-200 transition-colors border cursor-pointer"
               >
                 <span className="inline-flex items-center gap-1">
@@ -82,6 +98,7 @@ export const PrestacionesModulo: React.FC = memo(() => {
               </button>
               <button
                 onClick={handleAbrirNuevo}
+                disabled={USE_SUPABASE && estadoRemoto !== 'listo'}
                 className="bg-black text-white text-xs font-bold px-4 py-2.5 rounded-xl hover:bg-gray-800 transition-colors shadow-xs cursor-pointer"
               >
                 + Nueva Prestación
@@ -154,17 +171,20 @@ export const PrestacionesModulo: React.FC = memo(() => {
           <TablaArancelPrestaciones
             prestaciones={prestaciones}
             onEditar={handleAbrirEditar}
-            onEliminar={eliminarPrestacion}
+            onEliminar={(id) => { setErrorOperacion(''); void eliminarPrestacion(id).catch((cause) => setErrorOperacion(cause instanceof Error ? cause.message : 'No se pudo eliminar la prestación.')) }}
           />
         </>
       )}
 
       {tabActual === 'paquetes' && (
-        <PaquetesClinicosManager
-          paquetes={paquetes}
-          alGuardarPaquete={agregarPaquete}
-          alEliminarPaquete={eliminarPaquete}
-        />
+        <>
+          {USE_SUPABASE && <p className="text-xs text-amber-800">El precio y nombre de un pack nuevo se comparten como prestación; su descripción y promoción siguen guardadas en este navegador.</p>}
+          <PaquetesClinicosManager
+            paquetes={paquetes}
+            alGuardarPaquete={agregarPaquete}
+            alEliminarPaquete={eliminarPaquete}
+          />
+        </>
       )}
 
       {modalAbierto && (

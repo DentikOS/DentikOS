@@ -8,7 +8,7 @@ import type { PrestacionInput } from '../hooks/usePrestaciones'
 
 export interface ModalNuevaPrestacionProps {
   prestacionEditar?: Prestacion | PrestacionInput | null
-  alGuardar: (prestacion: PrestacionInput) => void
+  alGuardar: (prestacion: PrestacionInput) => Promise<void>
   alCerrar: () => void
 }
 
@@ -22,6 +22,8 @@ export const ModalNuevaPrestacion: React.FC<ModalNuevaPrestacionProps> = memo(({
   const [precioParticular, setPrecioParticular] = useState<string>('')
   const [precioFonasa, setPrecioFonasa] = useState<string>('')
   const [codigoFonasa, setCodigoFonasa] = useState<string>('')
+  const [guardando, setGuardando] = useState(false)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     if (prestacionEditar) {
@@ -41,7 +43,7 @@ export const ModalNuevaPrestacion: React.FC<ModalNuevaPrestacionProps> = memo(({
     }
   }, [prestacionEditar])
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>): void => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault()
     if (!nombre.trim() || !precioParticular) return
 
@@ -58,8 +60,16 @@ export const ModalNuevaPrestacion: React.FC<ModalNuevaPrestacionProps> = memo(({
       codigoFonasa: codigoFonasa.trim()
     }
 
-    alGuardar(prestacionObj)
-    alCerrar()
+    setGuardando(true)
+    setError('')
+    try {
+      await alGuardar(prestacionObj)
+      alCerrar()
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'No se pudo guardar la prestación.')
+    } finally {
+      setGuardando(false)
+    }
   }
 
   return (
@@ -123,12 +133,13 @@ export const ModalNuevaPrestacion: React.FC<ModalNuevaPrestacionProps> = memo(({
           onChange={(e) => setCodigoFonasa(e.target.value)}
         />
 
+        {error && <p role="alert" className="text-red-700 text-xs">{error}</p>}
         <div className="flex gap-2 pt-3">
           <Button type="button" onClick={alCerrar} variant="ghost" fullWidth>
             Cancelar
           </Button>
-          <Button type="submit" variant="primary" fullWidth>
-            Guardar Prestación
+          <Button type="submit" variant="primary" fullWidth disabled={guardando}>
+            {guardando ? 'Guardando…' : 'Guardar Prestación'}
           </Button>
         </div>
       </form>

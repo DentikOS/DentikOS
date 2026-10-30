@@ -7,6 +7,13 @@ import {
 
 describe('prestacionSchema (F2-04d)', () => {
   describe('Prestación válida con campos mínimos', () => {
+    it('acepta código Fonasa vacío para prestaciones sin convenio', () => {
+      const result = prestacionSchema.safeParse({
+        id: 'prestacion-propia', nombre: 'Control particular', especialidad: 'Diagnóstico',
+        precioParticular: 15000, precioFonasa: 0, codigoFonasa: ''
+      })
+      expect(result.success).toBe(true)
+    })
     it('acepta prestación con todos los campos obligatorios', () => {
       const prestacion = {
         id: 1,

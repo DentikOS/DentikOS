@@ -6,6 +6,8 @@ import {
   type PaqueteClinico
 } from '../services/prestacionesStorageService'
 import { useAppDialog } from '../../../../shared/hooks/useAppDialog'
+import { USE_SUPABASE } from '../../../../infrastructure/supabase/supabaseClient'
+import { prestacionesSupabaseService } from '../services/prestacionesSupabaseService'
 
 export interface UseEliminarPrestacionesOptions {
   prestaciones: Prestacion[]
@@ -34,6 +36,7 @@ export const useEliminarPrestaciones = ({
         confirmText: 'Eliminar'
       })
       if (ok) {
+        if (USE_SUPABASE) await prestacionesSupabaseService.eliminar(id)
         const actualizadas = prestaciones.filter(p => String(p.id) !== String(id))
         guardarYSincronizarGlobal(actualizadas)
       }
@@ -50,6 +53,9 @@ export const useEliminarPrestaciones = ({
         confirmText: 'Eliminar'
       })
       if (ok) {
+        if (USE_SUPABASE && typeof id === 'string' && /^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(id)) {
+          await prestacionesSupabaseService.eliminar(id)
+        }
         setPaquetes(prev => {
           const actualizados = prev.filter(p => String(p.id) !== String(id))
           prestacionesStorageService.guardarPaquetes(actualizados)

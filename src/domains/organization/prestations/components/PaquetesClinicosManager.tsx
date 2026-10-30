@@ -7,8 +7,8 @@ import type { PaqueteInput } from '../hooks/usePrestaciones'
 
 export interface PaquetesClinicosManagerProps {
   paquetes: PaqueteClinico[]
-  alGuardarPaquete: (paquete: PaqueteInput) => void
-  alEliminarPaquete: (id: string | number) => void
+  alGuardarPaquete: (paquete: PaqueteInput) => Promise<void>
+  alEliminarPaquete: (id: string | number) => Promise<void>
 }
 
 export const PaquetesClinicosManager: React.FC<PaquetesClinicosManagerProps> = memo(({
@@ -22,6 +22,7 @@ export const PaquetesClinicosManager: React.FC<PaquetesClinicosManagerProps> = m
   const [descripcion, setDescripcion] = useState<string>('')
   const [precioCombo, setPrecioCombo] = useState<string>('')
   const [ahorroEstimado, setAhorroEstimado] = useState<string>('15%')
+  const [error, setError] = useState('')
 
   const handleAbrirEditar = (pk: PaqueteClinico): void => {
     setPackEditar(pk)
@@ -53,13 +54,19 @@ export const PaquetesClinicosManager: React.FC<PaquetesClinicosManagerProps> = m
     // Limpieza de separadores de miles para evitar que 50.000 se convierta en 50
     const precioLimpio = parseFloat(String(precioCombo).replace(/[^0-9]/g, '')) || 0
 
-    alGuardarPaquete({
-      id: packEditar ? packEditar.id : undefined,
-      nombre: nombre.trim(),
-      descripcion,
-      precioCombo: precioLimpio,
-      ahorroEstimado
-    })
+    try {
+      setError('')
+      await alGuardarPaquete({
+        id: packEditar ? packEditar.id : undefined,
+        nombre: nombre.trim(),
+        descripcion,
+        precioCombo: precioLimpio,
+        ahorroEstimado
+      })
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'No se pudo guardar el paquete.')
+      return
+    }
 
     handleCancelarEdicion()
     await dialogAlert({
@@ -72,6 +79,7 @@ export const PaquetesClinicosManager: React.FC<PaquetesClinicosManagerProps> = m
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-xs">
+      {error && <p role="alert" className="col-span-full text-red-700">{error}</p>}
       <form
         onSubmit={handleSubmit}
         className="bg-white dark:bg-graphite-800 border border-gray-200 dark:border-graphite-700 rounded-2xl p-6 shadow-xs space-y-3"
@@ -192,7 +200,7 @@ export const PaquetesClinicosManager: React.FC<PaquetesClinicosManagerProps> = m
                         <Pencil size={12} />
                       </button>
                       <button
-                        onClick={() => pk.id && alEliminarPaquete(pk.id)}
+                        onClick={() => { if (pk.id) void alEliminarPaquete(pk.id).catch((cause) => setError(cause instanceof Error ? cause.message : 'No se pudo eliminar el paquete.')) }}
                         className="text-red-500 font-bold hover:text-red-700 p-1 hover:bg-red-50 rounded cursor-pointer"
                         title="Eliminar Pack"
                       >

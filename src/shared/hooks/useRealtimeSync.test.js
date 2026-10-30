@@ -16,6 +16,7 @@ import { useRealtimeSync, registrarEscrituraLocal } from './useRealtimeSync'
 import * as useRealtimeSubscriptionModule from './useRealtimeSubscription'
 import * as pacientesStoreModule from '../../app/stores/pacientesStore'
 import * as sesionStoreModule from '../../app/stores/sesionStore'
+import { usePrestacionesStore } from '../../app/stores/prestacionesStore'
 import * as supabaseClientModule from '../../infrastructure/supabase/supabaseClient'
 
 // Mocks
@@ -35,6 +36,10 @@ vi.mock('../../app/stores/sesionStore', () => ({
   useSesionStore: vi.fn((selector) => selector({
     userProfile: null
   }))
+}))
+
+vi.mock('../../app/stores/prestacionesStore', () => ({
+  usePrestacionesStore: { getState: vi.fn(() => ({ sincronizarDesdeSupabase: vi.fn() })) }
 }))
 
 vi.mock('../../infrastructure/supabase/supabaseClient', () => ({
@@ -74,12 +79,13 @@ describe('useRealtimeSync', () => {
   it('debe suscribirse a todas las tablas críticas al montar', () => {
     renderHook(() => useRealtimeSync())
 
-    // Debe haber llamado useRealtimeSubscription 11 veces (una por tabla)
-    expect(mockUseRealtimeSubscription).toHaveBeenCalledTimes(11)
+    // Incluye el arancel clínico compartido.
+    expect(mockUseRealtimeSubscription).toHaveBeenCalledTimes(12)
 
     // Verificar que se suscribió a las tablas correctas
     const tablas = mockUseRealtimeSubscription.mock.calls.map(call => call[0])
     expect(tablas).toContain('pacientes')
+    expect(tablas).toContain('prestaciones')
     expect(tablas).toContain('citas')
     expect(tablas).toContain('presupuestos')
     expect(tablas).toContain('pagos')

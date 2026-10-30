@@ -361,6 +361,12 @@ export const App: React.FC = () => {
 
   useDataMigration(userProfile)
 
+  useEffect(() => {
+    if (!USE_SUPABASE) return
+    if (userProfile) void usePrestacionesStore.getState().sincronizarDesdeSupabase()
+    else usePrestacionesStore.setState({ prestacionesArancel: [], estadoRemoto: 'pendiente' })
+  }, [userProfile])
+
   // F5-02: activar sincronización en tiempo real
   useRealtimeSync()
 
