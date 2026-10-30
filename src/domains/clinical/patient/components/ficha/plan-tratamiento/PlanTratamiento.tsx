@@ -168,6 +168,15 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
     setPlanGuardado(false)
   }
 
+  const solicitarMotivoVersion = () => {
+    const motivo = window.prompt('Motivo de la nueva versión del presupuesto:')?.trim()
+    if (!motivo || motivo.length > 500) {
+      setError('Indica un motivo de hasta 500 caracteres para registrar la versión.')
+      return null
+    }
+    return motivo
+  }
+
   const guardarPlan = async () => {
     if (!pacienteId || odontogramaDesactualizado) {
       setError('El odontograma cambió. Revisa el plan antes de guardarlo.')
@@ -194,9 +203,11 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
               String(p.pacienteId) === pacienteId && p.sincronizado !== false &&
               ['borrador', 'Borrador'].includes(p.estado || '') && p.planRevision !== revision)
             if (borradores.length > 0 && window.confirm(`El plan cambió. ¿Actualizar ${borradores.length} presupuesto(s) borrador vinculados? Se conservarán los ítems manuales y descuentos; quedarán pendientes de revisión antes de enviarlos.`)) {
+              const motivo = solicitarMotivoVersion()
+              if (!motivo) return
               for (const presupuesto of borradores) {
                 await presupuestoPlanSyncService.actualizarBorrador(
-                  presupuesto, pacienteId, revision, itemsPresupuesto as ItemDesdePlan[])
+                  presupuesto, pacienteId, revision, itemsPresupuesto as ItemDesdePlan[], motivo)
               }
             }
           }
@@ -278,7 +289,9 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
             return
           }
           try {
-            await presupuestoPlanSyncService.actualizarBorrador(presupuesto, pacienteId, planRevision, itemsPresupuesto as ItemDesdePlan[])
+            const motivo = solicitarMotivoVersion()
+            if (!motivo) return
+            await presupuestoPlanSyncService.actualizarBorrador(presupuesto, pacienteId, planRevision, itemsPresupuesto as ItemDesdePlan[], motivo)
             setBorradoresDesactualizados((actuales) => actuales.filter((item) => item.id !== presupuesto.id))
             setError('')
           } catch (cause) {
@@ -292,7 +305,9 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
         <button type="button" className="ml-2 underline font-bold" onClick={async () => {
           if (!planRevision || !planGuardado || !window.confirm(`¿Crear una nueva versión en borrador de ${presupuesto.folio}? Se conservarán los ajustes manuales y descuentos; revisa los importes antes de enviarla.`)) return
           try {
-            await presupuestoPlanSyncService.crearVersionDesdePlan(presupuesto, pacienteId, planRevision, itemsPresupuesto as ItemDesdePlan[])
+            const motivo = solicitarMotivoVersion()
+            if (!motivo) return
+            await presupuestoPlanSyncService.crearVersionDesdePlan(presupuesto, pacienteId, planRevision, itemsPresupuesto as ItemDesdePlan[], motivo)
             setVersionables((actuales) => actuales.filter((item) => item.id !== presupuesto.id))
             setError('')
           } catch (cause) {

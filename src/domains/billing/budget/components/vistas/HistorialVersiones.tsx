@@ -1,17 +1,6 @@
 import React, { useState } from 'react'
 import { History, ArrowRight, ShieldCheck, ChevronDown, ChevronUp, FileText } from 'lucide-react'
-
-export interface VersionPresupuesto {
-  version: number
-  fecha: string
-  usuario: string
-  tipoModificacion: string
-  motivo: string
-  totalAnterior: number
-  totalNuevo: number
-  hashSha256: string
-  cambios?: string[]
-}
+import type { VersionPresupuesto } from '../../services/presupuestoVersionesService'
 
 interface HistorialVersionesProps {
   versiones?: VersionPresupuesto[]
@@ -87,7 +76,9 @@ export const HistorialVersiones: React.FC<HistorialVersionesProps> = ({
               </div>
 
               <div className="p-2.5 bg-surface-hover/60 rounded-lg text-xs space-y-1">
-                <span className="text-[10px] uppercase font-bold text-graphite-400 block">Motivo Obligatorio del Cambio:</span>
+                <span className="text-[10px] uppercase font-bold text-graphite-400 block">
+                  Motivo del cambio{v.motivoOrigen === 'sistema' ? ' (generado por el sistema)' : ''}:
+                </span>
                 <p className="text-graphite-700 dark:text-graphite-200 italic">&ldquo;{v.motivo}&rdquo;</p>
               </div>
 

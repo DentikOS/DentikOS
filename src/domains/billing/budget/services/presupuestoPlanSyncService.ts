@@ -11,6 +11,7 @@ export const presupuestoPlanSyncService = {
     pacienteId: string,
     planRevision: string,
     itemsDelPlan: ItemDesdePlan[],
+    motivo: string,
   ): Promise<string> {
     const clinicaId = getClinicaActivaSync()
     if (!USE_SUPABASE || !supabase || !esUuidValido(clinicaId) ||
@@ -21,13 +22,15 @@ export const presupuestoPlanSyncService = {
       presupuesto.planRevision === planRevision) {
       throw new Error('No hay una versión anterior apta para actualizar desde este plan.')
     }
+    if (!motivo.trim() || motivo.trim().length > 500) throw new Error('Indica un motivo de hasta 500 caracteres para la versión.')
     const anteriores = itemPresupuestoSchema.array().safeParse(presupuesto.items || [])
     if (!anteriores.success) throw new Error('Los ítems de la versión anterior necesitan revisión.')
     const items = fusionarItemsDelPlan(anteriores.data, itemsDelPlan)
-    const { data, error } = await supabase.rpc('crear_version_presupuesto_desde_plan', {
+    const { data, error } = await supabase.rpc('crear_version_presupuesto_desde_plan_con_motivo', {
       p_presupuesto_id: presupuesto.id,
       p_plan_revision: planRevision,
       p_items: items,
+      p_motivo: motivo.trim(),
     })
     if (error || !esUuidValido(data)) throw new Error('No se pudo crear la nueva versión. Revisa la clínica o si existe una versión más reciente.')
     await presupuestosStorageService.sincronizarDesdeSupabase()
@@ -53,6 +56,7 @@ export const presupuestoPlanSyncService = {
     pacienteId: string,
     planRevision: string,
     itemsDelPlan: ItemDesdePlan[],
+    motivo: string,
   ): Promise<void> {
     const clinicaId = getClinicaActivaSync()
     if (!USE_SUPABASE || !supabase || !esUuidValido(clinicaId) ||
@@ -63,15 +67,17 @@ export const presupuestoPlanSyncService = {
       !Number.isInteger(presupuesto.version) || Number(presupuesto.version) < 1) {
       throw new Error('El presupuesto no es un borrador sincronizado de este paciente.')
     }
+    if (!motivo.trim() || motivo.trim().length > 500) throw new Error('Indica un motivo de hasta 500 caracteres para la versión.')
 
     const anteriores = itemPresupuestoSchema.array().safeParse(presupuesto.items || [])
     if (!anteriores.success) throw new Error('Los ítems del borrador necesitan revisión antes de sincronizar el plan.')
     const items = fusionarItemsDelPlan(anteriores.data, itemsDelPlan)
-    const { error } = await supabase.rpc('sincronizar_borrador_desde_plan', {
+    const { error } = await supabase.rpc('sincronizar_borrador_desde_plan_con_motivo', {
       p_presupuesto_id: presupuesto.id,
       p_version_esperada: presupuesto.version,
       p_plan_revision: planRevision,
       p_items: items,
+      p_motivo: motivo.trim(),
     })
     if (error) {
       throw new Error('No se pudo actualizar el borrador. Revisa la clínica, los importes o si el presupuesto cambió en otra sesión.')

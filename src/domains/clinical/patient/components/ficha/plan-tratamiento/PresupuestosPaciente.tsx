@@ -1,20 +1,31 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { ModalRegistrarPago } from '../../../../../billing/budget/components/ModalRegistrarPago'
 import { pagosService } from '../../../../../billing/budget/services/pagosService'
 import { presupuestosStorageService, type PresupuestoLocal } from '../../../../../billing/budget/services/presupuestosStorageService'
+import { presupuestoVersionesService, type VersionPresupuesto } from '../../../../../billing/budget/services/presupuestoVersionesService'
+import { HistorialVersiones } from '../../../../../billing/budget/components/vistas/HistorialVersiones'
 import { esUuidValido } from '../../../../../../infrastructure/supabase/migrations/uuidUtils'
 import { getClinicaActivaSync } from '../../../../../../infrastructure/auth/authService'
+import { useSesionStore } from '../../../../../../app/stores/sesionStore'
 import { useRBAC } from '../../../../../../shared/hooks/useRBAC'
 
 export const PresupuestosPaciente: React.FC<{ pacienteId: string }> = ({ pacienteId }) => {
   const { rol } = useRBAC()
+  const clinicaActual = useSesionStore((s) => s.clinicaActual)
   const puedeRegistrar = rol === 'admin' || rol === 'dentista' || rol === 'recepcion'
   const [presupuestos, setPresupuestos] = useState<PresupuestoLocal[]>([])
   const [seleccionado, setSeleccionado] = useState<PresupuestoLocal | null>(null)
   const [errorSync, setErrorSync] = useState(false)
+  const [errorHistorial, setErrorHistorial] = useState('')
+  const [historial, setHistorial] = useState<{ folio: string; versiones: VersionPresupuesto[];
+    pacienteId: string; clinicaId: string | null } | null>(null)
+  const pacienteActualRef = useRef(pacienteId)
+  pacienteActualRef.current = pacienteId
 
   useEffect(() => {
     let vigente = true
+    setHistorial(null)
+    setErrorHistorial('')
     const cargar = () => {
       if (!getClinicaActivaSync()) {
         if (vigente) setPresupuestos([])
@@ -34,7 +45,7 @@ export const PresupuestosPaciente: React.FC<{ pacienteId: string }> = ({ pacient
       vigente = false
       window.removeEventListener('presupuestos_actualizados', cargar)
     }
-  }, [pacienteId])
+  }, [pacienteId, clinicaActual])
 
   return (
     <section className="rounded-2xl border border-surface bg-surface/80 p-5 space-y-3" aria-label="Presupuestos del paciente">
@@ -60,9 +71,29 @@ export const PresupuestosPaciente: React.FC<{ pacienteId: string }> = ({ pacient
                 Registrar pago
               </button>
             )}
+            {sincronizado && <button type="button" className="rounded-lg border border-surface px-3 py-2 font-semibold"
+              onClick={async () => {
+                setErrorHistorial('')
+                const clinicaSolicitada = getClinicaActivaSync()
+                try {
+                  const versiones = await presupuestoVersionesService.listar(p, presupuestos)
+                  if (pacienteActualRef.current === pacienteId && getClinicaActivaSync() === clinicaSolicitada) {
+                    setHistorial({ folio: p.folio || 'Presupuesto', versiones, pacienteId, clinicaId: clinicaSolicitada })
+                  }
+                } catch (cause) {
+                  if (pacienteActualRef.current === pacienteId && getClinicaActivaSync() === clinicaSolicitada) {
+                    setErrorHistorial(cause instanceof Error ? cause.message : 'No se pudo abrir el historial.')
+                  }
+                }
+              }}>Ver historial</button>}
           </div>
         )
       })}
+      {errorHistorial && <p role="alert" className="text-xs text-rose-700">{errorHistorial}</p>}
+      {historial && historial.pacienteId === pacienteId && historial.clinicaId === getClinicaActivaSync() && <div>
+        <button type="button" className="mb-2 text-xs underline" onClick={() => setHistorial(null)}>Cerrar historial</button>
+        <HistorialVersiones folioPresupuesto={historial.folio} versiones={historial.versiones} />
+      </div>}
       {seleccionado && <ModalRegistrarPago
         totalPresupuesto={Number(seleccionado.montoTotal || 0)}
         saldoPendiente={Math.max(0, Number(seleccionado.montoTotal || 0) - Number(seleccionado.montoAbonado || 0))}

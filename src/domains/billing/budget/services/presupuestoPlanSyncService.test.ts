@@ -31,32 +31,33 @@ describe('presupuestoPlanSyncService', () => {
     const manual = { id: '66666666-6666-4666-8666-666666666666', nombrePrestacion: 'Ítem manual',
       cantidad: 1, precioUnitario: 5000, descuento: 0, subtotal: 5000 }
     await presupuestoPlanSyncService.actualizarBorrador({ ...borrador, items: [itemPlan, manual] }, paciente,
-      '2026-10-30T15:00:00Z', [{ ...itemPlan, precioPlanOriginal: 14000, precioUnitario: 14000, subtotal: 14000 }])
-    expect(estado.rpc).toHaveBeenCalledWith('sincronizar_borrador_desde_plan', expect.objectContaining({
+      '2026-10-30T15:00:00Z', [{ ...itemPlan, precioPlanOriginal: 14000, precioUnitario: 14000, subtotal: 14000 }], 'Cambio clínico revisado')
+    expect(estado.rpc).toHaveBeenCalledWith('sincronizar_borrador_desde_plan_con_motivo', expect.objectContaining({
       p_presupuesto_id: presupuestoId,
       p_version_esperada: 1,
+      p_motivo: 'Cambio clínico revisado',
       p_items: [expect.objectContaining({ subtotal: 14000 }), manual],
     }))
     expect(estado.sincronizar).toHaveBeenCalledOnce()
   })
 
   it('rechaza presupuesto de otro paciente antes del RPC', async () => {
-    await expect(presupuestoPlanSyncService.actualizarBorrador(borrador, grupo, 'revision', [itemPlan]))
+    await expect(presupuestoPlanSyncService.actualizarBorrador(borrador, grupo, 'revision', [itemPlan], 'Motivo'))
       .rejects.toThrow('este paciente')
     expect(estado.rpc).not.toHaveBeenCalled()
   })
 
   it('no crea nueva versión si el origen sigue en borrador', async () => {
     await expect(presupuestoPlanSyncService.crearVersionDesdePlan({ ...borrador, versionGrupoId: grupo }, paciente,
-      'revision-nueva', [itemPlan])).rejects.toThrow('versión anterior')
+      'revision-nueva', [itemPlan], 'Motivo')).rejects.toThrow('versión anterior')
     expect(estado.rpc).not.toHaveBeenCalled()
   })
 
   it('crea versión nueva sin modificar la anterior', async () => {
     await presupuestoPlanSyncService.crearVersionDesdePlan({ ...borrador, estado: 'aprobado',
-      versionGrupoId: grupo, planRevision: 'revision-anterior' }, paciente, 'revision-nueva', [itemPlan])
-    expect(estado.rpc).toHaveBeenCalledWith('crear_version_presupuesto_desde_plan', expect.objectContaining({
-      p_presupuesto_id: presupuestoId, p_plan_revision: 'revision-nueva',
+      versionGrupoId: grupo, planRevision: 'revision-anterior' }, paciente, 'revision-nueva', [itemPlan], 'Nueva revisión')
+    expect(estado.rpc).toHaveBeenCalledWith('crear_version_presupuesto_desde_plan_con_motivo', expect.objectContaining({
+      p_presupuesto_id: presupuestoId, p_plan_revision: 'revision-nueva', p_motivo: 'Nueva revisión',
     }))
   })
 })

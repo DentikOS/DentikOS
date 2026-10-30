@@ -188,11 +188,12 @@ describe('PlanTratamiento BP06', () => {
     }])
     const crear = vi.spyOn(presupuestoPlanSyncService, 'crearVersionDesdePlan').mockResolvedValue('55555555-5555-4555-8555-555555555555')
     vi.spyOn(window, 'confirm').mockReturnValue(true)
+    vi.spyOn(window, 'prompt').mockReturnValue('Cambio clínico')
     render(<PlanTratamiento pacienteId={pacienteId} />)
     const boton = await screen.findByRole('button', { name: 'Crear nueva versión' })
     fireEvent.click(boton)
     await waitFor(() => expect(crear).toHaveBeenCalledWith(expect.objectContaining({ folio: 'PRE-1', estado: 'aprobado' }),
-      pacienteId, 'revision-nueva', expect.any(Array)))
+      pacienteId, 'revision-nueva', expect.any(Array), 'Cambio clínico'))
   })
 
   it('permite retomar la actualización de un borrador cuando se pospuso al guardar el plan', async () => {
@@ -211,10 +212,11 @@ describe('PlanTratamiento BP06', () => {
       planRevision: 'revision-anterior', estado: 'borrador', folio: 'PRE-1', items: [],
     }])
     const actualizar = vi.spyOn(presupuestoPlanSyncService, 'actualizarBorrador').mockResolvedValue()
+    vi.spyOn(window, 'prompt').mockReturnValue('Actualización de plan')
     render(<PlanTratamiento pacienteId={pacienteId} />)
     fireEvent.click(await screen.findByRole('button', { name: 'Actualizar borrador' }))
     await waitFor(() => expect(actualizar).toHaveBeenCalledWith(expect.objectContaining({ folio: 'PRE-1', estado: 'borrador' }),
-      pacienteId, 'revision-nueva', expect.any(Array)))
+      pacienteId, 'revision-nueva', expect.any(Array), 'Actualización de plan'))
     expect(screen.queryByRole('button', { name: 'Actualizar borrador' })).not.toBeInTheDocument()
   })
 })

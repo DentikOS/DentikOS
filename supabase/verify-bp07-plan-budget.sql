@@ -54,7 +54,7 @@ BEGIN
       'cantidad',1,'precioUnitario',12000,'precioPlanOriginal',12000,'descuento',0,'subtotal',12000),
     jsonb_build_object('id',v_manual,'nombrePrestacion','Ítem manual',
       'cantidad',1,'precioUnitario',5000,'descuento',0,'subtotal',5000));
-  PERFORM public.sincronizar_borrador_desde_plan(v_presupuesto,1,'revision-bp07-2',v_items);
+  PERFORM public.sincronizar_borrador_desde_plan_con_motivo(v_presupuesto,1,'revision-bp07-2',v_items,'Plan clínico actualizado');
   IF NOT EXISTS (SELECT 1 FROM public.presupuestos WHERE id=v_presupuesto AND version=2
     AND monto_total=16000 AND total_bruto=17000 AND total_descuentos=1000 AND requiere_revision) THEN
     RAISE EXCEPTION 'Borrador no recalculado';
@@ -65,6 +65,11 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM public.audit_log WHERE table_name='presupuestos' AND record_id=v_presupuesto::text
     AND clinica_id=v_clinica AND user_id=v_admin AND action='UPDATE') THEN
     RAISE EXCEPTION 'Falta auditoría del presupuesto';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.presupuesto_versiones h WHERE h.presupuesto_id=v_presupuesto
+    AND h.motivo='Plan clínico actualizado' AND h.motivo_origen='usuario'
+    AND h.actor_user_id=v_admin AND h.clinica_id=v_clinica) THEN
+    RAISE EXCEPTION 'Falta historial de la sincronización del plan';
   END IF;
   v_bloqueado := false;
   BEGIN
@@ -83,12 +88,16 @@ BEGIN
       'cantidad',1,'precioUnitario',14000,'precioPlanOriginal',14000,'descuento',0,'subtotal',14000),
     jsonb_build_object('id',v_manual,'nombrePrestacion','Ítem manual',
       'cantidad',1,'precioUnitario',5000,'descuento',0,'subtotal',5000));
-  v_nueva := public.crear_version_presupuesto_desde_plan(v_presupuesto,'revision-bp07-3',v_items);
+  v_nueva := public.crear_version_presupuesto_desde_plan_con_motivo(v_presupuesto,'revision-bp07-3',v_items,'Nueva versión del plan');
   IF NOT EXISTS (SELECT 1 FROM public.presupuestos WHERE id=v_presupuesto AND estado='aprobado'
     AND version=2 AND monto_total=16000) THEN RAISE EXCEPTION 'Versión aprobada alterada'; END IF;
   IF NOT EXISTS (SELECT 1 FROM public.presupuestos WHERE id=v_nueva AND estado='borrador'
     AND version=3 AND monto_total=18000 AND requiere_revision AND version_grupo_id=v_grupo) THEN
     RAISE EXCEPTION 'Nueva versión incorrecta';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.presupuesto_versiones h WHERE h.presupuesto_id=v_nueva
+    AND h.motivo='Nueva versión del plan' AND h.motivo_origen='usuario' AND h.revision=1) THEN
+    RAISE EXCEPTION 'Falta historial de la nueva versión';
   END IF;
   v_bloqueado := false;
   BEGIN
