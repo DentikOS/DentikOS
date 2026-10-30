@@ -10,6 +10,7 @@ import { usePacientesStore } from '../../../app/stores/pacientesStore'
 import { usePrestacionesStore } from '../../../app/stores/prestacionesStore'
 import { useSesionStore } from '../../../app/stores/sesionStore'
 import { useAppDialog } from '../../../shared/hooks/useAppDialog'
+import { useRBAC } from '../../../shared/hooks/useRBAC'
 import { ClipboardList } from 'lucide-react'
 import type { PresupuestoLocal } from './services/presupuestosStorageService'
 import { pagosService } from './services/pagosService'
@@ -31,6 +32,8 @@ export const PresupuestosModulo: React.FC<PresupuestosModuloProps> = memo(({
   const pacientes = usePacientesStore((state) => state.pacientes)
   const prestaciones = usePrestacionesStore((state) => state.prestacionesArancel)
   const userProfile = useSesionStore((state) => state.userProfile)
+  const { rol } = useRBAC()
+  const puedeRegistrarPago = rol === 'admin' || rol === 'dentista' || rol === 'recepcion'
 
   const [modalAbierto, setModalAbierto] = useState<boolean>(false)
   const { alert: dialogAlert } = useAppDialog()
@@ -80,7 +83,7 @@ export const PresupuestosModulo: React.FC<PresupuestosModuloProps> = memo(({
             <ClipboardList size={16} />Presupuestos Globales & Cotizaciones
           </h2>
           <p className="text-xs text-gray-500 dark:text-graphite-400">
-            Panel central de seguimiento de tratamientos y planes de financiamiento.
+            Panel central de seguimiento de tratamientos y planes de financiamiento. Para registrar un abono, aprueba el presupuesto y usa «Registrar pago» en su fila.
           </p>
         </div>
 
@@ -100,6 +103,7 @@ export const PresupuestosModulo: React.FC<PresupuestosModuloProps> = memo(({
         <DocumentoPresupuestoImprimible
           presupuesto={presupuestoVerDocumento}
           userProfile={userProfile}
+          onRegistrarPago={puedeRegistrarPago ? () => setPresupuestoParaPago(presupuestoVerDocumento) : undefined}
           alCerrar={() => setPresupuestoVerDocumento(null)}
         />
       ) : (
@@ -148,7 +152,7 @@ export const PresupuestosModulo: React.FC<PresupuestosModuloProps> = memo(({
             onVerFichaPaciente={handleVerFichaPaciente}
             onVerDocumento={setPresupuestoVerDocumento}
             onArchivar={archivarPresupuesto}
-            onRegistrarPago={(p) => setPresupuestoParaPago(p)}
+            onRegistrarPago={puedeRegistrarPago ? (p) => setPresupuestoParaPago(p) : undefined}
           />
         </>
       )}
@@ -170,13 +174,16 @@ export const PresupuestosModulo: React.FC<PresupuestosModuloProps> = memo(({
           pacienteNombre={presupuestoParaPago.pacienteNombre}
           onRegistrarPago={async (pago) => {
             try {
-              await pagosService.registrarPagoManual({
+              const confirmado = await pagosService.registrarPagoManual({
                 pagoId: pago.id,
                 presupuestoId: presupuestoParaPago.id,
                 monto: pago.monto,
                 medioPago: pago.medioPago,
                 referencia: pago.referencia,
               })
+              setPresupuestoVerDocumento((actual) => actual && String(actual.id) === String(presupuestoParaPago.id)
+                ? { ...actual, montoAbonado: confirmado.montoAbonado, estado: confirmado.estado }
+                : actual)
               setPresupuestoParaPago(null)
               return true
             } catch {

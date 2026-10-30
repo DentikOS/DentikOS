@@ -127,6 +127,17 @@ export const PagosModulo: React.FC = memo(() => {
         </div>
       </div>
 
+      <div className="print:hidden rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-xs text-graphite-700 dark:text-graphite-200">
+        Para abonar un presupuesto aprobado, usa su acción «Registrar pago» en Presupuestos; así se actualizan el saldo y el estado del presupuesto.
+        <button
+          type="button"
+          className="ml-2 font-bold text-primary underline"
+          onClick={() => window.dispatchEvent(new CustomEvent('navegar_seccion', { detail: 'Presupuestos' }))}
+        >
+          Ir a Presupuestos
+        </button>
+      </div>
+
       <div className="print:hidden">
         <PagosSummaryCards resumen={resumen} />
       </div>

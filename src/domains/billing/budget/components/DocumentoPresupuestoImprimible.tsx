@@ -4,6 +4,7 @@ import { odontogramaStorageService } from '../../../clinical/odontogram'
 import { createLogger } from '../../../../infrastructure/logging/logger'
 import { Printer } from 'lucide-react'
 import type { PresupuestoLocal } from '../services/presupuestosStorageService'
+import { esUuidValido } from '../../../../infrastructure/supabase/migrations/uuidUtils'
 
 const log = createLogger('DocumentoPresupuestoImprimible')
 
@@ -67,7 +68,7 @@ export const DocumentoPresupuestoImprimible: React.FC<DocumentoPresupuestoImprim
         </button>
 
         <div className="flex items-center gap-2 flex-wrap">
-          {presupuesto.estado === 'borrador' && (
+          {presupuesto.estado === 'borrador' && onCambiarEstado && (
             <button
               onClick={() => onCambiarEstado?.('enviado')}
               className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl text-xs transition-colors cursor-pointer"
@@ -75,7 +76,7 @@ export const DocumentoPresupuestoImprimible: React.FC<DocumentoPresupuestoImprim
               Enviar al paciente
             </button>
           )}
-          {presupuesto.estado === 'enviado' && (
+          {presupuesto.estado === 'enviado' && onCambiarEstado && (
             <>
               <button
                 onClick={() => onCambiarEstado?.('aprobado')}
@@ -91,9 +92,10 @@ export const DocumentoPresupuestoImprimible: React.FC<DocumentoPresupuestoImprim
               </button>
             </>
           )}
-          {(presupuesto.estado === 'aprobado' || presupuesto.estado === 'en-curso') && saldoPendiente > 0 && (
+          {['aprobado', 'en-curso', 'Aprobado', 'EnTratamiento'].includes(presupuesto.estado || '') && saldoPendiente > 0 && onRegistrarPago && (
             <button
               onClick={onRegistrarPago}
+              disabled={!esUuidValido(presupuesto.id) || presupuesto.sincronizado === false}
               className="px-3 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold rounded-xl text-xs transition-colors cursor-pointer"
             >
               Registrar pago

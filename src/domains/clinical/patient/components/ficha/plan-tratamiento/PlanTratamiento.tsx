@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { Layers, DollarSign, Stethoscope } from 'lucide-react'
 import { Button } from '../../../../../../shared/ui/ui/Button'
 import { FichaDerivacionModal } from './FichaDerivacionModal'
+import { PresupuestosPaciente } from './PresupuestosPaciente'
 import { useOdontogramaStore } from '../../../../../../app/stores/odontogramaStore'
 import { usePresupuestosStore } from '../../../../../../app/stores/usePresupuestosStore'
 import { ModalNuevoPresupuesto } from '../../../../../billing/budget/components/modal/ModalNuevoPresupuesto'
@@ -294,6 +295,8 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
           )
         })}
       </div>
+
+      <PresupuestosPaciente pacienteId={pacienteId} />
 
       <div className="mt-6 pt-6 border-t border-surface flex justify-between items-center flex-wrap gap-4" data-testid="seccion-total-presupuesto-plan">
         <div>

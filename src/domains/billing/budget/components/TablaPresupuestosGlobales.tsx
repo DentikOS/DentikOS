@@ -2,6 +2,7 @@ import React, { memo } from 'react'
 import { ESTADOS_PRESUPUESTO, TRANSICIONES_MANUALES_PRESUPUESTO } from '../constants/presupuestosConstants'
 import { FileText, Archive, Users } from 'lucide-react'
 import type { PresupuestoLocal } from '../services/presupuestosStorageService'
+import { esUuidValido } from '../../../../infrastructure/supabase/migrations/uuidUtils'
 
 export interface TablaPresupuestosGlobalesProps {
   presupuestos: PresupuestoLocal[]
@@ -49,6 +50,8 @@ export const TablaPresupuestosGlobales: React.FC<TablaPresupuestosGlobalesProps>
             const montoTotal = parseFloat(String(p.montoTotal ?? 0)) || 0
             const montoAbonado = parseFloat(String(p.montoAbonado ?? 0)) || 0
             const saldo = Math.max(0, montoTotal - montoAbonado)
+            const estadoAdmitePago = ['aprobado', 'en-curso', 'Aprobado', 'EnTratamiento'].includes(p.estado || '')
+            const pagoDisponible = esUuidValido(p.id) && p.sincronizado !== false
 
             return (
               <tr
@@ -105,12 +108,13 @@ export const TablaPresupuestosGlobales: React.FC<TablaPresupuestosGlobalesProps>
                 </td>
 
                 <td className="p-3 text-right print:hidden space-x-1 whitespace-nowrap">
-                  {(p.estado === 'en-curso' || p.estado === 'EnTratamiento' || p.estado === 'Aprobado') && onRegistrarPago && (
+                  {estadoAdmitePago && saldo > 0 && onRegistrarPago && (
                     <button
                       type="button"
                       onClick={() => onRegistrarPago(p)}
-                      className="p-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold rounded-lg transition-micro cursor-pointer"
-                      title="Registrar pago"
+                      disabled={!pagoDisponible}
+                      className="p-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-[10px] font-bold rounded-lg transition-micro cursor-pointer"
+                      title={pagoDisponible ? 'Registrar pago' : 'Espera la sincronización del presupuesto para registrar el pago'}
                       data-testid={`btn-registrar-pago-${p.id}`}
                     >
                       Registrar pago
