@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { PresupuestosPaciente } from './PresupuestosPaciente'
 import { presupuestosStorageService } from '../../../../../billing/budget/services/presupuestosStorageService'
 import { pagosService } from '../../../../../billing/budget/services/pagosService'
+import { historialPagosPresupuestoService } from '../../../../../billing/budget/services/historialPagosPresupuestoService'
 import { getClinicaActivaSync } from '../../../../../../infrastructure/auth/authService'
 import { useRBAC } from '../../../../../../shared/hooks/useRBAC'
 
@@ -12,6 +13,9 @@ vi.mock('../../../../../billing/budget/services/presupuestosStorageService', () 
 }))
 vi.mock('../../../../../billing/budget/services/pagosService', () => ({
   pagosService: { registrarPagoManual: vi.fn() },
+}))
+vi.mock('../../../../../billing/budget/services/historialPagosPresupuestoService', () => ({
+  historialPagosPresupuestoService: { listar: vi.fn() },
 }))
 vi.mock('../../../../../../infrastructure/auth/authService', () => ({
   getClinicaActivaSync: vi.fn(),
@@ -36,6 +40,7 @@ describe('Presupuestos del paciente BP07', () => {
     ])
     vi.mocked(presupuestosStorageService.sincronizarDesdeSupabase).mockResolvedValue([])
     vi.mocked(pagosService.registrarPagoManual).mockResolvedValue({ exito: true, pagoId: 'pago', montoAbonado: 100000, estado: 'completado' })
+    vi.mocked(historialPagosPresupuestoService.listar).mockResolvedValue([])
   })
 
   it('recepción ve solo presupuestos del paciente y registra su abono', async () => {
@@ -56,5 +61,15 @@ describe('Presupuestos del paciente BP07', () => {
     expect(presupuestosStorageService.obtenerPresupuestos).not.toHaveBeenCalled()
     expect(presupuestosStorageService.sincronizarDesdeSupabase).not.toHaveBeenCalled()
     expect(screen.queryByRole('button', { name: 'Registrar pago' })).not.toBeInTheDocument()
+  })
+
+  it('muestra a recepción los abonos del presupuesto seleccionado', async () => {
+    vi.mocked(historialPagosPresupuestoService.listar).mockResolvedValue([{
+      id: 'pago-1', monto: 25000, metodoPago: 'transferencia', fecha: '2026-10-30', referencia: 'Ref-123',
+    }])
+    render(<PresupuestosPaciente pacienteId="pac-1" />)
+    fireEvent.click(screen.getByRole('button', { name: 'Ver pagos' }))
+    await waitFor(() => expect(historialPagosPresupuestoService.listar).toHaveBeenCalledWith(presupuesto.id, 'pac-1'))
+    expect(screen.getByRole('region', { name: 'Pagos de PRE-001' })).toHaveTextContent('$25.000 · transferencia · Ref. Ref-123')
   })
 })

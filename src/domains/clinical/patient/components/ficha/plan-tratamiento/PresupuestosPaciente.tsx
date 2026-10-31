@@ -3,6 +3,7 @@ import { ModalRegistrarPago } from '../../../../../billing/budget/components/Mod
 import { pagosService } from '../../../../../billing/budget/services/pagosService'
 import { presupuestosStorageService, type PresupuestoLocal } from '../../../../../billing/budget/services/presupuestosStorageService'
 import { presupuestoVersionesService, type VersionPresupuesto } from '../../../../../billing/budget/services/presupuestoVersionesService'
+import { historialPagosPresupuestoService, type PagoPresupuesto } from '../../../../../billing/budget/services/historialPagosPresupuestoService'
 import { HistorialVersiones } from '../../../../../billing/budget/components/vistas/HistorialVersiones'
 import { esUuidValido } from '../../../../../../infrastructure/supabase/migrations/uuidUtils'
 import { getClinicaActivaSync } from '../../../../../../infrastructure/auth/authService'
@@ -17,6 +18,9 @@ export const PresupuestosPaciente: React.FC<{ pacienteId: string }> = ({ pacient
   const [seleccionado, setSeleccionado] = useState<PresupuestoLocal | null>(null)
   const [errorSync, setErrorSync] = useState(false)
   const [errorHistorial, setErrorHistorial] = useState('')
+  const [errorPagos, setErrorPagos] = useState('')
+  const [pagos, setPagos] = useState<{ presupuestoId: string; pacienteId: string;
+    clinicaId: string | null; folio: string; registros: PagoPresupuesto[] } | null>(null)
   const [historial, setHistorial] = useState<{ folio: string; versiones: VersionPresupuesto[];
     pacienteId: string; clinicaId: string | null } | null>(null)
   const pacienteActualRef = useRef(pacienteId)
@@ -26,6 +30,8 @@ export const PresupuestosPaciente: React.FC<{ pacienteId: string }> = ({ pacient
     let vigente = true
     setHistorial(null)
     setErrorHistorial('')
+    setPagos(null)
+    setErrorPagos('')
     const cargar = () => {
       if (!getClinicaActivaSync()) {
         if (vigente) setPresupuestos([])
@@ -87,10 +93,36 @@ export const PresupuestosPaciente: React.FC<{ pacienteId: string }> = ({ pacient
                   }
                 }
               }}>Ver historial</button>}
+            {puedeRegistrar && sincronizado && <button type="button" className="rounded-lg border border-surface px-3 py-2 font-semibold"
+              onClick={async () => {
+                setErrorPagos('')
+                const clinicaSolicitada = getClinicaActivaSync()
+                try {
+                  const registros = await historialPagosPresupuestoService.listar(p.id, pacienteId)
+                  if (pacienteActualRef.current === pacienteId && getClinicaActivaSync() === clinicaSolicitada) {
+                    setPagos({ presupuestoId: String(p.id), pacienteId, clinicaId: clinicaSolicitada,
+                      folio: p.folio || 'Presupuesto', registros })
+                  }
+                } catch {
+                  if (pacienteActualRef.current === pacienteId && getClinicaActivaSync() === clinicaSolicitada) {
+                    setErrorPagos('No se pudo consultar el historial de pagos.')
+                  }
+                }
+              }}>Ver pagos</button>}
           </div>
         )
       })}
       {errorHistorial && <p role="alert" className="text-xs text-rose-700">{errorHistorial}</p>}
+      {errorPagos && <p role="alert" className="text-xs text-rose-700">{errorPagos}</p>}
+      {pagos && pagos.pacienteId === pacienteId && pagos.clinicaId === getClinicaActivaSync() && <section aria-label={`Pagos de ${pagos.folio}`} className="rounded-xl border border-surface p-3 text-xs space-y-2">
+        <div className="flex justify-between gap-2"><strong>Pagos de {pagos.folio}</strong>
+          <button type="button" className="underline" onClick={() => setPagos(null)}>Cerrar pagos</button></div>
+        {pagos.registros.length === 0 && <p>No hay abonos registrados para este presupuesto.</p>}
+        {pagos.registros.map((pago) => <p key={pago.id} className="border-t border-surface pt-2">
+          {pago.fecha} · ${pago.monto.toLocaleString('es-CL')} · {pago.metodoPago}
+          {pago.referencia && <span> · Ref. {pago.referencia}</span>}
+        </p>)}
+      </section>}
       {historial && historial.pacienteId === pacienteId && historial.clinicaId === getClinicaActivaSync() && <div>
         <button type="button" className="mb-2 text-xs underline" onClick={() => setHistorial(null)}>Cerrar historial</button>
         <HistorialVersiones folioPresupuesto={historial.folio} versiones={historial.versiones} />
@@ -103,6 +135,14 @@ export const PresupuestosPaciente: React.FC<{ pacienteId: string }> = ({ pacient
         onRegistrarPago={async (pago) => {
           try {
             await pagosService.registrarPagoManual({ pagoId: pago.id, presupuestoId: seleccionado.id, monto: pago.monto, medioPago: pago.medioPago, referencia: pago.referencia })
+            if (pagos?.presupuestoId === String(seleccionado.id)) {
+              try {
+                const registros = await historialPagosPresupuestoService.listar(seleccionado.id, pacienteId)
+                setPagos({ ...pagos, registros })
+              } catch {
+                setErrorPagos('El abono se registró, pero no se pudo actualizar el historial de pagos.')
+              }
+            }
             setSeleccionado(null)
             return true
           } catch {
