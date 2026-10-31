@@ -9,6 +9,7 @@ import { usePacientesStore } from '../../../../../../app/stores/pacientesStore'
 import { fichasClinicasStorageService } from '../../../services/fichasClinicasStorageService'
 import { presupuestosStorageService } from '../../../../../billing/budget/services/presupuestosStorageService'
 import { presupuestoPlanSyncService } from '../../../../../billing/budget/services/presupuestoPlanSyncService'
+import { revisionPrecioPlanService } from '../../../../../billing/budget/services/revisionPrecioPlanService'
 import { derivacionesService } from './derivacionesService'
 import * as authService from '../../../../../../infrastructure/auth/authService'
 
@@ -164,6 +165,42 @@ describe('PlanTratamiento BP06', () => {
     obtener.mockReturnValue([{ ...presupuesto, montoAbonado: 42000, estado: 'completado' }])
     act(() => window.dispatchEvent(new Event('presupuestos_actualizados')))
     await waitFor(() => expect(screen.getByTestId('estado-plan-tratamiento')).toHaveTextContent('Plan completado'))
+  })
+
+  it('pide revisión autorizada antes de cambiar el precio clínico desde un borrador', async () => {
+    vi.spyOn(authService, 'getClinicaActivaSync').mockReturnValue('aaaaaaaa-0000-4000-8000-000000000001')
+    act(() => useSesionStore.setState({ userProfile: { email: 'dentista@example.test', rol: 'dentista' } }))
+    vi.spyOn(presupuestosStorageService, 'obtenerPresupuestos').mockReturnValue([{
+      id: 'bbbbbbbb-1111-4222-8333-444444444444', folio: 'PRE-50', pacienteId,
+      origenPlan: true, versionGrupoId: 'cccccccc-1111-4222-8333-444444444444', version: 2,
+      planRevision: 'revision-1', estado: 'borrador', sincronizado: true, requiereRevision: true,
+      montoTotal: 12000, montoAbonado: 0,
+      items: [{ id: 'item-1', origenPlanProcedimientoId: 'proc-1', codigoPrestacion: 'prest-1',
+        precioUnitario: 12000, precioPlanOriginal: 10000 }],
+    }])
+    const plan = (costo: number, actualizadoAt: string) => ({
+      odontograma: { actualizadoAt: 'od-1', piezas: [] },
+      plan_tratamiento: { actualizadoAt, odontogramaActualizadoAt: 'od-1', fases: [{
+        id: 'fase-urgencias', nombre: 'Urgencias', subtitulo: '', procedimientos: [{
+          id: 'proc-1', descripcion: 'Control', prestacionId: 'prest-1', faseAsignada: 'urgencias',
+          costo, requiereRevision: false, estado: 'pendiente',
+        }],
+      }] },
+    })
+    vi.mocked(fichasClinicasStorageService.obtenerFichaClinica)
+      .mockResolvedValueOnce(plan(10000, 'revision-1') as any)
+      .mockResolvedValueOnce(plan(12000, 'revision-2') as any)
+    const confirmar = vi.spyOn(revisionPrecioPlanService, 'confirmar').mockResolvedValue({ nuevaRevision: 'revision-2', nuevaVersion: 3 })
+    vi.spyOn(window, 'prompt').mockReturnValue('Precio revisado con paciente')
+
+    render(<PlanTratamiento pacienteId={pacienteId} />)
+    expect(await screen.findByText(/plan \$10\.000 · presupuesto \$12\.000/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Revisar y aplicar precios al plan' }))
+    await waitFor(() => expect(confirmar).toHaveBeenCalledWith(expect.objectContaining({
+      presupuestoId: 'bbbbbbbb-1111-4222-8333-444444444444', pacienteId,
+      planRevision: 'revision-1', version: 2, motivo: 'Precio revisado con paciente',
+    })))
+    await waitFor(() => expect(screen.getAllByText('$12.000').length).toBeGreaterThan(0))
   })
 
   it('conserva el plan clínico y bloquea el presupuesto cuando cambia el odontograma', async () => {

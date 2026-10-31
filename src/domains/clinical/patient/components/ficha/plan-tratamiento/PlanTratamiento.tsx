@@ -15,6 +15,7 @@ import { fichasClinicasStorageService } from '../../../services/fichasClinicasSt
 import { usePrestacionesStore } from '../../../../../../app/stores/prestacionesStore'
 import { presupuestosStorageService, type PresupuestoLocal } from '../../../../../billing/budget/services/presupuestosStorageService'
 import { presupuestoPlanSyncService } from '../../../../../billing/budget/services/presupuestoPlanSyncService'
+import { revisionPrecioPlanService } from '../../../../../billing/budget/services/revisionPrecioPlanService'
 import { getClinicaActivaSync } from '../../../../../../infrastructure/auth/authService'
 import type { ItemDesdePlan } from '../../../../../billing/budget/utils/planBudgetMerge'
 import { evaluarEstadoPlanTratamiento } from './estadoPlanTratamiento'
@@ -66,6 +67,8 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
   const [modalPresupuestoAbierto, setModalPresupuestoAbierto] = useState(false)
   const planOdontogramaStampRef = useRef<string | null>(null)
   const planCargadoRef = useRef(false)
+  const pacienteActivoRef = useRef(pacienteId)
+  pacienteActivoRef.current = pacienteId
 
   useEffect(() => {
     const cargar = () => setPresupuestosPlan(getClinicaActivaSync()
@@ -165,6 +168,55 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
   const estadoPlan = useMemo(() => evaluarEstadoPlanTratamiento(
     fases, presupuestosPlan, pacienteId, planGuardado ? planRevision : undefined
   ), [fases, presupuestosPlan, pacienteId, planGuardado, planRevision])
+  const presupuestosConDiferencias = useMemo(() => [...new Set(
+    estadoPlan.diferenciasPrecio.map((diferencia) => diferencia.presupuestoId)
+  )], [estadoPlan.diferenciasPrecio])
+
+  const confirmarPreciosPresupuesto = async (presupuestoId: string) => {
+    const clinicaId = getClinicaActivaSync()
+    const presupuesto = presupuestosPlan.find((p) => String(p.id) === presupuestoId)
+    if (!clinicaId || !planRevision || !planGuardado || odontogramaDesactualizado ||
+      !presupuesto || presupuesto.sincronizado === false ||
+      !['borrador', 'Borrador'].includes(presupuesto.estado || '') ||
+      (rol !== 'admin' && rol !== 'dentista')) {
+      setError('Actualiza el plan y abre un borrador vinculado antes de revisar los precios.')
+      return
+    }
+    const motivo = window.prompt('Motivo clínico de la revisión de precios:')?.trim()
+    if (!motivo || motivo.length > 500) {
+      setError('Indica un motivo de hasta 500 caracteres para revisar los precios.')
+      return
+    }
+    setGuardando(true)
+    setError('')
+    let confirmado = false
+    try {
+      const resultado = await revisionPrecioPlanService.confirmar({ presupuestoId, pacienteId,
+        planRevision, version: Number(presupuesto.version || 1), motivo })
+      confirmado = true
+      if (getClinicaActivaSync() !== clinicaId || pacienteActivoRef.current !== pacienteId) {
+        throw new Error('La ficha activa cambió.')
+      }
+      const ficha = await fichasClinicasStorageService.obtenerFichaClinica(pacienteId)
+      const plan = ficha?.plan_tratamiento as { fases?: FasePlan[]; actualizadoAt?: string } | null
+      if (getClinicaActivaSync() !== clinicaId || pacienteActivoRef.current !== pacienteId ||
+        plan?.actualizadoAt !== resultado.nuevaRevision || !Array.isArray(plan.fases)) {
+        throw new Error('El plan se actualizó, pero no se pudo recargar. Vuelve a abrir la ficha.')
+      }
+      setFases(plan.fases)
+      setPlanRevision(resultado.nuevaRevision)
+      setPlanGuardado(true)
+      await presupuestosStorageService.sincronizarDesdeSupabase()
+    } catch (cause) {
+      if (pacienteActivoRef.current === pacienteId && getClinicaActivaSync() === clinicaId) {
+        setError(confirmado
+          ? 'La revisión se aplicó, pero no se pudo recargar la ficha. Vuelve a abrirla.'
+          : cause instanceof Error ? cause.message : 'No se pudo revisar el precio del plan.')
+      }
+    } finally {
+      setGuardando(false)
+    }
+  }
 
   const actualizarProcedimiento = (procId: string, cambio: Partial<ProcedimientoPlan>) => {
     setFases((prev) => {
@@ -301,6 +353,23 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
       </div>
 
       {error && <p role="alert" className="text-xs text-rose-600">{error}</p>}
+
+      {presupuestosConDiferencias.map((presupuestoId) => {
+        const diferencias = estadoPlan.diferenciasPrecio.filter((diferencia) => diferencia.presupuestoId === presupuestoId)
+        const presupuesto = presupuestosPlan.find((p) => String(p.id) === presupuestoId)
+        return <div key={presupuestoId} role="alert" className="p-4 border border-amber-400 rounded-xl text-xs text-amber-900 space-y-2">
+          <p className="font-bold">El presupuesto {diferencias[0]?.folio} v{diferencias[0]?.version} tiene precios distintos del plan clínico.</p>
+          {diferencias.map((diferencia) => <p key={diferencia.procedimientoId}>
+            Procedimiento {diferencia.procedimientoId}: plan ${diferencia.precioPlan.toLocaleString('es-CL')} · presupuesto ${diferencia.precioPresupuesto.toLocaleString('es-CL')}
+          </p>)}
+          {(rol === 'admin' || rol === 'dentista') && presupuesto?.sincronizado !== false &&
+            ['borrador', 'Borrador'].includes(presupuesto?.estado || '') &&
+            <button type="button" className="underline font-bold" disabled={guardando || odontogramaDesactualizado}
+              onClick={() => void confirmarPreciosPresupuesto(presupuestoId)}>
+              Revisar y aplicar precios al plan
+            </button>}
+        </div>
+      })}
 
       {borradoresDesactualizados.map((presupuesto) => <div key={String(presupuesto.id)} className="p-4 border border-amber-400 rounded-xl text-xs text-amber-900">
         El borrador {presupuesto.folio} v{presupuesto.version || 1} corresponde a una revisión anterior del plan. Actualízalo y confirma la revisión clínica antes de enviarlo.

@@ -36,6 +36,19 @@ describe('estado del plan vinculado', () => {
     expect(evaluarEstadoPlanTratamiento(fases('realizado'), [presupuesto(10000)], pacienteId, 'revision-clinica-nueva').completado).toBe(true)
   })
 
+  it('detecta el precio vigente del presupuesto aunque el precio original del plan siga igual', () => {
+    const cambiado = presupuesto(12000, { montoTotal: 12000, estado: 'borrador', items: [{
+      id: 'item-1', origenPlanProcedimientoId: 'proc-1', codigoPrestacion: 'prest-1',
+      precioPlanOriginal: 10000, precioUnitario: 12000,
+    }] })
+    const estado = evaluarEstadoPlanTratamiento(fases('realizado'), [cambiado], pacienteId, revision)
+    expect(estado.completado).toBe(false)
+    expect(estado.aprobaciones['proc-1']).toBeUndefined()
+    expect(estado.diferenciasPrecio).toEqual([expect.objectContaining({
+      presupuestoId: cambiado.id, procedimientoId: 'proc-1', precioPlan: 10000, precioPresupuesto: 12000,
+    })])
+  })
+
   it('muestra aprobación solo desde la versión vigente con prestación y precio coincidentes', () => {
     const aprobado = presupuesto(0, { estado: 'aprobado', folio: 'PRE-47' })
     expect(evaluarEstadoPlanTratamiento(fases('pendiente'), [aprobado], pacienteId, revision).aprobaciones['proc-1'])
