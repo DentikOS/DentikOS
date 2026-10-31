@@ -5,6 +5,7 @@ export interface EstadoPlanTratamiento {
   tratamientosRealizados: boolean
   saldoCubierto: boolean
   completado: boolean
+  aprobaciones: Record<string, { folio: string; version: number }>
 }
 
 export const evaluarEstadoPlanTratamiento = (
@@ -39,5 +40,15 @@ export const evaluarEstadoPlanTratamiento = (
     return presupuesto.sincronizado !== false && Number.isFinite(total) && total >= 0 &&
       Number.isFinite(abonado) && abonado >= total
   })
-  return { tratamientosRealizados, saldoCubierto, completado: tratamientosRealizados && saldoCubierto }
+  const aprobaciones: EstadoPlanTratamiento['aprobaciones'] = {}
+  for (const presupuesto of vigentes.sort((a, b) => Number(b.version || 1) - Number(a.version || 1))) {
+    if (!['aprobado', 'Aprobado', 'en-curso', 'EnTratamiento', 'completado'].includes(presupuesto.estado || '')) continue
+    for (const item of presupuesto.items || []) {
+      const procId = String(item.origenPlanProcedimientoId || '')
+      if (procId && !aprobaciones[procId]) {
+        aprobaciones[procId] = { folio: presupuesto.folio || 'Presupuesto', version: Number(presupuesto.version || 1) }
+      }
+    }
+  }
+  return { tratamientosRealizados, saldoCubierto, completado: tratamientosRealizados && saldoCubierto, aprobaciones }
 }

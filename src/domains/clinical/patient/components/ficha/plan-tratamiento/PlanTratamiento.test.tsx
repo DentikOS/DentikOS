@@ -142,7 +142,7 @@ describe('PlanTratamiento BP06', () => {
   it('muestra el plan completado al confirmarse el saldo y realizarse el tratamiento', async () => {
     vi.spyOn(authService, 'getClinicaActivaSync').mockReturnValue('aaaaaaaa-0000-4000-8000-000000000001')
     const presupuesto = {
-      id: 'bbbbbbbb-1111-4222-8333-444444444444', pacienteId, origenPlan: true,
+      id: 'bbbbbbbb-1111-4222-8333-444444444444', folio: 'PRE-47', pacienteId, origenPlan: true,
       planRevision: 'revision-anterior', versionGrupoId: 'grupo-1', version: 1,
       montoTotal: 42000, montoAbonado: 0, estado: 'en-curso', sincronizado: true,
       items: [{ id: 'item-1', origenPlanProcedimientoId: 'proc-1', codigoPrestacion: 'prest-1', precioPlanOriginal: 42000 }],
@@ -160,6 +160,7 @@ describe('PlanTratamiento BP06', () => {
 
     render(<PlanTratamiento pacienteId={pacienteId} />)
     await waitFor(() => expect(screen.getByTestId('estado-plan-tratamiento')).toHaveTextContent('saldo pendiente'))
+    expect(screen.getByText('Aprobado en PRE-47 v1')).toBeInTheDocument()
     obtener.mockReturnValue([{ ...presupuesto, montoAbonado: 42000, estado: 'completado' }])
     act(() => window.dispatchEvent(new Event('presupuestos_actualizados')))
     await waitFor(() => expect(screen.getByTestId('estado-plan-tratamiento')).toHaveTextContent('Plan completado'))

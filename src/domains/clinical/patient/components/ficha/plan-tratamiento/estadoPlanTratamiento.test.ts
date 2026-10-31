@@ -36,6 +36,17 @@ describe('estado del plan vinculado', () => {
     expect(evaluarEstadoPlanTratamiento(fases('realizado'), [presupuesto(10000)], pacienteId, 'revision-clinica-nueva').completado).toBe(true)
   })
 
+  it('muestra aprobación solo desde la versión vigente con prestación y precio coincidentes', () => {
+    const aprobado = presupuesto(0, { estado: 'aprobado', folio: 'PRE-47' })
+    expect(evaluarEstadoPlanTratamiento(fases('pendiente'), [aprobado], pacienteId, revision).aprobaciones['proc-1'])
+      .toEqual({ folio: 'PRE-47', version: 1 })
+    expect(evaluarEstadoPlanTratamiento(fases('pendiente'), [aprobado,
+      presupuesto(0, { id: 'version-2', version: 2, estado: 'borrador' })], pacienteId, revision).aprobaciones['proc-1'])
+      .toBeUndefined()
+    expect(evaluarEstadoPlanTratamiento(fases('pendiente'), [presupuesto(0, { estado: 'aprobado', items: [] })], pacienteId, revision).aprobaciones['proc-1'])
+      .toBeUndefined()
+  })
+
   it('usa la versión vigente de cada presupuesto vinculado y exige todos los saldos cubiertos', () => {
     const versiones = [presupuesto(10000), presupuesto(0, { id: 'version-2', version: 2 })]
     expect(evaluarEstadoPlanTratamiento(fases('realizado'), versiones, pacienteId, revision).completado).toBe(false)

@@ -415,6 +415,9 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
                         </span>
                       )}
                       <span className="font-medium text-graphite-800 dark:text-graphite-200 truncate">{proc.descripcion}</span>
+                      {estadoPlan.aprobaciones[proc.id] && <span className="text-[10px] font-semibold text-emerald-700">
+                        Aprobado en {estadoPlan.aprobaciones[proc.id].folio} v{estadoPlan.aprobaciones[proc.id].version}
+                      </span>}
                     </div>
 
                     <div className="flex items-center gap-3 shrink-0 flex-wrap justify-end">
@@ -450,6 +453,7 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
                         {proc.costo === null ? 'Sin precio · revisión clínica' : `$${proc.costo.toLocaleString('es-CL')}`}
                       </span>
                       <select
+                        aria-label={`Estado clínico de ${proc.descripcion}`}
                         value={proc.estado}
                         onChange={(e) => actualizarProcedimiento(proc.id, { estado: e.target.value as ProcedimientoPlan['estado'] })}
                         disabled={proc.requiereRevision}
