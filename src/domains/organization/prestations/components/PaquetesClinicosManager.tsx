@@ -23,6 +23,7 @@ export const PaquetesClinicosManager: React.FC<PaquetesClinicosManagerProps> = m
   const [precioCombo, setPrecioCombo] = useState<string>('')
   const [ahorroEstimado, setAhorroEstimado] = useState<string>('15%')
   const [error, setError] = useState('')
+  const [sincronizando, setSincronizando] = useState<string | null>(null)
 
   const handleAbrirEditar = (pk: PaqueteClinico): void => {
     setPackEditar(pk)
@@ -36,7 +37,7 @@ export const PaquetesClinicosManager: React.FC<PaquetesClinicosManagerProps> = m
         ? String(pk.precio)
         : ''
     )
-    setAhorroEstimado(pk.ahorroEstimado || '15%')
+    setAhorroEstimado(pk.ahorroEstimado ?? '')
   }
 
   const handleCancelarEdicion = (): void => {
@@ -75,6 +76,34 @@ export const PaquetesClinicosManager: React.FC<PaquetesClinicosManagerProps> = m
       variant: 'success',
       confirmText: 'Entendido'
     })
+  }
+
+  const compartirMetadataLocal = async (pack: PaqueteClinico): Promise<void> => {
+    setSincronizando(String(pack.id))
+    setError('')
+    try {
+      await alGuardarPaquete({
+        id: pack.id,
+        nombre: pack.nombre,
+        descripcion: pack.descripcion,
+        precioCombo: pack.precioCombo ?? Number(pack.precio ?? 0),
+        ahorroEstimado: pack.ahorroEstimado,
+      })
+      try {
+        await dialogAlert({
+          title: 'Pack compartido',
+          description: 'La descripción y el ahorro ahora están disponibles para la clínica.',
+          variant: 'success',
+          confirmText: 'Entendido'
+        })
+      } catch {
+        // La escritura ya fue confirmada; el diálogo solo informa el resultado.
+      }
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'No se pudo compartir la metadata del pack.')
+    } finally {
+      setSincronizando(null)
+    }
   }
 
   return (
@@ -211,15 +240,30 @@ export const PaquetesClinicosManager: React.FC<PaquetesClinicosManagerProps> = m
                   <p className="text-gray-600 dark:text-graphite-400 mt-2 text-[11px] leading-relaxed">
                     {pk.descripcion}
                   </p>
+                  {pk.pendienteCompartir && (
+                    <div className="mt-2 flex items-center justify-between gap-2 rounded-lg bg-amber-50 p-2 text-[10px] text-amber-900">
+                      <span>Este pack tiene datos locales pendientes de compartir.</span>
+                      <button
+                        type="button"
+                        disabled={sincronizando === String(pk.id)}
+                        onClick={() => { void compartirMetadataLocal(pk) }}
+                        className="shrink-0 font-bold underline disabled:opacity-50"
+                      >
+                        {sincronizando === String(pk.id) ? 'Compartiendo…' : 'Compartir con la clínica'}
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex justify-between items-center pt-3 border-t">
                   <span className="font-black text-emerald-900 text-sm">
                     {formatearCLP(precioMostrar)}
                   </span>
-                  <span className="bg-emerald-100 text-emerald-900 px-2.5 py-1 rounded-lg font-extrabold text-[10px]">
-                    Ahorro {pk.ahorroEstimado}
-                  </span>
+                  {pk.ahorroEstimado && (
+                    <span className="bg-emerald-100 text-emerald-900 px-2.5 py-1 rounded-lg font-extrabold text-[10px]">
+                      Ahorro {pk.ahorroEstimado}
+                    </span>
+                  )}
                 </div>
               </div>
             )

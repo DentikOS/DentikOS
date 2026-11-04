@@ -185,7 +185,6 @@ export const PrestacionesModulo: React.FC = memo(() => {
 
       {tabActual === 'paquetes' && (
         <>
-          {USE_SUPABASE && <p className="text-xs text-amber-800">El precio y nombre de un pack nuevo se comparten como prestación; su descripción y promoción siguen guardadas en este navegador.</p>}
           <PaquetesClinicosManager
             paquetes={paquetes}
             alGuardarPaquete={agregarPaquete}

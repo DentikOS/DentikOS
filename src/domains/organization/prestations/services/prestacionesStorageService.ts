@@ -24,6 +24,7 @@ export interface PaqueteClinico {
   descripcion?: string
   precioCombo?: number
   ahorroEstimado?: string
+  pendienteCompartir?: boolean
   [key: string]: unknown
 }
 

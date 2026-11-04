@@ -58,7 +58,7 @@ export const useEliminarPrestaciones = ({
         }
         setPaquetes(prev => {
           const actualizados = prev.filter(p => String(p.id) !== String(id))
-          prestacionesStorageService.guardarPaquetes(actualizados)
+          if (!USE_SUPABASE) prestacionesStorageService.guardarPaquetes(actualizados)
           return actualizados
         })
 

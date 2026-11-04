@@ -98,6 +98,9 @@ export const ModalNuevaPrestacion: React.FC<ModalNuevaPrestacionProps> = memo(({
             onChange={(e) => setEspecialidad(e.target.value)}
             className="w-full p-2.5 rounded-xl border border-gray-300 dark:border-graphite-600 bg-white dark:bg-graphite-800 font-medium"
           >
+            {prestacionEditar?.especialidad && !ESPECIALIDADES_ODONTOLOGICAS.includes(prestacionEditar.especialidad) && (
+              <option value={prestacionEditar.especialidad}>{prestacionEditar.especialidad}</option>
+            )}
             {ESPECIALIDADES_ODONTOLOGICAS.map((e) => (
               <option key={e} value={e}>
                 {e}

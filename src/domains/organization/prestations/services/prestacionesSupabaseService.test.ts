@@ -22,6 +22,11 @@ const fila = {
   id: prestacionId, nombre: 'Control', especialidad: 'Diagnóstico',
   precio_particular: 15000, precio_fonasa: 0, codigo_fonasa: null,
 }
+const filaPaquete = {
+  ...fila, nombre: 'Pack evaluación', especialidad: 'Pack Promocional',
+  precio_particular: 50000, precio_fonasa: 50000, precio: 50000,
+  descripcion: 'Evaluación y limpieza', ahorro_estimado: '15%',
+}
 
 describe('prestacionesSupabaseService', () => {
   beforeEach(() => {
@@ -31,14 +36,20 @@ describe('prestacionesSupabaseService', () => {
   })
 
   it('consulta solo el arancel de la clínica activa y transforma el precio', async () => {
-    const order = vi.fn().mockResolvedValue({ data: [fila], error: null })
+    const order = vi.fn().mockResolvedValue({ data: [filaPaquete], error: null })
     const eq = vi.fn().mockReturnValue({ order })
     const select = vi.fn().mockReturnValue({ eq })
     estado.from.mockReturnValue({ select })
     const lista = await prestacionesSupabaseService.listar()
     expect(estado.from).toHaveBeenCalledWith('prestaciones')
+    expect(select).toHaveBeenCalledWith('id,nombre,especialidad,precio_particular,precio_fonasa,codigo_fonasa,descripcion,ahorro_estimado')
     expect(eq).toHaveBeenCalledWith('clinica_id', clinicaId)
-    expect(lista).toEqual([{ id: prestacionId, nombre: 'Control', especialidad: 'Diagnóstico', precioParticular: 15000, precioFonasa: 0, codigoFonasa: '', precio: 15000 }])
+    expect(lista).toEqual([{
+      id: prestacionId, nombre: 'Pack evaluación', especialidad: 'Pack Promocional',
+      precioParticular: 50000, precioFonasa: 50000, codigoFonasa: '', precio: 50000,
+      precioCombo: 50000,
+      descripcion: 'Evaluación y limpieza', ahorroEstimado: '15%',
+    }])
   })
 
   it('falla cerrado sin clínica activa y no consulta la tabla', async () => {
@@ -58,6 +69,26 @@ describe('prestacionesSupabaseService', () => {
     })
     expect(insert).toHaveBeenCalledWith(expect.objectContaining({ clinica_id: clinicaId, user_id: userId, precio_particular: 15000 }))
     expect(guardada.id).toBe(prestacionId)
+  })
+
+  it('guarda y devuelve descripción y ahorro promocional compartidos', async () => {
+    const single = vi.fn().mockResolvedValue({ data: filaPaquete, error: null })
+    const select = vi.fn().mockReturnValue({ single })
+    const insert = vi.fn().mockReturnValue({ select })
+    estado.from.mockReturnValue({ insert })
+
+    const guardada = await prestacionesSupabaseService.guardar({
+      id: 123, nombre: 'Pack evaluación', especialidad: 'Pack Promocional',
+      precioParticular: 50000, precioFonasa: 50000, codigoFonasa: '',
+      descripcion: '  Evaluación y limpieza  ', ahorroEstimado: ' 15% ',
+    })
+
+    expect(insert).toHaveBeenCalledWith(expect.objectContaining({
+      descripcion: 'Evaluación y limpieza', ahorro_estimado: '15%',
+    }))
+    expect(guardada).toEqual(expect.objectContaining({
+      descripcion: 'Evaluación y limpieza', ahorroEstimado: '15%',
+    }))
   })
 
   it('rechaza precio inválido antes de escribir', async () => {
@@ -88,6 +119,7 @@ describe('prestacionesSupabaseService', () => {
     const reajustadas = await prestacionesSupabaseService.reajustarMasivo(10, [{
       id: prestacionId, nombre: 'Control', especialidad: 'Diagnóstico',
       precioParticular: 15000, precioFonasa: 0, codigoFonasa: '',
+      descripcion: 'Detalle guardado', ahorroEstimado: '15%',
     }])
 
     expect(estado.rpc).toHaveBeenCalledWith('reajustar_arancel_clinica', {
@@ -97,6 +129,7 @@ describe('prestacionesSupabaseService', () => {
     expect(reajustadas).toEqual([{
       id: prestacionId, nombre: 'Control', especialidad: 'Diagnóstico',
       precioParticular: 16500, precioFonasa: 0, codigoFonasa: '', precio: 16500,
+      descripcion: 'Detalle guardado', ahorroEstimado: '15%',
     }])
   })
 

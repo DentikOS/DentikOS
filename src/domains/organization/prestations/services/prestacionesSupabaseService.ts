@@ -21,13 +21,18 @@ const desdeFila = (fila: Record<string, unknown>): Prestacion => ({
   precioFonasa: Number(fila.precio_fonasa),
   codigoFonasa: String(fila.codigo_fonasa ?? ''),
   precio: Number(fila.precio_particular),
+  ...(fila.especialidad === 'Pack Promocional' ? { precioCombo: Number(fila.precio_particular) } : {}),
+  ...(typeof fila.descripcion === 'string' ? { descripcion: fila.descripcion } : {}),
+  ...(typeof fila.ahorro_estimado === 'string' ? { ahorroEstimado: fila.ahorro_estimado } : {}),
 })
+
+const columnasPrestacion = 'id,nombre,especialidad,precio_particular,precio_fonasa,codigo_fonasa,descripcion,ahorro_estimado'
 
 export const prestacionesSupabaseService = {
   async listar(): Promise<Prestacion[]> {
     const { client, clinicaId } = contexto()
     const { data, error } = await client.from('prestaciones')
-      .select('id,nombre,especialidad,precio_particular,precio_fonasa,codigo_fonasa')
+      .select(columnasPrestacion)
       .eq('clinica_id', clinicaId).order('nombre')
     if (error) throw new Error('No se pudo cargar el arancel compartido de la clínica.')
     return (data ?? []).map((fila) => desdeFila(fila))
@@ -47,15 +52,21 @@ export const prestacionesSupabaseService = {
       nombre, especialidad, precio_particular: particular,
       precio_fonasa: fonasa, codigo_fonasa: prestacion.codigoFonasa || null,
       precio: particular,
+      ...(typeof prestacion.descripcion === 'string'
+        ? { descripcion: prestacion.descripcion.trim() || null }
+        : {}),
+      ...(typeof prestacion.ahorroEstimado === 'string'
+        ? { ahorro_estimado: prestacion.ahorroEstimado.trim() || null }
+        : {}),
     }
     const { data, error } = uuid(prestacion.id)
       ? await client.from('prestaciones').update(valores).eq('id', prestacion.id)
-          .eq('clinica_id', clinicaId).select('id,nombre,especialidad,precio_particular,precio_fonasa,codigo_fonasa').maybeSingle()
+          .eq('clinica_id', clinicaId).select(columnasPrestacion).maybeSingle()
       : await (async () => {
           const { data: auth, error: authError } = await client.auth.getUser()
           if (authError || !auth.user?.id) throw new Error('Inicia sesión para guardar la prestación.')
           return client.from('prestaciones').insert({ ...valores, clinica_id: clinicaId, user_id: auth.user.id })
-            .select('id,nombre,especialidad,precio_particular,precio_fonasa,codigo_fonasa').single()
+            .select(columnasPrestacion).single()
         })()
     if (error || !data) throw new Error('No se pudo guardar la prestación. Revisa tus permisos y vuelve a intentar.')
     return desdeFila(data)
@@ -91,7 +102,11 @@ export const prestacionesSupabaseService = {
     if (error || !Array.isArray(data) || data.length !== esperadas.length) {
       throw new Error('No se pudo reajustar el arancel completo. No se confirmó ningún cambio.')
     }
-    return data.map((fila) => desdeFila(fila as Record<string, unknown>))
+    const metadataPorId = new Map(prestaciones.map((prestacion) => [String(prestacion.id), prestacion]))
+    return data.map((fila) => ({
+      ...metadataPorId.get(String(fila.id)),
+      ...desdeFila(fila as Record<string, unknown>),
+    }))
   },
 
   async eliminar(id: string | number): Promise<void> {
