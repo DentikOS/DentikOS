@@ -1,7 +1,12 @@
 import React from 'react'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 import { ModalRegistrarPago } from './ModalRegistrarPago'
+import { imputacionesPagoService } from '../../services/imputacionesPagoService'
+
+vi.mock('../../services/imputacionesPagoService', () => ({
+  imputacionesPagoService: { listar: vi.fn() },
+}))
 
 describe('ModalRegistrarPago (BP07 §19)', () => {
   it('renderiza con saldo pendiente y total de presupuesto', () => {
@@ -82,5 +87,31 @@ describe('ModalRegistrarPago (BP07 §19)', () => {
         nuevoEstado: 'completado',
       })
     )
+  })
+
+  it('envía solo las prestaciones que el usuario asigna de forma explícita', async () => {
+    const itemId = '00000000-0000-4000-8000-000000000001'
+    vi.mocked(imputacionesPagoService.listar).mockResolvedValue({
+      presupuestoId: '00000000-0000-4000-8000-000000000099',
+      items: [{ id: itemId, nombre: 'Control', valorBruto: 40000, montoNeto: 40000,
+        montoImputado: 0, saldoPendiente: 40000, estadoFinanciero: 'pendiente' }],
+      pagos: [], imputaciones: [],
+    })
+    const onRegistrar = vi.fn()
+    render(
+      <ModalRegistrarPago
+        presupuestoId="00000000-0000-4000-8000-000000000099"
+        saldoPendiente={60000}
+        totalPresupuesto={60000}
+        onRegistrarPago={onRegistrar}
+        onCerrar={vi.fn()}
+      />
+    )
+    await waitFor(() => expect(screen.getByTestId(`input-imputacion-${itemId}`)).toBeInTheDocument())
+    fireEvent.change(screen.getByTestId(`input-imputacion-${itemId}`), { target: { value: '25000' } })
+    fireEvent.click(screen.getByTestId('btn-confirmar-registro-pago'))
+    await waitFor(() => expect(onRegistrar).toHaveBeenCalledWith(expect.objectContaining({
+      imputaciones: [{ itemId, monto: 25000 }],
+    })))
   })
 })

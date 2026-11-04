@@ -11,6 +11,7 @@ export interface RegistrarPagoInput {
   monto: number
   medioPago: 'efectivo' | 'transferencia' | 'tarjeta' | 'cheque'
   referencia?: string
+  imputaciones?: Array<{ itemId: string; monto: number }>
 }
 
 export const pagosService = {
@@ -22,13 +23,26 @@ export const pagosService = {
       throw new Error('El monto debe ser un entero mayor a 0.')
     }
     if (input.pagoId && !esUuidValido(input.pagoId)) throw new Error('Identificador de pago inválido.')
+    const imputaciones = input.imputaciones || []
+    const itemIds = new Set<string>()
+    const montoImputado = imputaciones.reduce((total, item) => {
+      if (!esUuidValido(item.itemId) || !Number.isSafeInteger(item.monto) || item.monto <= 0 || itemIds.has(item.itemId)) {
+        throw new Error('Revisa las prestaciones y montos seleccionados para imputar.')
+      }
+      itemIds.add(item.itemId)
+      return total + item.monto
+    }, 0)
+    if (!Number.isSafeInteger(montoImputado) || montoImputado > input.monto) {
+      throw new Error('La suma imputada no puede superar el monto del abono.')
+    }
     const pagoId = input.pagoId || crypto.randomUUID()
-    const { data, error } = await supabase.rpc('registrar_abono_presupuesto', {
+    const { data, error } = await supabase.rpc('registrar_abono_presupuesto_con_imputaciones', {
       p_pago_id: pagoId,
       p_presupuesto_id: String(input.presupuestoId),
       p_monto: input.monto,
       p_metodo_pago: input.medioPago,
       p_referencia: input.referencia?.trim() || null,
+      p_imputaciones: imputaciones.map((item) => ({ item_id: item.itemId, monto: item.monto })),
     })
     const confirmado = Array.isArray(data) ? data[0] : data
     if (error || !confirmado || confirmado.pago_id !== pagoId) {

@@ -1,9 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { ModalRegistrarPago } from '../../../../../billing/budget/components/ModalRegistrarPago'
+import { ModalImputarPago } from '../../../../../billing/budget/components/modal/ModalImputarPago'
 import { pagosService } from '../../../../../billing/budget/services/pagosService'
 import { presupuestosStorageService, type PresupuestoLocal } from '../../../../../billing/budget/services/presupuestosStorageService'
 import { presupuestoVersionesService, type VersionPresupuesto } from '../../../../../billing/budget/services/presupuestoVersionesService'
 import { historialPagosPresupuestoService, type PagoPresupuesto } from '../../../../../billing/budget/services/historialPagosPresupuestoService'
+import { imputacionesPagoService, type PagoImputable, type SnapshotImputacionesPresupuesto } from '../../../../../billing/budget/services/imputacionesPagoService'
 import { HistorialVersiones } from '../../../../../billing/budget/components/vistas/HistorialVersiones'
 import { esUuidValido } from '../../../../../../infrastructure/supabase/migrations/uuidUtils'
 import { getClinicaActivaSync } from '../../../../../../infrastructure/auth/authService'
@@ -19,8 +21,10 @@ export const PresupuestosPaciente: React.FC<{ pacienteId: string }> = ({ pacient
   const [errorSync, setErrorSync] = useState(false)
   const [errorHistorial, setErrorHistorial] = useState('')
   const [errorPagos, setErrorPagos] = useState('')
+  const [pagoAImputar, setPagoAImputar] = useState<PagoImputable | null>(null)
   const [pagos, setPagos] = useState<{ presupuestoId: string; pacienteId: string;
-    clinicaId: string | null; folio: string; registros: PagoPresupuesto[] } | null>(null)
+    clinicaId: string | null; folio: string; registros: PagoPresupuesto[];
+    snapshot: SnapshotImputacionesPresupuesto | null } | null>(null)
   const [historial, setHistorial] = useState<{ folio: string; versiones: VersionPresupuesto[];
     pacienteId: string; clinicaId: string | null } | null>(null)
   const pacienteActualRef = useRef(pacienteId)
@@ -31,6 +35,7 @@ export const PresupuestosPaciente: React.FC<{ pacienteId: string }> = ({ pacient
     setHistorial(null)
     setErrorHistorial('')
     setPagos(null)
+    setPagoAImputar(null)
     setErrorPagos('')
     const cargar = () => {
       if (!getClinicaActivaSync()) {
@@ -96,12 +101,15 @@ export const PresupuestosPaciente: React.FC<{ pacienteId: string }> = ({ pacient
             {puedeRegistrar && sincronizado && <button type="button" className="rounded-lg border border-surface px-3 py-2 font-semibold"
               onClick={async () => {
                 setErrorPagos('')
+                setPagos(null)
+                setPagoAImputar(null)
                 const clinicaSolicitada = getClinicaActivaSync()
                 try {
                   const registros = await historialPagosPresupuestoService.listar(p.id, pacienteId)
+                  const snapshot = await imputacionesPagoService.listar(p.id).catch(() => null)
                   if (pacienteActualRef.current === pacienteId && getClinicaActivaSync() === clinicaSolicitada) {
                     setPagos({ presupuestoId: String(p.id), pacienteId, clinicaId: clinicaSolicitada,
-                      folio: p.folio || 'Presupuesto', registros })
+                      folio: p.folio || 'Presupuesto', registros, snapshot })
                   }
                 } catch {
                   if (pacienteActualRef.current === pacienteId && getClinicaActivaSync() === clinicaSolicitada) {
@@ -118,10 +126,31 @@ export const PresupuestosPaciente: React.FC<{ pacienteId: string }> = ({ pacient
         <div className="flex justify-between gap-2"><strong>Pagos de {pagos.folio}</strong>
           <button type="button" className="underline" onClick={() => setPagos(null)}>Cerrar pagos</button></div>
         {pagos.registros.length === 0 && <p>No hay abonos registrados para este presupuesto.</p>}
-        {pagos.registros.map((pago) => <p key={pago.id} className="border-t border-surface pt-2">
-          {pago.fecha} · ${pago.monto.toLocaleString('es-CL')} · {pago.metodoPago}
-          {pago.referencia && <span> · Ref. {pago.referencia}</span>}
-        </p>)}
+        {pagos.snapshot === null && <p className="text-amber-700">Se muestran los abonos, pero no se pudieron calcular saldos por prestación. La asignación requiere revisar los importes del presupuesto.</p>}
+        {pagos.registros.map((registro) => {
+          const pago = pagos.snapshot?.pagos.find((item) => item.id === registro.id)
+          const tieneImputaciones = Boolean(pago && pagos.snapshot?.imputaciones.some((item) => item.pagoId === pago.id && item.montoVigente > 0))
+          return <div key={registro.id} className="flex flex-wrap items-center justify-between gap-2 border-t border-surface pt-2">
+            <div>
+              <p>{registro.fecha} · ${registro.monto.toLocaleString('es-CL')} · {registro.metodoPago}
+                {registro.referencia && <span> · Ref. {registro.referencia}</span>}</p>
+              {pago && <p className="text-graphite-500">Asignado ${pago.montoImputado.toLocaleString('es-CL')} · Sin asignar ${pago.montoSinImputar.toLocaleString('es-CL')}</p>}
+            </div>
+            {puedeRegistrar && pago && (pago.montoSinImputar > 0 || tieneImputaciones) && (
+              <button type="button" className="rounded-lg border border-surface px-2 py-1 font-semibold"
+                onClick={() => setPagoAImputar(pago)}>
+                Asignar o corregir
+              </button>
+            )}
+          </div>
+        })}
+        {pagos.snapshot && pagos.snapshot.items.length > 0 && <div className="space-y-1 border-t border-surface pt-2">
+          <strong>Estado financiero por prestación</strong>
+          {pagos.snapshot.items.map((item) => <p key={item.id} className="flex justify-between gap-2">
+            <span>{item.nombre} · {item.estadoFinanciero === 'pagado' ? 'Pagado' : item.estadoFinanciero === 'sin_saldo' ? 'Sin saldo' : item.estadoFinanciero === 'parcial' ? 'Parcial' : 'Pendiente'}</span>
+            <span>Saldo ${item.saldoPendiente.toLocaleString('es-CL')}</span>
+          </p>)}
+        </div>}
       </section>}
       {historial && historial.pacienteId === pacienteId && historial.clinicaId === getClinicaActivaSync() && <div>
         <button type="button" className="mb-2 text-xs underline" onClick={() => setHistorial(null)}>Cerrar historial</button>
@@ -130,17 +159,27 @@ export const PresupuestosPaciente: React.FC<{ pacienteId: string }> = ({ pacient
       {seleccionado && <ModalRegistrarPago
         totalPresupuesto={Number(seleccionado.montoTotal || 0)}
         saldoPendiente={Math.max(0, Number(seleccionado.montoTotal || 0) - Number(seleccionado.montoAbonado || 0))}
+        presupuestoId={seleccionado.id}
         folioPresupuesto={seleccionado.folio}
         pacienteNombre={seleccionado.pacienteNombre}
         onRegistrarPago={async (pago) => {
+          const clinicaOperacion = getClinicaActivaSync()
           try {
-            await pagosService.registrarPagoManual({ pagoId: pago.id, presupuestoId: seleccionado.id, monto: pago.monto, medioPago: pago.medioPago, referencia: pago.referencia })
-            if (pagos?.presupuestoId === String(seleccionado.id)) {
-              try {
-                const registros = await historialPagosPresupuestoService.listar(seleccionado.id, pacienteId)
-                setPagos({ ...pagos, registros })
-              } catch {
-                setErrorPagos('El abono se registró, pero no se pudo actualizar el historial de pagos.')
+            await pagosService.registrarPagoManual({ pagoId: pago.id, presupuestoId: seleccionado.id, monto: pago.monto,
+              medioPago: pago.medioPago, referencia: pago.referencia, imputaciones: pago.imputaciones })
+            if (pacienteActualRef.current === pacienteId && getClinicaActivaSync() === clinicaOperacion &&
+              pagos?.presupuestoId === String(seleccionado.id)) {
+              const [registros, snapshot] = await Promise.all([
+                historialPagosPresupuestoService.listar(seleccionado.id, pacienteId).catch(() => null),
+                imputacionesPagoService.listar(seleccionado.id).catch(() => null),
+              ])
+              setPagos((actual) => actual ? {
+                ...actual,
+                registros: registros || actual.registros,
+                snapshot,
+              } : actual)
+              if (!registros || !snapshot) {
+                setErrorPagos('El abono se registró, pero no se pudo actualizar su imputación en pantalla.')
               }
             }
             setSeleccionado(null)
@@ -151,6 +190,50 @@ export const PresupuestosPaciente: React.FC<{ pacienteId: string }> = ({ pacient
         }}
         onCerrar={() => setSeleccionado(null)}
       />}
+      {pagos && pagos.snapshot && pagoAImputar && pagos.pacienteId === pacienteId && pagos.clinicaId === getClinicaActivaSync() && (
+        <ModalImputarPago
+          pago={pagos.snapshot.pagos.find((pago) => pago.id === pagoAImputar.id) || pagoAImputar}
+          prestaciones={pagos.snapshot.items}
+          imputaciones={pagos.snapshot.imputaciones}
+          onImputar={async (pagoId, imputaciones) => {
+            try {
+              await imputacionesPagoService.imputar({ pagoId, imputaciones })
+              try {
+                const snapshot = await imputacionesPagoService.listar(pagos.presupuestoId)
+                if (pacienteActualRef.current === pacienteId && getClinicaActivaSync() === pagos.clinicaId) {
+                  setPagos((actual) => actual ? { ...actual, snapshot } : actual)
+                  setPagoAImputar(snapshot.pagos.find((pago) => pago.id === pagoId) || null)
+                }
+              } catch {
+                setErrorPagos('La imputación se guardó, pero no se pudo actualizar su resumen en pantalla.')
+                setPagos((actual) => actual ? { ...actual, snapshot: null } : actual)
+              }
+              return true
+            } catch {
+              return false
+            }
+          }}
+          onRevertir={async (imputacionId, motivo) => {
+            try {
+              await imputacionesPagoService.revertir({ imputacionId, motivo })
+              try {
+                const snapshot = await imputacionesPagoService.listar(pagos.presupuestoId)
+                if (pacienteActualRef.current === pacienteId && getClinicaActivaSync() === pagos.clinicaId) {
+                  setPagos((actual) => actual ? { ...actual, snapshot } : actual)
+                  setPagoAImputar(snapshot.pagos.find((pago) => pago.id === pagoAImputar.id) || null)
+                }
+              } catch {
+                setErrorPagos('La corrección se guardó, pero no se pudo actualizar el resumen en pantalla.')
+                setPagos((actual) => actual ? { ...actual, snapshot: null } : actual)
+              }
+              return true
+            } catch {
+              return false
+            }
+          }}
+          onCerrar={() => setPagoAImputar(null)}
+        />
+      )}
     </section>
   )
 }

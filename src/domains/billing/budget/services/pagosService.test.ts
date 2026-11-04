@@ -43,8 +43,9 @@ describe('pagosService (BP07)', () => {
       presupuestoId, monto: 40000, medioPago: 'transferencia', referencia: 'Comprobante 123',
     })
     expect(resultado.exito).toBe(true)
-    expect(supabase!.rpc).toHaveBeenCalledWith('registrar_abono_presupuesto', expect.objectContaining({
+    expect(supabase!.rpc).toHaveBeenCalledWith('registrar_abono_presupuesto_con_imputaciones', expect.objectContaining({
       p_presupuesto_id: presupuestoId, p_monto: 40000, p_metodo_pago: 'transferencia',
+      p_imputaciones: [],
     }))
     expect(presupuestosStorageService.aplicarAbonoConfirmado).toHaveBeenCalledWith(presupuestoId, 40000, 'en-curso')
     expect(usePresupuestosStore.getState().presupuestos[0].montoAbonado).toBe(40000)
@@ -57,6 +58,19 @@ describe('pagosService (BP07)', () => {
     vi.mocked(getClinicaActivaSync).mockReturnValue(clinicaId)
     await expect(pagosService.registrarPagoManual({ presupuestoId: 'otro', monto: 1000, medioPago: 'efectivo' })).rejects.toThrow('sesión clínica')
     expect(supabase!.rpc).not.toHaveBeenCalled()
+  })
+
+  it('envía únicamente las prestaciones y montos que recepción asignó manualmente', async () => {
+    vi.mocked(supabase!.rpc).mockImplementation(async (_name, args) => ({
+      data: [{ pago_id: args.p_pago_id, monto_abonado: 30000, estado_presupuesto: 'en-curso' }],
+      error: null,
+    }) as any)
+    const itemId = '33333333-2222-4333-8444-555555555555'
+    await pagosService.registrarPagoManual({
+      presupuestoId, monto: 40000, medioPago: 'efectivo', imputaciones: [{ itemId, monto: 30000 }],
+    })
+    expect(supabase!.rpc).toHaveBeenCalledWith('registrar_abono_presupuesto_con_imputaciones',
+      expect.objectContaining({ p_imputaciones: [{ item_id: itemId, monto: 30000 }] }))
   })
 
   it('no altera caché ni store si el RPC rechaza el abono', async () => {

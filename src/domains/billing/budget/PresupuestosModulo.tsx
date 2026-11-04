@@ -186,6 +186,7 @@ export const PresupuestosModulo: React.FC<PresupuestosModuloProps> = memo(({
         <ModalRegistrarPago
           saldoPendiente={Math.max(0, (presupuestoParaPago.montoTotal || 0) - (presupuestoParaPago.montoAbonado || 0))}
           totalPresupuesto={presupuestoParaPago.montoTotal || 0}
+          presupuestoId={presupuestoParaPago.id}
           folioPresupuesto={presupuestoParaPago.folio}
           pacienteNombre={presupuestoParaPago.pacienteNombre}
           onRegistrarPago={async (pago) => {
@@ -196,6 +197,7 @@ export const PresupuestosModulo: React.FC<PresupuestosModuloProps> = memo(({
                 monto: pago.monto,
                 medioPago: pago.medioPago,
                 referencia: pago.referencia,
+                imputaciones: pago.imputaciones,
               })
               setPresupuestoVerDocumento((actual) => actual && String(actual.id) === String(presupuestoParaPago.id)
                 ? { ...actual, montoAbonado: confirmado.montoAbonado, estado: confirmado.estado }

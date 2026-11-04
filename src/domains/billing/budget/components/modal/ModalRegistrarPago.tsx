@@ -1,6 +1,8 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { X, CheckCircle2 } from 'lucide-react'
 import { Button } from '../../../../../shared/ui/ui/Button'
+import { imputacionesPagoService, type PrestacionImputable } from '../../services/imputacionesPagoService'
+import { leerImputacionesSeleccionadas, SelectorImputacionesPago } from './SelectorImputacionesPago'
 
 export type MedioPago = 'efectivo' | 'tarjeta' | 'transferencia' | 'cheque'
 
@@ -11,11 +13,13 @@ export interface PagoRegistrado {
   referencia: string
   fecha: string
   nuevoEstado: 'en_curso' | 'completado'
+  imputaciones: Array<{ itemId: string; monto: number }>
 }
 
 interface ModalRegistrarPagoProps {
   saldoPendiente: number
   totalPresupuesto: number
+  presupuestoId?: string | number
   folioPresupuesto?: string
   pacienteNombre?: string
   onRegistrarPago: (pago: PagoRegistrado) => boolean | void | Promise<boolean | void>
@@ -25,6 +29,7 @@ interface ModalRegistrarPagoProps {
 export const ModalRegistrarPago: React.FC<ModalRegistrarPagoProps> = ({
   saldoPendiente,
   totalPresupuesto,
+  presupuestoId,
   folioPresupuesto,
   pacienteNombre = 'Paciente',
   onRegistrarPago,
@@ -37,6 +42,26 @@ export const ModalRegistrarPago: React.FC<ModalRegistrarPagoProps> = ({
   const [errorRegistro, setErrorRegistro] = useState('')
   const [registrando, setRegistrando] = useState(false)
   const [pagoId] = useState(() => crypto.randomUUID())
+  const [prestaciones, setPrestaciones] = useState<PrestacionImputable[]>([])
+  const [valoresImputacion, setValoresImputacion] = useState<Record<string, number>>({})
+  const [cargandoPrestaciones, setCargandoPrestaciones] = useState(Boolean(presupuestoId))
+  const [errorPrestaciones, setErrorPrestaciones] = useState(false)
+
+  useEffect(() => {
+    let vigente = true
+    if (!presupuestoId) return () => { vigente = false }
+    setCargandoPrestaciones(true)
+    void imputacionesPagoService.listar(presupuestoId).then((snapshot) => {
+      if (!vigente) return
+      setPrestaciones(snapshot.items)
+      setErrorPrestaciones(false)
+    }).catch(() => {
+      if (vigente) setErrorPrestaciones(true)
+    }).finally(() => {
+      if (vigente) setCargandoPrestaciones(false)
+    })
+    return () => { vigente = false }
+  }, [presupuestoId])
 
   const handleMontoChange = (val: number) => {
     setMonto(val)
@@ -53,6 +78,15 @@ export const ModalRegistrarPago: React.FC<ModalRegistrarPagoProps> = ({
     e.preventDefault()
     if (monto <= 0 || monto > saldoPendiente) return
 
+    const imputaciones = leerImputacionesSeleccionadas(valoresImputacion)
+    if (imputaciones.some((item) => !Number.isSafeInteger(item.monto)) ||
+      !Number.isSafeInteger(imputaciones.reduce((total, item) => total + item.monto, 0)) ||
+      imputaciones.reduce((total, item) => total + item.monto, 0) > monto ||
+      imputaciones.some((item) => item.monto > (prestaciones.find((prestacion) => prestacion.id === item.itemId)?.saldoPendiente ?? 0))) {
+      setErrorRegistro('Revisa los montos asignados; no pueden superar el abono ni el saldo de una prestación.')
+      return
+    }
+
     const nuevoSaldo = saldoPendiente - monto
     const nuevoEstado: 'en_curso' | 'completado' = nuevoSaldo === 0 ? 'completado' : 'en_curso'
 
@@ -63,6 +97,7 @@ export const ModalRegistrarPago: React.FC<ModalRegistrarPagoProps> = ({
       referencia: referencia.trim() || `Transacción ${medioPago}`,
       fecha: new Date().toISOString(),
       nuevoEstado,
+      imputaciones,
     }
 
     setRegistrando(true)
@@ -80,11 +115,11 @@ export const ModalRegistrarPago: React.FC<ModalRegistrarPagoProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs" data-testid="modal-registrar-pago">
-      <div className="bg-surface border border-surface rounded-2xl w-full max-w-lg p-6 shadow-2xl flex flex-col space-y-4">
+      <div className="bg-surface border border-surface rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 shadow-2xl flex flex-col space-y-4">
         <div className="flex items-center justify-between pb-3 border-b border-surface">
           <div>
             <h3 className="text-base font-bold text-graphite-900 dark:text-graphite-50">
-              Registrar Pago Manual (BP07 §19)
+              Registrar abono manual (BP07 §19)
             </h3>
             <p className="text-xs text-graphite-500">
               {pacienteNombre} &bull; Folio: <span className="font-mono">{folioPresupuesto}</span>
@@ -162,6 +197,25 @@ export const ModalRegistrarPago: React.FC<ModalRegistrarPagoProps> = ({
             />
           </div>
 
+          {presupuestoId && (
+            <>
+              {cargandoPrestaciones && <p className="text-xs text-graphite-500">Consultando prestaciones y saldos…</p>}
+              {errorPrestaciones && (
+                <p className="text-xs text-amber-700">
+                  No se pudieron consultar las prestaciones. El abono puede registrarse sin asignar y luego imputarse desde el historial.
+                </p>
+              )}
+              {!cargandoPrestaciones && !errorPrestaciones && (
+                <SelectorImputacionesPago
+                  prestaciones={prestaciones}
+                  maximoImputable={monto}
+                  valores={valoresImputacion}
+                  onChange={setValoresImputacion}
+                />
+              )}
+            </>
+          )}
+
           <div className="p-3 bg-primary/10 border border-primary/20 rounded-xl text-xs flex items-center justify-between">
             <span className="text-graphite-600 dark:text-graphite-300">Transición de Estado Automática:</span>
             <span className="font-bold uppercase tracking-wider text-primary">
@@ -179,7 +233,7 @@ export const ModalRegistrarPago: React.FC<ModalRegistrarPagoProps> = ({
               variant="primary"
               size="sm"
               icon={CheckCircle2}
-              disabled={Boolean(errorMonto) || monto <= 0 || registrando}
+              disabled={Boolean(errorMonto) || monto <= 0 || registrando || cargandoPrestaciones}
               data-testid="btn-confirmar-registro-pago"
             >
               Registrar Pago (${monto.toLocaleString('es-CL')})
