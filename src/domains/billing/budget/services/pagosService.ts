@@ -3,6 +3,7 @@ import { supabase, USE_SUPABASE } from '../../../../infrastructure/supabase/supa
 import { getClinicaActivaSync } from '../../../../infrastructure/auth/authService'
 import { esUuidValido } from '../../../../infrastructure/supabase/migrations/uuidUtils'
 import { presupuestosStorageService } from './presupuestosStorageService'
+import { notificarImputacionesPagoActualizadas } from './imputacionesPagoService'
 
 export interface RegistrarPagoInput {
   pagoId?: string
@@ -52,6 +53,7 @@ export const pagosService = {
     const estado = String(confirmado.estado_presupuesto)
     presupuestosStorageService.aplicarAbonoConfirmado(input.presupuestoId, montoAbonado, estado)
     usePresupuestosStore.getState().actualizarPresupuesto(input.presupuestoId, { montoAbonado, estado })
+    notificarImputacionesPagoActualizadas()
     return { exito: true, pagoId, montoAbonado, estado }
   },
 }

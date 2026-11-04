@@ -10,6 +10,7 @@ import { fichasClinicasStorageService } from '../../../services/fichasClinicasSt
 import { presupuestosStorageService } from '../../../../../billing/budget/services/presupuestosStorageService'
 import { presupuestoPlanSyncService } from '../../../../../billing/budget/services/presupuestoPlanSyncService'
 import { revisionPrecioPlanService } from '../../../../../billing/budget/services/revisionPrecioPlanService'
+import { imputacionesPagoService } from '../../../../../billing/budget/services/imputacionesPagoService'
 import { derivacionesService } from './derivacionesService'
 import * as authService from '../../../../../../infrastructure/auth/authService'
 
@@ -28,6 +29,11 @@ vi.mock('../../../../../organization/prestations/services/prestacionesStorageSer
     }]),
     guardarPrestaciones: vi.fn(() => true),
   },
+}))
+
+vi.mock('../../../../../billing/budget/services/imputacionesPagoService', () => ({
+  imputacionesPagoService: { listar: vi.fn().mockResolvedValue({ items: [], pagos: [], imputaciones: [] }) },
+  notificarImputacionesPagoActualizadas: vi.fn(),
 }))
 
 const pacienteId = 'pac-test'
@@ -138,6 +144,51 @@ describe('PlanTratamiento BP06', () => {
     }, pacienteId))
     expect(screen.getByText('Prestación revisada (P.1.6)')).toBeInTheDocument()
     expect(screen.getByText('Plan guardado')).toBeInTheDocument()
+  })
+
+  it('muestra el estado financiero del procedimiento desde las imputaciones confirmadas', async () => {
+    const revision = 'revision-plan-pago'
+    const presupuestoId = '22222222-2222-4222-8222-222222222222'
+    const itemId = '33333333-3333-4333-8333-333333333333'
+    vi.spyOn(presupuestosStorageService, 'obtenerPresupuestos').mockReturnValue([{
+      id: presupuestoId, pacienteId, origenPlan: true, versionGrupoId: '44444444-4444-4444-8444-444444444444',
+      version: 1, planRevision: revision, montoTotal: 10000, montoAbonado: 5000, estado: 'en-curso',
+      sincronizado: true, items: [{
+        id: itemId, origenPlanProcedimientoId: 'proc-1', codigoPrestacion: 'prest-1',
+        precioPlanOriginal: 10000, precioUnitario: 10000,
+      }],
+    }])
+    vi.mocked(fichasClinicasStorageService.obtenerFichaClinica).mockResolvedValue({
+      odontograma: { actualizadoAt: revision, piezas: [] },
+      plan_tratamiento: { actualizadoAt: revision, odontogramaActualizadoAt: revision, fases: [{
+        id: 'fase-urgencias', nombre: 'Fase 1: Urgencias', subtitulo: '', procedimientos: [{
+          id: 'proc-1', descripcion: 'Tratamiento vinculado', pieza: '1.6', hallazgo: 'caries',
+          prestacionId: 'prest-1', faseAsignada: 'urgencias', costo: 10000,
+          requiereRevision: false, estado: 'pendiente',
+        }],
+      }] },
+    } as any)
+    vi.mocked(imputacionesPagoService.listar).mockResolvedValue({
+      presupuestoId, pagos: [], imputaciones: [], items: [{
+        id: itemId, nombre: 'Tratamiento vinculado', valorBruto: 10000, montoNeto: 10000,
+        montoImputado: 3000, saldoPendiente: 7000, estadoFinanciero: 'parcial',
+      }],
+    })
+    vi.spyOn(authService, 'getClinicaActivaSync').mockReturnValue('11111111-1111-4111-8111-111111111111')
+
+    render(<PlanTratamiento pacienteId={pacienteId} />)
+
+    await waitFor(() => expect(screen.getByTestId('estado-pago-plan-proc-1')).toHaveTextContent('Pago parcial'))
+    expect(imputacionesPagoService.listar).toHaveBeenCalledWith(presupuestoId)
+
+    vi.mocked(imputacionesPagoService.listar).mockResolvedValue({
+      presupuestoId, pagos: [], imputaciones: [], items: [{
+        id: itemId, nombre: 'Tratamiento vinculado', valorBruto: 10000, montoNeto: 10000,
+        montoImputado: 10000, saldoPendiente: 0, estadoFinanciero: 'pagado',
+      }],
+    })
+    act(() => window.dispatchEvent(new Event('imputaciones_pago_actualizadas')))
+    await waitFor(() => expect(screen.getByTestId('estado-pago-plan-proc-1')).toHaveTextContent('Pagado'))
   })
 
   it('muestra el plan completado al confirmarse el saldo y realizarse el tratamiento', async () => {

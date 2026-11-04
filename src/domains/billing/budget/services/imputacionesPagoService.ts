@@ -123,6 +123,10 @@ const validarImputaciones = (imputaciones: ImputacionPagoInput[]) => {
   return imputaciones.map((item) => ({ item_id: item.itemId, monto: item.monto }))
 }
 
+export const notificarImputacionesPagoActualizadas = (): void => {
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event('imputaciones_pago_actualizadas'))
+}
+
 export const imputacionesPagoService = {
   async listar(presupuestoId: string | number): Promise<SnapshotImputacionesPresupuesto> {
     validarSesionClinica(presupuestoId)
@@ -151,6 +155,7 @@ export const imputacionesPagoService = {
       p_imputaciones: validarImputaciones(input.imputaciones),
     })
     if (error) throw new Error('No se pudo imputar el abono. Comprueba el saldo y vuelve a intentarlo.')
+    notificarImputacionesPagoActualizadas()
   },
 
   async revertir(input: { imputacionId: string; motivo: string; operacionId?: string }): Promise<void> {
@@ -169,5 +174,6 @@ export const imputacionesPagoService = {
       p_motivo: input.motivo.trim(),
     })
     if (error) throw new Error('No se pudo revertir la imputación. Comprueba el estado y vuelve a intentarlo.')
+    notificarImputacionesPagoActualizadas()
   },
 }

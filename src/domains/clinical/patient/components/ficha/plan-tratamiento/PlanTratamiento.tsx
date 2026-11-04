@@ -19,6 +19,8 @@ import { revisionPrecioPlanService } from '../../../../../billing/budget/service
 import { getClinicaActivaSync } from '../../../../../../infrastructure/auth/authService'
 import type { ItemDesdePlan } from '../../../../../billing/budget/utils/planBudgetMerge'
 import { evaluarEstadoPlanTratamiento } from './estadoPlanTratamiento'
+import { evaluarEstadoFinancieroProcedimientos, type EstadoFinancieroProcedimiento } from './estadoFinancieroPlan'
+import { imputacionesPagoService, type SnapshotImputacionesPresupuesto } from '../../../../../billing/budget/services/imputacionesPagoService'
 import {
   generarFasesDesdeOdontograma,
   fasesVacias,
@@ -28,6 +30,16 @@ import {
 } from './planOdontogramaGenerator'
 
 export type { FasePlan, ProcedimientoPlan }
+
+const etiquetaEstadoFinanciero: Record<EstadoFinancieroProcedimiento, string> = {
+  sin_presupuesto: 'Sin presupuesto vigente',
+  consultando: 'Consultando pago…',
+  no_disponible: 'Estado de pago no disponible',
+  pendiente: 'Pago pendiente',
+  parcial: 'Pago parcial',
+  pagado: 'Pagado',
+  sin_saldo: 'Sin saldo',
+}
 
 interface PlanTratamientoProps {
   pacienteId: string
@@ -59,6 +71,12 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
   const [planRevision, setPlanRevision] = useState<string | undefined>()
   const [versionables, setVersionables] = useState<PresupuestoLocal[]>([])
   const [presupuestosPlan, setPresupuestosPlan] = useState<PresupuestoLocal[]>([])
+  const [revisionImputacionesPlan, setRevisionImputacionesPlan] = useState(0)
+  const [lecturaImputacionesPlan, setLecturaImputacionesPlan] = useState<{
+    clave: string
+    cargando: boolean
+    snapshots: Record<string, SnapshotImputacionesPresupuesto | null>
+  }>()
   const [borradoresDesactualizados, setBorradoresDesactualizados] = useState<PresupuestoLocal[]>([])
   const [odontogramaDesactualizado, setOdontogramaDesactualizado] = useState(false)
   const [error, setError] = useState('')
@@ -168,6 +186,53 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
   const estadoPlan = useMemo(() => evaluarEstadoPlanTratamiento(
     fases, presupuestosPlan, pacienteId, planGuardado ? planRevision : undefined
   ), [fases, presupuestosPlan, pacienteId, planGuardado, planRevision])
+  const clinicaIdImputacionesPlan = getClinicaActivaSync()
+  const claveImputacionesPlan = useMemo(() => JSON.stringify({
+    clinicaId: clinicaIdImputacionesPlan,
+    pacienteId,
+    planRevision: planGuardado ? planRevision : undefined,
+    presupuestos: estadoPlan.presupuestosVigentes.map((presupuesto) => String(presupuesto.id)),
+    revisionImputacionesPlan,
+  }), [clinicaIdImputacionesPlan, estadoPlan.presupuestosVigentes, pacienteId, planGuardado, planRevision, revisionImputacionesPlan])
+  useEffect(() => {
+    const actualizar = () => setRevisionImputacionesPlan((revision) => revision + 1)
+    window.addEventListener('imputaciones_pago_actualizadas', actualizar)
+    return () => window.removeEventListener('imputaciones_pago_actualizadas', actualizar)
+  }, [])
+  useEffect(() => {
+    let vigente = true
+    const presupuestos = estadoPlan.presupuestosVigentes
+    if (!planGuardado || !planRevision || presupuestos.length === 0) {
+      setLecturaImputacionesPlan({ clave: claveImputacionesPlan, cargando: false, snapshots: {} })
+      return () => { vigente = false }
+    }
+
+    const clinicaSolicitada = getClinicaActivaSync()
+    setLecturaImputacionesPlan({ clave: claveImputacionesPlan, cargando: true, snapshots: {} })
+    void Promise.all(presupuestos.map(async (presupuesto) => {
+      const id = String(presupuesto.id)
+      if (presupuesto.sincronizado === false) return [id, null] as const
+      try {
+        return [id, await imputacionesPagoService.listar(id)] as const
+      } catch {
+        return [id, null] as const
+      }
+    })).then((resultados) => {
+      if (!vigente || pacienteActivoRef.current !== pacienteId || getClinicaActivaSync() !== clinicaSolicitada) return
+      setLecturaImputacionesPlan({ clave: claveImputacionesPlan, cargando: false,
+        snapshots: Object.fromEntries(resultados) })
+    })
+    return () => { vigente = false }
+  }, [claveImputacionesPlan, estadoPlan.presupuestosVigentes, pacienteId, planGuardado, planRevision])
+  const lecturaImputacionesActual = lecturaImputacionesPlan?.clave === claveImputacionesPlan
+    ? lecturaImputacionesPlan
+    : undefined
+  const estadosFinancierosPlan = useMemo(() => evaluarEstadoFinancieroProcedimientos(
+    fases,
+    estadoPlan.presupuestosVigentes,
+    lecturaImputacionesActual?.snapshots || {},
+    Boolean(lecturaImputacionesActual?.cargando || !lecturaImputacionesActual),
+  ), [fases, estadoPlan.presupuestosVigentes, lecturaImputacionesActual])
   const presupuestosConDiferencias = useMemo(() => [...new Set(
     estadoPlan.diferenciasPrecio.map((diferencia) => diferencia.presupuestoId)
   )], [estadoPlan.diferenciasPrecio])
@@ -521,6 +586,10 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
                       <span className="font-mono font-semibold text-graphite-700 dark:text-graphite-300">
                         {proc.costo === null ? 'Sin precio · revisión clínica' : `$${proc.costo.toLocaleString('es-CL')}`}
                       </span>
+                      {planGuardado && <span className="text-[10px] font-semibold text-graphite-500"
+                        data-testid={`estado-pago-plan-${proc.id}`}>
+                        {etiquetaEstadoFinanciero[estadosFinancierosPlan[proc.id] || 'no_disponible']}
+                      </span>}
                       <select
                         aria-label={`Estado clínico de ${proc.descripcion}`}
                         value={proc.estado}

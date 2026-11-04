@@ -7,6 +7,7 @@ export interface EstadoPlanTratamiento {
   completado: boolean
   aprobaciones: Record<string, { folio: string; version: number }>
   diferenciasPrecio: Array<{ presupuestoId: string; version: number; folio: string; procedimientoId: string; precioPlan: number; precioPresupuesto: number }>
+  presupuestosVigentes: PresupuestoLocal[]
 }
 
 export const evaluarEstadoPlanTratamiento = (
@@ -65,5 +66,12 @@ export const evaluarEstadoPlanTratamiento = (
       }
     }
   }
-  return { tratamientosRealizados, saldoCubierto, completado: tratamientosRealizados && saldoCubierto, aprobaciones, diferenciasPrecio }
+  return {
+    tratamientosRealizados,
+    saldoCubierto,
+    completado: tratamientosRealizados && saldoCubierto,
+    aprobaciones,
+    diferenciasPrecio,
+    presupuestosVigentes: vigentes,
+  }
 }
