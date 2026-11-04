@@ -30,6 +30,7 @@ export const PrestacionesModulo: React.FC = memo(() => {
     (state: PrestacionesStoreState) => state.setPrestacionesArancel
   )
   const estadoRemoto = usePrestacionesStore((state) => state.estadoRemoto)
+  const puedeReajustar = rol === 'admin' || rol === 'dentista'
 
   const [tabActual, setTabActual] = useState<'arancel' | 'paquetes'>('arancel')
   const [modalAbierto, setModalAbierto] = useState<boolean>(false)
@@ -92,8 +93,10 @@ export const PrestacionesModulo: React.FC = memo(() => {
             <>
               <button
                 onClick={() => setModalReajusteAbierto(true)}
-                disabled={USE_SUPABASE}
-                title={USE_SUPABASE ? 'Disponible cuando exista un reajuste atómico del arancel compartido' : undefined}
+                disabled={USE_SUPABASE && (estadoRemoto !== 'listo' || !puedeReajustar || prestacionesProp.length === 0)}
+                title={USE_SUPABASE && estadoRemoto !== 'listo' ? 'Espera a que cargue el arancel compartido' :
+                  USE_SUPABASE && !puedeReajustar ? 'Requiere rol de administración o dentista' :
+                    USE_SUPABASE && prestacionesProp.length === 0 ? 'No hay prestaciones sincronizadas para reajustar' : undefined}
                 className="bg-gray-100 dark:bg-graphite-800 text-gray-800 dark:text-graphite-100 text-xs font-bold px-3 py-2.5 rounded-xl hover:bg-gray-200 transition-colors border cursor-pointer"
               >
                 <span className="inline-flex items-center gap-1">

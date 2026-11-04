@@ -175,7 +175,17 @@ export const usePrestaciones = (
 
   const aplicarReajusteMasivo = useCallback(
     async (porcentaje: number | string) => {
-      const factor = 1 + (parseFloat(String(porcentaje)) || 0) / 100
+      const pct = typeof porcentaje === 'string' && !porcentaje.trim() ? NaN : Number(porcentaje)
+      if (!Number.isFinite(pct) || pct < -100 || pct > 10000) {
+        throw new Error('El porcentaje debe estar entre -100% y 10000%.')
+      }
+      if (USE_SUPABASE) {
+        const confirmadas = await prestacionesSupabaseService.reajustarMasivo(pct, prestaciones)
+        guardarYSincronizarGlobal(confirmadas)
+        return
+      }
+
+      const factor = 1 + pct / 100
       const actualizadas: Prestacion[] = prestaciones.map(p => {
         const pParticular = Math.round(
           (parseFloat(String(p.precioParticular ?? p.precio)) || 0) * factor
@@ -187,9 +197,6 @@ export const usePrestaciones = (
           precioFonasa: Math.round((parseFloat(String(p.precioFonasa)) || 0) * factor)
         }
       })
-      if (USE_SUPABASE) {
-        throw new Error('El reajuste masivo requiere una operación atómica. Ajusta cada precio desde su prestación.')
-      }
       guardarYSincronizarGlobal(actualizadas)
     },
     [prestaciones, guardarYSincronizarGlobal]

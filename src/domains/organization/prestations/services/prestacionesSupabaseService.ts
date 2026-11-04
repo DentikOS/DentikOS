@@ -61,6 +61,39 @@ export const prestacionesSupabaseService = {
     return desdeFila(data)
   },
 
+  async reajustarMasivo(porcentaje: number | string, prestaciones: Prestacion[]): Promise<Prestacion[]> {
+    const { client } = contexto()
+    const pct = typeof porcentaje === 'string' && !porcentaje.trim() ? NaN : Number(porcentaje)
+    if (!Number.isFinite(pct) || pct < -100 || pct > 10000) {
+      throw new Error('El porcentaje debe estar entre -100% y 10000%.')
+    }
+    if (!prestaciones.length) throw new Error('No hay prestaciones sincronizadas para reajustar.')
+
+    const esperadas = prestaciones.map((prestacion) => {
+      const particular = Number(prestacion.precioParticular)
+      const fonasa = Number(prestacion.precioFonasa)
+      if (!uuid(prestacion.id) || !Number.isSafeInteger(particular) || particular < 0 ||
+        !Number.isSafeInteger(fonasa) || fonasa < 0) {
+        throw new Error('El arancel contiene datos pendientes de sincronización o precios inválidos.')
+      }
+      return { id: prestacion.id, precio_particular: particular, precio_fonasa: fonasa }
+    })
+
+    const { data, error } = await client.rpc('reajustar_arancel_clinica', {
+      p_porcentaje: pct,
+      p_prestaciones_esperadas: esperadas,
+    })
+    if (error?.code === '40001') {
+      throw new Error('El arancel cambió desde que se cargó. Actualízalo antes de reajustar.')
+    }
+    if (error?.code === '42501') throw new Error('No tienes permisos para reajustar el arancel de esta clínica.')
+    if (error?.code === '22003') throw new Error('El porcentaje generaría un precio fuera del rango permitido.')
+    if (error || !Array.isArray(data) || data.length !== esperadas.length) {
+      throw new Error('No se pudo reajustar el arancel completo. No se confirmó ningún cambio.')
+    }
+    return data.map((fila) => desdeFila(fila as Record<string, unknown>))
+  },
+
   async eliminar(id: string | number): Promise<void> {
     const { client, clinicaId } = contexto()
     if (!uuid(id)) throw new Error('La prestación aún no está sincronizada.')
