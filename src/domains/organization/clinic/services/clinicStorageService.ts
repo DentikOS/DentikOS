@@ -8,6 +8,7 @@ import { createTenantRepository } from '../../../../infrastructure/storage/local
 import { supabase, USE_SUPABASE } from '../../../../infrastructure/supabase/supabaseClient'
 import { notificationService } from '../../../../infrastructure/notification/notificationService'
 import { createLogger } from '../../../../infrastructure/logging/logger'
+import type { ConfiguracionMembrete } from '../schemas/configuracionMembreteSchema'
 
 const log = createLogger('clinicStorageService')
 
@@ -36,6 +37,7 @@ export interface DatosClinicaConfig {
   logoUrl?: string
   colorPrimario?: string
   colorSecundario?: string
+  configuracionMembrete?: ConfiguracionMembrete
   [key: string]: unknown
 }
 
@@ -72,6 +74,7 @@ const CAMEL_TO_SNAKE_MAP: Record<string, string> = {
   logoUrl: 'logo_url',
   colorPrimario: 'color_primario',
   colorSecundario: 'color_secundario',
+  configuracionMembrete: 'configuracion_documentos',
 }
 
 const SNAKE_TO_CAMEL_MAP: Record<string, string> = Object.fromEntries(

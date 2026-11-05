@@ -45,6 +45,7 @@ describe('clinicStorageService - Sincronización y Fail-Safe', () => {
       registro_isp: 'ISP-456',
       idioma_documentos: 'es-CL',
       moneda: 'CLP',
+      configuracion_documentos: { diseno: 'moderno', colorTitulos: '#123456' },
       eslogan: 'Salud para todos',
       zona_horaria: 'America/Santiago',
       logo_url: 'https://cdn.example/logo.png',
@@ -75,6 +76,7 @@ describe('clinicStorageService - Sincronización y Fail-Safe', () => {
     expect(resultado?.registroIsp).toBe('ISP-456')
     expect(resultado?.idiomaDocumentos).toBe('es-CL')
     expect(resultado?.moneda).toBe('CLP')
+    expect(resultado?.configuracionMembrete).toMatchObject({ diseno: 'moderno', colorTitulos: '#123456' })
     expect(resultado?.eslogan).toBe('Salud para todos')
     expect(resultado?.zonaHoraria).toBe('America/Santiago')
     expect(resultado?.logoUrl).toBe('https://cdn.example/logo.png')
@@ -157,6 +159,7 @@ describe('clinicStorageService - Sincronización y Fail-Safe', () => {
       registroIsp: 'ISP-456',
       idiomaDocumentos: 'es-CL',
       moneda: 'CLP',
+      configuracionMembrete: { diseno: 'minimalista', colorTitulos: '#123456' },
       eslogan: 'Salud para todos',
       zonaHoraria: 'America/Santiago',
       logoUrl: 'https://pub-account.r2.dev/clinic-logo.png',
@@ -177,6 +180,7 @@ describe('clinicStorageService - Sincronización y Fail-Safe', () => {
       registro_isp: 'ISP-456',
       idioma_documentos: 'es-CL',
       moneda: 'CLP',
+      configuracion_documentos: { diseno: 'minimalista', colorTitulos: '#123456' },
       eslogan: 'Salud para todos',
       zona_horaria: 'America/Santiago',
       logo_url: 'https://pub-account.r2.dev/clinic-logo.png',

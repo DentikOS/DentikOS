@@ -5,6 +5,8 @@ import { createLogger } from '../../../../infrastructure/logging/logger'
 import { Printer } from 'lucide-react'
 import type { PresupuestoLocal } from '../services/presupuestosStorageService'
 import { esUuidValido } from '../../../../infrastructure/supabase/migrations/uuidUtils'
+import { MembreteClinica } from '../../../organization/clinic/components/MembreteClinica'
+import { useClinicaDocumento } from '../../../organization/clinic/hooks/useClinicaDocumento'
 
 const log = createLogger('DocumentoPresupuestoImprimible')
 
@@ -31,6 +33,7 @@ export const DocumentoPresupuestoImprimible: React.FC<DocumentoPresupuestoImprim
   alCerrar
 }) => {
   const [odontogramaInicial, setOdontogramaInicial] = useState<Record<string, unknown>>({})
+  const clinicaDocumento = useClinicaDocumento()
 
   useEffect(() => {
     if (presupuesto?.pacienteId) {
@@ -112,22 +115,23 @@ export const DocumentoPresupuestoImprimible: React.FC<DocumentoPresupuestoImprim
 
       {/* Hoja de Impresión Letter */}
       <div className="bg-white border border-gray-200 rounded-2xl p-8 print:border-none print:p-0 max-w-4xl mx-auto space-y-6">
-        {/* Cabecera */}
-        <div className="border-b-2 border-black pb-4 flex justify-between items-start">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">
-              {userProfile?.nombreCompleto || 'Dr. Miguel Díaz Rodríguez'}
-            </h1>
-            <p className="text-xs text-gray-600">
-              {userProfile?.especialidad || 'Cirujano Dentista'} | RUT:{' '}
-              {userProfile?.rut || 'N/I'}
-            </p>
-            <p className="text-xs text-gray-500">Consulta Odontológica DentikOS</p>
-          </div>
+        {/* Cabecera compartida de clínica + identificación del presupuesto */}
+        <div className="space-y-3">
+          <MembreteClinica clinica={clinicaDocumento} />
+          <div className="flex justify-between items-start gap-4">
+            <div>
+              <p className="text-xs font-semibold text-gray-700">
+                {userProfile?.nombreCompleto || 'Profesional tratante'}
+              </p>
+              <p className="text-[10px] text-gray-500">
+                {userProfile?.especialidad || 'Cirujano Dentista'} | RUT: {userProfile?.rut || 'N/I'}
+              </p>
+            </div>
           <div className="text-right">
             <h2 className="text-lg font-bold text-gray-800 uppercase">Cotización de Presupuesto</h2>
             <p className="text-xs font-bold text-blue-800">Folio: {presupuesto.folio}</p>
             <p className="text-xs text-gray-500">Fecha Emisión: {presupuesto.fechaEmision}</p>
+          </div>
           </div>
         </div>
 

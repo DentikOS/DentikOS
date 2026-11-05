@@ -58,7 +58,9 @@ describe('DatosClinicaForm', () => {
     const inputNombre = screen.getByDisplayValue('Clínica Central')
     fireEvent.change(inputNombre, { target: { value: 'Clínica Dental Renombrada' } })
     fireEvent.change(screen.getByLabelText('Comuna'), { target: { value: 'Providencia' } })
-    fireEvent.change(screen.getByLabelText('Sitio web'), { target: { value: 'https://clinica.example' } })
+    fireEvent.change(screen.getByPlaceholderText('https://clinica.cl'), { target: { value: 'https://clinica.example' } })
+    fireEvent.click(screen.getByRole('button', { name: /Moderno/ }))
+    fireEvent.change(screen.getByLabelText('Títulos'), { target: { value: '#123456' } })
 
     const botonGuardar = screen.getByRole('button', { name: /Guardar Configuración/i })
     fireEvent.click(botonGuardar)
@@ -70,6 +72,7 @@ describe('DatosClinicaForm', () => {
           nombreClinica: 'Clínica Dental Renombrada',
           comuna: 'Providencia',
           sitioWeb: 'https://clinica.example',
+          configuracionMembrete: expect.objectContaining({ diseno: 'moderno', colorTitulos: '#123456' }),
         })
       )
       const estadoEsperado = USE_SUPABASE && supabase
@@ -87,7 +90,7 @@ describe('DatosClinicaForm', () => {
 
     render(<DatosClinicaForm userProfile={{ rol: 'recepcionista' }} />)
 
-    expect(screen.getByText(/Solo lectura/i)).toBeInTheDocument()
+    expect(screen.getByText('Solo lectura - Contacta al administrador para cambios')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Guardar Configuración/i })).not.toBeInTheDocument()
 
     const inputNombre = screen.getByDisplayValue('Clínica Solo Lectura')

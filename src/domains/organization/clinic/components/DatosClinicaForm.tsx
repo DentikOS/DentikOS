@@ -4,6 +4,8 @@ import { createLogger } from '../../../../infrastructure/logging/logger'
 import { Lock, Building2, CheckCircle2, AlertCircle } from 'lucide-react'
 import { CLINICA_DEFAULT, type ClinicaConfig } from '../constants/clinicConstants'
 import { clinicStorageService, type DatosClinicaConfig } from '../services/clinicStorageService'
+import { MembreteClinica } from './MembreteClinica'
+import { normalizarConfiguracionMembrete, type ConfiguracionMembrete } from '../schemas/configuracionMembreteSchema'
 import { useSesionStore } from '../../../../app/stores/sesionStore'
 import { markFormDirty, markFormSaved } from '../../../../shared/utils/formDirtyUtils'
 import { supabase, USE_SUPABASE } from '../../../../infrastructure/supabase/supabaseClient'
@@ -80,6 +82,25 @@ export const DatosClinicaForm: React.FC<DatosClinicaFormProps> = memo(({ datosCl
     setEstadoGuardado(null)
     setErrorGuardado(false)
     setForm((prev) => ({ ...prev, [campo]: valor }))
+  }
+
+  const handleMembreteChange = (
+    cambios: Partial<Omit<ConfiguracionMembrete, 'mostrar'>> & { mostrar?: Partial<ConfiguracionMembrete['mostrar']> }
+  ) => {
+    markFormDirty()
+    setEstadoGuardado(null)
+    setErrorGuardado(false)
+    setForm((prev) => {
+      const configuracionActual = normalizarConfiguracionMembrete((prev as DatosClinicaConfig).configuracionMembrete)
+      return {
+        ...prev,
+        configuracionMembrete: normalizarConfiguracionMembrete({
+          ...configuracionActual,
+          ...cambios,
+          mostrar: { ...configuracionActual.mostrar, ...cambios.mostrar },
+        }),
+      }
+    })
   }
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -202,6 +223,18 @@ export const DatosClinicaForm: React.FC<DatosClinicaFormProps> = memo(({ datosCl
   const inputClass = `w-full p-2.5 rounded-lg border border-surface text-graphite-900 dark:text-graphite-50 focus:outline-none focus:ring-2 focus:ring-primary/40 ${
     esSoloLectura ? 'bg-gray-100 dark:bg-graphite-900/50 cursor-not-allowed text-gray-500' : 'bg-white dark:bg-graphite-800 surgical:bg-graphite-200'
   }`
+  const configuracionMembrete = normalizarConfiguracionMembrete((form as DatosClinicaConfig).configuracionMembrete)
+  const elementosMembrete: { key: keyof ConfiguracionMembrete['mostrar']; label: string }[] = [
+    { key: 'logo', label: 'Logo' },
+    { key: 'nombre', label: 'Nombre de la clínica' },
+    { key: 'rut', label: 'RUT' },
+    { key: 'direccion', label: 'Dirección' },
+    { key: 'telefono', label: 'Teléfono' },
+    { key: 'email', label: 'Email' },
+    { key: 'sitioWeb', label: 'Sitio web' },
+    { key: 'registroSeremi', label: 'Registro SEREMI' },
+    { key: 'registroIsp', label: 'Registro ISP' },
+  ]
 
   return (
     <form onSubmit={handleSubmit} className="bg-surface border border-surface rounded-2xl p-6 shadow-xs space-y-4 text-xs">
@@ -392,6 +425,84 @@ export const DatosClinicaForm: React.FC<DatosClinicaFormProps> = memo(({ datosCl
               <option value="CLP">CLP — Peso chileno</option>
             </select>
           </label>
+        </div>
+      </fieldset>
+
+      <fieldset className="space-y-4 rounded-xl border border-surface p-3">
+        <legend className="px-1 font-semibold text-gray-700 dark:text-graphite-300 surgical:text-black">Membrete de documentos</legend>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+          {[
+            { id: 'clasico', nombre: 'Clásico', descripcion: 'Logo a la izquierda y datos alineados a la derecha.' },
+            { id: 'moderno', nombre: 'Moderno', descripcion: 'Logo centrado y datos en una línea.' },
+            { id: 'minimalista', nombre: 'Minimalista', descripcion: 'Solo logo y nombre de la clínica.' },
+          ].map((diseno) => (
+            <button
+              key={diseno.id}
+              type="button"
+              aria-pressed={configuracionMembrete.diseno === diseno.id}
+              disabled={esSoloLectura}
+              onClick={() => handleMembreteChange({ diseno: diseno.id as ConfiguracionMembrete['diseno'] })}
+              className={`rounded-lg border p-3 text-left disabled:cursor-not-allowed disabled:opacity-60 ${configuracionMembrete.diseno === diseno.id ? 'border-primary bg-primary/5' : 'border-surface hover:bg-gray-50 dark:hover:bg-graphite-800'}`}
+            >
+              <span className="block font-semibold text-gray-800 dark:text-graphite-100">{diseno.nombre}</span>
+              <span className="mt-1 block text-[10px] text-gray-500 dark:text-graphite-400">{diseno.descripcion}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {[
+            { key: 'colorPrincipal', label: 'Texto principal' },
+            { key: 'colorLinea', label: 'Línea separadora' },
+            { key: 'colorTitulos', label: 'Títulos' },
+            { key: 'colorTextoSecundario', label: 'Texto secundario' },
+          ].map(({ key, label }) => (
+            <label key={key} className="flex items-center gap-2 text-[10px] font-semibold text-gray-700 dark:text-graphite-300">
+              <input
+                type="color"
+                aria-label={label}
+                disabled={esSoloLectura}
+                value={configuracionMembrete[key as 'colorPrincipal' | 'colorLinea' | 'colorTitulos' | 'colorTextoSecundario']}
+                onChange={(event) => handleMembreteChange({ [key]: event.target.value } as Partial<ConfiguracionMembrete>)}
+                className="h-8 w-10 cursor-pointer rounded border border-surface bg-transparent disabled:cursor-not-allowed"
+              />
+              {label}
+            </label>
+          ))}
+        </div>
+
+        {configuracionMembrete.diseno !== 'minimalista' && (
+          <div className="flex flex-wrap gap-x-4 gap-y-2">
+            <label className="inline-flex items-center gap-1.5 text-[10px] text-gray-700 dark:text-graphite-300">
+              <input
+                type="checkbox"
+                aria-label="Logo monocromático"
+                checked={configuracionMembrete.logoMonocromatico}
+                disabled={esSoloLectura}
+                onChange={(event) => handleMembreteChange({ logoMonocromatico: event.target.checked })}
+              />
+              Logo monocromático
+            </label>
+            {elementosMembrete.map(({ key, label }) => (
+              <label key={key} className="inline-flex items-center gap-1.5 text-[10px] text-gray-700 dark:text-graphite-300">
+                <input
+                  type="checkbox"
+                  aria-label={`Mostrar ${label}`}
+                  checked={configuracionMembrete.mostrar[key]}
+                  disabled={esSoloLectura}
+                  onChange={(event) => handleMembreteChange({ mostrar: { [key]: event.target.checked } })}
+                />
+                {label}
+              </label>
+            ))}
+          </div>
+        )}
+
+        <div>
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:text-graphite-400">Vista previa en vivo</p>
+          <div className="rounded-lg border border-surface bg-white p-4 dark:bg-graphite-900">
+            <MembreteClinica clinica={form as DatosClinicaConfig} />
+          </div>
         </div>
       </fieldset>
 
