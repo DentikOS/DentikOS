@@ -45,6 +45,7 @@ const CAMEL_TO_SNAKE_MAP: Record<string, string> = {
   emailContacto: 'email_contacto',
   direccion: 'direccion',
   ciudad: 'ciudad',
+  eslogan: 'eslogan',
   logoUrl: 'logo_url',
   colorPrimario: 'color_primario',
   colorSecundario: 'color_secundario',
@@ -69,6 +70,9 @@ const transformarParaSupabase = (datosJs?: DatosClinicaConfig | null): Record<st
   if (!datosJs) return null
   const resultado: Record<string, unknown> = {}
   for (const [claveJs, valor] of Object.entries(datosJs)) {
+    // Los logos nuevos se guardan en R2. No volver a enviar data URLs grandes
+    // a Postgres si todavía existe un valor local legado.
+    if (claveJs === 'logoUrl' && typeof valor === 'string' && valor.startsWith('data:')) continue
     const claveDb = CAMEL_TO_SNAKE_MAP[claveJs]
     if (claveDb && valor !== undefined) {
       resultado[claveDb] = valor === '' ? null : valor
@@ -106,6 +110,10 @@ const guardarClinicaEnSupabase = async (
   if (!USE_SUPABASE || !supabase || !clinicaId) return { success: true }
 
   try {
+    if (typeof datos.logoUrl === 'string' && datos.logoUrl.startsWith('data:')) {
+      return { success: false, error: 'El logo debe cargarse en R2 antes de sincronizar la clínica.' }
+    }
+
     const paraInsert = transformarParaSupabase(datos)
     if (!paraInsert) return { success: false, error: 'Sin datos para actualizar' }
 
@@ -174,7 +182,9 @@ export const clinicStorageService: ClinicStorageServiceAPI = {
     }
     clinicaRepo.guardar(datos)
     if (typeof window !== 'undefined' && datos.nombreClinica) {
-      window.dispatchEvent(new CustomEvent('clinica_actualizada', { detail: { nombre: datos.nombreClinica } }))
+      window.dispatchEvent(new CustomEvent('clinica_actualizada', {
+        detail: { clinicaId, nombre: datos.nombreClinica, datos },
+      }))
     }
     return true
   },
@@ -184,7 +194,9 @@ export const clinicStorageService: ClinicStorageServiceAPI = {
     if (datos) {
       clinicaRepo.guardar(datos)
       if (typeof window !== 'undefined' && datos.nombreClinica) {
-        window.dispatchEvent(new CustomEvent('clinica_actualizada', { detail: { nombre: datos.nombreClinica } }))
+        window.dispatchEvent(new CustomEvent('clinica_actualizada', {
+          detail: { clinicaId, nombre: datos.nombreClinica, datos },
+        }))
       }
     }
     return datos

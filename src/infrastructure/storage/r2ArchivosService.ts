@@ -47,6 +47,13 @@ export interface R2UploadUrlResponse {
   [key: string]: unknown
 }
 
+export interface R2ClinicLogoUploadResponse {
+  upload_url: string
+  upload_headers: Record<string, string>
+  public_url: string
+  expires_in: number
+}
+
 export interface SubeArchivoAR2Params {
   uploadUrl: string
   uploadHeaders: Record<string, string>
@@ -143,6 +150,69 @@ export const solicitaUrlUpload = async ({
     return (await response.json()) as R2UploadUrlResponse
   } catch (error: unknown) {
     log.error('Excepción solicitando URL de upload:', error)
+    return null
+  }
+}
+
+/**
+ * Solicita y ejecuta una carga de logo de clínica con URL firmada de corta vida.
+ * La Edge Function valida la sesión y la membresía admin; el navegador nunca
+ * recibe credenciales de R2.
+ */
+export const subirLogoClinicaAR2 = async (clinicaId: string, file: File): Promise<string | null> => {
+  try {
+    if (!supabase || !clinicaId || !file) return null
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return null
+
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/r2-clinic-logo-upload-url`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        clinica_id: clinicaId,
+        nombre_archivo: file.name,
+        mime_type: file.type,
+        tamano_bytes: file.size,
+      }),
+    })
+
+    if (!response.ok) {
+      log.warn(`No se pudo preparar la carga del logo (${response.status}).`)
+      return null
+    }
+
+    const payload = (await response.json()) as Partial<R2ClinicLogoUploadResponse>
+    if (
+      typeof payload.upload_url !== 'string' ||
+      typeof payload.public_url !== 'string' ||
+      typeof payload.upload_headers !== 'object' ||
+      payload.upload_headers === null
+    ) return null
+
+    const uploadUrl = new URL(payload.upload_url)
+    const publicUrl = new URL(payload.public_url)
+    if (
+      uploadUrl.protocol !== 'https:' ||
+      !uploadUrl.hostname.endsWith('.r2.cloudflarestorage.com') ||
+      publicUrl.protocol !== 'https:' ||
+      !publicUrl.hostname.startsWith('pub-') ||
+      !publicUrl.hostname.endsWith('.r2.dev') ||
+      payload.upload_headers['Content-Type'] !== file.type
+    ) return null
+
+    const uploaded = await subeArchivoAR2({
+      uploadUrl: uploadUrl.toString(),
+      uploadHeaders: payload.upload_headers,
+      file,
+    })
+
+    return uploaded ? publicUrl.toString() : null
+  } catch {
+    // No registrar URL firmada, token o contenido del archivo.
+    log.error('Error cargando el logo de la clínica en R2.')
     return null
   }
 }

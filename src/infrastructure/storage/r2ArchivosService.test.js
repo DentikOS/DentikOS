@@ -27,6 +27,7 @@ import {
   vaciarPapeleraArchivos,
   actualizarMetadataArchivo,
   solicitaUrlUploadPerfil,
+  subirLogoClinicaAR2,
 } from './r2ArchivosService'
 
 describe('r2ArchivosService', () => {
@@ -97,6 +98,79 @@ describe('r2ArchivosService', () => {
         tamanoBytes: 1024,
       })
       expect(res).toBeNull()
+    })
+  })
+
+  describe('subirLogoClinicaAR2', () => {
+    it('solicita una URL para la clínica activa y sube el archivo firmado', async () => {
+      const xhrs = []
+      class MockXMLHttpRequest {
+        constructor() {
+          this.upload = { addEventListener: vi.fn() }
+          this.listeners = {}
+          this.headers = {}
+          this.status = 200
+          xhrs.push(this)
+        }
+        addEventListener(name, callback) { this.listeners[name] = callback }
+        open(method, url) { this.method = method; this.url = url }
+        setRequestHeader(name, value) { this.headers[name] = value }
+        send(file) { this.file = file; this.listeners.load?.() }
+      }
+
+      mockGetSession.mockResolvedValueOnce({ data: { session: { access_token: 'jwt-validado-en-servidor' } } })
+      global.fetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          upload_url: 'https://account.r2.cloudflarestorage.com/signed-upload',
+          upload_headers: { 'Content-Type': 'image/png' },
+          public_url: 'https://pub-account.r2.dev/clinic-logo.png',
+          expires_in: 900,
+        }),
+      })
+      vi.stubGlobal('XMLHttpRequest', MockXMLHttpRequest)
+
+      try {
+        const file = new File(['logo'], 'logo.png', { type: 'image/png' })
+        const publicUrl = await subirLogoClinicaAR2('clinica-123', file)
+
+        expect(publicUrl).toBe('https://pub-account.r2.dev/clinic-logo.png')
+        expect(global.fetch).toHaveBeenCalledWith(
+          expect.stringContaining('/functions/v1/r2-clinic-logo-upload-url'),
+          expect.objectContaining({
+            method: 'POST',
+            body: JSON.stringify({
+              clinica_id: 'clinica-123',
+              nombre_archivo: 'logo.png',
+              mime_type: 'image/png',
+              tamano_bytes: file.size,
+            }),
+          })
+        )
+        expect(xhrs).toHaveLength(1)
+        expect(xhrs[0].method).toBe('PUT')
+        expect(xhrs[0].url).toBe('https://account.r2.cloudflarestorage.com/signed-upload')
+        expect(xhrs[0].file).toBe(file)
+      } finally {
+        vi.unstubAllGlobals()
+      }
+    })
+
+    it('rechaza una URL de carga ajena a R2 sin enviar el archivo', async () => {
+      mockGetSession.mockResolvedValueOnce({ data: { session: { access_token: 'jwt-validado-en-servidor' } } })
+      global.fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          upload_url: 'https://upload.evil.example/file',
+          upload_headers: { 'Content-Type': 'image/png' },
+          public_url: 'https://pub-account.r2.dev/logo.png',
+          expires_in: 900,
+        }),
+      })
+
+      const file = new File(['logo'], 'logo.png', { type: 'image/png' })
+      await expect(subirLogoClinicaAR2('clinica-123', file)).resolves.toBeNull()
     })
   })
 

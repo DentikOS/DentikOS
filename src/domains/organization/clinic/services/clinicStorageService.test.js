@@ -31,8 +31,12 @@ describe('clinicStorageService - Sincronización y Fail-Safe', () => {
     const filaDb = {
       id: 'clinica-123',
       nombre: 'Clínica Dental Sincronizada',
+      razon_social: 'Servicios Dentales SpA',
       rut_empresa: '76.123.456-7',
       direccion: 'Av. Providencia 100',
+      ciudad: 'Santiago, Chile',
+      eslogan: 'Salud para todos',
+      logo_url: 'https://cdn.example/logo.png',
     }
 
     const selectMock = vi.fn().mockReturnValue({
@@ -48,11 +52,19 @@ describe('clinicStorageService - Sincronización y Fail-Safe', () => {
     const resultado = await clinicStorageService.sincronizarClinicaDesdeSupabase('clinica-123')
 
     expect(resultado?.nombreClinica).toBe('Clínica Dental Sincronizada')
+    expect(resultado?.razonSocial).toBe('Servicios Dentales SpA')
+    expect(resultado?.ciudad).toBe('Santiago, Chile')
+    expect(resultado?.eslogan).toBe('Salud para todos')
+    expect(resultado?.logoUrl).toBe('https://cdn.example/logo.png')
     expect(clinicStorageService.obtenerClinica()?.nombreClinica).toBe('Clínica Dental Sincronizada')
     expect(dispatchSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'clinica_actualizada',
-        detail: { nombre: 'Clínica Dental Sincronizada' },
+        detail: expect.objectContaining({
+          clinicaId: 'clinica-123',
+          nombre: 'Clínica Dental Sincronizada',
+          datos: expect.objectContaining({ ciudad: 'Santiago, Chile' }),
+        }),
       })
     )
   })
@@ -111,15 +123,40 @@ describe('clinicStorageService - Sincronización y Fail-Safe', () => {
 
     const ok = await clinicStorageService.guardarClinicaCompleta('clinica-123', {
       nombreClinica: 'Clínica Actualizada Admin',
+      razonSocial: 'Servicios Dentales SpA',
+      ciudad: 'Santiago, Chile',
+      eslogan: 'Salud para todos',
+      logoUrl: 'https://pub-account.r2.dev/clinic-logo.png',
     })
 
     expect(ok).toBe(true)
+    expect(updateMock).toHaveBeenCalledWith({
+      nombre: 'Clínica Actualizada Admin',
+      razon_social: 'Servicios Dentales SpA',
+      ciudad: 'Santiago, Chile',
+      eslogan: 'Salud para todos',
+      logo_url: 'https://pub-account.r2.dev/clinic-logo.png',
+    })
     expect(clinicStorageService.obtenerClinica()?.nombreClinica).toBe('Clínica Actualizada Admin')
     expect(dispatchSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'clinica_actualizada',
-        detail: { nombre: 'Clínica Actualizada Admin' },
+        detail: expect.objectContaining({
+          clinicaId: 'clinica-123',
+          nombre: 'Clínica Actualizada Admin',
+        }),
       })
     )
+  })
+
+  it('no intenta sincronizar un logo data URL en Supabase', async () => {
+    const ok = await clinicStorageService.guardarClinicaCompleta('clinica-123', {
+      nombreClinica: 'Clínica Central',
+      logoUrl: 'data:image/png;base64,AAAA',
+    })
+
+    expect(ok).toBe(false)
+    expect(supabase.from).not.toHaveBeenCalled()
+    expect(clinicStorageService.obtenerClinica()).toBeNull()
   })
 })

@@ -1,13 +1,17 @@
 import React, { memo, useState, useEffect } from 'react'
 import { convertirImagenADataURL } from '../utils/clinicCalculations'
 import { createLogger } from '../../../../infrastructure/logging/logger'
-import { Lock, Building2, CheckCircle2 } from 'lucide-react'
+import { Lock, Building2, CheckCircle2, AlertCircle } from 'lucide-react'
 import { CLINICA_DEFAULT, type ClinicaConfig } from '../constants/clinicConstants'
 import { clinicStorageService, type DatosClinicaConfig } from '../services/clinicStorageService'
 import { useSesionStore } from '../../../../app/stores/sesionStore'
 import { markFormDirty, markFormSaved } from '../../../../shared/utils/formDirtyUtils'
+import { supabase, USE_SUPABASE } from '../../../../infrastructure/supabase/supabaseClient'
+import { subirLogoClinicaAR2 } from '../../../../infrastructure/storage/r2ArchivosService'
 
 const log = createLogger('DatosClinicaForm')
+const MAX_LOGO_BYTES = 5 * 1024 * 1024
+const LOGO_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
 
 export interface DatosClinicaFormProps {
   datosClinica?: DatosClinicaConfig | ClinicaConfig
@@ -26,7 +30,9 @@ export const DatosClinicaForm: React.FC<DatosClinicaFormProps> = memo(({ datosCl
     return datosClinica || CLINICA_DEFAULT
   })
   const [estadoGuardado, setEstadoGuardado] = useState<string | null>(null)
+  const [errorGuardado, setErrorGuardado] = useState(false)
   const [guardando, setGuardando] = useState(false)
+  const [subiendoLogo, setSubiendoLogo] = useState(false)
 
   // Al montar, sincronizar desde Supabase
   useEffect(() => {
@@ -47,54 +53,140 @@ export const DatosClinicaForm: React.FC<DatosClinicaFormProps> = memo(({ datosCl
     return () => { activo = false }
   }, [clinicaId])
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const handleClinicaActualizada = (event: Event) => {
+      const detail = (event as CustomEvent<{
+        clinicaId?: string
+        datos?: DatosClinicaConfig
+      }>).detail
+
+      if (!detail?.datos || (detail.clinicaId && detail.clinicaId !== clinicaId)) return
+      if (!detail.clinicaId && clinicaId) return
+      setForm((prev) => ({ ...prev, ...detail.datos }))
+    }
+
+    window.addEventListener('clinica_actualizada', handleClinicaActualizada)
+    return () => window.removeEventListener('clinica_actualizada', handleClinicaActualizada)
+  }, [clinicaId])
+
   // F6-C-e: solo el admin puede editar la configuración de clínica.
   const esSoloLectura = userProfile?.rol !== 'admin'
 
   const handleChange = (campo: string, valor: string) => {
     markFormDirty()
+    setEstadoGuardado(null)
+    setErrorGuardado(false)
     setForm((prev) => ({ ...prev, [campo]: valor }))
   }
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (esSoloLectura) return
     const file = e.target.files?.[0]
-    if (file) {
-      markFormDirty()
-      try {
-        const dataUrl = await convertirImagenADataURL(file)
-        if (typeof dataUrl === 'string') {
-          setForm((prev) => ({ ...prev, logoUrl: dataUrl }))
+    if (!file) return
+
+    if (!LOGO_MIME_TYPES.has(file.type)) {
+      setEstadoGuardado('El logo debe ser JPG, PNG o WebP.')
+      setErrorGuardado(true)
+      return
+    }
+    if (file.size < 1 || file.size > MAX_LOGO_BYTES) {
+      setEstadoGuardado('El logo debe pesar menos de 5 MB.')
+      setErrorGuardado(true)
+      return
+    }
+
+    markFormDirty()
+    setEstadoGuardado(null)
+    setErrorGuardado(false)
+    setSubiendoLogo(true)
+
+    try {
+      let logoUrl: string | null = null
+      if (clinicaId && USE_SUPABASE && supabase) {
+        logoUrl = await subirLogoClinicaAR2(clinicaId, file)
+        if (!logoUrl) {
+          setEstadoGuardado('No se pudo cargar el logo. Verifica la conexión y vuelve a intentarlo.')
+          setErrorGuardado(true)
+          return
         }
-      } catch (err) {
-        log.error('Error al cargar logo:', err)
+      } else {
+        const dataUrl = await convertirImagenADataURL(file)
+        if (typeof dataUrl === 'string') logoUrl = dataUrl
       }
+
+      if (logoUrl) setForm((prev) => ({ ...prev, logoUrl }))
+    } catch {
+      setEstadoGuardado('No se pudo cargar el logo. Verifica el archivo e inténtalo nuevamente.')
+      setErrorGuardado(true)
+    } finally {
+      setSubiendoLogo(false)
     }
   }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    if (esSoloLectura || guardando) return
+    if (esSoloLectura || guardando || subiendoLogo) return
     setGuardando(true)
     setEstadoGuardado(null)
+    setErrorGuardado(false)
 
     try {
-      if (clinicaId) {
-        const ok = await clinicStorageService.guardarClinicaCompleta(clinicaId, form as DatosClinicaConfig)
-        if (ok) {
-          markFormSaved()
-          setEstadoGuardado('Guardado en la nube')
-          if (alGuardar) alGuardar(form)
+      let datosAGuardar = form as DatosClinicaConfig
+      const guardadoEnNube = Boolean(clinicaId && USE_SUPABASE && supabase)
+
+      if (guardadoEnNube && typeof datosAGuardar.logoUrl === 'string' && datosAGuardar.logoUrl.startsWith('data:')) {
+        const respuestaLogo = await fetch(datosAGuardar.logoUrl)
+        const logoBlob = await respuestaLogo.blob()
+        if (!LOGO_MIME_TYPES.has(logoBlob.type) || logoBlob.size < 1 || logoBlob.size > MAX_LOGO_BYTES) {
+          setEstadoGuardado('Vuelve a cargar el logo como JPG, PNG o WebP de hasta 5 MB para sincronizarlo.')
+          setErrorGuardado(true)
+          return
         }
-      } else {
-        clinicStorageService.guardarClinica(form as DatosClinicaConfig)
-        const nuevoNombre = form.nombreClinica?.trim() || ''
-        if (typeof window !== 'undefined' && nuevoNombre) {
-          window.dispatchEvent(new CustomEvent('clinica_actualizada', { detail: { nombre: nuevoNombre } }))
+
+        const extension = logoBlob.type === 'image/png' ? 'png' : logoBlob.type === 'image/webp' ? 'webp' : 'jpg'
+        const archivoLogo = new File([logoBlob], `logo-clinica.${extension}`, { type: logoBlob.type })
+        const logoUrl = await subirLogoClinicaAR2(clinicaId as string, archivoLogo)
+        if (!logoUrl) {
+          setEstadoGuardado('No se pudo sincronizar el logo. Verifica la conexión y vuelve a intentarlo.')
+          setErrorGuardado(true)
+          return
         }
-        markFormSaved()
-        setEstadoGuardado('Guardado en la nube')
-        if (alGuardar) alGuardar(form)
+
+        datosAGuardar = { ...datosAGuardar, logoUrl }
+        setForm((prev) => ({ ...prev, logoUrl }))
       }
+
+      let guardado = false
+      if (clinicaId) {
+        guardado = await clinicStorageService.guardarClinicaCompleta(clinicaId, datosAGuardar)
+      } else {
+        clinicStorageService.guardarClinica(datosAGuardar)
+        const nuevoNombre = datosAGuardar.nombreClinica?.trim() || ''
+        if (typeof window !== 'undefined' && nuevoNombre) {
+          window.dispatchEvent(new CustomEvent('clinica_actualizada', {
+            detail: { nombre: nuevoNombre, datos: datosAGuardar },
+          }))
+        }
+        guardado = true
+      }
+
+      if (!guardado) {
+        setEstadoGuardado('No se pudo guardar la configuración. Revisa tus permisos y vuelve a intentarlo.')
+        setErrorGuardado(true)
+        return
+      }
+
+      markFormSaved()
+      setEstadoGuardado(clinicaId && USE_SUPABASE && supabase
+        ? 'Guardado en la nube'
+        : 'Guardado en este dispositivo; no se sincronizó con la nube.')
+      if (alGuardar) alGuardar(datosAGuardar)
+    } catch {
+      log.error('No se pudo guardar la configuración de clínica.')
+      setEstadoGuardado('No se pudo guardar la configuración. Verifica la conexión y vuelve a intentarlo.')
+      setErrorGuardado(true)
     } finally {
       setGuardando(false)
     }
@@ -214,10 +306,10 @@ export const DatosClinicaForm: React.FC<DatosClinicaFormProps> = memo(({ datosCl
           )}
           <input
             type="file"
-            accept="image/*"
-            disabled={esSoloLectura}
+            accept="image/jpeg,image/png,image/webp"
+            disabled={esSoloLectura || subiendoLogo}
             onChange={handleLogoUpload}
-            className={`text-xs ${esSoloLectura ? 'cursor-not-allowed text-gray-400' : ''}`}
+            className={`text-xs ${esSoloLectura || subiendoLogo ? 'cursor-not-allowed text-gray-400' : ''}`}
           />
         </div>
       </div>
@@ -226,18 +318,18 @@ export const DatosClinicaForm: React.FC<DatosClinicaFormProps> = memo(({ datosCl
         <div className="flex items-center justify-between pt-3 border-t border-surface">
           <div>
             {estadoGuardado && (
-              <span className="text-emerald-600 dark:text-emerald-400 font-semibold text-xs inline-flex items-center gap-1.5">
-                <CheckCircle2 size={14} />
+              <span className={`${errorGuardado ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'} font-semibold text-xs inline-flex items-center gap-1.5`}>
+                {errorGuardado ? <AlertCircle size={14} /> : <CheckCircle2 size={14} />}
                 {estadoGuardado}
               </span>
             )}
           </div>
           <button
             type="submit"
-            disabled={guardando}
+            disabled={guardando || subiendoLogo}
             className="px-4 py-2 bg-primary text-white rounded-lg font-bold hover:bg-primary-dark transition cursor-pointer disabled:opacity-50"
           >
-            {guardando ? 'Guardando...' : 'Guardar Configuración Clínica'}
+            {subiendoLogo ? 'Subiendo logo...' : guardando ? 'Guardando...' : 'Guardar Configuración Clínica'}
           </button>
         </div>
       )}
