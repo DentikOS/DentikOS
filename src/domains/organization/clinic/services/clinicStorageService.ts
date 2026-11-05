@@ -21,6 +21,16 @@ export interface DatosClinicaConfig {
   emailContacto?: string
   direccion?: string
   ciudad?: string
+  comuna?: string
+  region?: string
+  giroComercial?: string
+  sitioWeb?: string
+  instagram?: string
+  facebook?: string
+  registroSeremi?: string
+  registroIsp?: string
+  idiomaDocumentos?: string
+  moneda?: string
   eslogan?: string
   zonaHoraria?: string
   logoUrl?: string
@@ -47,6 +57,16 @@ const CAMEL_TO_SNAKE_MAP: Record<string, string> = {
   emailContacto: 'email_contacto',
   direccion: 'direccion',
   ciudad: 'ciudad',
+  comuna: 'comuna',
+  region: 'region',
+  giroComercial: 'giro_comercial',
+  sitioWeb: 'sitio_web',
+  instagram: 'instagram',
+  facebook: 'facebook',
+  registroSeremi: 'registro_seremi',
+  registroIsp: 'registro_isp',
+  idiomaDocumentos: 'idioma_documentos',
+  moneda: 'moneda',
   eslogan: 'eslogan',
   zonaHoraria: 'zona_horaria',
   logoUrl: 'logo_url',

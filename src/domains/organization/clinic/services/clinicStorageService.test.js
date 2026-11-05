@@ -35,6 +35,16 @@ describe('clinicStorageService - Sincronización y Fail-Safe', () => {
       rut_empresa: '76.123.456-7',
       direccion: 'Av. Providencia 100',
       ciudad: 'Santiago, Chile',
+      comuna: 'Providencia',
+      region: 'Región Metropolitana',
+      giro_comercial: 'Servicios odontológicos',
+      sitio_web: 'https://clinica.example',
+      instagram: '@clinica',
+      facebook: 'facebook.com/clinica',
+      registro_seremi: 'SEREMI-123',
+      registro_isp: 'ISP-456',
+      idioma_documentos: 'es-CL',
+      moneda: 'CLP',
       eslogan: 'Salud para todos',
       zona_horaria: 'America/Santiago',
       logo_url: 'https://cdn.example/logo.png',
@@ -55,6 +65,16 @@ describe('clinicStorageService - Sincronización y Fail-Safe', () => {
     expect(resultado?.nombreClinica).toBe('Clínica Dental Sincronizada')
     expect(resultado?.razonSocial).toBe('Servicios Dentales SpA')
     expect(resultado?.ciudad).toBe('Santiago, Chile')
+    expect(resultado?.comuna).toBe('Providencia')
+    expect(resultado?.region).toBe('Región Metropolitana')
+    expect(resultado?.giroComercial).toBe('Servicios odontológicos')
+    expect(resultado?.sitioWeb).toBe('https://clinica.example')
+    expect(resultado?.instagram).toBe('@clinica')
+    expect(resultado?.facebook).toBe('facebook.com/clinica')
+    expect(resultado?.registroSeremi).toBe('SEREMI-123')
+    expect(resultado?.registroIsp).toBe('ISP-456')
+    expect(resultado?.idiomaDocumentos).toBe('es-CL')
+    expect(resultado?.moneda).toBe('CLP')
     expect(resultado?.eslogan).toBe('Salud para todos')
     expect(resultado?.zonaHoraria).toBe('America/Santiago')
     expect(resultado?.logoUrl).toBe('https://cdn.example/logo.png')
@@ -127,6 +147,16 @@ describe('clinicStorageService - Sincronización y Fail-Safe', () => {
       nombreClinica: 'Clínica Actualizada Admin',
       razonSocial: 'Servicios Dentales SpA',
       ciudad: 'Santiago, Chile',
+      comuna: 'Providencia',
+      region: 'Región Metropolitana',
+      giroComercial: 'Servicios odontológicos',
+      sitioWeb: 'https://clinica.example',
+      instagram: '@clinica',
+      facebook: 'facebook.com/clinica',
+      registroSeremi: 'SEREMI-123',
+      registroIsp: 'ISP-456',
+      idiomaDocumentos: 'es-CL',
+      moneda: 'CLP',
       eslogan: 'Salud para todos',
       zonaHoraria: 'America/Santiago',
       logoUrl: 'https://pub-account.r2.dev/clinic-logo.png',
@@ -137,6 +167,16 @@ describe('clinicStorageService - Sincronización y Fail-Safe', () => {
       nombre: 'Clínica Actualizada Admin',
       razon_social: 'Servicios Dentales SpA',
       ciudad: 'Santiago, Chile',
+      comuna: 'Providencia',
+      region: 'Región Metropolitana',
+      giro_comercial: 'Servicios odontológicos',
+      sitio_web: 'https://clinica.example',
+      instagram: '@clinica',
+      facebook: 'facebook.com/clinica',
+      registro_seremi: 'SEREMI-123',
+      registro_isp: 'ISP-456',
+      idioma_documentos: 'es-CL',
+      moneda: 'CLP',
       eslogan: 'Salud para todos',
       zona_horaria: 'America/Santiago',
       logo_url: 'https://pub-account.r2.dev/clinic-logo.png',

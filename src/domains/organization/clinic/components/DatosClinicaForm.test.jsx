@@ -57,6 +57,8 @@ describe('DatosClinicaForm', () => {
 
     const inputNombre = screen.getByDisplayValue('Clínica Central')
     fireEvent.change(inputNombre, { target: { value: 'Clínica Dental Renombrada' } })
+    fireEvent.change(screen.getByLabelText('Comuna'), { target: { value: 'Providencia' } })
+    fireEvent.change(screen.getByLabelText('Sitio web'), { target: { value: 'https://clinica.example' } })
 
     const botonGuardar = screen.getByRole('button', { name: /Guardar Configuración/i })
     fireEvent.click(botonGuardar)
@@ -64,7 +66,11 @@ describe('DatosClinicaForm', () => {
     await waitFor(() => {
       expect(clinicStorageService.guardarClinicaCompleta).toHaveBeenCalledWith(
         'clinica-123',
-        expect.objectContaining({ nombreClinica: 'Clínica Dental Renombrada' })
+        expect.objectContaining({
+          nombreClinica: 'Clínica Dental Renombrada',
+          comuna: 'Providencia',
+          sitioWeb: 'https://clinica.example',
+        })
       )
       const estadoEsperado = USE_SUPABASE && supabase
         ? 'Guardado en la nube'
@@ -107,6 +113,8 @@ describe('DatosClinicaForm', () => {
     vi.mocked(clinicStorageService.obtenerClinica).mockReturnValue({
       nombreClinica: 'Clínica A',
       ciudad: 'Ciudad inicial',
+      comuna: 'Providencia',
+      region: 'Región Metropolitana',
       eslogan: 'Frase inicial',
     })
     vi.mocked(clinicStorageService.sincronizarClinicaDesdeSupabase).mockResolvedValue(null)
@@ -117,7 +125,7 @@ describe('DatosClinicaForm', () => {
       window.dispatchEvent(new CustomEvent('clinica_actualizada', {
         detail: {
           clinicaId: 'clinica-456',
-          datos: { nombreClinica: 'Clínica ajena', ciudad: 'No debe aparecer' },
+          datos: { nombreClinica: 'Clínica ajena', ciudad: 'No debe aparecer', comuna: 'Ajena' },
         },
       }))
     })
@@ -128,13 +136,21 @@ describe('DatosClinicaForm', () => {
       window.dispatchEvent(new CustomEvent('clinica_actualizada', {
         detail: {
           clinicaId: 'clinica-123',
-          datos: { nombreClinica: 'Clínica A actualizada', ciudad: 'Valparaíso', eslogan: 'Nueva frase' },
+          datos: {
+            nombreClinica: 'Clínica A actualizada',
+            ciudad: 'Valparaíso',
+            comuna: 'Viña del Mar',
+            region: 'Valparaíso',
+            eslogan: 'Nueva frase',
+          },
         },
       }))
     })
 
     expect(screen.getByDisplayValue('Clínica A actualizada')).toBeInTheDocument()
-    expect(screen.getByDisplayValue('Valparaíso')).toBeInTheDocument()
+    expect(screen.getByLabelText('Ciudad')).toHaveValue('Valparaíso')
+    expect(screen.getByDisplayValue('Viña del Mar')).toBeInTheDocument()
+    expect(screen.getByLabelText('Región')).toHaveValue('Valparaíso')
     expect(screen.getByDisplayValue('Nueva frase')).toBeInTheDocument()
   })
 })

@@ -250,6 +250,16 @@ export const DatosClinicaForm: React.FC<DatosClinicaFormProps> = memo(({ datosCl
           />
         </div>
         <div>
+          <label className="block font-semibold text-gray-700 dark:text-graphite-300 surgical:text-black mb-1">Giro comercial</label>
+          <input
+            type="text"
+            disabled={esSoloLectura}
+            value={(form as DatosClinicaConfig).giroComercial || ''}
+            onChange={(e) => handleChange('giroComercial', e.target.value)}
+            className={inputClass}
+          />
+        </div>
+        <div>
           <label className="block font-semibold text-gray-700 dark:text-graphite-300 surgical:text-black mb-1">Teléfono Contacto</label>
           <input
             type="text"
@@ -270,12 +280,35 @@ export const DatosClinicaForm: React.FC<DatosClinicaFormProps> = memo(({ datosCl
           />
         </div>
         <div>
-          <label className="block font-semibold text-gray-700 dark:text-graphite-300 surgical:text-black mb-1">Ciudad / Región</label>
+          <label htmlFor="clinica-ciudad" className="block font-semibold text-gray-700 dark:text-graphite-300 surgical:text-black mb-1">Ciudad</label>
           <input
+            id="clinica-ciudad"
             type="text"
             disabled={esSoloLectura}
             value={form.ciudad || ''}
             onChange={(e) => handleChange('ciudad', e.target.value)}
+            className={inputClass}
+          />
+        </div>
+        <div>
+          <label htmlFor="clinica-comuna" className="block font-semibold text-gray-700 dark:text-graphite-300 surgical:text-black mb-1">Comuna</label>
+          <input
+            id="clinica-comuna"
+            type="text"
+            disabled={esSoloLectura}
+            value={(form as DatosClinicaConfig).comuna || ''}
+            onChange={(e) => handleChange('comuna', e.target.value)}
+            className={inputClass}
+          />
+        </div>
+        <div>
+          <label htmlFor="clinica-region" className="block font-semibold text-gray-700 dark:text-graphite-300 surgical:text-black mb-1">Región</label>
+          <input
+            id="clinica-region"
+            type="text"
+            disabled={esSoloLectura}
+            value={(form as DatosClinicaConfig).region || ''}
+            onChange={(e) => handleChange('region', e.target.value)}
             className={inputClass}
           />
         </div>
@@ -323,6 +356,44 @@ export const DatosClinicaForm: React.FC<DatosClinicaFormProps> = memo(({ datosCl
           className={inputClass}
         />
       </div>
+
+      <fieldset className="space-y-3 rounded-xl border border-surface p-3">
+        <legend className="px-1 font-semibold text-gray-700 dark:text-graphite-300 surgical:text-black">Datos públicos y registros</legend>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <label className="block font-semibold text-gray-700 dark:text-graphite-300 surgical:text-black">
+            Sitio web
+            <input type="url" disabled={esSoloLectura} value={(form as DatosClinicaConfig).sitioWeb || ''} onChange={(e) => handleChange('sitioWeb', e.target.value)} className={`${inputClass} mt-1 font-normal`} placeholder="https://clinica.cl" />
+          </label>
+          <label className="block font-semibold text-gray-700 dark:text-graphite-300 surgical:text-black">
+            Instagram
+            <input type="text" disabled={esSoloLectura} value={(form as DatosClinicaConfig).instagram || ''} onChange={(e) => handleChange('instagram', e.target.value)} className={`${inputClass} mt-1 font-normal`} placeholder="@clinica" />
+          </label>
+          <label className="block font-semibold text-gray-700 dark:text-graphite-300 surgical:text-black">
+            Facebook
+            <input type="text" disabled={esSoloLectura} value={(form as DatosClinicaConfig).facebook || ''} onChange={(e) => handleChange('facebook', e.target.value)} className={`${inputClass} mt-1 font-normal`} placeholder="facebook.com/clinica" />
+          </label>
+          <label className="block font-semibold text-gray-700 dark:text-graphite-300 surgical:text-black">
+            Registro SEREMI
+            <input type="text" disabled={esSoloLectura} value={(form as DatosClinicaConfig).registroSeremi || ''} onChange={(e) => handleChange('registroSeremi', e.target.value)} className={`${inputClass} mt-1 font-normal`} />
+          </label>
+          <label className="block font-semibold text-gray-700 dark:text-graphite-300 surgical:text-black">
+            Registro ISP
+            <input type="text" disabled={esSoloLectura} value={(form as DatosClinicaConfig).registroIsp || ''} onChange={(e) => handleChange('registroIsp', e.target.value)} className={`${inputClass} mt-1 font-normal`} />
+          </label>
+          <label className="block font-semibold text-gray-700 dark:text-graphite-300 surgical:text-black">
+            Idioma de documentos
+            <select disabled={esSoloLectura} value={(form as DatosClinicaConfig).idiomaDocumentos || 'es-CL'} onChange={(e) => handleChange('idiomaDocumentos', e.target.value)} className={`${inputClass} mt-1 font-normal`}>
+              <option value="es-CL">Español (Chile)</option>
+            </select>
+          </label>
+          <label className="block font-semibold text-gray-700 dark:text-graphite-300 surgical:text-black">
+            Moneda de la clínica
+            <select disabled={esSoloLectura} value={(form as DatosClinicaConfig).moneda || 'CLP'} onChange={(e) => handleChange('moneda', e.target.value)} className={`${inputClass} mt-1 font-normal`}>
+              <option value="CLP">CLP — Peso chileno</option>
+            </select>
+          </label>
+        </div>
+      </fieldset>
 
       <div>
         <label className="block font-semibold text-gray-700 dark:text-graphite-300 surgical:text-black mb-1">Logo Impresión (Blanco y Negro o Color)</label>
