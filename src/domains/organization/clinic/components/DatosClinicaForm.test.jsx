@@ -88,6 +88,21 @@ describe('DatosClinicaForm', () => {
     expect(inputNombre).toBeDisabled()
   })
 
+  it('rechaza una zona horaria inválida antes de guardar', async () => {
+    vi.mocked(clinicStorageService.obtenerClinica).mockReturnValue({
+      nombreClinica: 'Clínica Central',
+      zonaHoraria: 'America/Santiago',
+    })
+    vi.mocked(clinicStorageService.sincronizarClinicaDesdeSupabase).mockResolvedValue(null)
+
+    render(<DatosClinicaForm userProfile={{ rol: 'admin', clinicaId: 'clinica-123' }} />)
+    fireEvent.change(screen.getByLabelText('Zona horaria *'), { target: { value: 'zona-invalida' } })
+    fireEvent.click(screen.getByRole('button', { name: /Guardar Configuración/i }))
+
+    expect(await screen.findByText(/zona horaria IANA válida/i)).toBeInTheDocument()
+    expect(clinicStorageService.guardarClinicaCompleta).not.toHaveBeenCalled()
+  })
+
   it('sincroniza todos los datos de la clínica activa y descarta eventos de otro tenant', async () => {
     vi.mocked(clinicStorageService.obtenerClinica).mockReturnValue({
       nombreClinica: 'Clínica A',

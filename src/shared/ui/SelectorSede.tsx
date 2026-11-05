@@ -27,8 +27,10 @@ export const SelectorSede: React.FC<SelectorSedeProps> = ({
   compacto = false,
   sincronizado = true,
 }) => {
-  const { sedes = [], sedeActiva, sedeActivaId, cambiarSede } = useSedes()
+  const { sedes = [], sedeActiva, sedeActivaId, cambiarSede, cargando, errorSincronizacion } = useSedes()
   const storeCambiarSede = useSesionStore((s) => s.cambiarSede)
+  const listaSedes = sedes.filter((sede) => sede.estado === 'activa' || !sede.estado)
+  const estadoSincronizado = sincronizado && !cargando && !errorSincronizacion
   const [isOpen, setIsOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -55,11 +57,10 @@ export const SelectorSede: React.FC<SelectorSedeProps> = ({
   }, [isOpen, sedes])
 
   // Ocultar si hay 0 o 1 sede (variación aceptada)
-  if (!sedes || sedes.length <= 1) {
+  if (listaSedes.length <= 1) {
     return null
   }
 
-  const listaSedes = sedes
   const valorActivo = sedeActivaId || sedeActiva?.id || listaSedes[0]?.id || ''
   const sedeActivaObj = listaSedes.find((s) => (s.id || s.nombre) === valorActivo)
 
@@ -84,15 +85,15 @@ export const SelectorSede: React.FC<SelectorSedeProps> = ({
     setIsOpen(false)
   }
 
-  const statusTitle = sincronizado
+  const statusTitle = estadoSincronizado
     ? 'Sede activa y sincronizada'
     : 'Cambios pendientes de sincronizar'
 
   // Punto de sincronización SIEMPRE visible (BP03 §04)
-  const puntoColor = sincronizado ? 'bg-[#0D9488]' : 'bg-[#D97706]'
+  const puntoColor = estadoSincronizado ? 'bg-[#0D9488]' : 'bg-[#D97706]'
   
   // Fondo del pill según estado
-  const pillBg = sincronizado
+  const pillBg = estadoSincronizado
     ? 'bg-[#ECFDF5] dark:bg-teal-950/40 surgical:bg-[#D1FAE5]'
     : 'bg-amber-50 dark:bg-amber-950/40 surgical:bg-[#FEF3C7]'
 
@@ -122,13 +123,13 @@ export const SelectorSede: React.FC<SelectorSedeProps> = ({
           data-testid="selector-sede-status"
           className={`w-2 h-2 rounded-full shrink-0 ${puntoColor}`}
           animate={
-            !sincronizado
+            !estadoSincronizado
               ? { opacity: [1, 0.4, 1] }
               : { opacity: 1 }
           }
           transition={{
             duration: 2,
-            repeat: !sincronizado ? Infinity : 0,
+            repeat: !estadoSincronizado ? Infinity : 0,
             ease: 'easeInOut',
           }}
           aria-label={statusTitle}

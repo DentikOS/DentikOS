@@ -8,6 +8,7 @@ import { useSesionStore } from '../../../../app/stores/sesionStore'
 import { markFormDirty, markFormSaved } from '../../../../shared/utils/formDirtyUtils'
 import { supabase, USE_SUPABASE } from '../../../../infrastructure/supabase/supabaseClient'
 import { subirLogoClinicaAR2 } from '../../../../infrastructure/storage/r2ArchivosService'
+import { esZonaHorariaIanaValida } from '../utils/timeZoneUtils'
 
 const log = createLogger('DatosClinicaForm')
 const MAX_LOGO_BYTES = 5 * 1024 * 1024
@@ -128,6 +129,12 @@ export const DatosClinicaForm: React.FC<DatosClinicaFormProps> = memo(({ datosCl
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (esSoloLectura || guardando || subiendoLogo) return
+    const zonaHoraria = String((form as DatosClinicaConfig).zonaHoraria || 'America/Santiago')
+    if (!esZonaHorariaIanaValida(zonaHoraria)) {
+      setEstadoGuardado('Indica una zona horaria IANA válida, por ejemplo America/Santiago.')
+      setErrorGuardado(true)
+      return
+    }
     setGuardando(true)
     setEstadoGuardado(null)
     setErrorGuardado(false)
@@ -271,6 +278,27 @@ export const DatosClinicaForm: React.FC<DatosClinicaFormProps> = memo(({ datosCl
             onChange={(e) => handleChange('ciudad', e.target.value)}
             className={inputClass}
           />
+        </div>
+        <div>
+          <label htmlFor="clinica-zona-horaria" className="block font-semibold text-gray-700 dark:text-graphite-300 surgical:text-black mb-1">Zona horaria *</label>
+          <input
+            id="clinica-zona-horaria"
+            type="text"
+            required
+            list="zonas-horarias-clinica"
+            disabled={esSoloLectura}
+            value={(form as DatosClinicaConfig).zonaHoraria || 'America/Santiago'}
+            onChange={(e) => handleChange('zonaHoraria', e.target.value)}
+            className={inputClass}
+          />
+          <datalist id="zonas-horarias-clinica">
+            <option value="America/Santiago" />
+            <option value="America/Argentina/Buenos_Aires" />
+            <option value="America/Lima" />
+            <option value="Europe/Madrid" />
+            <option value="America/New_York" />
+            <option value="America/Los_Angeles" />
+          </datalist>
         </div>
       </div>
 

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { clinicStorageService, KEY_CLINICA } from './clinicStorageService'
-import { supabase, USE_SUPABASE } from '../../../../infrastructure/supabase/supabaseClient'
+import { clinicStorageService } from './clinicStorageService'
+import { supabase } from '../../../../infrastructure/supabase/supabaseClient'
 import { notificationService } from '../../../../infrastructure/notification/notificationService'
 import { useSesionStore } from '../../../../app/stores/sesionStore'
 
@@ -36,6 +36,7 @@ describe('clinicStorageService - Sincronización y Fail-Safe', () => {
       direccion: 'Av. Providencia 100',
       ciudad: 'Santiago, Chile',
       eslogan: 'Salud para todos',
+      zona_horaria: 'America/Santiago',
       logo_url: 'https://cdn.example/logo.png',
     }
 
@@ -55,6 +56,7 @@ describe('clinicStorageService - Sincronización y Fail-Safe', () => {
     expect(resultado?.razonSocial).toBe('Servicios Dentales SpA')
     expect(resultado?.ciudad).toBe('Santiago, Chile')
     expect(resultado?.eslogan).toBe('Salud para todos')
+    expect(resultado?.zonaHoraria).toBe('America/Santiago')
     expect(resultado?.logoUrl).toBe('https://cdn.example/logo.png')
     expect(clinicStorageService.obtenerClinica()?.nombreClinica).toBe('Clínica Dental Sincronizada')
     expect(dispatchSpy).toHaveBeenCalledWith(
@@ -126,6 +128,7 @@ describe('clinicStorageService - Sincronización y Fail-Safe', () => {
       razonSocial: 'Servicios Dentales SpA',
       ciudad: 'Santiago, Chile',
       eslogan: 'Salud para todos',
+      zonaHoraria: 'America/Santiago',
       logoUrl: 'https://pub-account.r2.dev/clinic-logo.png',
     })
 
@@ -135,6 +138,7 @@ describe('clinicStorageService - Sincronización y Fail-Safe', () => {
       razon_social: 'Servicios Dentales SpA',
       ciudad: 'Santiago, Chile',
       eslogan: 'Salud para todos',
+      zona_horaria: 'America/Santiago',
       logo_url: 'https://pub-account.r2.dev/clinic-logo.png',
     })
     expect(clinicStorageService.obtenerClinica()?.nombreClinica).toBe('Clínica Actualizada Admin')

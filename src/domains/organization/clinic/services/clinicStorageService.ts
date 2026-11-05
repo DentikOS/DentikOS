@@ -21,6 +21,8 @@ export interface DatosClinicaConfig {
   emailContacto?: string
   direccion?: string
   ciudad?: string
+  eslogan?: string
+  zonaHoraria?: string
   logoUrl?: string
   colorPrimario?: string
   colorSecundario?: string
@@ -46,6 +48,7 @@ const CAMEL_TO_SNAKE_MAP: Record<string, string> = {
   direccion: 'direccion',
   ciudad: 'ciudad',
   eslogan: 'eslogan',
+  zonaHoraria: 'zona_horaria',
   logoUrl: 'logo_url',
   colorPrimario: 'color_primario',
   colorSecundario: 'color_secundario',

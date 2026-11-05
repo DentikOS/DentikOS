@@ -11,6 +11,7 @@ export interface ClinicaConfig {
   telefono: string
   emailContacto: string
   eslogan: string
+  zonaHoraria: string
   logoUrl: string
 }
 
@@ -23,6 +24,7 @@ export const CLINICA_DEFAULT: ClinicaConfig = {
   telefono: '+56 9 8765 4321',
   emailContacto: 'contacto@dentikos.cl',
   eslogan: 'Odontología de Alta Precisión & Estética Dental',
+  zonaHoraria: 'America/Santiago',
   logoUrl: ''
 }
 
