@@ -8,6 +8,7 @@ import {
   type ConvenioClinica,
 } from '../../../organization/clinic/schemas/configuracionConveniosSchema'
 import { PreciosEspecificosManager } from './PreciosEspecificosManager'
+import { ConfiguracionFinancieraManager } from './ConfiguracionFinancieraManager'
 
 // Props opcionales conservadas porque FinanzasModulo aún consume la API local legacy.
 export interface ConveniosManagerProps {
@@ -139,6 +140,8 @@ export const ConveniosManager = memo<ConveniosManagerProps>(() => {
     borrador.categorias.find((categoria) => categoria.especialidades.includes(especialidad))?.id || ''
 
   return (
+    <>
+    <ConfiguracionFinancieraManager />
     <section className="rounded-2xl border border-surface bg-surface p-5 shadow-xs" aria-labelledby="convenios-title">
       <header className="mb-5 border-b border-surface pb-3">
         <h2 id="convenios-title" className="flex items-center gap-2 text-sm font-bold text-graphite-900 dark:text-graphite-50">
@@ -349,6 +352,7 @@ export const ConveniosManager = memo<ConveniosManagerProps>(() => {
         </div>
       )}
     </section>
+    </>
   )
 })
 

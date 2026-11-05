@@ -10,6 +10,12 @@ import { notificationService } from '../../../../infrastructure/notification/not
 import { createLogger } from '../../../../infrastructure/logging/logger'
 import type { ConfiguracionMembrete } from '../schemas/configuracionMembreteSchema'
 import {
+  configuracionFinancieraSchema,
+  crearConfiguracionFinancieraPredeterminada,
+  leerConfiguracionFinanciera,
+  type ConfiguracionFinanciera,
+} from '../schemas/configuracionFinancieraSchema'
+import {
   configuracionConveniosSchema,
   leerConfiguracionConvenios,
   type ConfiguracionConvenios,
@@ -44,6 +50,7 @@ export interface DatosClinicaConfig {
   colorPrimario?: string
   colorSecundario?: string
   configuracionMembrete?: ConfiguracionMembrete
+  configuracionFinanciera?: ConfiguracionFinanciera
   configuracionConvenios?: ConfiguracionConvenios
   [key: string]: unknown
 }
@@ -55,6 +62,8 @@ export interface ClinicStorageServiceAPI {
   sincronizarClinicaDesdeSupabase: (clinicaId: string) => Promise<DatosClinicaConfig | null>
   cargarConfiguracionConvenios: (clinicaId: string) => Promise<ConfiguracionConvenios>
   guardarConfiguracionConvenios: (clinicaId: string, configuracion: ConfiguracionConvenios) => Promise<boolean>
+  cargarConfiguracionFinanciera: (clinicaId: string) => Promise<ConfiguracionFinanciera>
+  guardarConfiguracionFinanciera: (clinicaId: string, configuracion: ConfiguracionFinanciera) => Promise<boolean>
   migrarClinicaSiNecesario: (clinicaId: string) => Promise<boolean>
 }
 
@@ -84,6 +93,7 @@ const CAMEL_TO_SNAKE_MAP: Record<string, string> = {
   colorPrimario: 'color_primario',
   colorSecundario: 'color_secundario',
   configuracionMembrete: 'configuracion_documentos',
+  configuracionFinanciera: 'configuracion_financiera',
   configuracionConvenios: 'configuracion_convenios',
 }
 
@@ -97,7 +107,7 @@ const transformarDesdeSupabase = (filaDb?: Record<string, unknown> | null): Dato
   for (const [claveDb, valor] of Object.entries(filaDb)) {
     if (claveDb === 'id' || claveDb === 'created_at' || claveDb === 'updated_at') continue
     const claveJs = SNAKE_TO_CAMEL_MAP[claveDb] || claveDb
-    resultado[claveJs] = claveDb === 'configuracion_documentos' || claveDb === 'configuracion_convenios'
+    resultado[claveJs] = claveDb === 'configuracion_documentos' || claveDb === 'configuracion_convenios' || claveDb === 'configuracion_financiera'
       ? valor ?? {}
       : valor ?? ''
   }
@@ -113,6 +123,16 @@ const obtenerClinicaActivaId = (): string | null => {
 const emitirConfiguracionConvenios = (clinicaId: string, configuracionConvenios: ConfiguracionConvenios): void => {
   const datosActuales = clinicaRepo.obtener(undefined) || {}
   const datos = { ...datosActuales, configuracionConvenios }
+  clinicaRepo.guardar(datos)
+  if (typeof window === 'undefined') return
+  window.dispatchEvent(new CustomEvent('clinica_actualizada', {
+    detail: { clinicaId, nombre: datos.nombreClinica, datos },
+  }))
+}
+
+const emitirConfiguracionFinanciera = (clinicaId: string, configuracionFinanciera: ConfiguracionFinanciera): void => {
+  const datosActuales = clinicaRepo.obtener(undefined) || {}
+  const datos = { ...datosActuales, configuracionFinanciera }
   clinicaRepo.guardar(datos)
   if (typeof window === 'undefined') return
   window.dispatchEvent(new CustomEvent('clinica_actualizada', {
@@ -307,6 +327,72 @@ export const clinicStorageService: ClinicStorageServiceAPI = {
     // Nunca escribir entonces en la caché del tenant que quedó activo.
     if (obtenerClinicaActivaId() === clinicaId) {
       emitirConfiguracionConvenios(clinicaId, validacion.data)
+    }
+    return true
+  },
+
+  cargarConfiguracionFinanciera: async (clinicaId) => {
+    if (!clinicaId || obtenerClinicaActivaId() !== clinicaId) {
+      throw new Error('La clínica activa cambió. Vuelve a abrir la configuración.')
+    }
+
+    if (!USE_SUPABASE) {
+      const configuracion = leerConfiguracionFinanciera(clinicaRepo.obtener(undefined)?.configuracionFinanciera)
+        || crearConfiguracionFinancieraPredeterminada()
+      return configuracion
+    }
+    if (!supabase) throw new Error('No hay conexión disponible para cargar la configuración financiera compartida.')
+
+    const { data, error } = await supabase
+      .from('clinicas')
+      .select('configuracion_financiera')
+      .eq('id', clinicaId)
+      .maybeSingle()
+
+    if (error || !data) {
+      log.warn('No se pudo cargar la configuración financiera compartida.')
+      throw new Error('No se pudo cargar la configuración financiera compartida de la clínica.')
+    }
+
+    const configuracion = leerConfiguracionFinanciera(
+      (data as { configuracion_financiera?: unknown }).configuracion_financiera
+    )
+    if (!configuracion) throw new Error('La configuración financiera de la clínica necesita revisión.')
+    if (obtenerClinicaActivaId() !== clinicaId) {
+      throw new Error('La clínica activa cambió durante la carga. Vuelve a abrir la configuración.')
+    }
+
+    emitirConfiguracionFinanciera(clinicaId, configuracion)
+    return configuracion
+  },
+
+  guardarConfiguracionFinanciera: async (clinicaId, entrada) => {
+    const validacion = configuracionFinancieraSchema.safeParse(entrada)
+    if (!clinicaId || obtenerClinicaActivaId() !== clinicaId || !validacion.success) return false
+
+    if (USE_SUPABASE) {
+      if (!supabase) return false
+      try {
+        const { data, error } = await supabase
+          .from('clinicas')
+          .update({ configuracion_financiera: validacion.data })
+          .eq('id', clinicaId)
+          .select('id')
+
+        if (error || !data?.some((fila) => (fila as { id?: string }).id === clinicaId)) {
+          log.warn('Supabase rechazó la actualización de la configuración financiera compartida.')
+          notificationService.mostrar('No se pudo guardar la configuración financiera compartida.', { tipo: 'error' })
+          return false
+        }
+      } catch {
+        log.warn('Falló la actualización de la configuración financiera compartida.')
+        notificationService.mostrar('No se pudo sincronizar la configuración financiera.', { tipo: 'error' })
+        return false
+      }
+    }
+
+    if (obtenerClinicaActivaId() === clinicaId) {
+      emitirConfiguracionFinanciera(clinicaId, validacion.data)
     }
     return true
   },

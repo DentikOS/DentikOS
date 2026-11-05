@@ -19,6 +19,7 @@ import {
 } from './CamposFormularioPresupuesto'
 import { useAppDialog } from '../../../../shared/hooks/useAppDialog'
 import { useConfiguracionConvenios } from '../../../organization/clinic/hooks/useConfiguracionConvenios'
+import { useConfiguracionFinanciera } from '../../../organization/clinic/hooks/useConfiguracionFinanciera'
 import { useSedes } from '../../../organization/clinic/hooks/useSedes'
 import { resolverPrecioPrestacion } from '../../../organization/clinic/schemas/configuracionConveniosSchema'
 
@@ -41,6 +42,7 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = memo(
   const { alert: dialogAlert } = useAppDialog()
   const [convenio, setConvenio] = useState<string>('Particular')
   const { configuracion, cargando: cargandoConfiguracion, cargada: configuracionCargada } = useConfiguracionConvenios()
+  const { configuracion: financiera, cargando: cargandoFinanciera, cargada: financieraCargada } = useConfiguracionFinanciera()
   const { sedeActivaId, cargando: cargandoSucursales, errorSincronizacion: errorSucursales } = useSedes()
   const convenios = configuracion.convenios.filter((item) => item.activo)
   const [observacion, setObservacion] = useState<string>('')
@@ -173,6 +175,15 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = memo(
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault()
     if (guardando) return
+    if (cargandoFinanciera || !financieraCargada) {
+      await dialogAlert({
+        title: 'Configuración financiera pendiente',
+        description: 'Espera a que se sincronice la configuración financiera de la clínica antes de crear el presupuesto.',
+        variant: 'warning',
+        confirmText: 'Entendido'
+      })
+      return
+    }
     if (!pacienteId) {
       await dialogAlert({
         title: 'Paciente requerido',
@@ -202,12 +213,12 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = memo(
       pacienteNombre: pac?.nombre || 'Paciente',
       pacienteRut: pac?.rut || 'N/I',
       fechaEmision: obtenerFechaLocalISO(),
-      vigenciaDias: 30,
+      vigenciaDias: financiera.validezPresupuestoDias,
       convenio,
       montoTotal,
       montoAbonado: 0,
       estado: 'borrador',
-      fechaVencimiento: new Date(Date.now() + 30 * 86400000).toISOString(),
+      fechaVencimiento: new Date(Date.now() + financiera.validezPresupuestoDias * 86400000).toISOString(),
       version: 1,
       items: itemsSeleccionados,
       observacion

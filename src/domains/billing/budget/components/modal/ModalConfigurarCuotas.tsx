@@ -12,18 +12,27 @@ export interface PlanCuotasConfig {
 
 interface ModalConfigurarCuotasProps {
   montoTotal: number
+  maximoCuotasSinInteres?: number
+  frecuenciaInicial?: 'mensual' | 'quincenal'
   onConfirmar: (plan: PlanCuotasConfig) => void
   onCerrar: () => void
 }
 
 export const ModalConfigurarCuotas: React.FC<ModalConfigurarCuotasProps> = ({
   montoTotal,
+  maximoCuotasSinInteres = 6,
+  frecuenciaInicial = 'mensual',
   onConfirmar,
   onCerrar,
 }) => {
-  const [modalidad, setModalidad] = useState<'unico' | 'cuotas'>('cuotas')
-  const [cuotas, setCuotas] = useState<number>(3)
-  const [frecuencia, setFrecuencia] = useState<'mensual' | 'quincenal'>('mensual')
+  const maxCuotas = Math.min(12, Math.max(1, Math.trunc(maximoCuotasSinInteres)))
+  const cuotasDisponibles = useMemo(() => {
+    if (maxCuotas <= 1) return []
+    return [...new Set([3, 6, 12, maxCuotas].filter((cantidad) => cantidad >= 2 && cantidad <= maxCuotas))].sort((a, b) => a - b)
+  }, [maxCuotas])
+  const [modalidad, setModalidad] = useState<'unico' | 'cuotas'>(maxCuotas <= 1 ? 'unico' : 'cuotas')
+  const [cuotas, setCuotas] = useState<number>(Math.min(3, maxCuotas))
+  const [frecuencia, setFrecuencia] = useState<'mensual' | 'quincenal'>(frecuenciaInicial)
   const [fechaPrimerPago, setFechaPrimerPago] = useState<string>(() => {
     return new Date().toISOString().split('T')[0]
   })
@@ -78,6 +87,7 @@ export const ModalConfigurarCuotas: React.FC<ModalConfigurarCuotasProps> = ({
             <button
               type="button"
               onClick={() => setModalidad('cuotas')}
+              disabled={maxCuotas <= 1}
               className={`p-2.5 rounded-xl border text-left font-semibold ${modalidad === 'cuotas' ? 'bg-primary/10 border-primary text-primary' : 'bg-surface border-surface text-graphite-600'}`}
             >
               Cuotas sin interés
@@ -96,7 +106,7 @@ export const ModalConfigurarCuotas: React.FC<ModalConfigurarCuotasProps> = ({
               <div>
                 <label className="block font-semibold mb-1 text-graphite-700 dark:text-graphite-300">N° de Cuotas</label>
                 <div className="grid grid-cols-3 gap-1">
-                  {[3, 6, 12].map((n) => (
+                  {cuotasDisponibles.map((n) => (
                     <button
                       key={n}
                       type="button"

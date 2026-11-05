@@ -1,8 +1,9 @@
-import React, { useState, useMemo } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import { X, Layers, List, DollarSign, Calendar } from 'lucide-react'
 import { Button } from '../../../../../shared/ui/ui/Button'
 import type { Presupuesto, ItemPresupuesto } from '../../schemas/presupuestoSchema'
 import { useConfiguracionConvenios } from '../../../../organization/clinic/hooks/useConfiguracionConvenios'
+import { useConfiguracionFinanciera } from '../../../../organization/clinic/hooks/useConfiguracionFinanciera'
 import { ModalConfigurarCuotas, type PlanCuotasConfig } from './ModalConfigurarCuotas'
 import { ModalPresupuestoItemsView } from './ModalPresupuestoItemsView'
 
@@ -38,7 +39,12 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = ({
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState('')
   const { configuracion, cargando: cargandoConvenios, error: errorConvenios } = useConfiguracionConvenios()
+  const { configuracion: financiera, cargando: cargandoFinanciera, cargada: financieraCargada } = useConfiguracionFinanciera()
   const convenios = configuracion.convenios.filter((convenio) => convenio.activo)
+
+  useEffect(() => {
+    if (financieraCargada) setValidezDias(financiera.validezPresupuestoDias)
+  }, [financieraCargada, financiera.validezPresupuestoDias])
 
   const [items, setItems] = useState<ItemPresupuesto[]>(itemsIniciales)
 
@@ -74,11 +80,20 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (cargandoFinanciera || !financieraCargada) { setError('Espera a que se sincronice la configuración financiera de la clínica.'); return }
     if (!pacienteId || !pacienteNombre.trim()) { setError('Debe seleccionar un paciente válido.'); return }
     if (items.length === 0 || items.some((item) => !item.nombrePrestacion.trim() || item.precioUnitario < 0)) { setError('Cada prestación necesita nombre y precio revisado.'); return }
     if (totalPagar <= 0) { setError('El total a pagar debe ser mayor a $0.'); return }
+    if (descuentoManualPct > financiera.descuentoMaximoPermitidoPct) {
+      setError(`El descuento manual máximo configurado es ${financiera.descuentoMaximoPermitidoPct}%.`); return
+    }
     if (descuentoManualPct > 0 && (!motivoDescuento.trim() || !autorizadoPor.trim())) {
-      setError('Motivo y profesional autorizador obligatorios para descuentos manuales.'); return
+      if (financiera.requiereMotivoDescuento && !motivoDescuento.trim()) {
+        setError('El motivo es obligatorio para aplicar un descuento manual.'); return
+      }
+      if (!autorizadoPor.trim()) {
+        setError('Indica el profesional que autoriza el descuento manual.'); return
+      }
     }
 
     const folio = `PRE-${Date.now().toString().slice(-6)}`
@@ -142,8 +157,8 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = ({
               {errorConvenios && <p role="status" className="mt-1 text-[10px] text-amber-700">No se cargaron los convenios; este presupuesto no aplicará descuento de convenio.</p>}
             </div>
             <div>
-              <label className="block font-semibold mb-1">Vigencia del Presupuesto (Días)</label>
-              <input type="number" min="1" max="90" value={validezDias} onChange={(e) => setValidezDias(Number(e.target.value))} className="w-full p-2 bg-surface border border-surface rounded-lg font-mono" />
+              <label htmlFor="vigencia-presupuesto-dias" className="block font-semibold mb-1">Vigencia del Presupuesto (Días)</label>
+              <input id="vigencia-presupuesto-dias" type="number" min="1" max="90" value={validezDias} disabled={!financieraCargada} onChange={(e) => setValidezDias(Number(e.target.value))} className="w-full p-2 bg-surface border border-surface rounded-lg font-mono disabled:opacity-60" />
             </div>
           </div>
 
@@ -152,14 +167,14 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = ({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-surface/50 border border-surface rounded-xl text-xs">
             <div>
-              <label className="block font-semibold mb-1">Descuento Especial Manual (%)</label>
-              <input type="number" min="0" max="100" value={descuentoManualPct} onChange={(e) => setDescuentoManualPct(Number(e.target.value))} className="w-full p-2 bg-surface border border-surface rounded-lg font-bold" />
+              <label htmlFor="descuento-manual-pct" className="block font-semibold mb-1">Descuento Especial Manual (%)</label>
+              <input id="descuento-manual-pct" type="number" min="0" max={financiera.descuentoMaximoPermitidoPct} value={descuentoManualPct} disabled={!financieraCargada} onChange={(e) => setDescuentoManualPct(Number(e.target.value))} className="w-full p-2 bg-surface border border-surface rounded-lg font-bold disabled:opacity-60" />
             </div>
             {descuentoManualPct > 0 && (
               <div className="sm:col-span-2 grid grid-cols-2 gap-2 pt-2 border-t border-surface">
                 <div>
-                  <label className="block text-[11px] font-semibold text-amber-600">Motivo de Descuento (Obligatorio)</label>
-                  <input type="text" required value={motivoDescuento} onChange={(e) => setMotivoDescuento(e.target.value)} placeholder="Ej: Convenio empresa familiar" className="w-full p-1.5 bg-surface border border-surface rounded-lg" />
+                  <label className="block text-[11px] font-semibold text-amber-600">Motivo de Descuento{financiera.requiereMotivoDescuento ? ' (Obligatorio)' : ''}</label>
+                  <input type="text" required={financiera.requiereMotivoDescuento} value={motivoDescuento} onChange={(e) => setMotivoDescuento(e.target.value)} placeholder="Ej: Convenio empresa familiar" className="w-full p-1.5 bg-surface border border-surface rounded-lg" />
                 </div>
                 <div>
                   <label className="block text-[11px] font-semibold text-amber-600">Autorizado Por (Obligatorio)</label>
@@ -182,7 +197,7 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = ({
           </div>
 
           <div className="flex items-center justify-between pt-3 border-t border-surface">
-            <Button type="button" variant="secondary" size="sm" icon={Calendar} onClick={() => setShowConfigCuotas(true)} data-testid="btn-configurar-cuota">
+            <Button type="button" variant="secondary" size="sm" icon={Calendar} onClick={() => setShowConfigCuotas(true)} disabled={!financieraCargada || financiera.maximoCuotasSinInteres <= 1} data-testid="btn-configurar-cuota">
               Configurar cuota
             </Button>
             <div className="flex items-center gap-2">
@@ -203,7 +218,13 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = ({
       </div>
 
       {showConfigCuotas && (
-        <ModalConfigurarCuotas montoTotal={totalPagar} onConfirmar={(plan) => setPlanCuotas(plan)} onCerrar={() => setShowConfigCuotas(false)} />
+        <ModalConfigurarCuotas
+          montoTotal={totalPagar}
+          maximoCuotasSinInteres={financiera.maximoCuotasSinInteres}
+          frecuenciaInicial={financiera.frecuenciaCuotas}
+          onConfirmar={(plan) => setPlanCuotas(plan)}
+          onCerrar={() => setShowConfigCuotas(false)}
+        />
       )}
     </div>
   )

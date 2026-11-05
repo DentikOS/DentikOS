@@ -3,6 +3,26 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 import { ModalNuevoPresupuesto } from './ModalNuevoPresupuesto'
 
+vi.mock('../../../../organization/clinic/hooks/useConfiguracionFinanciera', () => ({
+  useConfiguracionFinanciera: () => ({
+    configuracion: {
+      version: 1,
+      validezPresupuestoDias: 15,
+      maximoCuotasSinInteres: 6,
+      frecuenciaCuotas: 'mensual',
+      descuentoMaximoPermitidoPct: 50,
+      requiereMotivoDescuento: true,
+      firmaObligatoriaPresupuesto: false,
+      abonoMinimoParaAprobarPct: 0,
+      mediosPagoAceptados: ['efectivo', 'tarjeta_debito', 'tarjeta_credito', 'transferencia', 'cheque'],
+      recordatorios: { activados: true, presupuestoSinRespuesta: true, presupuestoPorVencer: true, presupuestoVencido: true, cuotasPendientes: true },
+    },
+    cargando: false,
+    cargada: true,
+    error: null,
+  }),
+}))
+
 vi.mock('../../../cash-register/services/finanzasStorageService', () => ({
   finanzasStorageService: { obtenerConvenios: vi.fn(() => []) },
 }))
@@ -42,6 +62,8 @@ describe('ModalNuevoPresupuesto BP07', () => {
     const onGuardar = vi.fn().mockResolvedValue(true)
     const onCerrar = vi.fn()
     render(<ModalNuevoPresupuesto {...props} itemsIniciales={itemsIniciales} onGuardar={onGuardar} onCerrar={onCerrar} />)
+    expect(screen.getByLabelText('Vigencia del Presupuesto (Días)')).toHaveValue(15)
+    expect(screen.getByLabelText('Descuento Especial Manual (%)')).toHaveAttribute('max', '50')
     fireEvent.click(screen.getByTestId('btn-guardar-presupuesto'))
     await waitFor(() => expect(onGuardar).toHaveBeenCalledWith(expect.objectContaining({
       pacienteId: 'paciente-1', estado: 'borrador', totalAPagar: 42000,

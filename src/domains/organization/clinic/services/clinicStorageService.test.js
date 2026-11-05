@@ -282,4 +282,61 @@ describe('clinicStorageService - Sincronización y Fail-Safe', () => {
       detail: expect.objectContaining({ clinicaId: 'clinica-123', datos: expect.objectContaining({ configuracionConvenios: configuracion }) }),
     }))
   })
+
+  it('carga la configuración financiera compartida del tenant activo', async () => {
+    const configuracion = { version: 1, validezPresupuestoDias: 20 }
+    const maybeSingle = vi.fn().mockResolvedValue({ data: { configuracion_financiera: configuracion }, error: null })
+    const eq = vi.fn().mockReturnValue({ maybeSingle })
+    const select = vi.fn().mockReturnValue({ eq })
+    vi.mocked(supabase.from).mockReturnValue({ select })
+
+    const resultado = await clinicStorageService.cargarConfiguracionFinanciera('clinica-123')
+
+    expect(resultado).toMatchObject({ validezPresupuestoDias: 20, maximoCuotasSinInteres: 6 })
+    expect(select).toHaveBeenCalledWith('configuracion_financiera')
+    expect(clinicStorageService.obtenerClinica()).toMatchObject({ configuracionFinanciera: resultado })
+  })
+
+  it('rechaza cargar configuración financiera de otra clínica sin consultar Supabase', async () => {
+    clinicStorageService.guardarClinica({ nombreClinica: 'Clínica A' })
+    useSesionStore.setState({ clinicaActual: 'clinica-b' })
+
+    await expect(clinicStorageService.cargarConfiguracionFinanciera('clinica-123')).rejects.toThrow(/clínica activa cambió/i)
+    expect(supabase.from).not.toHaveBeenCalled()
+    expect(clinicStorageService.obtenerClinica()?.nombreClinica).toBe('Clínica A')
+  })
+
+  it('guarda solo el campo financiero, verifica RLS y emite actualización compartida', async () => {
+    const dispatchSpy = vi.spyOn(window, 'dispatchEvent')
+    const select = vi.fn().mockResolvedValue({ data: [{ id: 'clinica-123' }], error: null })
+    const eq = vi.fn().mockReturnValue({ select })
+    const update = vi.fn().mockReturnValue({ eq })
+    vi.mocked(supabase.from).mockReturnValue({ update })
+    const configuracion = {
+      version: 1,
+      validezPresupuestoDias: 25,
+      maximoCuotasSinInteres: 6,
+      frecuenciaCuotas: 'mensual',
+      descuentoMaximoPermitidoPct: 50,
+      requiereMotivoDescuento: true,
+      firmaObligatoriaPresupuesto: false,
+      abonoMinimoParaAprobarPct: 0,
+      mediosPagoAceptados: ['efectivo'],
+      recordatorios: {
+        activados: true,
+        presupuestoSinRespuesta: true,
+        presupuestoPorVencer: true,
+        presupuestoVencido: true,
+        cuotasPendientes: true,
+      },
+    }
+
+    await expect(clinicStorageService.guardarConfiguracionFinanciera('clinica-123', configuracion)).resolves.toBe(true)
+    expect(update).toHaveBeenCalledWith({ configuracion_financiera: configuracion })
+    expect(clinicStorageService.obtenerClinica()).toMatchObject({ configuracionFinanciera: configuracion })
+    expect(dispatchSpy).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'clinica_actualizada',
+      detail: expect.objectContaining({ clinicaId: 'clinica-123', datos: expect.objectContaining({ configuracionFinanciera: configuracion }) }),
+    }))
+  })
 })

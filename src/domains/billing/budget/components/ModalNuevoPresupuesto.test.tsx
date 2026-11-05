@@ -9,9 +9,25 @@ const { config } = vi.hoisted(() => ({ config: {
   convenios: [{ id: 'seguro-1', nombre: 'Seguro Uno', tipo: 'isapre' as const, activo: true, descuentosPorCategoria: { endo: 20 } }],
   preciosEspecificos: [{ prestacionId: '8', alcance: 'convenio' as const, contextoId: 'seguro-1', precio: 70000 }],
 } }))
+const { configFinanciera } = vi.hoisted(() => ({ configFinanciera: {
+  version: 1 as const,
+  validezPresupuestoDias: 15,
+  maximoCuotasSinInteres: 6,
+  frecuenciaCuotas: 'mensual' as const,
+  descuentoMaximoPermitidoPct: 50,
+  requiereMotivoDescuento: true,
+  firmaObligatoriaPresupuesto: false,
+  abonoMinimoParaAprobarPct: 0,
+  mediosPagoAceptados: ['efectivo', 'tarjeta_debito', 'tarjeta_credito', 'transferencia', 'cheque'] as const,
+  recordatorios: { activados: true, presupuestoSinRespuesta: true, presupuestoPorVencer: true, presupuestoVencido: true, cuotasPendientes: true },
+} }))
 
 vi.mock('../../../organization/clinic/hooks/useConfiguracionConvenios', () => ({
   useConfiguracionConvenios: () => ({ configuracion: config, cargando: false, cargada: true, error: null }),
+}))
+
+vi.mock('../../../organization/clinic/hooks/useConfiguracionFinanciera', () => ({
+  useConfiguracionFinanciera: () => ({ configuracion: configFinanciera, cargando: false, cargada: true, error: null }),
 }))
 
 vi.mock('../../../organization/clinic/hooks/useSedes', () => ({
@@ -23,6 +39,23 @@ vi.mock('../../../../shared/hooks/useAppDialog', () => ({
 }))
 
 describe('ModalNuevoPresupuesto precios BP08', () => {
+  it('usa la validez financiera compartida al crear un presupuesto nuevo', async () => {
+    const alGuardar = vi.fn().mockResolvedValue(true)
+    render(<ModalNuevoPresupuesto
+      pacientes={[{ id: 'paciente-1', nombre: 'Ana Test', rut: '12.345.678-5' }]}
+      prestaciones={[{ id: 8, nombre: 'Endodoncia', precioParticular: 100000 }]}
+      alGuardar={alGuardar}
+      alCerrar={vi.fn()}
+    />)
+
+    fireEvent.change(screen.getByDisplayValue('-- Seleccionar Paciente --'), { target: { value: 'paciente-1' } })
+    fireEvent.change(screen.getByDisplayValue('-- Seleccionar Prestación --'), { target: { value: '8' } })
+    fireEvent.click(screen.getByRole('button', { name: '+ Añadir' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar borrador' }))
+
+    await waitFor(() => expect(alGuardar).toHaveBeenCalledWith(expect.objectContaining({ vigenciaDias: 15 })))
+  })
+
   it('guarda el precio fijo del convenio en el snapshot del presupuesto', async () => {
     const alGuardar = vi.fn().mockResolvedValue(true)
     render(<ModalNuevoPresupuesto
