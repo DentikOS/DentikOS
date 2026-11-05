@@ -191,6 +191,9 @@ export const usePrestaciones = (
         precioParticular: valPrecio,
         precioFonasa: parseFloat(String(prestacionData.precioFonasa)) || 0,
         codigoFonasa: prestacionData.codigoFonasa || '',
+        equipamientoRequerido: Array.isArray(prestacionData.equipamientoRequerido)
+          ? prestacionData.equipamientoRequerido as Prestacion['equipamientoRequerido']
+          : existente?.equipamientoRequerido ?? [],
         ...(existente?.especialidad === 'Pack Promocional' ? { precioCombo: valPrecio } : {}),
       }
 
@@ -269,6 +272,7 @@ export const usePrestaciones = (
         precioParticular: valPrecio,
         precioFonasa: valPrecio,
         codigoFonasa: '',
+        equipamientoRequerido: [],
         precioCombo: valPrecio,
         descripcion: nuevoPack.descripcion,
         ahorroEstimado: nuevoPack.ahorroEstimado

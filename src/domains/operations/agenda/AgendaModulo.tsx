@@ -38,6 +38,8 @@ import { deduplicarCitas } from './utils/deduplicarCitas'
 import { ModalCambiarEstado } from './components/ModalCambiarEstado'
 import { useAppDialog } from '../../../shared/hooks/useAppDialog'
 import { timelineService } from '../../clinical/patient/services/timelineService'
+import { useSedes } from '../../organization/clinic/hooks/useSedes'
+import { filtrarCitasPorSucursal } from './utils/filtrarCitasPorSucursal'
 import type { Cita } from './schemas/citaSchema'
 import type { Paciente } from '../../../domains/clinical/patient/schemas/pacienteSchema'
 
@@ -49,6 +51,8 @@ export interface AgendaModuloProps {
 export const AgendaModulo: React.FC<AgendaModuloProps> = memo(({ alSeleccionarPaciente, alVerFichaPaciente }) => {
   const pacientesProp = usePacientesStore((state: { pacientes: Paciente[] }) => state.pacientes)
   const permisos = usePermisosAgenda()
+  const { sedes, sedeActivaId, cambiarSede } = useSedes()
+  const [sucursalFiltroId, setSucursalFiltroId] = useState<string | null>(null)
   const userProfile = useSesionStore((s) => s.userProfile)
   const { confirm: dialogConfirm } = useAppDialog()
   const [modalHorariosAbierto, setModalHorariosAbierto] = useState(false)
@@ -116,9 +120,25 @@ export const AgendaModulo: React.FC<AgendaModuloProps> = memo(({ alSeleccionarPa
       (storeCitas?.length ? storeCitas : citas).map((c) => normalizarCita(c, mapaDoctores))
     ),
     [storeCitas, citas, mapaDoctores])
+  const sucursalesActivas = useMemo(
+    () => sedes.filter((sede) => sede.estado === 'activa' || (!sede.estado && sede.activa)),
+    [sedes]
+  )
+  const sucursalFiltroEfectiva = sucursalFiltroId ?? sedeActivaId ?? ''
+  const citasConNombreSucursal = useMemo(() => {
+    const nombrePorSucursal = new Map(sedes.map((sede) => [sede.id, sede.nombre]))
+    return todasLasCitas.map((cita) => ({
+      ...cita,
+      ...(cita.sedeId ? { sedeNombre: nombrePorSucursal.get(cita.sedeId) } : {}),
+    }))
+  }, [sedes, todasLasCitas])
+  const citasVisibles = useMemo(
+    () => filtrarCitasPorSucursal(citasConNombreSucursal, sucursalFiltroEfectiva),
+    [citasConNombreSucursal, sucursalFiltroEfectiva]
+  )
   const citasDelDia = useMemo(() => {
-    return todasLasCitas.filter(c => (c.fecha || '').split('T')[0] === (fechaSeleccionada || '').split('T')[0])
-  }, [todasLasCitas, fechaSeleccionada])
+    return citasVisibles.filter(c => (c.fecha || '').split('T')[0] === (fechaSeleccionada || '').split('T')[0])
+  }, [citasVisibles, fechaSeleccionada])
 
   const doctorActualNombre = userProfile?.nombreCompleto || (typeof userProfile?.nombre === 'string' ? userProfile.nombre : '')
   const doctorFiltroEfectivo: string = useMemo(() => {
@@ -330,6 +350,21 @@ export const AgendaModulo: React.FC<AgendaModuloProps> = memo(({ alSeleccionarPa
         description="Gestión inteligente de citas, ocupación de Boxes y confirmación omnicanal."
         actions={
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-2.5 w-full sm:w-auto">
+            {sucursalesActivas.length > 0 && (
+              <select
+                value={sucursalFiltroEfectiva}
+                onChange={(event) => {
+                  const sucursalId = event.target.value
+                  setSucursalFiltroId(sucursalId)
+                  if (sucursalId) cambiarSede(sucursalId)
+                }}
+                aria-label="Filtrar agenda por sucursal"
+                className="min-w-44 rounded-xl border border-surface bg-white px-3 py-2 text-xs font-semibold text-graphite-800 dark:bg-graphite-800 dark:text-graphite-100"
+              >
+                <option value="">Todas las sucursales</option>
+                {sucursalesActivas.map((sede) => <option key={sede.id} value={sede.id}>{sede.nombre}</option>)}
+              </select>
+            )}
             {permisos.configurarHorariosDoctor && (
               <Button
                 type="button"
@@ -420,7 +455,7 @@ export const AgendaModulo: React.FC<AgendaModuloProps> = memo(({ alSeleccionarPa
         <>
           <DoctorWaitingRoomBar
             onLlamarSiguiente={(citaId) => {
-              const cita = todasLasCitas.find((c) => String(c.id) === String(citaId))
+              const cita = citasVisibles.find((c) => String(c.id) === String(citaId))
               if (cita) handleLlamarSiguiente(cita)
             }}
           />
@@ -452,7 +487,7 @@ export const AgendaModulo: React.FC<AgendaModuloProps> = memo(({ alSeleccionarPa
 
       {currentView === 'week' && (
         <AgendaWeekView
-          appointments={todasLasCitas} currentDateIso={fechaSeleccionada}
+          appointments={citasVisibles} currentDateIso={fechaSeleccionada}
           onAppointmentClick={(c) => {
             if (c.recurrence_group_id) handleAbrirEdicionSerie(c)
             else funcionVerFicha(c)
@@ -470,7 +505,7 @@ export const AgendaModulo: React.FC<AgendaModuloProps> = memo(({ alSeleccionarPa
 
       {currentView === 'month' && (
         <AgendaMonthView
-          appointments={todasLasCitas} currentDateIso={fechaSeleccionada}
+          appointments={citasVisibles} currentDateIso={fechaSeleccionada}
           onDayClick={(iso) => { setFechaSeleccionada(iso); setStoreView('day') }}
           onAppointmentMove={handleAppointmentMove}
         />

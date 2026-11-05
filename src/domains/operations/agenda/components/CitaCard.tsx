@@ -147,6 +147,9 @@ export const CitaCard: React.FC<CitaCardProps> = memo(({
             {cita.trataMiento || cita.motivo || 'Consulta Clínica'}
           </span>
           <span className="font-semibold text-graphite-700 dark:text-graphite-300 bg-graphite-100 dark:bg-graphite-700 px-1.5 py-0.5 rounded text-[10px]">
+            <span className="mr-1 text-amber-700 dark:text-amber-300">
+              {cita.sedeId ? `${cita.sedeNombre || 'Sucursal'} ·` : 'Sin sucursal ·'}
+            </span>
             {cita.boxAsignado || 'Sillón 1'}
           </span>
         </p>

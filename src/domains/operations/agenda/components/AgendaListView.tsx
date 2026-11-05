@@ -156,6 +156,9 @@ export const AgendaListView: React.FC<AgendaListViewProps> = memo(({
                   </button>
                 </td>
                 <td className="px-3 py-2 text-graphite-600 dark:text-graphite-400">
+                  <span className="mr-1 font-semibold text-amber-700 dark:text-amber-300">
+                    {cita.sedeId ? `${cita.sedeNombre || 'Sucursal'} ·` : 'Sin sucursal ·'}
+                  </span>
                   {cita.boxAsignado || '—'}
                 </td>
                 <td className="px-3 py-2 text-graphite-600 dark:text-graphite-400">

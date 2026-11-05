@@ -21,6 +21,7 @@ import { prestacionesSupabaseService } from './prestacionesSupabaseService'
 const fila = {
   id: prestacionId, nombre: 'Control', especialidad: 'Diagnóstico',
   precio_particular: 15000, precio_fonasa: 0, codigo_fonasa: null,
+  equipamiento_requerido: [],
 }
 const filaPaquete = {
   ...fila, nombre: 'Pack evaluación', especialidad: 'Pack Promocional',
@@ -42,14 +43,31 @@ describe('prestacionesSupabaseService', () => {
     estado.from.mockReturnValue({ select })
     const lista = await prestacionesSupabaseService.listar()
     expect(estado.from).toHaveBeenCalledWith('prestaciones')
-    expect(select).toHaveBeenCalledWith('id,nombre,especialidad,precio_particular,precio_fonasa,codigo_fonasa,descripcion,ahorro_estimado')
+    expect(select).toHaveBeenCalledWith('id,nombre,especialidad,precio_particular,precio_fonasa,codigo_fonasa,descripcion,ahorro_estimado,equipamiento_requerido')
     expect(eq).toHaveBeenCalledWith('clinica_id', clinicaId)
     expect(lista).toEqual([{
       id: prestacionId, nombre: 'Pack evaluación', especialidad: 'Pack Promocional',
       precioParticular: 50000, precioFonasa: 50000, codigoFonasa: '', precio: 50000,
       precioCombo: 50000,
       descripcion: 'Evaluación y limpieza', ahorroEstimado: '15%',
+      equipamientoRequerido: [],
     }])
+  })
+
+  it('lee instalaciones anteriores sin equipamiento hasta que se aplique la migración', async () => {
+    const primeraOrden = vi.fn().mockResolvedValue({ data: null, error: { code: '42703' } })
+    const primeraEq = vi.fn().mockReturnValue({ order: primeraOrden })
+    const primerSelect = vi.fn().mockReturnValue({ eq: primeraEq })
+    const segundaOrden = vi.fn().mockResolvedValue({ data: [fila], error: null })
+    const segundaEq = vi.fn().mockReturnValue({ order: segundaOrden })
+    const segundoSelect = vi.fn().mockReturnValue({ eq: segundaEq })
+    estado.from.mockReturnValueOnce({ select: primerSelect }).mockReturnValueOnce({ select: segundoSelect })
+
+    const lista = await prestacionesSupabaseService.listar()
+
+    expect(primerSelect).toHaveBeenCalledWith(expect.stringContaining('equipamiento_requerido'))
+    expect(segundoSelect).toHaveBeenCalledWith(expect.not.stringContaining('equipamiento_requerido'))
+    expect(lista[0].equipamientoRequerido).toEqual([])
   })
 
   it('falla cerrado sin clínica activa y no consulta la tabla', async () => {
@@ -67,7 +85,10 @@ describe('prestacionesSupabaseService', () => {
       id: 123, nombre: 'Control', especialidad: 'Diagnóstico', precioParticular: 15000,
       precioFonasa: 0, codigoFonasa: '',
     })
-    expect(insert).toHaveBeenCalledWith(expect.objectContaining({ clinica_id: clinicaId, user_id: userId, precio_particular: 15000 }))
+    expect(insert).toHaveBeenCalledWith(expect.objectContaining({
+      clinica_id: clinicaId, user_id: userId, precio_particular: 15000,
+      equipamiento_requerido: [],
+    }))
     expect(guardada.id).toBe(prestacionId)
   })
 
@@ -89,6 +110,33 @@ describe('prestacionesSupabaseService', () => {
     expect(guardada).toEqual(expect.objectContaining({
       descripcion: 'Evaluación y limpieza', ahorroEstimado: '15%',
     }))
+  })
+
+  it('sincroniza el equipamiento requerido explícito de la prestación', async () => {
+    const single = vi.fn().mockResolvedValue({ data: { ...fila, equipamiento_requerido: ['laser_dental'] }, error: null })
+    const select = vi.fn().mockReturnValue({ single })
+    const insert = vi.fn().mockReturnValue({ select })
+    estado.from.mockReturnValue({ insert })
+
+    const guardada = await prestacionesSupabaseService.guardar({
+      id: 123, nombre: 'Endodoncia', especialidad: 'Endodoncia', precioParticular: 15000,
+      precioFonasa: 0, codigoFonasa: '', equipamientoRequerido: ['laser_dental'],
+    })
+
+    expect(insert).toHaveBeenCalledWith(expect.objectContaining({ equipamiento_requerido: ['laser_dental'] }))
+    expect(guardada.equipamientoRequerido).toEqual(['laser_dental'])
+  })
+
+  it('rechaza explícitamente la edición de requisitos mientras la migración no esté instalada', async () => {
+    const single = vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST204' } })
+    const select = vi.fn().mockReturnValue({ single })
+    const insert = vi.fn().mockReturnValue({ select })
+    estado.from.mockReturnValue({ insert })
+
+    await expect(prestacionesSupabaseService.guardar({
+      id: 123, nombre: 'Endodoncia', especialidad: 'Endodoncia', precioParticular: 15000,
+      precioFonasa: 0, codigoFonasa: '', equipamientoRequerido: ['laser_dental'],
+    })).rejects.toThrow('Aplique la migración BP08')
   })
 
   it('rechaza precio inválido antes de escribir', async () => {
@@ -114,12 +162,14 @@ describe('prestacionesSupabaseService', () => {
 
   it('aplica el reajuste mediante RPC con todo el snapshot visible y mapea el arancel confirmado', async () => {
     estado.rpc.mockResolvedValue({ data: [{
-      ...fila, precio_particular: 16500, precio_fonasa: 0, precio: 16500,
+      ...fila, equipamiento_requerido: undefined,
+      precio_particular: 16500, precio_fonasa: 0, precio: 16500,
     }], error: null })
     const reajustadas = await prestacionesSupabaseService.reajustarMasivo(10, [{
       id: prestacionId, nombre: 'Control', especialidad: 'Diagnóstico',
       precioParticular: 15000, precioFonasa: 0, codigoFonasa: '',
       descripcion: 'Detalle guardado', ahorroEstimado: '15%',
+      equipamientoRequerido: ['laser_dental'],
     }])
 
     expect(estado.rpc).toHaveBeenCalledWith('reajustar_arancel_clinica', {
@@ -130,6 +180,7 @@ describe('prestacionesSupabaseService', () => {
       id: prestacionId, nombre: 'Control', especialidad: 'Diagnóstico',
       precioParticular: 16500, precioFonasa: 0, codigoFonasa: '', precio: 16500,
       descripcion: 'Detalle guardado', ahorroEstimado: '15%',
+      equipamientoRequerido: ['laser_dental'],
     }])
   })
 

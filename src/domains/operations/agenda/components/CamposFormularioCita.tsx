@@ -5,17 +5,19 @@ import { Icon } from '../../../../shared/ui/Icon'
 import { Armchair, Check, Phone, Folder, Clock, Timer } from 'lucide-react'
 import { TRATAMIENTOS_RAPIDOS, TRAMOS_DURACION } from '../constants/agendaConstants'
 import type { Paciente } from '../../../../domains/clinical/patient/schemas/pacienteSchema'
+import type { Prestacion } from '../../../organization/prestations/schemas/prestacionSchema'
 
 export interface SillonDentalItem {
   id: string
   nombre: string
   especialidad?: string
+  configurado?: boolean
 }
 
 export interface CamposFormularioCitaProps {
   pacientes: (Paciente & { apellido?: string; nombreCompleto?: string })[]
   sillonesDentales: readonly SillonDentalItem[] | SillonDentalItem[]
-  prestaciones?: { id: string | number; nombre?: string; duracionEstimada?: number }[]
+  prestaciones?: (Prestacion & { duracionEstimada?: number })[]
   prestacionSeleccionadaId?: string
   setPrestacionSeleccionadaId?: (id: string) => void
   esPacienteExpress: boolean
@@ -25,7 +27,7 @@ export interface CamposFormularioCitaProps {
   pacienteRut: string
   autoCrearFicha: boolean
   tratamiento: string
-  boxAsignado: string
+  boxSeleccionadoId: string
   fecha: string
   horaInicio: string
   horaFinCalculada: string
@@ -37,7 +39,7 @@ export interface CamposFormularioCitaProps {
   setPacienteRut: (rut: string) => void
   setAutoCrearFicha: (auto: boolean) => void
   setTratamiento: (tratamiento: string) => void
-  setBoxAsignado: (box: string) => void
+  onSeleccionarBox: (id: string) => void
   setFecha: (fecha: string) => void
   setHoraInicio: (hora: string) => void
   setDuracionMinutos: (duracion: number | string) => void
@@ -57,7 +59,7 @@ export const CamposFormularioCita: React.FC<CamposFormularioCitaProps> = ({
   pacienteTelefono,
   autoCrearFicha,
   tratamiento,
-  boxAsignado,
+  boxSeleccionadoId,
   fecha,
   horaInicio,
   horaFinCalculada,
@@ -67,7 +69,7 @@ export const CamposFormularioCita: React.FC<CamposFormularioCitaProps> = ({
   setPacienteTelefono,
   setAutoCrearFicha,
   setTratamiento,
-  setBoxAsignado,
+  onSeleccionarBox,
   setFecha,
   setHoraInicio,
   setDuracionMinutos,
@@ -146,9 +148,9 @@ export const CamposFormularioCita: React.FC<CamposFormularioCitaProps> = ({
 
         <CustomSelect
           label="Sillón / Box Dental"
-          options={sillonesDentales.map(s => ({ value: s.nombre, label: s.nombre, icon: Armchair }))}
-          value={boxAsignado}
-          onChange={(value) => setBoxAsignado(value)}
+          options={sillonesDentales.map(s => ({ value: s.id, label: s.nombre, icon: Armchair }))}
+          value={boxSeleccionadoId}
+          onChange={onSeleccionarBox}
         />
       </div>
 

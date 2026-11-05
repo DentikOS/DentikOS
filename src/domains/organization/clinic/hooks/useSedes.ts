@@ -22,6 +22,7 @@ export interface UseSedesReturn {
   agregarSede: (sede: Omit<Sede, 'id'>) => Promise<Sede>
   editarSede: (id: string, updates: Partial<Sede>) => Promise<Sede>
   eliminarSede: (id: string) => Promise<boolean>
+  marcarPrincipal: (id: string) => Promise<{ sucursalId: string; citasReasignadas: number }>
   recargar: () => void
 }
 
@@ -142,6 +143,18 @@ export const useSedes = (): UseSedesReturn => {
     }
   }, [clinicaId, recargar])
 
+  const marcarPrincipal = useCallback(async (id: string): Promise<{ sucursalId: string; citasReasignadas: number }> => {
+    if (!tenantSigueActivo(clinicaId)) {
+      throw new Error('La clínica activa cambió. Vuelve a cargar antes de cambiar la sucursal principal.')
+    }
+    const resultado = await sedesService.establecerSedePrincipal(id)
+    if (tenantSigueActivo(clinicaId)) {
+      recargar()
+      setErrorSincronizacion(null)
+    }
+    return resultado
+  }, [clinicaId, recargar])
+
   const sedeActiva = sedes.find((sede) => sede.id === sedeActivaId && sede.estado === 'activa')
     || sedes.find((sede) => sede.estado === 'activa')
     || null
@@ -156,6 +169,7 @@ export const useSedes = (): UseSedesReturn => {
     agregarSede,
     editarSede,
     eliminarSede,
+    marcarPrincipal,
     recargar,
   }
 }

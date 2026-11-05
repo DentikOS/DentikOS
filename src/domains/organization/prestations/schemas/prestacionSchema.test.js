@@ -39,6 +39,26 @@ describe('prestacionSchema (F2-04d)', () => {
       const result = prestacionSchema.safeParse(prestacion)
       expect(result.success).toBe(true)
     })
+
+    it('valida y conserva los requisitos de equipamiento explícitos', () => {
+      const result = prestacionSchema.safeParse({
+        id: 3,
+        nombre: 'Endodoncia',
+        especialidad: 'Endodoncia',
+        precioParticular: 35000,
+        precioFonasa: 0,
+        codigoFonasa: '',
+        equipamientoRequerido: ['laser_dental', 'microscopio_dental'],
+      })
+      expect(result.success).toBe(true)
+      expect(result.data.equipamientoRequerido).toEqual(['laser_dental', 'microscopio_dental'])
+    })
+
+    it('rechaza equipos desconocidos y requisitos duplicados', () => {
+      const base = { id: 3, nombre: 'Endodoncia', especialidad: 'Endodoncia', precioParticular: 1, precioFonasa: 0, codigoFonasa: '' }
+      expect(prestacionSchema.safeParse({ ...base, equipamientoRequerido: ['equipo_desconocido'] }).success).toBe(false)
+      expect(prestacionSchema.safeParse({ ...base, equipamientoRequerido: ['laser_dental', 'laser_dental'] }).success).toBe(false)
+    })
   })
 
   describe('Prestación válida con todos los campos', () => {

@@ -66,4 +66,31 @@ describe('agendaTransformations', () => {
     expect(db.updatedAt).toBeUndefined()
     expect(db.userId).toBeUndefined()
   })
+
+  it('persiste y recupera la sucursal y el box sin sustituir su etiqueta histórica', () => {
+    const cita = {
+      id: '33333333-3333-4333-8333-333333333333',
+      fecha: '2026-11-05',
+      horaInicio: '10:00',
+      estado: 'Pendiente',
+      boxAsignado: 'Box Norte',
+      sedeId: '11111111-1111-4111-8111-111111111111',
+      boxId: '22222222-2222-4222-8222-222222222222',
+    }
+    const fila = transformarParaSupabase(cita)
+    expect(fila.sede_id).toBe(cita.sedeId)
+    expect(fila.box_id).toBe(cita.boxId)
+
+    const recuperada = transformarDesdeSupabase({ ...fila, id: cita.id })
+    expect(recuperada.sedeId).toBe(cita.sedeId)
+    expect(recuperada.boxId).toBe(cita.boxId)
+    expect(recuperada.boxAsignado).toBe('Box Norte')
+  })
+
+  it('mantiene las citas históricas sin sucursal ni box configurado', () => {
+    const recuperada = transformarDesdeSupabase({ id: '33333333-3333-4333-8333-333333333333', notas: '{"boxAsignado":"Sillón antiguo"}' })
+    expect(recuperada.sedeId).toBeUndefined()
+    expect(recuperada.boxId).toBeUndefined()
+    expect(recuperada.boxAsignado).toBe('Sillón antiguo')
+  })
 })

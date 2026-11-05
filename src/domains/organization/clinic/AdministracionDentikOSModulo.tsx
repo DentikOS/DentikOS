@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Building2, MapPin, Users, Stethoscope, ShieldCheck, Plus, Pencil, ArchiveRestore, Clock3, AlertCircle } from 'lucide-react'
+import { Building2, MapPin, Users, Stethoscope, ShieldCheck, Plus, Pencil, ArchiveRestore, Clock3, AlertCircle, Star } from 'lucide-react'
 import { DatosClinicaForm } from './components/DatosClinicaForm'
 import { GestionMiembrosModulo } from '../team/GestionMiembrosModulo'
 import { PrestacionesModulo } from '../prestations/PrestacionesModulo'
@@ -41,7 +41,7 @@ const resumenHorario = (horarios: HorarioSede[] = []): string => {
 
 export const AdministracionDentikOSModulo: React.FC<AdministracionDentikOSProps> = ({ userProfile }) => {
   const [tabActiva, setTabActiva] = useState<TabAdmin>('practica')
-  const { sedes, sedeActiva, agregarSede, editarSede, eliminarSede, cargando, errorSincronizacion } = useSedes()
+  const { sedes, sedeActiva, agregarSede, editarSede, eliminarSede, marcarPrincipal, cargando, errorSincronizacion } = useSedes()
   const perfilSesion = useSesionStore((state) => state.userProfile)
   const rol = (userProfile?.rol || perfilSesion?.rol || '').toLowerCase()
   const puedeAdministrarSedes = rol === 'admin'
@@ -49,6 +49,8 @@ export const AdministracionDentikOSModulo: React.FC<AdministracionDentikOSProps>
   const [sedeEnEdicion, setSedeEnEdicion] = useState<string | null>(null)
   const [formSede, setFormSede] = useState<Omit<Sede, 'id'>>(() => sedeVacia(zonaHorariaClinica))
   const [guardandoSede, setGuardandoSede] = useState(false)
+  const [marcandoPrincipal, setMarcandoPrincipal] = useState(false)
+  const [confirmacionPrincipal, setConfirmacionPrincipal] = useState<string | null>(null)
   const [errorSede, setErrorSede] = useState<string | null>(null)
 
   const abrirEdicion = (sede: Sede) => {
@@ -67,6 +69,23 @@ export const AdministracionDentikOSModulo: React.FC<AdministracionDentikOSProps>
     setSedeEnEdicion(null)
     setFormSede(sedeVacia(zonaHorariaClinica))
     setErrorSede(null)
+  }
+
+  const handleMarcarPrincipal = async (sede: Sede) => {
+    if (!puedeAdministrarSedes || !sede.id || marcandoPrincipal) return
+    setMarcandoPrincipal(true)
+    setConfirmacionPrincipal(null)
+    setErrorSede(null)
+    try {
+      const resultado = await marcarPrincipal(sede.id)
+      setConfirmacionPrincipal(resultado.citasReasignadas > 0
+        ? `${sede.nombre} quedó como principal. Se asignaron ${resultado.citasReasignadas} citas históricas sin sucursal.`
+        : `${sede.nombre} quedó como sucursal principal.`)
+    } catch (error: unknown) {
+      setErrorSede(error instanceof Error ? error.message : 'No se pudo cambiar la sucursal principal.')
+    } finally {
+      setMarcandoPrincipal(false)
+    }
   }
 
   const handleGuardarSede = async (e: React.FormEvent) => {
@@ -183,6 +202,7 @@ export const AdministracionDentikOSModulo: React.FC<AdministracionDentikOSProps>
             </div>
           )}
           {cargando && <p className="text-xs text-graphite-500 dark:text-slate-400">Sincronizando sucursales…</p>}
+          {confirmacionPrincipal && <p role="status" className="text-xs text-emerald-700 dark:text-emerald-300">{confirmacionPrincipal}</p>}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {sedes.map((s) => (
@@ -191,6 +211,7 @@ export const AdministracionDentikOSModulo: React.FC<AdministracionDentikOSProps>
                   <div>
                     <h3 className="font-bold text-sm text-graphite-900 dark:text-white flex items-center gap-1.5">
                       <MapPin size={14} className="text-[#D4AF37]" /> {s.nombre}
+                      {s.esPrincipal && <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800 dark:bg-amber-950/50 dark:text-amber-300"><Star size={10} /> Principal</span>}
                     </h3>
                     <p className="text-graphite-600 dark:text-slate-300 mt-1">{s.direccion}</p>
                     <p className="text-graphite-400 dark:text-slate-500 text-[11px]">{s.comuna}, {s.region}</p>
@@ -207,6 +228,11 @@ export const AdministracionDentikOSModulo: React.FC<AdministracionDentikOSProps>
                 </div>
                 {puedeAdministrarSedes && s.id && (
                   <div className="mt-3 flex flex-wrap gap-2 border-t border-surface pt-3">
+                    {!s.esPrincipal && s.estado === 'activa' && (
+                      <Button type="button" size="sm" variant="outline" className="text-[11px]" disabled={marcandoPrincipal || guardandoSede} onClick={() => { void handleMarcarPrincipal(s) }}>
+                        <Star size={13} className="mr-1" /> {marcandoPrincipal ? 'Actualizando…' : 'Establecer como principal'}
+                      </Button>
+                    )}
                     <Button type="button" size="sm" variant="outline" className="text-[11px]" onClick={() => abrirEdicion(s)}>
                       <Pencil size={13} className="mr-1" /> Editar
                     </Button>
@@ -215,7 +241,8 @@ export const AdministracionDentikOSModulo: React.FC<AdministracionDentikOSProps>
                       size="sm"
                       variant="outline"
                       className="text-[11px]"
-                      disabled={guardandoSede}
+                      disabled={guardandoSede || (s.esPrincipal && s.estado === 'activa')}
+                      title={s.esPrincipal ? 'Designa otra sucursal principal antes de desactivar esta sucursal.' : undefined}
                       onClick={() => {
                         if (s.estado === 'activa') {
                           void eliminarSede(s.id!).then((ok) => {

@@ -33,7 +33,7 @@ const DraggableMonthChip: React.FC<{ cita: Cita; onClick?: () => void }> = ({ ci
       title={`${cita.horaInicio} - ${cita.pacienteNombre}`}
     >
       <span className="font-bold text-[#B88E3A] mr-1">{String(cita.horaInicio).slice(0, 5)}</span>
-      <span>{cita.pacienteNombre || 'Paciente'}</span>
+      <span>{cita.sedeId ? `${cita.sedeNombre || 'Sucursal'} · ` : 'Sin sucursal · '}{cita.pacienteNombre || 'Paciente'}</span>
     </div>
   )
 }

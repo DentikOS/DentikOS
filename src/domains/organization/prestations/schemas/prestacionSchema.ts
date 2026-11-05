@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { EQUIPAMIENTO_CLINICO_IDS } from '../../../../shared/constants/equipamientoClinico'
 
 /**
  * Esquema de validación de prestación del arancel (F2-04d — MASTER_ROADMAP).
@@ -33,6 +34,10 @@ export const prestacionSchema = z.object({
 
   // Campos opcionales
   precio: z.number().optional(),
+  equipamientoRequerido: z.array(z.enum(EQUIPAMIENTO_CLINICO_IDS))
+    .max(EQUIPAMIENTO_CLINICO_IDS.length)
+    .optional()
+    .refine((ids) => ids === undefined || new Set(ids).size === ids.length, 'No repitas un equipo requerido.'),
 }).passthrough()
 
 export type Prestacion = z.infer<typeof prestacionSchema>

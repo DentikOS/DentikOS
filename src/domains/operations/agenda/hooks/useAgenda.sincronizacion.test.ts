@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { renderHook, act } from '@testing-library/react'
+import { renderHook, act, waitFor } from '@testing-library/react'
 import { useAgenda } from './useAgenda'
 import { useAgendaStore } from '../../../../app/stores/useAgendaStore'
 import { agendaStorageService } from '../services/agendaStorageService'
@@ -86,5 +86,26 @@ describe('useAgenda - Sincronización reactiva con useAgendaStore (FIX-8)', () =
 
     expect(result.current.citas[0].estado).toBe('Confirmada')
     expect(useAgendaStore.getState().citas[0].estado).toBe('Confirmada')
+  })
+
+  it('recarga citas cuando la sucursal principal reasigna citas históricas', async () => {
+    const citaRemota = {
+      id: 'cita-reasignada',
+      fecha: '2026-10-15',
+      horaInicio: '13:00',
+      estado: 'Pendiente',
+      sedeId: '00000000-0000-4000-8000-000000000010',
+    } as unknown as Cita
+    const obtenerDesdeNube = vi.spyOn(agendaStorageService, 'obtenerCitasDesdeSupabase').mockResolvedValue([citaRemota])
+    const { result } = renderHook(() => useAgenda([]))
+
+    await act(async () => {
+      window.dispatchEvent(new Event('agenda_citas_necesitan_sync'))
+      await Promise.resolve()
+    })
+    await waitFor(() => expect(result.current.citas.map((cita) => cita.id)).toContain('cita-reasignada'))
+
+    expect(obtenerDesdeNube).toHaveBeenCalledOnce()
+    expect(useAgendaStore.getState().citas[0].sedeId).toBe(citaRemota.sedeId)
   })
 })

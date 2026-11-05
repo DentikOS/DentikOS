@@ -9,6 +9,7 @@ const log = createLogger('sedesService')
 const KEY_SEDES = 'clinica_sedes'
 const KEY_SEDE_ACTIVA = 'clinica_sede_activa'
 const EVENT_SEDES_ACTUALIZADAS = 'sucursales_actualizadas'
+const EVENT_AGENDA_CITAS_NECESITAN_SYNC = 'agenda_citas_necesitan_sync'
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 const sedesRepo = createTenantRepository<Sede[]>(KEY_SEDES, [], { notify: true })
@@ -75,6 +76,45 @@ const desdeFila = (row: SedeRow): Sede | null => normalizarSede({
   activa: row.estado === 'activa',
 })
 
+const inferirSucursalPrincipal = (rows: SedeRow[], clinicaId: string): string | null => {
+  const legado = rows.find((row) => row.id === clinicaId && row.estado === 'activa')
+  if (legado) return legado.id
+
+  const activasMasAntiguas = rows
+    .filter((row) => row.estado === 'activa')
+    .sort((a, b) => {
+      const fechaA = a.created_at || ''
+      const fechaB = b.created_at || ''
+      return fechaA.localeCompare(fechaB) || a.id.localeCompare(b.id)
+    })
+  return activasMasAntiguas[0]?.id || null
+}
+
+const resolverIdPrincipal = async (rows: SedeRow[], clinicaId: string): Promise<string | null> => {
+  if (!supabase) return inferirSucursalPrincipal(rows, clinicaId)
+
+  const { data, error } = await supabase
+    .from('clinicas')
+    .select('principal_sucursal_id')
+    .eq('id', clinicaId)
+    .maybeSingle()
+
+  if (error) {
+    const columnaAunNoMigrada = (error.code === '42703' || error.code === 'PGRST204')
+      && error.message.toLowerCase().includes('principal_sucursal_id')
+    if (columnaAunNoMigrada) return inferirSucursalPrincipal(rows, clinicaId)
+    log.warn('No se pudo leer la sucursal principal de la clínica.')
+    throw new Error('No se pudo sincronizar la sucursal principal. Verifica la conexión y los permisos.')
+  }
+
+  const principalId = (data as { principal_sucursal_id?: string | null } | null)?.principal_sucursal_id || null
+  if (principalId && !rows.some((row) => row.id === principalId && row.clinica_id === clinicaId)) {
+    log.warn('La clínica referencia una sucursal principal no disponible en su catálogo.')
+    throw new Error('La sucursal principal no coincide con el catálogo de esta clínica. No se reemplazó la copia local.')
+  }
+  return principalId
+}
+
 const aFila = (sede: Sede, clinicaId: string): Omit<SedeRow, 'created_at' | 'updated_at'> & { updated_at: string } => ({
   id: sede.id || crearUuid(),
   clinica_id: clinicaId,
@@ -102,6 +142,19 @@ const guardarCache = (sedes: Sede[], clinicaId?: string): boolean => {
   return ok
 }
 
+const emitirAgendaNecesitaSync = (clinicaId: string, citasReasignadas: number): void => {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(EVENT_AGENDA_CITAS_NECESITAN_SYNC, { detail: { clinicaId, citasReasignadas } }))
+  }
+}
+
+const validarNoDesactivarPrincipal = (existente: Sede, updates: Partial<Sede>): void => {
+  const dejaDeEstarDisponible = (updates.estado !== undefined && updates.estado !== 'activa') || updates.activa === false
+  if (existente.esPrincipal && dejaDeEstarDisponible) {
+    throw new Error('Designa otra sucursal principal antes de cambiar el estado de esta sucursal.')
+  }
+}
+
 const verificarTenantActivo = (clinicaId: string): void => {
   if (getClinicaActivaSync() !== clinicaId) {
     throw new Error('La clínica activa cambió durante la sincronización. Vuelve a cargar las sucursales.')
@@ -122,9 +175,12 @@ const filasDeNube = async (clinicaId: string): Promise<SedeRow[]> => {
   return (data || []) as unknown as SedeRow[]
 }
 
-const guardarFilasNubeEnCache = (rows: SedeRow[], clinicaId: string): Sede[] => {
+const guardarFilasNubeEnCache = (rows: SedeRow[], clinicaId: string, principalId: string | null): Sede[] => {
   verificarTenantActivo(clinicaId)
-  const sedesParseadas = rows.map(desdeFila)
+  const sedesParseadas = rows.map((row) => {
+    const sede = desdeFila(row)
+    return sede ? { ...sede, esPrincipal: row.id === principalId } : null
+  })
   if (sedesParseadas.some((sede) => sede === null)) {
     log.warn('La nube devolvió una sucursal con datos no válidos.')
     throw new Error('La nube devolvió una sucursal con datos incompletos. No se reemplazó la copia local.')
@@ -151,6 +207,12 @@ const prepararMigracionLocal = (sedes: Sede[], clinicaId: string): Sede[] => {
     return { ...sede, id, clinicaId, estado: sede.estado || (sede.activa ? 'activa' : 'inactiva') }
   })
 }
+
+const inferirIdPrincipalLocal = (sedes: Sede[], clinicaId: string): string | null =>
+  sedes.find((sede) => sede.estado === 'activa' && sede.esPrincipal)?.id
+  || sedes.find((sede) => sede.estado === 'activa' && sede.id === clinicaId)?.id
+  || sedes.find((sede) => sede.estado === 'activa')?.id
+  || null
 
 const sincronizarDesdeSupabase = async (clinicaId: string): Promise<Sede[]> => {
   let rows = await filasDeNube(clinicaId)
@@ -203,7 +265,8 @@ const sincronizarDesdeSupabase = async (clinicaId: string): Promise<Sede[]> => {
       }
     }
   }
-  return guardarFilasNubeEnCache(rows, clinicaId)
+  const principalId = await resolverIdPrincipal(rows, clinicaId)
+  return guardarFilasNubeEnCache(rows, clinicaId, principalId)
 }
 
 const validarSede = (entrada: Partial<Sede> & Record<string, unknown>): Sede => {
@@ -251,6 +314,7 @@ const insertarSedeNube = async (sede: Sede): Promise<Sede> => {
 
 const actualizarSedeNube = async (id: string, sede: Sede): Promise<Sede> => {
   const clinicaId = obtenerClinicaNube()
+  const existente = sedesService.obtenerSedes().find((item) => item.id === id && item.clinicaId === clinicaId)
   const { data, error } = await supabase!
     .from('sucursales')
     .update(aFila({ ...sede, id, clinicaId }, clinicaId))
@@ -262,8 +326,9 @@ const actualizarSedeNube = async (id: string, sede: Sede): Promise<Sede> => {
     log.warn('No se pudo actualizar una sucursal en la nube.')
     throw new Error('No se pudo actualizar la sucursal. Verifica tus permisos y vuelve a intentarlo.')
   }
-  const actualizada = desdeFila(data as unknown as SedeRow)
-  if (!actualizada) throw new Error('La sucursal actualizada no devolvió datos válidos.')
+  const filaActualizada = desdeFila(data as unknown as SedeRow)
+  if (!filaActualizada) throw new Error('La sucursal actualizada no devolvió datos válidos.')
+  const actualizada = { ...filaActualizada, esPrincipal: existente?.esPrincipal === true }
   verificarTenantActivo(clinicaId)
   guardarCache(sedesService.obtenerSedes().map((item) => item.id === id ? actualizada : item), clinicaId)
   return actualizada
@@ -300,8 +365,14 @@ export const sedesService = {
     validarTelefonoNuevo(validacion.data)
     validarHorarioCompleto(validacion.data)
     const clinicaId = getClinicaActivaSync() || undefined
-    const nuevaSede = validarSede({ ...validacion.data, id: crearUuid(), clinicaId })
-    const nuevaLista = [...sedesService.obtenerSedes(), nuevaSede]
+    const sedesActuales = sedesService.obtenerSedes()
+    const clinicaActivaId = clinicaId || ''
+    const principalId = inferirIdPrincipalLocal(sedesActuales, clinicaActivaId)
+    const nuevaSede = validarSede({ ...validacion.data, id: crearUuid(), clinicaId, esPrincipal: !principalId })
+    const nuevaLista = [
+      ...sedesActuales.map((sede) => ({ ...sede, esPrincipal: sede.id === principalId })),
+      nuevaSede,
+    ]
     if (!sedesService.guardarSedes(nuevaLista)) throw new Error('No se pudo guardar la sucursal en este dispositivo.')
     if (nuevaLista.filter((sede) => sede.estado === 'activa').length === 1) sedesService.establecerSedeActiva(nuevaSede.id || '')
     return nuevaSede
@@ -313,14 +384,25 @@ export const sedesService = {
     validarTelefonoNuevo(validacion.data)
     validarHorarioCompleto(validacion.data)
     if (!USE_SUPABASE || !supabase) return sedesService.crearSede(datosSede)
-    const nuevaSede = validarSede({ ...validacion.data, id: crearUuid(), clinicaId: getClinicaActivaSync() || undefined })
-    return insertarSedeNube(nuevaSede)
+    const clinicaId = obtenerClinicaNube()
+    const sedesAntes = await sincronizarDesdeSupabase(clinicaId)
+    const nuevaSede = validarSede({ ...validacion.data, id: crearUuid(), clinicaId })
+    const creada = await insertarSedeNube(nuevaSede)
+    if (sedesAntes.length === 0 && creada.id) {
+      try {
+        await sedesService.establecerSedePrincipal(creada.id)
+      } catch {
+        throw new Error('La sucursal se creó, pero no se pudo confirmar como principal. Revisa la conexión y vuelve a designarla desde la lista.')
+      }
+    }
+    return sedesService.obtenerSedes().find((sede) => sede.id === creada.id) || creada
   },
 
   actualizarSede: (id: string, updates: Partial<Sede>): Sede => {
     const sedes = sedesService.obtenerSedes()
     const existente = sedes.find((sede) => sede.id === id)
     if (!existente) throw new Error(`Sucursal con id ${id} no encontrada`)
+    validarNoDesactivarPrincipal(existente, updates)
     const actualizada = validarSede({ ...existente, ...updates, id })
     const guardado = sedesService.guardarSedes(sedes.map((sede) => sede.id === id ? actualizada : sede))
     if (!guardado) throw new Error('No se pudo guardar la sucursal en este dispositivo.')
@@ -330,6 +412,7 @@ export const sedesService = {
   actualizarSedeSincronizada: async (id: string, updates: Partial<Sede>): Promise<Sede> => {
     const existente = sedesService.obtenerSedes().find((sede) => sede.id === id)
     if (!existente) throw new Error(`Sucursal con id ${id} no encontrada`)
+    validarNoDesactivarPrincipal(existente, updates)
     const actualizada = validarSede({ ...existente, ...updates, id })
     if (updates.telefono !== undefined) validarTelefonoNuevo(actualizada)
     if (updates.horariosAtencion !== undefined && updates.horariosAtencion.length > 0) validarHorarioCompleto(actualizada)
@@ -350,6 +433,52 @@ export const sedesService = {
 
   desactivarSedeSincronizada: async (id: string): Promise<Sede> => {
     return sedesService.actualizarSedeSincronizada(id, { estado: 'inactiva', activa: false })
+  },
+
+  establecerSedePrincipal: async (sedeId: string): Promise<{ sucursalId: string; citasReasignadas: number }> => {
+    const clinicaId = getClinicaActivaSync()
+    if (!clinicaId || !UUID_RE.test(clinicaId)) throw new Error('No se pudo identificar la clínica activa.')
+    if (USE_SUPABASE && !supabase) throw new Error('No hay conexión configurada con la nube.')
+    if (!UUID_RE.test(sedeId)) throw new Error('El identificador de la sucursal no es válido.')
+    const sede = sedesService.obtenerSedes().find((item) => item.id === sedeId && item.clinicaId === clinicaId)
+    if (!sede || sede.estado !== 'activa') {
+      throw new Error('Selecciona una sucursal activa de la clínica actual.')
+    }
+
+    if (!USE_SUPABASE || !supabase) {
+      const actualizadas = sedesService.obtenerSedes().map((item) => ({ ...item, esPrincipal: item.id === sedeId }))
+      if (!guardarCache(actualizadas, clinicaId)) throw new Error('No se pudo actualizar la sucursal principal local.')
+      return { sucursalId: sedeId, citasReasignadas: 0 }
+    }
+
+    const { data, error } = await supabase.rpc('designar_sucursal_principal', { p_sucursal_id: sedeId })
+    if (error) {
+      log.warn('No se pudo designar la sucursal principal en la nube.')
+      if (error.code === 'PGRST202' || error.code === '42883') {
+        throw new Error('No se encontró la operación de sucursal principal. Sincroniza primero las migraciones BP08.')
+      }
+      throw new Error('No se pudo designar la sucursal principal. Verifica que la sucursal siga activa y tus permisos.')
+    }
+    verificarTenantActivo(clinicaId)
+
+    const resultado = (Array.isArray(data) ? data[0] : data) as {
+      principal_sucursal_id?: string
+      citas_reasignadas?: number
+    } | null
+    const conteoConfirmado = Number(resultado?.citas_reasignadas)
+    if (resultado?.principal_sucursal_id !== sedeId
+      || !Number.isSafeInteger(conteoConfirmado)
+      || conteoConfirmado < 0) {
+      log.warn('La nube no confirmó el resultado de designar la sucursal principal.')
+      throw new Error('La nube no confirmó la sucursal principal. Actualiza la lista antes de continuar.')
+    }
+    const citasReasignadas = conteoConfirmado
+    const sedesActualizadas = sedesService.obtenerSedes().map((item) => ({ ...item, esPrincipal: item.id === sedeId }))
+    if (!guardarCache(sedesActualizadas, clinicaId)) {
+      log.warn('La sucursal se designó en la nube pero no se pudo actualizar la caché local.')
+    }
+    if (citasReasignadas > 0) emitirAgendaNecesitaSync(clinicaId, citasReasignadas)
+    return { sucursalId: sedeId, citasReasignadas }
   },
 
   obtenerSedeActiva: (): string | null => {
@@ -381,14 +510,18 @@ export const sedesService = {
       const locales = sedesService.obtenerSedes()
       if (locales.some((sede) => !sede.id)) {
         const normalizadas = prepararMigracionLocal(locales, id)
-        guardarCache(normalizadas, id)
+        const principalId = inferirIdPrincipalLocal(normalizadas, id)
+        guardarCache(normalizadas.map((sede) => ({ ...sede, esPrincipal: sede.id === principalId })), id)
         const activaActual = sedeActivaRepo.obtener(null)
         if (!normalizadas.some((sede) => sede.id === activaActual && sede.estado === 'activa')) {
           sedesService.establecerSedeActiva(normalizadas.find((sede) => sede.estado === 'activa')?.id || '')
         }
-        return normalizadas
+        return normalizadas.map((sede) => ({ ...sede, esPrincipal: sede.id === principalId }))
       }
-      return locales
+      const principalId = inferirIdPrincipalLocal(locales, id)
+      const marcadas = locales.map((sede) => ({ ...sede, esPrincipal: sede.id === principalId }))
+      if (marcadas.some((sede, index) => sede.esPrincipal !== locales[index]?.esPrincipal)) guardarCache(marcadas, id)
+      return marcadas
     }
     if (!supabase) throw new Error('Supabase no está configurado para sincronizar sucursales.')
     if (!id || !UUID_RE.test(id)) return sedesService.obtenerSedes()
@@ -407,6 +540,12 @@ export const sedesService = {
           schema: 'public',
           table: 'sucursales',
           filter: `clinica_id=eq.${clinicaId}`,
+        }, () => listeners.forEach((listener) => listener()))
+        .on('postgres_changes', {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'clinicas',
+          filter: `id=eq.${clinicaId}`,
         }, () => listeners.forEach((listener) => listener()))
         .subscribe()
       registro = { channel, listeners }

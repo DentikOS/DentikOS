@@ -1,6 +1,7 @@
 import { getClinicaActivaSync } from '../../../../infrastructure/auth/authService'
 import { supabase, USE_SUPABASE } from '../../../../infrastructure/supabase/supabaseClient'
 import type { Prestacion } from '../schemas/prestacionSchema'
+import { EQUIPAMIENTO_CLINICO_IDS, type EquipamientoClinicoId } from '../../../../shared/constants/equipamientoClinico'
 
 const uuid = (value: unknown): value is string =>
   typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
@@ -24,9 +25,26 @@ const desdeFila = (fila: Record<string, unknown>): Prestacion => ({
   ...(fila.especialidad === 'Pack Promocional' ? { precioCombo: Number(fila.precio_particular) } : {}),
   ...(typeof fila.descripcion === 'string' ? { descripcion: fila.descripcion } : {}),
   ...(typeof fila.ahorro_estimado === 'string' ? { ahorroEstimado: fila.ahorro_estimado } : {}),
+  equipamientoRequerido: Array.isArray(fila.equipamiento_requerido)
+    ? fila.equipamiento_requerido.filter((id): id is EquipamientoClinicoId =>
+        typeof id === 'string' && EQUIPAMIENTO_CLINICO_IDS.includes(id as EquipamientoClinicoId))
+    : [],
 })
 
-const columnasPrestacion = 'id,nombre,especialidad,precio_particular,precio_fonasa,codigo_fonasa,descripcion,ahorro_estimado'
+const columnasPrestacionLegacy = 'id,nombre,especialidad,precio_particular,precio_fonasa,codigo_fonasa,descripcion,ahorro_estimado'
+const columnasPrestacion = `${columnasPrestacionLegacy},equipamiento_requerido`
+const errorRequiereMigracion = (error: { code?: string } | null): boolean =>
+  error?.code === '42703' || error?.code === 'PGRST204'
+
+const obtenerEquipamientoValido = (prestacion: Prestacion): EquipamientoClinicoId[] => {
+  const valor = prestacion.equipamientoRequerido
+  if (valor === undefined) return []
+  if (!Array.isArray(valor) || valor.some((id) =>
+    typeof id !== 'string' || !EQUIPAMIENTO_CLINICO_IDS.includes(id as EquipamientoClinicoId))) {
+    throw new Error('La lista de equipamiento requerido contiene valores inválidos.')
+  }
+  return [...new Set(valor as EquipamientoClinicoId[])]
+}
 
 export const prestacionesSupabaseService = {
   async listar(): Promise<Prestacion[]> {
@@ -34,8 +52,14 @@ export const prestacionesSupabaseService = {
     const { data, error } = await client.from('prestaciones')
       .select(columnasPrestacion)
       .eq('clinica_id', clinicaId).order('nombre')
-    if (error) throw new Error('No se pudo cargar el arancel compartido de la clínica.')
-    return (data ?? []).map((fila) => desdeFila(fila))
+    if (!error) return (data ?? []).map((fila) => desdeFila(fila))
+    if (errorRequiereMigracion(error)) {
+      const legado = await client.from('prestaciones')
+        .select(columnasPrestacionLegacy)
+        .eq('clinica_id', clinicaId).order('nombre')
+      if (!legado.error) return (legado.data ?? []).map((fila) => desdeFila(fila))
+    }
+    throw new Error('No se pudo cargar el arancel compartido de la clínica.')
   },
 
   async guardar(prestacion: Prestacion): Promise<Prestacion> {
@@ -58,6 +82,7 @@ export const prestacionesSupabaseService = {
       ...(typeof prestacion.ahorroEstimado === 'string'
         ? { ahorro_estimado: prestacion.ahorroEstimado.trim() || null }
         : {}),
+      equipamiento_requerido: obtenerEquipamientoValido(prestacion),
     }
     const { data, error } = uuid(prestacion.id)
       ? await client.from('prestaciones').update(valores).eq('id', prestacion.id)
@@ -68,6 +93,9 @@ export const prestacionesSupabaseService = {
           return client.from('prestaciones').insert({ ...valores, clinica_id: clinicaId, user_id: auth.user.id })
             .select(columnasPrestacion).single()
         })()
+    if (errorRequiereMigracion(error)) {
+      throw new Error('La sincronización de equipamiento aún no está habilitada en la base de datos. Aplique la migración BP08 antes de guardar este cambio.')
+    }
     if (error || !data) throw new Error('No se pudo guardar la prestación. Revisa tus permisos y vuelve a intentar.')
     return desdeFila(data)
   },
@@ -103,10 +131,17 @@ export const prestacionesSupabaseService = {
       throw new Error('No se pudo reajustar el arancel completo. No se confirmó ningún cambio.')
     }
     const metadataPorId = new Map(prestaciones.map((prestacion) => [String(prestacion.id), prestacion]))
-    return data.map((fila) => ({
-      ...metadataPorId.get(String(fila.id)),
-      ...desdeFila(fila as Record<string, unknown>),
-    }))
+    return data.map((fila) => {
+      const metadata = metadataPorId.get(String(fila.id))
+      const confirmada = desdeFila(fila as Record<string, unknown>)
+      return {
+        ...metadata,
+        ...confirmada,
+        equipamientoRequerido: Array.isArray(fila.equipamiento_requerido)
+          ? confirmada.equipamientoRequerido
+          : metadata?.equipamientoRequerido ?? [],
+      }
+    })
   },
 
   async eliminar(id: string | number): Promise<void> {

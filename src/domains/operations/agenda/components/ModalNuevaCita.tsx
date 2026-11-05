@@ -21,6 +21,9 @@ import { usePrestacionesStore } from '../../../../app/stores/prestacionesStore'
 import { usePermisosAgenda } from '../utils/permisosAgenda'
 import { clinicConfigService } from '../services/clinicConfigService'
 import { agendaConfigService, type DoctorAgenda } from '../services/agendaConfigService'
+import { useSedes } from '../../../organization/clinic/hooks/useSedes'
+import { useBoxesClinicos } from '../../../organization/clinic/hooks/useBoxesClinicos'
+import { filtrarBoxesCompatibles } from '../utils/boxesCompatibles'
 import type { Cita } from '../schemas/citaSchema'
 import type { Paciente } from '../../../../domains/clinical/patient/schemas/pacienteSchema'
 
@@ -44,6 +47,11 @@ export const ModalNuevaCita: React.FC<ModalNuevaCitaProps> = memo(({
   onEliminar,
 }) => {
   const permisos = usePermisosAgenda()
+  const { sedes, sedeActivaId } = useSedes()
+  const [sedeSeleccionadaId, setSedeSeleccionadaId] = useState<string>(
+    () => citaAEditar ? citaAEditar.sedeId || '' : sedeActivaId || ''
+  )
+  const { boxes, cargando: cargandoBoxes, error: errorBoxes } = useBoxesClinicos(sedeSeleccionadaId || null)
 
   // Validar permiso al montar (aunque el botón ya está condicionado, es doble check)
   useEffect(() => {
@@ -63,6 +71,7 @@ export const ModalNuevaCita: React.FC<ModalNuevaCitaProps> = memo(({
 
   const [tratamiento, setTratamiento] = useState<string>('Evaluación / Diagnóstico Inicial')
   const [boxAsignado, setBoxAsignado] = useState<string>(SILLONES_DENTALES[0]?.nombre || 'Sillón 1 - Odontología General')
+  const [boxSeleccionadoId, setBoxSeleccionadoId] = useState<string>(citaAEditar?.boxId || '')
   const [fecha, setFecha] = useState<string>(fechaPredeterminada || obtenerFechaLocalISO())
   const [horaInicio, setHoraInicio] = useState<string>('09:00')
   const [duracionMinutos, setDuracionMinutos] = useState<number | string>(30)
@@ -122,6 +131,8 @@ export const ModalNuevaCita: React.FC<ModalNuevaCitaProps> = memo(({
       setDuracionMinutos(Number(citaAEditar.duracionMinutos) || 30)
       setTratamiento(citaAEditar.trataMiento || citaAEditar.motivo || 'Evaluación / Diagnóstico Inicial')
       if (citaAEditar.boxAsignado) setBoxAsignado(citaAEditar.boxAsignado)
+      setSedeSeleccionadaId(citaAEditar.sedeId || '')
+      setBoxSeleccionadoId(citaAEditar.boxId || '')
       if (citaAEditar.observaciones) setObservaciones(citaAEditar.observaciones)
       if (citaAEditar.doctor) setDoctorSeleccionadoNombre(citaAEditar.doctor)
       if (citaAEditar.doctorId) setDoctorSeleccionadoId(String(citaAEditar.doctorId))
@@ -144,6 +155,62 @@ export const ModalNuevaCita: React.FC<ModalNuevaCitaProps> = memo(({
   const pacientesStore = usePacientesStore((s) => s.pacientes)
   const listaPacientes = pacientes.length > 0 ? pacientes : pacientesStore
   const [alertaBloqueo, setAlertaBloqueo] = useState<{ mensaje: string; accion: string } | null>(null)
+
+  const sucursalesActivas = useMemo(
+    () => sedes.filter((sede) => sede.estado === 'activa' || (!sede.estado && sede.activa)),
+    [sedes]
+  )
+  const prestacionSeleccionada = prestaciones.find((prestacion) =>
+    String(prestacion.id) === String(prestacionSeleccionadaId)
+  )
+  const equipamientoRequerido = useMemo(
+    () => prestacionSeleccionada?.equipamientoRequerido ?? [],
+    [prestacionSeleccionada]
+  )
+  const boxesActivos = useMemo(() => boxes.filter((box) => box.estado === 'activo'), [boxes])
+  const boxesCompatibles = useMemo(
+    () => filtrarBoxesCompatibles(boxes, equipamientoRequerido),
+    [boxes, equipamientoRequerido]
+  )
+  const usaCatalogoDeBoxes = Boolean(sedeSeleccionadaId)
+  const boxesDisponibles = usaCatalogoDeBoxes
+    ? boxesCompatibles.map((box) => ({ id: box.id || '', nombre: box.nombre, configurado: true }))
+    : SILLONES_DENTALES.map((box) => ({ ...box, configurado: false }))
+  const boxSeleccionadoValido = usaCatalogoDeBoxes
+    ? Boolean(boxSeleccionadoId && boxesCompatibles.some((box) => box.id === boxSeleccionadoId))
+    : equipamientoRequerido.length === 0
+  const requiereSucursal = citaAEditar ? Boolean(citaAEditar.sedeId) : sucursalesActivas.length > 0
+  const sucursalSeleccionadaActiva = sucursalesActivas.some((sede) => sede.id === sedeSeleccionadaId)
+  const sucursalValida = !requiereSucursal || sucursalSeleccionadaActiva
+  const boxAgendaValido = sucursalValida && (
+    usaCatalogoDeBoxes
+      ? !cargandoBoxes && !errorBoxes && boxesActivos.length > 0 && boxSeleccionadoValido
+      : equipamientoRequerido.length === 0
+  )
+  const mensajeBoxes = !sucursalValida
+    ? citaAEditar?.sedeId && sedeSeleccionadaId === citaAEditar.sedeId
+      ? 'La sucursal de esta cita no está activa. Selecciona una sucursal activa para continuar.'
+      : 'Selecciona una sucursal activa para revisar sus boxes.'
+    : equipamientoRequerido.length > 0 && !sedeSeleccionadaId
+      ? 'Esta prestación requiere equipamiento configurado en un box. Selecciona una sucursal.'
+      : usaCatalogoDeBoxes && cargandoBoxes
+        ? 'Sincronizando los boxes de la sucursal…'
+        : usaCatalogoDeBoxes && errorBoxes
+          ? 'No se pudo verificar el catálogo de boxes. Revisa la conexión antes de agendar.'
+          : usaCatalogoDeBoxes && boxesActivos.length === 0
+            ? 'No hay boxes activos configurados en esta sucursal.'
+            : equipamientoRequerido.length > 0 && boxesCompatibles.length === 0
+              ? 'Ningún box activo tiene todo el equipamiento requerido por esta prestación.'
+              : usaCatalogoDeBoxes && !boxSeleccionadoValido
+                ? 'Selecciona un box disponible para esta sucursal y prestación.'
+                : ''
+
+  const seleccionarBox = (id: string): void => {
+    const box = boxesDisponibles.find((opcion) => opcion.id === id)
+    if (!box) return
+    setBoxAsignado(box.nombre)
+    setBoxSeleccionadoId(box.configurado ? box.id : '')
+  }
 
   const handleSelectPacienteChange = (e: { target: { value: string } }): void => {
     const pId = e.target.value
@@ -222,6 +289,16 @@ export const ModalNuevaCita: React.FC<ModalNuevaCitaProps> = memo(({
 
     if (alertaBloqueo) return
 
+    if (!boxAgendaValido) {
+      await dialogAlert({
+        title: 'Box no disponible',
+        description: mensajeBoxes || 'Selecciona una sucursal y un box compatible antes de agendar.',
+        variant: 'warning',
+        confirmText: 'Entendido'
+      })
+      return
+    }
+
     if (!pacienteNombre.trim()) {
       await dialogAlert({
         title: 'Paciente requerido',
@@ -249,6 +326,8 @@ export const ModalNuevaCita: React.FC<ModalNuevaCitaProps> = memo(({
         pacienteRut,
         trataMiento: tratamiento,
         boxAsignado,
+        sedeId: sedeSeleccionadaId || null,
+        boxId: boxSeleccionadoId || null,
         doctor: doctorSeleccionadoNombre || undefined,
         doctorId: doctorSeleccionadoId || undefined,
         fecha,
@@ -276,6 +355,8 @@ export const ModalNuevaCita: React.FC<ModalNuevaCitaProps> = memo(({
           pacienteRut,
           trataMiento: tratamiento,
           boxAsignado,
+          sedeId: sedeSeleccionadaId || null,
+          boxId: boxSeleccionadoId || null,
           doctor: doctorSeleccionadoNombre || undefined,
           doctorId: doctorSeleccionadoId || undefined,
           fecha: citaRec.fecha,
@@ -325,6 +406,8 @@ export const ModalNuevaCita: React.FC<ModalNuevaCitaProps> = memo(({
         trataMiento: tratamiento,
         motivo: esUrgencia ? 'Urgencia' : tratamiento,
         boxAsignado,
+        sedeId: sedeSeleccionadaId || null,
+        boxId: boxSeleccionadoId || null,
         doctor: doctorSeleccionadoNombre || undefined,
         doctorId: doctorSeleccionadoId || undefined,
         fecha,
@@ -427,9 +510,38 @@ export const ModalNuevaCita: React.FC<ModalNuevaCitaProps> = memo(({
           )}
         </div>
 
+        {(sucursalesActivas.length > 0 || Boolean(citaAEditar?.sedeId)) && (
+          <div>
+            <label htmlFor="sucursal-cita" className="block text-xs font-semibold text-graphite-700 dark:text-graphite-300 mb-1">
+              Sucursal
+            </label>
+            <select
+              id="sucursal-cita"
+              value={sedeSeleccionadaId}
+              onChange={(event) => {
+                setSedeSeleccionadaId(event.target.value)
+                setBoxSeleccionadoId('')
+                setBoxAsignado('')
+              }}
+              required={requiereSucursal}
+              className="w-full p-2.5 rounded-xl border border-graphite-300 dark:border-graphite-600 font-semibold bg-graphite-50 dark:bg-graphite-900 focus:bg-white dark:focus:bg-graphite-800 dark:text-graphite-100 text-xs"
+              aria-label="Sucursal de la cita"
+            >
+              {citaAEditar?.sedeId && !sucursalesActivas.some((sede) => sede.id === citaAEditar.sedeId) && (
+                <option value={citaAEditar.sedeId}>Sucursal de cita inactiva</option>
+              )}
+              {citaAEditar && !citaAEditar.sedeId && <option value="">Sin sucursal (se conserva)</option>}
+              {!citaAEditar && <option value="">Selecciona una sucursal</option>}
+              {sucursalesActivas.map((sede) => (
+                <option key={sede.id} value={sede.id}>{sede.nombre}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
         <CamposFormularioCita
           pacientes={listaPacientes}
-          sillonesDentales={SILLONES_DENTALES}
+          sillonesDentales={boxesDisponibles}
           prestaciones={prestaciones}
           prestacionSeleccionadaId={prestacionSeleccionadaId}
           setPrestacionSeleccionadaId={setPrestacionSeleccionadaId}
@@ -440,7 +552,7 @@ export const ModalNuevaCita: React.FC<ModalNuevaCitaProps> = memo(({
           pacienteRut={pacienteRut}
           autoCrearFicha={autoCrearFicha}
           tratamiento={tratamiento}
-          boxAsignado={boxAsignado}
+          boxSeleccionadoId={boxSeleccionadoId || boxesDisponibles.find((box) => !box.configurado && box.nombre === boxAsignado)?.id || ''}
           fecha={fecha}
           horaInicio={horaInicio}
           horaFinCalculada={horaFinCalculada}
@@ -452,13 +564,19 @@ export const ModalNuevaCita: React.FC<ModalNuevaCitaProps> = memo(({
           setPacienteRut={setPacienteRut}
           setAutoCrearFicha={setAutoCrearFicha}
           setTratamiento={setTratamiento}
-          setBoxAsignado={setBoxAsignado}
+          onSeleccionarBox={seleccionarBox}
           setFecha={setFecha}
           setHoraInicio={setHoraInicio}
           setDuracionMinutos={setDuracionMinutos}
           setObservaciones={setObservaciones}
           handleSelectPacienteChange={handleSelectPacienteChange}
         />
+
+        {mensajeBoxes && (
+          <p role="status" className="rounded-lg border border-amber-200 bg-amber-50 p-2 text-[11px] font-semibold text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
+            {mensajeBoxes}
+          </p>
+        )}
 
         {alertaBloqueo && (
           <div className="flex items-center gap-3 p-3 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800 rounded-xl" data-testid="alerta-paciente-bloqueado">
@@ -533,7 +651,7 @@ export const ModalNuevaCita: React.FC<ModalNuevaCitaProps> = memo(({
               type="submit"
               variant="primary"
               icon={Plus}
-              disabled={Boolean(alertaBloqueo)}
+              disabled={Boolean(alertaBloqueo) || !boxAgendaValido}
               data-testid="btn-confirmar-cita"
             >
               {citaAEditar ? 'Guardar cambios' : 'Confirmar cita'}

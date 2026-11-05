@@ -4,6 +4,12 @@ const fixtures = vi.hoisted(() => ({
   activeClinicId: '00000000-0000-4000-8000-000000000001',
   cache: new Map(),
   rows: [],
+  principalSucursalId: null,
+  clinicReadError: null,
+  rpcError: null,
+  rpcRespuestaVacia: false,
+  rpcCitasReasignadas: 2,
+  rpcCalls: [],
   insertError: null,
   updateError: null,
   inserted: null,
@@ -33,8 +39,19 @@ vi.mock('../../../../infrastructure/storage/localStorageRepository', () => ({
 vi.mock('../../../../infrastructure/supabase/supabaseClient', () => ({
   USE_SUPABASE: true,
   supabase: {
-    from: vi.fn(() => ({
+    from: vi.fn((table) => ({
       select: () => {
+        if (table === 'clinicas') {
+          let clinicId
+          const builder = {
+            eq: (_column, value) => { clinicId = value; return builder },
+            maybeSingle: async () => ({
+              data: fixtures.clinicReadError ? null : { id: clinicId, principal_sucursal_id: fixtures.principalSucursalId },
+              error: fixtures.clinicReadError,
+            }),
+          }
+          return builder
+        }
         let clinicId
         const builder = {
           eq: (_column, value) => { clinicId = value; return builder },
@@ -74,6 +91,13 @@ vi.mock('../../../../infrastructure/supabase/supabaseClient', () => ({
       },
     })),
     channel: () => ({ on: () => ({ subscribe: () => ({}) }) }),
+    rpc: vi.fn(async (name, params) => {
+      fixtures.rpcCalls.push([name, params])
+      if (fixtures.rpcError) return { data: null, error: fixtures.rpcError }
+      if (fixtures.rpcRespuestaVacia) return { data: [], error: null }
+      fixtures.principalSucursalId = params.p_sucursal_id
+      return { data: [{ principal_sucursal_id: params.p_sucursal_id, citas_reasignadas: fixtures.rpcCitasReasignadas }], error: null }
+    }),
     removeChannel: vi.fn(),
   },
 }))
@@ -113,6 +137,12 @@ describe('sedesService', () => {
   beforeEach(() => {
     fixtures.cache.clear()
     fixtures.rows = []
+    fixtures.principalSucursalId = null
+    fixtures.clinicReadError = null
+    fixtures.rpcError = null
+    fixtures.rpcRespuestaVacia = false
+    fixtures.rpcCitasReasignadas = 2
+    fixtures.rpcCalls = []
     fixtures.insertError = null
     fixtures.updateError = null
     fixtures.inserted = null
@@ -138,6 +168,7 @@ describe('sedesService', () => {
       estado: 'activa',
     })
     expect(resultado[0].id).toBe(fixtures.activeClinicId)
+    expect(resultado[0].esPrincipal).toBe(false)
     expect(sedesService.obtenerSedes()[0].id).toBe(fixtures.activeClinicId)
   })
 
@@ -150,6 +181,42 @@ describe('sedesService', () => {
     expect(fixtures.inserted).toBeNull()
     expect(resultado.map((sede) => sede.nombre)).toEqual(['Sede Remota'])
     expect(sedesService.obtenerSedes().map((sede) => sede.nombre)).toEqual(['Sede Remota'])
+    expect(resultado[0].esPrincipal).toBe(false)
+  })
+
+  it('usa la sucursal principal guardada en la clínica al sincronizar', async () => {
+    const principalId = '00000000-0000-4000-8000-000000000011'
+    fixtures.rows = [filaNube(), filaNube({ id: principalId, nombre: 'Principal explícita' })]
+    fixtures.principalSucursalId = principalId
+
+    const resultado = await sedesService.sincronizarSedesDesdeSupabase()
+
+    expect(resultado.find((sede) => sede.id === principalId)?.esPrincipal).toBe(true)
+    expect(resultado.find((sede) => sede.id !== principalId)?.esPrincipal).toBe(false)
+  })
+
+  it('usa la sucursal activa más antigua como compatibilidad antes de aplicar la migración', async () => {
+    const antigua = filaNube({ id: '00000000-0000-4000-8000-000000000011', created_at: '2025-01-01T00:00:00Z' })
+    const reciente = filaNube({ id: '00000000-0000-4000-8000-000000000012', created_at: '2026-01-01T00:00:00Z' })
+    fixtures.rows = [reciente, antigua]
+    fixtures.clinicReadError = { code: '42703', message: 'column principal_sucursal_id does not exist' }
+
+    const resultado = await sedesService.sincronizarSedesDesdeSupabase()
+
+    expect(resultado.find((sede) => sede.id === antigua.id)?.esPrincipal).toBe(true)
+    expect(resultado.find((sede) => sede.id === reciente.id)?.esPrincipal).toBe(false)
+  })
+
+  it('no infiere como principal una sede histórica inactiva ligada al UUID de la clínica', async () => {
+    const sedeLegadaInactiva = filaNube({ id: fixtures.activeClinicId, estado: 'inactiva' })
+    const sedeActiva = filaNube({ id: '00000000-0000-4000-8000-000000000012', created_at: '2025-01-01T00:00:00Z' })
+    fixtures.rows = [sedeLegadaInactiva, sedeActiva]
+    fixtures.clinicReadError = { code: '42703', message: 'column principal_sucursal_id does not exist' }
+
+    const resultado = await sedesService.sincronizarSedesDesdeSupabase()
+
+    expect(resultado.find((sede) => sede.id === sedeActiva.id)?.esPrincipal).toBe(true)
+    expect(resultado.find((sede) => sede.id === sedeLegadaInactiva.id)?.esPrincipal).toBe(false)
   })
 
   it('rechaza sincronizar un tenant distinto antes de consultar o escribir datos', async () => {
@@ -176,8 +243,9 @@ describe('sedesService', () => {
   })
 
   it('desactivar una sucursal actualiza su estado y no ejecuta un borrado físico', async () => {
-    const fila = filaNube()
-    fixtures.rows = [fila]
+    const fila = filaNube({ id: '00000000-0000-4000-8000-000000000011' })
+    fixtures.rows = [filaNube(), fila]
+    fixtures.principalSucursalId = fixtures.rows[0].id
     await sedesService.sincronizarSedesDesdeSupabase()
 
     const desactivada = await sedesService.desactivarSedeSincronizada(fila.id)
@@ -188,5 +256,79 @@ describe('sedesService', () => {
       ['id', fila.id],
       ['clinica_id', fixtures.activeClinicId],
     ])
+  })
+
+  it('designa principal mediante RPC y devuelve el conteo confirmado por la nube', async () => {
+    const principal = filaNube({ id: '00000000-0000-4000-8000-000000000011' })
+    fixtures.rows = [filaNube(), principal]
+    await sedesService.sincronizarSedesDesdeSupabase()
+    const eventoAgenda = vi.fn()
+    window.addEventListener('agenda_citas_necesitan_sync', eventoAgenda)
+
+    const resultado = await sedesService.establecerSedePrincipal(principal.id)
+
+    window.removeEventListener('agenda_citas_necesitan_sync', eventoAgenda)
+    expect(fixtures.rpcCalls).toEqual([['designar_sucursal_principal', { p_sucursal_id: principal.id }]])
+    expect(resultado).toEqual({ sucursalId: principal.id, citasReasignadas: 2 })
+    expect(sedesService.obtenerSedes().find((sede) => sede.id === principal.id)?.esPrincipal).toBe(true)
+    expect(eventoAgenda).toHaveBeenCalledOnce()
+    expect(eventoAgenda.mock.calls[0][0].detail).toMatchObject({ clinicaId: fixtures.activeClinicId, citasReasignadas: 2 })
+  })
+
+  it('no cambia la sucursal principal local cuando la RPC es rechazada', async () => {
+    const principalActual = filaNube()
+    const candidata = filaNube({ id: '00000000-0000-4000-8000-000000000011' })
+    fixtures.rows = [principalActual, candidata]
+    fixtures.principalSucursalId = principalActual.id
+    await sedesService.sincronizarSedesDesdeSupabase()
+    fixtures.rpcError = { code: '42501', message: 'forbidden' }
+
+    await expect(sedesService.establecerSedePrincipal(candidata.id))
+      .rejects.toThrow('No se pudo designar la sucursal principal')
+
+    expect(sedesService.obtenerSedes().find((sede) => sede.id === principalActual.id)?.esPrincipal).toBe(true)
+    expect(sedesService.obtenerSedes().find((sede) => sede.id === candidata.id)?.esPrincipal).toBe(false)
+  })
+
+  it('no marca en caché una principal si la RPC no devuelve una confirmación válida', async () => {
+    const principalActual = filaNube()
+    const candidata = filaNube({ id: '00000000-0000-4000-8000-000000000011' })
+    fixtures.rows = [principalActual, candidata]
+    fixtures.principalSucursalId = principalActual.id
+    await sedesService.sincronizarSedesDesdeSupabase()
+    fixtures.rpcRespuestaVacia = true
+
+    await expect(sedesService.establecerSedePrincipal(candidata.id))
+      .rejects.toThrow('La nube no confirmó la sucursal principal')
+
+    expect(sedesService.obtenerSedes().find((sede) => sede.id === principalActual.id)?.esPrincipal).toBe(true)
+    expect(sedesService.obtenerSedes().find((sede) => sede.id === candidata.id)?.esPrincipal).toBe(false)
+  })
+
+  it('rechaza la desactivación de la sucursal principal antes de escribir en Supabase', async () => {
+    const principal = { ...sedeLocal, id: '00000000-0000-4000-8000-000000000010', esPrincipal: true }
+    sedesService.guardarSedes([principal])
+
+    await expect(sedesService.desactivarSedeSincronizada(principal.id))
+      .rejects.toThrow('Designa otra sucursal principal')
+
+    expect(fixtures.updated).toBeNull()
+    expect(sedesService.obtenerSedes()[0].estado).toBe('activa')
+  })
+
+  it('marca como principal la primera sucursal creada cuando el catálogo está vacío', async () => {
+    const horariosAtencion = Array.from({ length: 7 }, (_, diaSemana) => ({ diaSemana, cerrado: true }))
+
+    const creada = await sedesService.crearSedeSincronizada({
+      ...sedeLocal,
+      telefono: '+56 2 1234 5678',
+      horariosAtencion,
+      estado: 'activa',
+      activa: true,
+    })
+
+    expect(creada.esPrincipal).toBe(true)
+    expect(fixtures.rpcCalls).toHaveLength(1)
+    expect(fixtures.principalSucursalId).toBe(creada.id)
   })
 })

@@ -23,11 +23,17 @@ export interface UseBoxesClinicosReturn {
 
 export const useBoxesClinicos = (sucursalId: string | null): UseBoxesClinicosReturn => {
   const clinicaId = useSesionStore((state) => state.clinicaActual || state.userProfile?.clinicaId || null)
-  const [snapshot, setSnapshot] = useState({ clinicaId, sucursalId, boxes: SIN_BOXES })
-  const [cargando, setCargando] = useState(false)
+  const [snapshot, setSnapshot] = useState(() => ({
+    clinicaId,
+    sucursalId,
+    boxes: sucursalId ? boxesClinicosService.obtenerBoxes(sucursalId) : SIN_BOXES,
+  }))
+  const [cargando, setCargando] = useState(Boolean(sucursalId))
   const [error, setError] = useState<string | null>(null)
   const coincide = snapshot.clinicaId === clinicaId && snapshot.sucursalId === sucursalId && tenantSigueActivo(clinicaId)
   const boxes = coincide ? snapshot.boxes : SIN_BOXES
+  const esperandoSucursal = Boolean(sucursalId && snapshot.sucursalId !== sucursalId)
+  const errorVisible = coincide ? error : null
 
   const recargar = useCallback(() => {
     if (!sucursalId || !tenantSigueActivo(clinicaId)) return
@@ -102,5 +108,5 @@ export const useBoxesClinicos = (sucursalId: string | null): UseBoxesClinicosRet
     return actualizado
   }, [clinicaId, recargar, sucursalId])
 
-  return { boxes, cargando, error, recargar, crear, actualizar }
+  return { boxes, cargando: cargando || esperandoSucursal, error: errorVisible, recargar, crear, actualizar }
 }

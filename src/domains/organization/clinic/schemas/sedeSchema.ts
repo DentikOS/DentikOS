@@ -25,6 +25,7 @@ export const sedeSchema = z.object({
   zonaHoraria: z.string().min(1, 'La zona horaria es obligatoria').refine(esZonaHorariaIanaValida, 'Usa una zona horaria IANA válida').optional(),
   horariosAtencion: z.array(horarioSedeSchema).optional(),
   estado: z.enum(ESTADOS_SEDE).optional(),
+  esPrincipal: z.boolean().optional(),
   // Se conserva por compatibilidad con el modelo local existente.
   horario: z.string().optional(),
   activa: z.boolean().default(true),

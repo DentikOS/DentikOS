@@ -5,6 +5,7 @@ import { Button } from '../../../../shared/ui/ui/Button'
 import { ESPECIALIDADES_ODONTOLOGICAS } from '../constants/prestacionesConstants'
 import type { Prestacion } from '../services/prestacionesStorageService'
 import type { PrestacionInput } from '../hooks/usePrestaciones'
+import { EQUIPAMIENTO_CLINICO } from '../../../../shared/constants/equipamientoClinico'
 
 export interface ModalNuevaPrestacionProps {
   prestacionEditar?: Prestacion | PrestacionInput | null
@@ -22,6 +23,7 @@ export const ModalNuevaPrestacion: React.FC<ModalNuevaPrestacionProps> = memo(({
   const [precioParticular, setPrecioParticular] = useState<string>('')
   const [precioFonasa, setPrecioFonasa] = useState<string>('')
   const [codigoFonasa, setCodigoFonasa] = useState<string>('')
+  const [equipamientoRequerido, setEquipamientoRequerido] = useState<string[]>([])
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState('')
 
@@ -40,6 +42,9 @@ export const ModalNuevaPrestacion: React.FC<ModalNuevaPrestacionProps> = memo(({
         prestacionEditar.precioFonasa != null ? String(prestacionEditar.precioFonasa) : ''
       )
       setCodigoFonasa(prestacionEditar.codigoFonasa || '')
+      setEquipamientoRequerido(Array.isArray(prestacionEditar.equipamientoRequerido) ? prestacionEditar.equipamientoRequerido : [])
+    } else {
+      setEquipamientoRequerido([])
     }
   }, [prestacionEditar])
 
@@ -57,7 +62,8 @@ export const ModalNuevaPrestacion: React.FC<ModalNuevaPrestacionProps> = memo(({
       precio: valParticular, // Propiedad requerida por FichaPaciente y Presupuestos
       precioParticular: valParticular,
       precioFonasa: valFonasa,
-      codigoFonasa: codigoFonasa.trim()
+      codigoFonasa: codigoFonasa.trim(),
+      equipamientoRequerido,
     }
 
     setGuardando(true)
@@ -108,6 +114,27 @@ export const ModalNuevaPrestacion: React.FC<ModalNuevaPrestacionProps> = memo(({
             ))}
           </select>
         </div>
+
+        <fieldset className="space-y-2 rounded-xl border border-gray-200 p-3 dark:border-graphite-700">
+          <legend className="px-1 text-xs font-semibold text-gray-700 dark:text-graphite-300">Equipamiento requerido en Agenda</legend>
+          <p className="text-[11px] text-gray-500 dark:text-graphite-400">
+            Selecciónalo según el protocolo de esta prestación. Agenda solo ofrecerá boxes que tengan todos los equipos elegidos.
+          </p>
+          <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
+            {EQUIPAMIENTO_CLINICO.map((equipo) => (
+              <label key={equipo.id} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-gray-700 hover:bg-gray-50 dark:text-graphite-200 dark:hover:bg-graphite-800">
+                <input
+                  type="checkbox"
+                  checked={equipamientoRequerido.includes(equipo.id)}
+                  onChange={(event) => setEquipamientoRequerido((actual) => event.target.checked
+                    ? [...actual, equipo.id]
+                    : actual.filter((id) => id !== equipo.id))}
+                />
+                {equipo.nombre}
+              </label>
+            ))}
+          </div>
+        </fieldset>
 
         <div className="grid grid-cols-2 gap-3">
           <Input

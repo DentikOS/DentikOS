@@ -5,7 +5,10 @@ import { generarCitasRecurrencia } from '../../../../shared/utils/recurrenciaUti
 import { pacientesStorageService } from '../../../../domains/clinical/patient/services/pacientesStorageService'
 import { usePacientesStore } from '../../../../app/stores/pacientesStore'
 import { useAgendaStore } from '../../../../app/stores/useAgendaStore'
+import { useSesionStore } from '../../../../app/stores/sesionStore'
 import { obtenerFechaLocalISO } from '../../../../shared/utils/dateUtils'
+import { getClinicaActivaSync } from '../../../../infrastructure/auth/authService'
+import { supabase, USE_SUPABASE } from '../../../../infrastructure/supabase/supabaseClient'
 import { useWhatsAppConfirmacion, type CitaWhatsAppRef } from './useWhatsAppConfirmacion'
 import type { Cita } from '../schemas/citaSchema'
 import type { Paciente } from '../../../../domains/clinical/patient/schemas/pacienteSchema'
@@ -33,6 +36,8 @@ export interface UseAgendaReturn {
 }
 
 export const useAgenda = (pacientesProp: Paciente[] | null = null): UseAgendaReturn => {
+  const clinicaId = useSesionStore((state) => state.clinicaActual || state.userProfile?.clinicaId || null)
+    || getClinicaActivaSync()
   const [citas, setCitas] = useState<Cita[]>([])
   const citasRef = useRef<Cita[]>([])
   const [pacientes, setPacientes] = useState<Paciente[]>(pacientesProp || [])
@@ -75,10 +80,50 @@ export const useAgenda = (pacientesProp: Paciente[] | null = null): UseAgendaRet
   }, [sincronizar])
 
   useEffect(() => {
+    let montado = true
+    let refreshTimer: ReturnType<typeof setTimeout> | null = null
     cargarDatos()
     window.addEventListener('storage', cargarDatos)
-    return () => window.removeEventListener('storage', cargarDatos)
-  }, [cargarDatos])
+    const actualizarAgenda = async (): Promise<void> => {
+      const citasActualizadas = await agendaStorageService.obtenerCitasDesdeSupabase()
+      if (!montado) return
+      // El servicio devuelve [] ante errores de red. No reemplazar una agenda
+      // visible si no llegó ninguna fila desde la nube.
+      if (citasActualizadas.length > 0 || citasRef.current.length === 0) sincronizar(citasActualizadas)
+    }
+    const programarActualizacionAgenda = (): void => {
+      if (refreshTimer) clearTimeout(refreshTimer)
+      refreshTimer = setTimeout(() => {
+        refreshTimer = null
+        void actualizarAgenda()
+      }, 150)
+    }
+    const refrescarCitasAsignadas = (event: Event): void => {
+      const clinicaEvento = (event as CustomEvent<{ clinicaId?: string }>).detail?.clinicaId
+      if (clinicaEvento && clinicaEvento !== getClinicaActivaSync()) return
+      programarActualizacionAgenda()
+    }
+    window.addEventListener('agenda_citas_necesitan_sync', refrescarCitasAsignadas)
+    const canal = USE_SUPABASE && supabase && clinicaId
+      ? supabase.channel(`agenda-citas-${clinicaId}`)
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'citas',
+          filter: `clinica_id=eq.${clinicaId}`,
+        }, () => {
+          if (clinicaId === getClinicaActivaSync()) programarActualizacionAgenda()
+        })
+        .subscribe()
+      : null
+    return () => {
+      montado = false
+      window.removeEventListener('storage', cargarDatos)
+      window.removeEventListener('agenda_citas_necesitan_sync', refrescarCitasAsignadas)
+      if (refreshTimer) clearTimeout(refreshTimer)
+      if (canal) void supabase?.removeChannel(canal)
+    }
+  }, [cargarDatos, clinicaId, sincronizar])
 
   const irAHoy = useCallback((): void => {
     setFechaSeleccionada(obtenerFechaLocalISO())

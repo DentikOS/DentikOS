@@ -111,6 +111,8 @@ export const transformarDesdeSupabase = (
       duracion: duracionFinal,
       boxAsignado: boxFinal || undefined,
       box: boxFinal || undefined,
+      sedeId: typeof row.sede_id === 'string' ? row.sede_id : undefined,
+      boxId: typeof row.box_id === 'string' ? row.box_id : undefined,
       trataMiento: prestacionFinal || undefined,
       tratamiento: prestacionFinal || undefined,
       prestacion: prestacionFinal || undefined,
@@ -188,6 +190,8 @@ export const transformarParaSupabase = (
     // Aliases para compatibilidad con tests unitarios
     box_asignado: boxVal,
     doctor_id: doctorVal ? String(doctorVal) : null,
+    sede_id: esUuidValido(c.sedeId as string | undefined) ? c.sedeId : null,
+    box_id: esUuidValido(c.boxId as string | undefined) ? c.boxId : null,
   }
 
   if (c.pacienteId || c.paciente_id) {

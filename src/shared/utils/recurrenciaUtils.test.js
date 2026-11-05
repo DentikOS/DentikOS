@@ -121,5 +121,31 @@ describe('recurrenciaUtils (BP05 §07)', () => {
       expect(resultado.valido).toBe(false)
       expect(resultado.conflictos).toHaveLength(1)
     })
+
+    it('no confunde boxes con el mismo nombre en sucursales distintas', () => {
+      const nuevaCita = {
+        id: 'nueva', fecha: '2026-09-25', horaInicio: '10:00',
+        sedeId: 'sede-a', boxId: 'box-a', boxAsignado: 'Box 1',
+      }
+      const citasExistentes = [{
+        id: 'existente', fecha: '2026-09-25', horaInicio: '10:00',
+        sedeId: 'sede-b', boxId: 'box-b', boxAsignado: 'Box 1',
+      }]
+
+      expect(validarConflictosRecurrencia(nuevaCita, citasExistentes).valido).toBe(true)
+    })
+
+    it('distingue boxes diferentes de una misma sucursal aunque compartan etiqueta histórica', () => {
+      const nuevaCita = {
+        id: 'nueva', fecha: '2026-09-25', horaInicio: '10:00',
+        sedeId: 'sede-a', boxId: 'box-a', boxAsignado: 'Box 1',
+      }
+      const citasExistentes = [{
+        id: 'existente', fecha: '2026-09-25', horaInicio: '10:00',
+        sedeId: 'sede-a', boxId: 'box-b', boxAsignado: 'Box 1',
+      }]
+
+      expect(validarConflictosRecurrencia(nuevaCita, citasExistentes).valido).toBe(true)
+    })
   })
 })
