@@ -11,12 +11,21 @@ export interface RespaldoDatosSectionProps {
 export const RespaldoDatosSection: React.FC<RespaldoDatosSectionProps> = memo(({ alExportarBackup, alImportarBackup }) => {
   const { confirm, alert: dialogAlert } = useAppDialog()
 
-  const exportarPorDefecto = () => {
-    if (alExportarBackup) {
-      alExportarBackup()
-    } else {
-      const backup = persistenceStorageService.exportarBaseDeDatosCompleta()
-      descargarArchivoBackupJSON(backup, `studio_dental_backup_${new Date().toISOString().slice(0, 10)}.json`)
+  const exportarPorDefecto = async () => {
+    try {
+      if (alExportarBackup) {
+        alExportarBackup()
+      } else {
+        const backup = persistenceStorageService.exportarBaseDeDatosCompleta()
+        descargarArchivoBackupJSON(backup, `studio_dental_backup_${new Date().toISOString().slice(0, 10)}.json`)
+      }
+    } catch (error: unknown) {
+      await dialogAlert({
+        title: 'No se pudo crear el respaldo',
+        description: error instanceof Error ? error.message : 'Intenta nuevamente desde una clínica activa.',
+        variant: 'error',
+        confirmText: 'Entendido'
+      })
     }
   }
 
@@ -44,10 +53,14 @@ export const RespaldoDatosSection: React.FC<RespaldoDatosSectionProps> = memo(({
           const content = event.target?.result as string
           const parsed = JSON.parse(content) as BackupBaseDeDatos
           await importarPorDefecto(parsed)
-        } catch {
+        } catch (error: unknown) {
           await dialogAlert({
-            title: 'Archivo inválido',
-            description: 'El archivo seleccionado no es un JSON válido.',
+            title: 'No se pudo restaurar el respaldo',
+            description: error instanceof SyntaxError
+              ? 'El archivo seleccionado no contiene JSON válido.'
+              : error instanceof Error
+                ? error.message
+                : 'Verifica el archivo y la clínica activa antes de intentarlo nuevamente.',
             variant: 'error',
             confirmText: 'Entendido'
           })
@@ -89,13 +102,13 @@ export const RespaldoDatosSection: React.FC<RespaldoDatosSectionProps> = memo(({
     <div className="bg-surface border border-surface rounded-2xl p-6 shadow-xs space-y-4 text-xs">
       <div className="border-b border-surface pb-3">
         <h3 className="font-bold text-sm text-gray-900 dark:text-graphite-50 surgical:text-black uppercase tracking-wider inline-flex items-center gap-2"><Save size={14} />Copia de Seguridad y Restauración</h3>
-        <p className="text-gray-500 dark:text-graphite-400 text-[11px]">Exporta o importa el estado completo del sistema (pacientes, evoluciones, citas) en formato JSON local.</p>
+        <p className="text-gray-500 dark:text-graphite-400 text-[11px]">Exporta o restaura la caché local de la clínica activa. No reemplaza una copia del servidor ni incluye archivos guardados en R2.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="p-4 border border-dashed border-gray-300 dark:border-graphite-700 rounded-xl space-y-2">
           <h4 className="font-bold text-gray-800 dark:text-graphite-200 inline-flex items-center gap-1.5"><Download size={13} />Exportar Datos</h4>
-          <p className="text-gray-500 dark:text-graphite-400 text-[11px]">Descarga una copia completa de toda la información guardada en tu navegador.</p>
+          <p className="text-gray-500 dark:text-graphite-400 text-[11px]">Descarga los datos locales asociados a esta clínica. La sesión y las demás clínicas quedan fuera del archivo.</p>
           <button
             type="button"
             onClick={exportarPorDefecto}
@@ -107,7 +120,7 @@ export const RespaldoDatosSection: React.FC<RespaldoDatosSectionProps> = memo(({
 
         <div className="p-4 border border-dashed border-gray-300 dark:border-graphite-700 rounded-xl space-y-2">
           <h4 className="font-bold text-gray-800 dark:text-graphite-200 inline-flex items-center gap-1.5"><Upload size={13} />Importar Datos</h4>
-          <p className="text-gray-500 dark:text-graphite-400 text-[11px]">Restaura un archivo de backup previamente exportado. Esta acción reemplazará los datos locales.</p>
+          <p className="text-gray-500 dark:text-graphite-400 text-[11px]">Se reemplaza solo la caché local de esta clínica. La sesión, otras clínicas y los datos sincronizados en el servidor se conservan.</p>
           <label className="inline-block px-3 py-1.5 bg-secondary text-white rounded-lg font-semibold hover:bg-secondary-dark transition cursor-pointer text-xs">
             Seleccionar Archivo JSON
             <input
