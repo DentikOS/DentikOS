@@ -19,6 +19,7 @@ const normalizar = (lista: Prestacion[]): Prestacion[] =>
     ...p,
     precio: parseFloat(String(p.precio ?? p.precioParticular)) || 0,
     precioParticular: parseFloat(String(p.precioParticular ?? p.precio)) || 0,
+    precioFonasa: p.precioFonasa == null ? null : parseFloat(String(p.precioFonasa)) || 0,
   }))
 
 export type PrestacionesUpdater = Prestacion[] | ((prev: Prestacion[]) => Prestacion[])

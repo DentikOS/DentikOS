@@ -23,7 +23,7 @@ export interface PrestacionInput {
   especialidad?: string
   precio?: number | string
   precioParticular?: number | string
-  precioFonasa?: number | string
+  precioFonasa?: number | string | null
   codigoFonasa?: string
   [key: string]: unknown
 }
@@ -137,6 +137,8 @@ export const usePrestaciones = (
       const coincideBusqueda =
         !busqueda.trim() ||
         (p.nombre && p.nombre.toLowerCase().includes(busqueda.toLowerCase())) ||
+        (p.codigoInterno && p.codigoInterno.toLowerCase().includes(busqueda.toLowerCase())) ||
+        (p.categoria && p.categoria.toLowerCase().includes(busqueda.toLowerCase())) ||
         (p.codigoFonasa &&
           p.codigoFonasa.toLowerCase().includes(busqueda.toLowerCase()))
       return coincideEsp && coincideBusqueda
@@ -189,8 +191,12 @@ export const usePrestaciones = (
         especialidad: prestacionData.especialidad || 'General',
         precio: valPrecio,
         precioParticular: valPrecio,
-        precioFonasa: parseFloat(String(prestacionData.precioFonasa)) || 0,
+        precioFonasa: prestacionData.precioFonasa == null || prestacionData.precioFonasa === ''
+          ? null
+          : parseFloat(String(prestacionData.precioFonasa)) || 0,
         codigoFonasa: prestacionData.codigoFonasa || '',
+        codigoInterno: typeof prestacionData.codigoInterno === 'string' ? prestacionData.codigoInterno.trim() || null : existente?.codigoInterno ?? null,
+        categoria: typeof prestacionData.categoria === 'string' ? prestacionData.categoria.trim() || null : existente?.categoria ?? null,
         equipamientoRequerido: Array.isArray(prestacionData.equipamientoRequerido)
           ? prestacionData.equipamientoRequerido as Prestacion['equipamientoRequerido']
           : existente?.equipamientoRequerido ?? [],
@@ -245,7 +251,9 @@ export const usePrestaciones = (
           ...p,
           precio: pParticular,
           precioParticular: pParticular,
-          precioFonasa: Math.round((parseFloat(String(p.precioFonasa)) || 0) * factor)
+          precioFonasa: p.precioFonasa == null
+            ? null
+            : Math.round((parseFloat(String(p.precioFonasa)) || 0) * factor)
         }
       })
       guardarYSincronizarGlobal(actualizadas)

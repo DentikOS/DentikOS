@@ -6,15 +6,18 @@ import { ESPECIALIDADES_ODONTOLOGICAS } from '../constants/prestacionesConstants
 import type { Prestacion } from '../services/prestacionesStorageService'
 import type { PrestacionInput } from '../hooks/usePrestaciones'
 import { EQUIPAMIENTO_CLINICO } from '../../../../shared/constants/equipamientoClinico'
+import type { MonedaDocumento } from '../../../../shared/utils/formatoDocumento'
 
 export interface ModalNuevaPrestacionProps {
   prestacionEditar?: Prestacion | PrestacionInput | null
+  moneda?: MonedaDocumento
   alGuardar: (prestacion: PrestacionInput) => Promise<void>
   alCerrar: () => void
 }
 
 export const ModalNuevaPrestacion: React.FC<ModalNuevaPrestacionProps> = memo(({
   prestacionEditar,
+  moneda = 'CLP',
   alGuardar,
   alCerrar
 }) => {
@@ -23,6 +26,8 @@ export const ModalNuevaPrestacion: React.FC<ModalNuevaPrestacionProps> = memo(({
   const [precioParticular, setPrecioParticular] = useState<string>('')
   const [precioFonasa, setPrecioFonasa] = useState<string>('')
   const [codigoFonasa, setCodigoFonasa] = useState<string>('')
+  const [codigoInterno, setCodigoInterno] = useState<string>('')
+  const [categoria, setCategoria] = useState<string>('')
   const [equipamientoRequerido, setEquipamientoRequerido] = useState<string[]>([])
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState('')
@@ -38,12 +43,16 @@ export const ModalNuevaPrestacion: React.FC<ModalNuevaPrestacionProps> = memo(({
           ? String(prestacionEditar.precio)
           : ''
       )
-      setPrecioFonasa(
-        prestacionEditar.precioFonasa != null ? String(prestacionEditar.precioFonasa) : ''
-      )
+      setPrecioFonasa(prestacionEditar.precioFonasa != null ? String(prestacionEditar.precioFonasa) : '')
       setCodigoFonasa(prestacionEditar.codigoFonasa || '')
+      setCodigoInterno(typeof prestacionEditar.codigoInterno === 'string' ? prestacionEditar.codigoInterno : '')
+      setCategoria(typeof prestacionEditar.categoria === 'string' ? prestacionEditar.categoria : '')
       setEquipamientoRequerido(Array.isArray(prestacionEditar.equipamientoRequerido) ? prestacionEditar.equipamientoRequerido : [])
     } else {
+      setPrecioFonasa('')
+      setCodigoFonasa('')
+      setCodigoInterno('')
+      setCategoria('')
       setEquipamientoRequerido([])
     }
   }, [prestacionEditar])
@@ -53,7 +62,7 @@ export const ModalNuevaPrestacion: React.FC<ModalNuevaPrestacionProps> = memo(({
     if (!nombre.trim() || !precioParticular) return
 
     const valParticular = parseFloat(precioParticular) || 0
-    const valFonasa = parseFloat(precioFonasa) || 0
+    const valFonasa = precioFonasa.trim() ? parseFloat(precioFonasa) : null
 
     const prestacionObj: PrestacionInput = {
       id: prestacionEditar ? prestacionEditar.id : Date.now(),
@@ -63,6 +72,8 @@ export const ModalNuevaPrestacion: React.FC<ModalNuevaPrestacionProps> = memo(({
       precioParticular: valParticular,
       precioFonasa: valFonasa,
       codigoFonasa: codigoFonasa.trim(),
+      codigoInterno: codigoInterno.trim() || null,
+      categoria: categoria.trim() || null,
       equipamientoRequerido,
     }
 
@@ -138,7 +149,7 @@ export const ModalNuevaPrestacion: React.FC<ModalNuevaPrestacionProps> = memo(({
 
         <div className="grid grid-cols-2 gap-3">
           <Input
-            label="Precio Particular ($)"
+            label={`Precio Particular (${moneda})`}
             type="number"
             required
             placeholder="Ej: 35000"
@@ -147,7 +158,7 @@ export const ModalNuevaPrestacion: React.FC<ModalNuevaPrestacionProps> = memo(({
           />
 
           <Input
-            label="Precio Fonasa / Convenio ($)"
+            label={`Precio Fonasa / Convenio (${moneda})`}
             type="number"
             placeholder="Ej: 28000"
             value={precioFonasa}
@@ -162,6 +173,23 @@ export const ModalNuevaPrestacion: React.FC<ModalNuevaPrestacionProps> = memo(({
           value={codigoFonasa}
           onChange={(e) => setCodigoFonasa(e.target.value)}
         />
+
+        <div className="grid grid-cols-2 gap-3">
+          <Input
+            label="Código interno (Opcional)"
+            type="text"
+            placeholder="Ej: PRE-01"
+            value={codigoInterno}
+            onChange={(e) => setCodigoInterno(e.target.value)}
+          />
+          <Input
+            label="Categoría (Opcional)"
+            type="text"
+            placeholder="Ej: Preventivo"
+            value={categoria}
+            onChange={(e) => setCategoria(e.target.value)}
+          />
+        </div>
 
         {error && <p role="alert" className="text-red-700 text-xs">{error}</p>}
         <div className="flex gap-2 pt-3">

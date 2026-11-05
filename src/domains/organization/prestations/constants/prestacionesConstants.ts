@@ -28,7 +28,8 @@ export const ESPECIALIDADES_ODONTOLOGICAS: readonly string[] = [
   'Rehabilitación y Prótesis',
   'Implantología',
   'Ortodoncia y Ortopedia',
-  'Odontopediatría'
+  'Odontopediatría',
+  'Urgencias'
 ]
 
 export const ARANCEL_DEFAULT: readonly ArancelItemDefault[] = [

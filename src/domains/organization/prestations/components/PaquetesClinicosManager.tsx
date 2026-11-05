@@ -1,18 +1,22 @@
 import React, { memo, useState } from 'react'
 import { Pencil, Plus, Gift, Trash2 } from 'lucide-react'
-import { formatearCLP } from '../../../../shared/utils/formatoMoneda'
+import { formatearImporteDocumento, type IdiomaDocumento, type MonedaDocumento } from '../../../../shared/utils/formatoDocumento'
 import { useAppDialog } from '../../../../shared/hooks/useAppDialog'
 import type { PaqueteClinico } from '../services/prestacionesStorageService'
 import type { PaqueteInput } from '../hooks/usePrestaciones'
 
 export interface PaquetesClinicosManagerProps {
   paquetes: PaqueteClinico[]
+  moneda?: MonedaDocumento
+  idioma?: IdiomaDocumento
   alGuardarPaquete: (paquete: PaqueteInput) => Promise<void>
   alEliminarPaquete: (id: string | number) => Promise<void>
 }
 
 export const PaquetesClinicosManager: React.FC<PaquetesClinicosManagerProps> = memo(({
   paquetes,
+  moneda = 'CLP',
+  idioma = 'es-CL',
   alGuardarPaquete,
   alEliminarPaquete
 }) => {
@@ -168,7 +172,7 @@ export const PaquetesClinicosManager: React.FC<PaquetesClinicosManagerProps> = m
         <div className="grid grid-cols-2 gap-2">
           <div>
             <label htmlFor="pack-precio" className="block font-semibold text-gray-700 dark:text-graphite-300 mb-1">
-              Precio Combo ($)
+              Precio Combo ({moneda})
             </label>
             <input
               id="pack-precio"
@@ -257,7 +261,7 @@ export const PaquetesClinicosManager: React.FC<PaquetesClinicosManagerProps> = m
 
                 <div className="flex justify-between items-center pt-3 border-t">
                   <span className="font-black text-emerald-900 text-sm">
-                    {formatearCLP(precioMostrar)}
+                    {formatearImporteDocumento(precioMostrar, moneda, idioma)}
                   </span>
                   {pk.ahorroEstimado && (
                     <span className="bg-emerald-100 text-emerald-900 px-2.5 py-1 rounded-lg font-extrabold text-[10px]">

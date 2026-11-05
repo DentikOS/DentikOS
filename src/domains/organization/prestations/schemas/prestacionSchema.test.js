@@ -27,6 +27,16 @@ describe('prestacionSchema (F2-04d)', () => {
       expect(result.success).toBe(true)
     })
 
+    it('conserva Fonasa pendiente y los metadatos del catálogo', () => {
+      const result = prestacionSchema.safeParse({
+        id: 'plantilla', nombre: 'Limpieza dental', especialidad: 'Diagnóstico y Prevención',
+        precioParticular: 50000, precioFonasa: null, codigoFonasa: '',
+        codigoInterno: 'PRE-01', categoria: 'Preventivo',
+      })
+      expect(result.success).toBe(true)
+      expect(result.data).toMatchObject({ precioFonasa: null, codigoInterno: 'PRE-01', categoria: 'Preventivo' })
+    })
+
     it('acepta prestación con id string', () => {
       const prestacion = {
         id: 'prest_custom_001',

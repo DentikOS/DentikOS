@@ -14,6 +14,9 @@ import type { Prestacion } from './services/prestacionesStorageService'
 import { USE_SUPABASE } from '../../../infrastructure/supabase/supabaseClient'
 import { useRBAC } from '../../../shared/hooks/useRBAC'
 import { ImportarArancelLocal } from './components/ImportarArancelLocal'
+import { ImportarPlantillaCatalogo } from './components/ImportarPlantillaCatalogo'
+import { clinicStorageService } from '../clinic/services/clinicStorageService'
+import { resolverIdiomaDocumento, resolverMonedaDocumento } from '../../../shared/utils/formatoDocumento'
 
 interface PrestacionesStoreState {
   prestacionesArancel: Prestacion[]
@@ -30,6 +33,9 @@ export const PrestacionesModulo: React.FC = memo(() => {
     (state: PrestacionesStoreState) => state.setPrestacionesArancel
   )
   const estadoRemoto = usePrestacionesStore((state) => state.estadoRemoto)
+  const clinica = clinicStorageService.obtenerClinica()
+  const moneda = resolverMonedaDocumento(clinica?.moneda)
+  const idioma = resolverIdiomaDocumento(clinica?.idiomaDocumentos)
   const puedeReajustar = rol === 'admin' || rol === 'dentista'
 
   const [tabActual, setTabActual] = useState<'arancel' | 'paquetes'>('arancel')
@@ -76,7 +82,8 @@ export const PrestacionesModulo: React.FC = memo(() => {
         {estadoRemoto === 'error' && <button type="button" className="ml-2 underline" onClick={() => void usePrestacionesStore.getState().sincronizarDesdeSupabase()}>Reintentar</button>}
       </div>}
       {errorOperacion && <p role="alert" className="text-red-700 text-xs">{errorOperacion}</p>}
-      {USE_SUPABASE && (rol === 'admin' || rol === 'dentista') && <ImportarArancelLocal />}
+      {USE_SUPABASE && rol === 'admin' && estadoRemoto === 'listo' && prestacionesProp.length === 0 && <ImportarPlantillaCatalogo />}
+      {USE_SUPABASE && (rol === 'admin' || rol === 'dentista') && <ImportarArancelLocal moneda={moneda} idioma={idioma} />}
       <div className="flex justify-between items-center flex-wrap gap-3 print:hidden">
         <div>
           <h2 className="text-xl font-bold text-gray-900 dark:text-graphite-50 uppercase tracking-wider flex items-center gap-2">
@@ -116,7 +123,7 @@ export const PrestacionesModulo: React.FC = memo(() => {
       </div>
 
       <div className="print:hidden">
-        <PrestacionesSummaryCards resumen={resumen} />
+        <PrestacionesSummaryCards resumen={resumen} moneda={moneda} idioma={idioma} />
       </div>
 
       <div className="flex gap-2 border-b pb-1 print:hidden text-xs">
@@ -177,6 +184,8 @@ export const PrestacionesModulo: React.FC = memo(() => {
 
           <TablaArancelPrestaciones
             prestaciones={prestaciones}
+            moneda={moneda}
+            idioma={idioma}
             onEditar={handleAbrirEditar}
             onEliminar={(id) => { setErrorOperacion(''); void eliminarPrestacion(id).catch((cause) => setErrorOperacion(cause instanceof Error ? cause.message : 'No se pudo eliminar la prestación.')) }}
           />
@@ -187,6 +196,8 @@ export const PrestacionesModulo: React.FC = memo(() => {
         <>
           <PaquetesClinicosManager
             paquetes={paquetes}
+            moneda={moneda}
+            idioma={idioma}
             alGuardarPaquete={agregarPaquete}
             alEliminarPaquete={eliminarPaquete}
           />
@@ -196,6 +207,7 @@ export const PrestacionesModulo: React.FC = memo(() => {
       {modalAbierto && (
         <ModalNuevaPrestacion
           prestacionEditar={prestacionEditar}
+          moneda={moneda}
           alGuardar={(p: PrestacionInput) => agregarOActualizarPrestacion(p)}
           alCerrar={() => setModalAbierto(false)}
         />
