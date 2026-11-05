@@ -11,6 +11,7 @@ interface ModalNuevoPresupuestoProps {
   pacienteNombre: string
   pacienteRut?: string
   itemsIniciales?: ItemPresupuesto[]
+  previsionInicial?: string
   planRevision?: string
   onGuardar: (presupuesto: Presupuesto) => boolean | void | Promise<boolean | void>
   onCerrar: () => void
@@ -21,12 +22,13 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = ({
   pacienteNombre,
   pacienteRut,
   itemsIniciales = [],
+  previsionInicial = 'particular',
   planRevision,
   onGuardar,
   onCerrar,
 }) => {
   const [vista, setVista] = useState<'simplificada' | 'detallada'>('simplificada')
-  const [prevision, setPrevision] = useState('particular')
+  const [prevision, setPrevision] = useState(previsionInicial)
   const [validezDias, setValidezDias] = useState(15)
   const [motivoDescuento, setMotivoDescuento] = useState('')
   const [autorizadoPor, setAutorizadoPor] = useState('')
@@ -73,7 +75,7 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!pacienteId || !pacienteNombre.trim()) { setError('Debe seleccionar un paciente válido.'); return }
-    if (items.length === 0 || items.some((item) => !item.nombrePrestacion.trim() || item.precioUnitario <= 0)) { setError('Cada prestación necesita nombre y precio revisado.'); return }
+    if (items.length === 0 || items.some((item) => !item.nombrePrestacion.trim() || item.precioUnitario < 0)) { setError('Cada prestación necesita nombre y precio revisado.'); return }
     if (totalPagar <= 0) { setError('El total a pagar debe ser mayor a $0.'); return }
     if (descuentoManualPct > 0 && (!motivoDescuento.trim() || !autorizadoPor.trim())) {
       setError('Motivo y profesional autorizador obligatorios para descuentos manuales.'); return
@@ -129,11 +131,14 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-surface/50 border border-surface rounded-xl text-xs">
             <div>
               <label className="block font-semibold mb-1">Convenio / Previsión del Paciente</label>
-              <select value={prevision} onChange={(e) => setPrevision(e.target.value)} disabled={cargandoConvenios} className="w-full p-2 bg-surface border border-surface rounded-lg">
+              <select value={prevision} onChange={(e) => setPrevision(e.target.value)} disabled={cargandoConvenios || Boolean(planRevision)} className="w-full p-2 bg-surface border border-surface rounded-lg">
                 <option value="particular">Particular (sin descuento)</option>
+                {prevision === 'fonasa' && <option value="fonasa">FONASA · tarifa del arancel</option>}
                 {convenios.map((convenio) => <option key={convenio.id} value={convenio.id}>{convenio.nombre}{convenio.tipo === 'fonasa' ? ` · Tramo ${convenio.tramoFonasa}` : ''}</option>)}
               </select>
-              <p className="mt-1 text-[10px] text-graphite-500">El descuento de convenio se calcula por categoría al cotizar prestaciones del catálogo en el plan clínico.</p>
+              <p className="mt-1 text-[10px] text-graphite-500">{planRevision
+                ? 'La previsión corresponde al contexto usado al fijar los precios del plan clínico.'
+                : 'El descuento de convenio se calcula por categoría al cotizar prestaciones del catálogo en el plan clínico.'}</p>
               {errorConvenios && <p role="status" className="mt-1 text-[10px] text-amber-700">No se cargaron los convenios; este presupuesto no aplicará descuento de convenio.</p>}
             </div>
             <div>

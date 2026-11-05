@@ -14,6 +14,15 @@ import { imputacionesPagoService } from '../../../../../billing/budget/services/
 import { derivacionesService } from './derivacionesService'
 import * as authService from '../../../../../../infrastructure/auth/authService'
 
+const { mockConveniosConfig } = vi.hoisted(() => ({
+  mockConveniosConfig: {
+    version: 1,
+    categorias: [],
+    convenios: [],
+    preciosEspecificos: [],
+  },
+}))
+
 vi.mock('../../../services/fichasClinicasStorageService', () => ({
   fichasClinicasStorageService: {
     obtenerFichaClinica: vi.fn().mockResolvedValue(null),
@@ -36,6 +45,23 @@ vi.mock('../../../../../billing/budget/services/imputacionesPagoService', () => 
   notificarImputacionesPagoActualizadas: vi.fn(),
 }))
 
+vi.mock('../../../../../organization/clinic/hooks/useConfiguracionConvenios', () => ({
+  useConfiguracionConvenios: () => ({
+    configuracion: mockConveniosConfig,
+    cargando: false,
+    cargada: true,
+    error: null,
+    guardar: vi.fn().mockResolvedValue(true),
+    clinicaId: 'clin-test',
+    esAdmin: false,
+    guardando: false,
+  }),
+}))
+
+vi.mock('../../../../../organization/clinic/hooks/useSedes', () => ({
+  useSedes: () => ({ sedes: [], sedeActiva: null, sedeActivaId: null, cargando: false, errorSincronizacion: null }),
+}))
+
 const pacienteId = 'pac-test'
 
 describe('PlanTratamiento BP06', () => {
@@ -50,6 +76,8 @@ describe('PlanTratamiento BP06', () => {
       id: 'prest-1', nombre: 'Restauración clínica configurada', especialidad: 'Operatoria',
       precioParticular: 42000, precioFonasa: 42000, codigoFonasa: '01-02-010',
     }] })
+    usePacientesStore.setState({ pacientes: [] })
+    Object.assign(mockConveniosConfig, { version: 1, categorias: [], convenios: [], preciosEspecificos: [] })
     act(() => useOdontogramaStore.getState().setOdontograma(null, pacienteId))
   })
 
@@ -101,6 +129,25 @@ describe('PlanTratamiento BP06', () => {
     await waitFor(() => expect(screen.getByText('Plan guardado')).toBeInTheDocument())
     fireEvent.click(screen.getByTestId('btn-generar-presupuesto-plan'))
     expect(screen.getByTestId('modal-nuevo-presupuesto')).toBeInTheDocument()
+  })
+
+  it('aplica el precio fijo compartido del convenio al asociar una prestación al plan', () => {
+    Object.assign(mockConveniosConfig, {
+      version: 1,
+      categorias: [{ id: 'operatoria', nombre: 'Operatoria', especialidades: ['Operatoria'] }],
+      convenios: [{ id: 'seguro-1', nombre: 'Seguro Uno', tipo: 'isapre', activo: true, descuentosPorCategoria: { operatoria: 20 } }],
+      preciosEspecificos: [{ prestacionId: 'prest-1', alcance: 'convenio', contextoId: 'seguro-1', precio: 30000 }],
+    })
+    usePacientesStore.setState({ pacientes: [{
+      id: pacienteId, nombre: 'Paciente de prueba', rut: '12.345.678-5', prevision: 'seguro-1',
+    } as never] })
+    act(() => useOdontogramaStore.getState().setOdontograma({ piezas: [
+      { numero: '1.6', estado: 'patologia', tipoPatologia: 'caries' },
+    ] }, pacienteId))
+
+    render(<PlanTratamiento pacienteId={pacienteId} />)
+    fireEvent.change(screen.getByLabelText('Prestación para pieza 1.6'), { target: { value: 'prest-1' } })
+    expect(screen.getAllByText('$30.000').length).toBeGreaterThan(0)
   })
 
   it('actualiza el selector cuando se agrega una prestación en otra sección de la app', () => {

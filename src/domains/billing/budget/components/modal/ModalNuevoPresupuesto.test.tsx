@@ -49,6 +49,21 @@ describe('ModalNuevoPresupuesto BP07', () => {
     expect(onCerrar).toHaveBeenCalled()
   })
 
+  it('permite una prestación con precio cero si el presupuesto incluye otros tratamientos', async () => {
+    const onGuardar = vi.fn().mockResolvedValue(true)
+    const itemsCubiertos = [
+      { ...itemsIniciales[0], id: 'item-cubierto', nombrePrestacion: 'Prestación cubierta', precioUnitario: 0, subtotal: 0 },
+      itemsIniciales[0],
+    ]
+    render(<ModalNuevoPresupuesto {...props} itemsIniciales={itemsCubiertos} onGuardar={onGuardar} />)
+    fireEvent.click(screen.getByTestId('btn-guardar-presupuesto'))
+
+    await waitFor(() => expect(onGuardar).toHaveBeenCalledWith(expect.objectContaining({
+      totalAPagar: 42000,
+      items: itemsCubiertos,
+    })))
+  })
+
   it('mantiene abierto el borrador cuando falla el guardado', async () => {
     const onCerrar = vi.fn()
     render(<ModalNuevoPresupuesto {...props} itemsIniciales={itemsIniciales} onGuardar={vi.fn().mockResolvedValue(false)} onCerrar={onCerrar} />)

@@ -94,7 +94,12 @@ export const CamposFormularioPresupuesto: React.FC<CamposFormularioPresupuestoPr
                 item.id.toLowerCase() === pac?.prevision?.toLowerCase() ||
                 item.nombre.toLowerCase() === pac?.prevision?.toLowerCase()
               ))
-              setConvenio(configurado?.id || 'Particular')
+              const fonasaConfigurado = pac?.prevision?.toLocaleLowerCase('es-CL').includes('fonasa')
+                ? convenios.filter((item) => item.tipo === 'fonasa')
+                : []
+              setConvenio(configurado?.id || (fonasaConfigurado.length === 1 ? fonasaConfigurado[0].id : null) || (
+                pac?.prevision?.toLocaleLowerCase('es-CL').includes('fonasa') ? '__fonasa_catalogo__' : 'Particular'
+              ))
             }}
             className="w-full p-2.5 rounded-xl border border-gray-300 dark:border-graphite-600 bg-white dark:bg-graphite-900 font-bold cursor-pointer dark:text-graphite-100"
           >
@@ -117,6 +122,9 @@ export const CamposFormularioPresupuesto: React.FC<CamposFormularioPresupuestoPr
             className="w-full p-2.5 rounded-xl border border-gray-300 dark:border-graphite-600 bg-white dark:bg-graphite-900 font-semibold cursor-pointer dark:text-graphite-100"
           >
             <option value="Particular">Particular</option>
+            {(convenio === '__fonasa_catalogo__' || pacientes.some((paciente) =>
+              String(paciente.prevision || '').toLocaleLowerCase('es-CL').includes('fonasa')
+            )) && <option value="__fonasa_catalogo__">FONASA · tarifa del arancel</option>}
             {convenios.filter((item) => item.activo).map((item) => (
               <option key={item.id} value={item.id}>
                 {item.nombre}{item.tipo === 'fonasa' ? ` · Tramo ${item.tramoFonasa}` : ''}

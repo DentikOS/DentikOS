@@ -5,6 +5,7 @@ import { Button } from '../../../../shared/ui/ui/Button'
 import { Tag } from 'lucide-react'
 import type { PrestacionArancel } from '../hooks/usePresupuesto'
 import { useConfiguracionConvenios } from '../../../organization/clinic/hooks/useConfiguracionConvenios'
+import { useSedes } from '../../../organization/clinic/hooks/useSedes'
 
 export interface FormularioAgregarPrestacionProps {
   arancelActualizado: PrestacionArancel[]
@@ -15,6 +16,8 @@ export interface FormularioAgregarPrestacionProps {
   valorPrestacion: string | number
   precioBaseOriginal: number
   porcentajeDescuentoAplicado: number
+  origenPrecioAplicado?: string | null
+  sucursalPrecioAplicada?: string | null
   handleSeleccionarPrestacion: (id: string) => void
   handleCambiarConvenioSelect: (convenio: string) => void
   handleAgregarItemPresupuesto: (e: React.FormEvent<HTMLFormElement>) => void
@@ -32,6 +35,8 @@ export const FormularioAgregarPrestacion: React.FC<FormularioAgregarPrestacionPr
   valorPrestacion,
   precioBaseOriginal,
   porcentajeDescuentoAplicado,
+  origenPrecioAplicado = null,
+  sucursalPrecioAplicada = null,
   handleSeleccionarPrestacion,
   handleCambiarConvenioSelect,
   handleAgregarItemPresupuesto,
@@ -39,7 +44,12 @@ export const FormularioAgregarPrestacion: React.FC<FormularioAgregarPrestacionPr
   setNombrePrestacion,
   setValorPrestacion
 }) => {
-  const { configuracion, cargando: cargandoConvenios } = useConfiguracionConvenios()
+  const { configuracion, cargando: cargandoConvenios, cargada: conveniosCargados, error: errorConvenios } = useConfiguracionConvenios()
+  const { sedes, sedeActivaId, cargando: cargandoSedes, errorSincronizacion: errorSedes } = useSedes()
+  const requiereSucursal = Boolean(configuracion.preciosEspecificos?.some((precio) => precio.alcance === 'sucursal'))
+  const preciosSincronizados = conveniosCargados && !errorConvenios && (!requiereSucursal || (
+    !cargandoSedes && !errorSedes && Boolean(sedeActivaId)
+  ))
   const conveniosActivos = configuracion.convenios.filter((convenio) => convenio.activo)
   const seleccionActualExiste = convenioAplicado === 'Particular' || conveniosActivos.some((convenio) =>
     convenio.id === convenioAplicado || convenio.nombre.toLocaleLowerCase('es-CL') === convenioAplicado.toLocaleLowerCase('es-CL')
@@ -90,6 +100,7 @@ export const FormularioAgregarPrestacion: React.FC<FormularioAgregarPrestacionPr
           <select
             value={prestacionSeleccionadaId}
             onChange={(e) => handleSeleccionarPrestacion(e.target.value)}
+            disabled={!preciosSincronizados}
             className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-graphite-900 font-semibold text-xs dark:text-graphite-100 dark:border-graphite-600 cursor-pointer"
           >
             <option value="">-- Buscar en catálogo de prestaciones o packs --</option>
@@ -122,16 +133,33 @@ export const FormularioAgregarPrestacion: React.FC<FormularioAgregarPrestacionPr
           className="w-32"
         />
 
-        <Button type="submit" variant="primary" size="sm">
+        <Button type="submit" variant="primary" size="sm" disabled={!preciosSincronizados}>
           + Agregar al Presupuesto
         </Button>
       </form>
+
+      {!preciosSincronizados && (
+        <p role={errorConvenios || (requiereSucursal && errorSedes) ? 'alert' : 'status'} className="text-[11px] text-graphite-500">
+          {errorConvenios
+            ? 'No se pudo sincronizar la configuración de precios. Vuelve a cargar antes de agregar prestaciones.'
+            : requiereSucursal && errorSedes
+              ? 'No se pudieron sincronizar las sucursales requeridas para calcular el precio.'
+              : requiereSucursal && !sedeActivaId && !cargandoSedes
+                ? 'Selecciona una sucursal activa para aplicar los precios configurados.'
+                : 'Sincronizando la configuración de precios…'}
+        </p>
+      )}
 
       {precioBaseOriginal > 0 && porcentajeDescuentoAplicado > 0 && (
         <div className="text-[11px] bg-emerald-50 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-200 p-2 rounded-lg border border-emerald-200 dark:border-emerald-800 flex justify-between items-center">
           <span><Tag size={12} className="inline" />Descuento aplicado por Convenio (<strong>{convenioAplicado}</strong>): -{porcentajeDescuentoAplicado}%</span>
           <span>Precio Base: <del>{formatearCLP(precioBaseOriginal)}</del> → Precio Final: <strong>{formatearCLP(Number(valorPrestacion) || 0)}</strong></span>
         </div>
+      )}
+      {(origenPrecioAplicado === 'convenio-precio-fijo' || origenPrecioAplicado === 'sucursal') && (
+        <p className="text-[11px] text-primary">
+          Precio fijo aplicado{origenPrecioAplicado === 'convenio-precio-fijo' ? ' por convenio' : ` en ${sedes.find((sede) => sede.id === sucursalPrecioAplicada)?.nombre || 'la sucursal activa'}`}.
+        </p>
       )}
     </div>
   )

@@ -19,7 +19,8 @@ import {
 } from './CamposFormularioPresupuesto'
 import { useAppDialog } from '../../../../shared/hooks/useAppDialog'
 import { useConfiguracionConvenios } from '../../../organization/clinic/hooks/useConfiguracionConvenios'
-import { resolverDescuentoConvenio } from '../../../organization/clinic/schemas/configuracionConveniosSchema'
+import { useSedes } from '../../../organization/clinic/hooks/useSedes'
+import { resolverPrecioPrestacion } from '../../../organization/clinic/schemas/configuracionConveniosSchema'
 
 const log = createLogger('ModalNuevoPresupuesto')
 
@@ -39,7 +40,8 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = memo(
   const [pacienteId, setPacienteId] = useState<string>('')
   const { alert: dialogAlert } = useAppDialog()
   const [convenio, setConvenio] = useState<string>('Particular')
-  const { configuracion } = useConfiguracionConvenios()
+  const { configuracion, cargando: cargandoConfiguracion, cargada: configuracionCargada } = useConfiguracionConvenios()
+  const { sedeActivaId, cargando: cargandoSucursales, errorSincronizacion: errorSucursales } = useSedes()
   const convenios = configuracion.convenios.filter((item) => item.activo)
   const [observacion, setObservacion] = useState<string>('')
   const [guardando, setGuardando] = useState(false)
@@ -88,25 +90,67 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = memo(
 
   const handleAgregarItem = (): void => {
     if (!prestacionSelId) return
+    if (cargandoConfiguracion || !configuracionCargada) {
+      void dialogAlert({
+        title: 'Configuración pendiente',
+        description: 'Espera a que se sincronice la configuración de convenios y sucursales antes de agregar prestaciones.',
+        variant: 'warning',
+        confirmText: 'Entendido'
+      })
+      return
+    }
     const prest = prestaciones.find((p) => String(p.id) === String(prestacionSelId))
     if (!prest) return
 
-    const precioBase = Number(prest.precioParticular ?? prest.precio ?? 0)
-    const descuentoPct = resolverDescuentoConvenio(
+    const tienePrecioDeSucursal = configuracion.preciosEspecificos?.some((precio) =>
+      precio.alcance === 'sucursal' && precio.prestacionId === String(prest.id)
+    )
+    if (tienePrecioDeSucursal && (cargandoSucursales || errorSucursales || !sedeActivaId)) {
+      void dialogAlert({
+        title: 'Sucursal requerida',
+        description: errorSucursales
+          ? 'No se pudieron sincronizar las sucursales. Vuelve a intentarlo antes de agregar esta prestación.'
+          : 'Selecciona una sucursal activa y espera a que se sincronice antes de agregar esta prestación.',
+        variant: 'warning',
+        confirmText: 'Entendido'
+      })
+      return
+    }
+
+    const precioParticular = Number(prest.precioParticular ?? prest.precio ?? 0)
+    const precioFonasaOriginal = prest.precioFonasa
+    const precioFonasaRaw = Number(precioFonasaOriginal)
+    const precioFonasa = precioFonasaOriginal !== undefined && precioFonasaOriginal !== null && precioFonasaOriginal !== '' && Number.isFinite(precioFonasaRaw) && precioFonasaRaw >= 0
+      ? Math.round(precioFonasaRaw)
+      : undefined
+    const sucursalId = sedeActivaId
+    const esFonasaCatalogo = convenio === '__fonasa_catalogo__'
+    const convenioConfigurado = convenios.find((item) => item.id === convenio)
+    const precio = resolverPrecioPrestacion(
       configuracion,
-      convenio,
-      typeof prest.especialidad === 'string' ? prest.especialidad : null
+      {
+        prestacionId: prest.id,
+        convenioIdentificador: convenio === 'Particular' || esFonasaCatalogo ? null : convenio,
+        tipoConvenio: esFonasaCatalogo ? 'fonasa' : convenioConfigurado?.tipo,
+        especialidad: typeof prest.especialidad === 'string' ? prest.especialidad : null,
+        sucursalId,
+        precioParticular: Number.isFinite(precioParticular) && precioParticular >= 0 ? Math.round(precioParticular) : 0,
+        precioFonasa: typeof precioFonasa === 'number' && Number.isFinite(precioFonasa) && precioFonasa >= 0 ? Math.round(precioFonasa) : undefined,
+      }
     )
 
     const nuevoItem: ItemSeleccionadoPresupuesto = {
       id: crypto.randomUUID(),
+      prestacionId: prest.id,
       pieza: piezaDental || 'General',
       prestacion: prest.nombre,
-      convenio: convenios.find((item) => item.id === convenio)?.nombre || 'Particular',
-      convenioId: convenio === 'Particular' ? undefined : convenio,
-      precioBase,
-      descuentoPct,
-      valor: Math.round(precioBase * (1 - descuentoPct / 100)),
+      convenio: convenioConfigurado?.nombre || (esFonasaCatalogo ? 'FONASA' : 'Particular'),
+      convenioId: convenio === 'Particular' ? undefined : esFonasaCatalogo ? 'fonasa' : convenio,
+      precioBase: precio.precioBase,
+      descuentoPct: precio.descuentoPct,
+      precioOrigen: precio.origen,
+      sucursalIdPrecio: sucursalId,
+      valor: precio.precio,
       estado: 'Pendiente'
     }
 
@@ -138,7 +182,7 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = memo(
       })
       return
     }
-    if (itemsSeleccionados.length === 0 || itemsSeleccionados.some((item) => Number(item.valor) <= 0)) {
+    if (itemsSeleccionados.length === 0 || itemsSeleccionados.some((item) => !Number.isFinite(Number(item.valor)) || Number(item.valor) < 0)) {
       await dialogAlert({
         title: 'Prestaciones requeridas',
         description: 'Agrega prestaciones configuradas y revisa sus precios antes de guardar.',

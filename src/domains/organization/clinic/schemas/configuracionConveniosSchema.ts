@@ -38,15 +38,24 @@ const convenioSchema = z.object({
   }
 })
 
+const precioEspecificoSchema = z.object({
+  prestacionId: z.string().trim().min(1).max(80),
+  alcance: z.enum(['convenio', 'sucursal']),
+  contextoId: z.string().trim().min(1).max(80),
+  precio: z.number().int().min(0).max(2_147_483_647),
+}).strict()
+
 export const configuracionConveniosSchema = z.object({
   version: z.literal(1),
   categorias: z.array(categoriaConvenioSchema).max(50),
   convenios: z.array(convenioSchema).max(100),
+  preciosEspecificos: z.array(precioEspecificoSchema).max(5000).optional(),
 }).strict().superRefine((configuracion, ctx) => {
   const idsCategorias = new Set<string>()
   const nombresCategorias = new Set<string>()
   const especialidades = new Set<string>()
   const idsConvenios = new Set<string>()
+  const clavesPrecios = new Set<string>()
 
   configuracion.categorias.forEach((categoria, index) => {
     const nombre = categoria.nombre.toLocaleLowerCase('es-CL')
@@ -75,11 +84,30 @@ export const configuracionConveniosSchema = z.object({
       }
     }
   })
+
+  configuracion.preciosEspecificos?.forEach((precio, index) => {
+    const clave = `${precio.prestacionId}:${precio.alcance}:${precio.contextoId}`
+    if (clavesPrecios.has(clave)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['preciosEspecificos', index], message: 'No repitas precios para la misma prestación y contexto.' })
+    }
+    clavesPrecios.add(clave)
+    if (precio.alcance === 'convenio' && !idsConvenios.has(precio.contextoId)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['preciosEspecificos', index, 'contextoId'], message: 'El precio referencia un convenio inexistente.' })
+    }
+  })
 })
 
 export type CategoriaConvenio = z.infer<typeof categoriaConvenioSchema>
 export type ConvenioClinica = z.infer<typeof convenioSchema>
+export type PrecioEspecificoPrestacion = z.infer<typeof precioEspecificoSchema>
 export type ConfiguracionConvenios = z.infer<typeof configuracionConveniosSchema>
+
+export interface PrecioPrestacionCalculado {
+  precioBase: number
+  precio: number
+  descuentoPct: number
+  origen: 'convenio-precio-fijo' | 'convenio-categoria' | 'sucursal' | 'catalogo'
+}
 
 export const crearConfiguracionConveniosVacia = (): ConfiguracionConvenios => ({
   version: 1,
@@ -88,6 +116,7 @@ export const crearConfiguracionConveniosVacia = (): ConfiguracionConvenios => ({
     especialidades: [...categoria.especialidades],
   })),
   convenios: [],
+  preciosEspecificos: [],
 })
 
 export const leerConfiguracionConvenios = (entrada: unknown): ConfiguracionConvenios | null => {
@@ -131,4 +160,71 @@ export const resolverDescuentoConvenio = (
 
   const porcentaje = coincidencias[0].descuentosPorCategoria[categorias[0].id]
   return Number.isFinite(porcentaje) && porcentaje >= 0 && porcentaje <= 100 ? porcentaje : 0
+}
+
+export const resolverPrecioPrestacion = (
+  configuracion: unknown,
+  input: {
+    prestacionId: string | number
+    especialidad?: string | null
+    convenioIdentificador?: string | null
+    tipoConvenio?: ConvenioClinica['tipo']
+    sucursalId?: string | null
+    precioParticular: number
+    precioFonasa?: number
+  },
+): PrecioPrestacionCalculado => {
+  const config = leerConfiguracionConvenios(configuracion)
+  const particular = Number.isSafeInteger(input.precioParticular) && input.precioParticular >= 0
+    ? input.precioParticular
+    : 0
+  const conveniosCoincidentes = input.convenioIdentificador
+    ? config?.convenios.filter((convenio) => convenio.activo && (
+        normalizarClave(convenio.id) === normalizarClave(input.convenioIdentificador || '') ||
+        normalizarClave(convenio.nombre) === normalizarClave(input.convenioIdentificador || '')
+      )) ?? []
+    : []
+  const convenioId = conveniosCoincidentes.length === 1 ? conveniosCoincidentes[0].id : undefined
+  const precios = config?.preciosEspecificos ?? []
+  const idPrestacion = String(input.prestacionId)
+
+  if (convenioId) {
+    const precioConvenio = precios.find((precio) =>
+      precio.prestacionId === idPrestacion && precio.alcance === 'convenio' && precio.contextoId === convenioId
+    )
+    if (precioConvenio) {
+      return { precioBase: precioConvenio.precio, precio: precioConvenio.precio, descuentoPct: 0, origen: 'convenio-precio-fijo' }
+    }
+
+    const convenio = config?.convenios.find((item) => item.id === convenioId)
+    const especialidad = normalizarClave(input.especialidad || '')
+    const categoria = config?.categorias.find((item) =>
+      item.especialidades.some((itemEspecialidad) => normalizarClave(itemEspecialidad) === especialidad)
+    )
+    const porcentaje = categoria ? convenio?.descuentosPorCategoria[categoria.id] : undefined
+    if (porcentaje !== undefined && Number.isFinite(porcentaje) && porcentaje > 0 && porcentaje <= 100) {
+      return {
+        precioBase: particular,
+        precio: Math.round(particular * (1 - porcentaje / 100)),
+        descuentoPct: porcentaje,
+        origen: 'convenio-categoria',
+      }
+    }
+  }
+
+  if (input.sucursalId) {
+    const precioSucursal = precios.find((precio) =>
+      precio.prestacionId === idPrestacion && precio.alcance === 'sucursal' && precio.contextoId === input.sucursalId
+    )
+    if (precioSucursal) {
+      return { precioBase: precioSucursal.precio, precio: precioSucursal.precio, descuentoPct: 0, origen: 'sucursal' }
+    }
+  }
+
+  const convenio = convenioId ? config?.convenios.find((item) => item.id === convenioId) : undefined
+  const fonasa = convenio?.tipo === 'fonasa' || input.tipoConvenio === 'fonasa'
+  const precioFonasa = input.precioFonasa
+  const precioFonasaValido = typeof precioFonasa === 'number' && Number.isSafeInteger(precioFonasa) && precioFonasa >= 0
+  const precioBase = fonasa && precioFonasaValido ? precioFonasa : particular
+  return { precioBase, precio: precioBase, descuentoPct: 0, origen: 'catalogo' }
 }

@@ -7,6 +7,7 @@ import {
   type ConfiguracionConvenios,
   type ConvenioClinica,
 } from '../../../organization/clinic/schemas/configuracionConveniosSchema'
+import { PreciosEspecificosManager } from './PreciosEspecificosManager'
 
 // Props opcionales conservadas porque FinanzasModulo aún consume la API local legacy.
 export interface ConveniosManagerProps {
@@ -326,6 +327,16 @@ export const ConveniosManager = memo<ConveniosManagerProps>(() => {
               </div>
             )}
           </section>
+
+          <PreciosEspecificosManager
+            configuracion={borrador}
+            esAdmin={esAdmin}
+            guardando={guardando}
+            onChange={(configuracion) => {
+              setBorrador(configuracion)
+              setMensaje(null)
+            }}
+          />
 
           {mensaje && <p role="status" className="text-xs text-graphite-600">{mensaje}</p>}
           {esAdmin && (

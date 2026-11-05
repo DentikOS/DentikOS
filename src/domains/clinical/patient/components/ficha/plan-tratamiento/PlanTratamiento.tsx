@@ -7,6 +7,9 @@ import { PresupuestosPaciente } from './PresupuestosPaciente'
 import { useOdontogramaStore } from '../../../../../../app/stores/odontogramaStore'
 import { useSesionStore } from '../../../../../../app/stores/sesionStore'
 import { useClinicaDocumento } from '../../../../../organization/clinic/hooks/useClinicaDocumento'
+import { useConfiguracionConvenios } from '../../../../../organization/clinic/hooks/useConfiguracionConvenios'
+import { useSedes } from '../../../../../organization/clinic/hooks/useSedes'
+import { resolverPrecioPrestacion } from '../../../../../organization/clinic/schemas/configuracionConveniosSchema'
 import { usePacientesStore } from '../../../../../../app/stores/pacientesStore'
 import { useRBAC } from '../../../../../../shared/hooks/useRBAC'
 import { usePresupuestosStore } from '../../../../../../app/stores/usePresupuestosStore'
@@ -63,9 +66,12 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
   const emisor = useSesionStore((s) => s.userProfile)
   const clinicaActual = useSesionStore((s) => s.clinicaActual)
   const abrirPestanaFicha = usePacientesStore((s) => s.setPestanaActiva)
+  const previsionPaciente = usePacientesStore((s) => s.pacientes.find((paciente) => String(paciente.id) === pacienteId)?.prevision || null)
   const odontogramaPacienteId = useOdontogramaStore((s) => s.pacienteId)
   const [fases, setFases] = useState<FasePlan[]>(fasesVacias)
   const prestaciones = usePrestacionesStore((s) => s.prestacionesArancel)
+  const { configuracion: configuracionConvenios, cargada: conveniosCargados, error: errorConvenios } = useConfiguracionConvenios()
+  const { sedeActivaId, cargando: cargandoSucursales, errorSincronizacion: errorSucursales } = useSedes()
   const [odontogramaActualizadoAt, setOdontogramaActualizadoAt] = useState<string | undefined>()
   const [piezasActuales, setPiezasActuales] = useState<Parameters<typeof generarFasesDesdeOdontograma>[0]>([])
   const [guardando, setGuardando] = useState(false)
@@ -89,6 +95,28 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
   const planCargadoRef = useRef(false)
   const pacienteActivoRef = useRef(pacienteId)
   pacienteActivoRef.current = pacienteId
+
+  const convenioPrecio = useMemo(() => {
+    const prevision = String(previsionPaciente || '').trim().toLocaleLowerCase('es-CL')
+    if (!prevision || prevision === 'particular') return { id: undefined, tipo: undefined }
+    const activos = configuracionConvenios.convenios.filter((convenio) => convenio.activo)
+    const exactos = activos.filter((convenio) =>
+      convenio.id.toLocaleLowerCase('es-CL') === prevision || convenio.nombre.toLocaleLowerCase('es-CL') === prevision
+    )
+    if (exactos.length === 1) return { id: exactos[0].id, tipo: exactos[0].tipo }
+    if (exactos.length > 1) return { id: undefined, tipo: undefined }
+
+    const tipoGenerico = prevision.includes('fonasa') ? 'fonasa' : prevision.includes('isapre') ? 'isapre' : null
+    const porTipo = tipoGenerico ? activos.filter((convenio) => convenio.tipo === tipoGenerico) : []
+    if (porTipo.length === 1) return { id: porTipo[0].id, tipo: porTipo[0].tipo }
+    if (tipoGenerico === 'fonasa') return { id: undefined, tipo: 'fonasa' as const }
+    return { id: undefined, tipo: undefined }
+  }, [configuracionConvenios.convenios, previsionPaciente])
+
+  const hayPreciosPorSucursal = configuracionConvenios.preciosEspecificos?.some((precio) => precio.alcance === 'sucursal') || false
+  const preciosListos = conveniosCargados && !errorConvenios && (!hayPreciosPorSucursal || (
+    !cargandoSucursales && !errorSucursales && Boolean(sedeActivaId)
+  ))
 
   useEffect(() => {
     const cargar = () => setPresupuestosPlan(getClinicaActivaSync()
@@ -285,6 +313,24 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
     }
   }
 
+  const calcularPrecioPrestacionPlan = (prestacionId: string) => {
+    if (!preciosListos) return null
+    const prestacion = prestaciones.find((item) => String(item.id) === prestacionId)
+    if (!prestacion) return null
+    const precioParticularRaw = Number(prestacion.precioParticular ?? prestacion.precio ?? 0)
+    const precioFonasaRaw = Number(prestacion.precioFonasa)
+    const precioFonasa = Number.isFinite(precioFonasaRaw) && precioFonasaRaw >= 0 ? Math.round(precioFonasaRaw) : undefined
+    return resolverPrecioPrestacion(configuracionConvenios, {
+      prestacionId: prestacion.id,
+      especialidad: prestacion.especialidad,
+      convenioIdentificador: convenioPrecio.id,
+      tipoConvenio: convenioPrecio.tipo,
+      sucursalId: sedeActivaId,
+      precioParticular: Number.isFinite(precioParticularRaw) && precioParticularRaw >= 0 ? Math.round(precioParticularRaw) : 0,
+      precioFonasa,
+    })
+  }
+
   const actualizarProcedimiento = (procId: string, cambio: Partial<ProcedimientoPlan>) => {
     setFases((prev) => {
       const procedimientos = prev.flatMap((fase) => fase.procedimientos).map((proc) => {
@@ -371,9 +417,17 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
         descuento: 0,
         origenPlanProcedimientoId: p.id,
         precioPlanOriginal: p.costo || 0,
+        precioBase: p.precioBase ?? p.costo ?? 0,
+        descuentoConvenioPct: p.descuentoPct ?? 0,
+        precioOrigen: p.precioOrigen,
+        convenioPrecioId: p.convenioPrecioId,
+        sucursalIdPrecio: p.sucursalIdPrecio,
         faseClinica: f.id.replace('fase-', '') as FaseClinica,
       }))
   ), [fases])
+
+  const contextosPrecioPlan = [...new Set(itemsPresupuesto.map((item) => item.convenioPrecioId).filter((id): id is string => typeof id === 'string'))]
+  const previsionInicialPresupuesto = contextosPrecioPlan.length === 1 ? contextosPrecioPlan[0] : 'particular'
 
   const handleGenerarPresupuesto = () => {
     if (!pacienteId || !planGuardado || !planRevision || odontogramaDesactualizado || fases.some((fase) => fase.id === 'fase-revision' && fase.procedimientos.length > 0) || itemsPresupuesto.length === 0) {
@@ -398,6 +452,23 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
           <p className="text-xs text-graphite-500 mt-1">
             Los hallazgos del odontograma requieren selección de prestación y fase por un profesional.
           </p>
+          <p className="text-[11px] text-graphite-500 mt-1">
+            Contexto de precios: {convenioPrecio.id
+              ? configuracionConvenios.convenios.find((item) => item.id === convenioPrecio.id)?.nombre
+              : convenioPrecio.tipo === 'fonasa' ? 'FONASA · tarifa del arancel' : 'Particular'}.
+            {' '}Los importes se guardan en el plan al seleccionar la prestación.
+          </p>
+          {!preciosListos && (
+            <p role={errorConvenios || (hayPreciosPorSucursal && errorSucursales) ? 'alert' : 'status'} className="text-[11px] text-amber-700 mt-1">
+              {errorConvenios
+                ? 'No se sincronizó la configuración de convenios; los precios del plan están bloqueados.'
+                : hayPreciosPorSucursal && errorSucursales
+                  ? 'No se sincronizaron las sucursales; los precios del plan están bloqueados.'
+                  : hayPreciosPorSucursal && !sedeActivaId && !cargandoSucursales
+                    ? 'Selecciona una sucursal activa para usar los precios configurados.'
+                    : 'Sincronizando configuración de precios…'}
+            </p>
+          )}
           {planGuardado && <p className="text-xs font-semibold mt-1" data-testid="estado-plan-tratamiento">
             {estadoPlan.completado ? 'Plan completado: tratamientos realizados y saldo pagado' :
               estadoPlan.tratamientosRealizados ? 'Tratamientos realizados · presupuesto o saldo pendiente' :
@@ -562,12 +633,38 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
                         value={proc.prestacionId || ''}
                         onChange={(e) => {
                           const prestacion = prestaciones.find((item) => String(item.id) === e.target.value)
-                          actualizarProcedimiento(proc.id, prestacion ? {
+                          if (!prestacion) {
+                            actualizarProcedimiento(proc.id, {
+                              prestacionId: undefined,
+                              descripcion: `Hallazgo ${proc.hallazgo} (P.${proc.pieza})`,
+                              costo: null,
+                              precioBase: undefined,
+                              descuentoPct: undefined,
+                              precioOrigen: undefined,
+                              convenioPrecioId: undefined,
+                              sucursalIdPrecio: undefined,
+                            })
+                            return
+                          }
+                          const precio = calcularPrecioPrestacionPlan(String(prestacion.id))
+                          if (!precio) {
+                            setError(errorConvenios
+                              ? 'No se pudo sincronizar la configuración de precios. Intenta de nuevo antes de seleccionar una prestación.'
+                              : 'Espera a que se sincronicen los convenios y sucursales antes de seleccionar una prestación.')
+                            return
+                          }
+                          actualizarProcedimiento(proc.id, {
                             prestacionId: String(prestacion.id),
                             descripcion: `${prestacion.nombre} (P.${proc.pieza})`,
-                            costo: prestacion.precioParticular,
-                          } : { prestacionId: undefined, descripcion: `Hallazgo ${proc.hallazgo} (P.${proc.pieza})`, costo: null })
+                            costo: precio.precio,
+                            precioBase: precio.precioBase,
+                            descuentoPct: precio.descuentoPct,
+                            precioOrigen: precio.origen,
+                            convenioPrecioId: convenioPrecio.id || (convenioPrecio.tipo === 'fonasa' ? 'fonasa' : 'particular'),
+                            sucursalIdPrecio: sedeActivaId,
+                          })
                         }}
+                        disabled={!preciosListos}
                         className="text-xs bg-surface border border-surface rounded-lg px-2 py-1"
                       >
                         <option value="">Revisión: seleccionar prestación</option>
@@ -588,6 +685,11 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
                       <span className="font-mono font-semibold text-graphite-700 dark:text-graphite-300">
                         {proc.costo === null ? 'Sin precio · revisión clínica' : `$${proc.costo.toLocaleString('es-CL')}`}
                       </span>
+                      {(proc.precioOrigen === 'convenio-precio-fijo' || proc.precioOrigen === 'sucursal') && (
+                        <span className="text-[10px] text-primary">
+                          {proc.precioOrigen === 'convenio-precio-fijo' ? 'Convenio' : 'Sucursal'}
+                        </span>
+                      )}
                       {planGuardado && <span className="text-[10px] font-semibold text-graphite-500"
                         data-testid={`estado-pago-plan-${proc.id}`}>
                         {etiquetaEstadoFinanciero[estadosFinancierosPlan[proc.id] || 'no_disponible']}
@@ -665,6 +767,7 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
           pacienteNombre={nombrePaciente}
           pacienteRut={pacienteRut}
           itemsIniciales={itemsPresupuesto}
+          previsionInicial={previsionInicialPresupuesto}
           planRevision={planRevision}
           onGuardar={async (presupuesto) => {
             const guardado = await presupuestosStorageService.guardarPresupuesto(presupuesto as any)

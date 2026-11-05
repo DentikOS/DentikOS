@@ -44,6 +44,8 @@ export const PresupuestoSection: React.FC<PresupuestoSectionProps> = memo((props
     valorPrestacion,
     precioBaseOriginal,
     porcentajeDescuentoAplicado,
+    origenPrecioAplicado,
+    sucursalPrecioAplicada,
     montoAbono,
     metodoPagoAbono,
     itemPendienteDescuento,
@@ -77,6 +79,8 @@ export const PresupuestoSection: React.FC<PresupuestoSectionProps> = memo((props
         valorPrestacion={valorPrestacion}
         precioBaseOriginal={precioBaseOriginal}
         porcentajeDescuentoAplicado={porcentajeDescuentoAplicado}
+        origenPrecioAplicado={origenPrecioAplicado}
+        sucursalPrecioAplicada={sucursalPrecioAplicada}
         handleSeleccionarPrestacion={handleSeleccionarPrestacion}
         handleCambiarConvenioSelect={handleCambiarConvenioSelect}
         handleAgregarItemPresupuesto={handleAgregarItemPresupuesto}

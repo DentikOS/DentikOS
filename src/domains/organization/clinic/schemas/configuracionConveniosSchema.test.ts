@@ -4,12 +4,14 @@ import {
   crearConfiguracionConveniosVacia,
   leerConfiguracionConvenios,
   resolverDescuentoConvenio,
+  resolverPrecioPrestacion,
 } from './configuracionConveniosSchema'
 
 describe('configuracionConveniosSchema', () => {
   it('parte con categorías sin convenios ni descuentos de ejemplo', () => {
     const configuracion = crearConfiguracionConveniosVacia()
     expect(configuracion.convenios).toEqual([])
+    expect(configuracion.preciosEspecificos).toEqual([])
     expect(configuracion.categorias.every((categoria) => categoria.especialidades.length === 0)).toBe(true)
   })
 
@@ -59,5 +61,72 @@ describe('configuracionConveniosSchema', () => {
       }],
     })
     expect(resultado.success).toBe(false)
+  })
+
+  it('prioriza el precio fijo de convenio sobre porcentaje y sucursal', () => {
+    const configuracion = {
+      version: 1 as const,
+      categorias: [{ id: 'endo', nombre: 'Endodoncia', especialidades: ['Endodoncia'] }],
+      convenios: [{ id: 'seguro', nombre: 'Seguro', tipo: 'isapre' as const, activo: true, descuentosPorCategoria: { endo: 20 } }],
+      preciosEspecificos: [
+        { prestacionId: '8', alcance: 'convenio' as const, contextoId: 'seguro', precio: 70000 },
+        { prestacionId: '8', alcance: 'sucursal' as const, contextoId: 'sede-1', precio: 60000 },
+      ],
+    }
+    expect(resolverPrecioPrestacion(configuracion, {
+      prestacionId: 8, especialidad: 'Endodoncia', convenioIdentificador: 'seguro', sucursalId: 'sede-1', precioParticular: 100000,
+    })).toEqual({ precioBase: 70000, precio: 70000, descuentoPct: 0, origen: 'convenio-precio-fijo' })
+  })
+
+  it('usa el porcentaje por categoría antes que el precio de sucursal', () => {
+    const configuracion = {
+      version: 1 as const,
+      categorias: [{ id: 'endo', nombre: 'Endodoncia', especialidades: ['Endodoncia'] }],
+      convenios: [{ id: 'seguro', nombre: 'Seguro', tipo: 'isapre' as const, activo: true, descuentosPorCategoria: { endo: 10 } }],
+      preciosEspecificos: [{ prestacionId: '8', alcance: 'sucursal' as const, contextoId: 'sede-1', precio: 60000 }],
+    }
+    expect(resolverPrecioPrestacion(configuracion, {
+      prestacionId: 8, especialidad: 'Endodoncia', convenioIdentificador: 'seguro', sucursalId: 'sede-1', precioParticular: 100000,
+    })).toEqual({ precioBase: 100000, precio: 90000, descuentoPct: 10, origen: 'convenio-categoria' })
+  })
+
+  it('usa el precio específico de sucursal cuando el convenio no tiene regla de categoría', () => {
+    const configuracion = {
+      version: 1 as const,
+      categorias: [{ id: 'endo', nombre: 'Endodoncia', especialidades: ['Endodoncia'] }],
+      convenios: [{ id: 'seguro', nombre: 'Seguro', tipo: 'isapre' as const, activo: true, descuentosPorCategoria: { endo: 0 } }],
+      preciosEspecificos: [{ prestacionId: '8', alcance: 'sucursal' as const, contextoId: 'sede-1', precio: 60000 }],
+    }
+    expect(resolverPrecioPrestacion(configuracion, {
+      prestacionId: 8, convenioIdentificador: 'seguro', sucursalId: 'sede-1', precioParticular: 100000,
+    })).toEqual({ precioBase: 60000, precio: 60000, descuentoPct: 0, origen: 'sucursal' })
+  })
+
+  it('usa precioFonasa del catálogo si no hay regla fija ni de categoría ni de sucursal', () => {
+    const configuracion = {
+      version: 1 as const,
+      categorias: [],
+      convenios: [{ id: 'fonasa-b', nombre: 'FONASA B', tipo: 'fonasa' as const, tramoFonasa: 'B' as const, activo: true, descuentosPorCategoria: {} }],
+    }
+    expect(resolverPrecioPrestacion(configuracion, {
+      prestacionId: 8, convenioIdentificador: 'fonasa-b', precioParticular: 100000, precioFonasa: 42000,
+    })).toEqual({ precioBase: 42000, precio: 42000, descuentoPct: 0, origen: 'catalogo' })
+  })
+
+  it('respeta precioFonasa igual a cero como precio válido explícito', () => {
+    const configuracion = {
+      version: 1 as const,
+      categorias: [],
+      convenios: [{ id: 'fonasa-b', nombre: 'FONASA B', tipo: 'fonasa' as const, tramoFonasa: 'B' as const, activo: true, descuentosPorCategoria: {} }],
+    }
+    expect(resolverPrecioPrestacion(configuracion, {
+      prestacionId: 8, convenioIdentificador: 'fonasa-b', precioParticular: 100000, precioFonasa: 0,
+    })).toEqual({ precioBase: 0, precio: 0, descuentoPct: 0, origen: 'catalogo' })
+  })
+
+  it('falla de forma segura al precio particular ante configuración o precioFonasa inválidos', () => {
+    expect(resolverPrecioPrestacion({ invalid: true }, {
+      prestacionId: 8, convenioIdentificador: 'fonasa-b', precioParticular: 100000, precioFonasa: 42000,
+    })).toEqual({ precioBase: 100000, precio: 100000, descuentoPct: 0, origen: 'catalogo' })
   })
 })

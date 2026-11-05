@@ -10,6 +10,11 @@ export interface ProcedimientoPlan {
   prestacionId?: string
   faseAsignada?: FaseClinica
   costo: number | null
+  precioBase?: number
+  descuentoPct?: number
+  precioOrigen?: 'convenio-precio-fijo' | 'convenio-categoria' | 'sucursal' | 'catalogo'
+  convenioPrecioId?: string
+  sucursalIdPrecio?: string | null
   requiereRevision: boolean
   estado: 'pendiente' | 'aprobado' | 'realizado' | 'cancelado'
 }
