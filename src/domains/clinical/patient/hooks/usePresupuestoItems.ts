@@ -24,6 +24,7 @@ export interface ItemPresupuesto {
 export interface PrestacionArancel {
   id: string | number
   nombre: string
+  especialidad?: string
   precio?: number | string
   precioParticular?: number | string
   [key: string]: unknown
@@ -82,7 +83,7 @@ export const usePresupuestoItems = ({
       setNombrePrestacion(prest.nombre)
       setPrecioBaseOriginal(precioBase)
       
-      const pctDesc = Number(obtenerDescuentoConvenio(convenioNombre)) || 0
+      const pctDesc = Number(obtenerDescuentoConvenio(convenioNombre, prest.especialidad)) || 0
       setPorcentajeDescuentoAplicado(pctDesc)
       const precioConDescuento = Math.round(precioBase * (1 - pctDesc / 100))
       setValorPrestacion(precioConDescuento)

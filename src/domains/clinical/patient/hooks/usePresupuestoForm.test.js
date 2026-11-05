@@ -42,8 +42,8 @@ describe('usePresupuestoForm (Commit G3)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     prestacionesStorageService.obtenerPrestaciones.mockReturnValue([
-      { id: 1, nombre: 'Corona', precio: 100000 },
-      { id: 2, nombre: 'Limpieza', precio: 30000 }
+      { id: 1, nombre: 'Corona', especialidad: 'Endodoncia', precio: 100000 },
+      { id: 2, nombre: 'Limpieza', especialidad: 'Preventivo', precio: 30000 }
     ])
   })
 
@@ -75,7 +75,7 @@ describe('usePresupuestoForm (Commit G3)', () => {
         result.current.handleSeleccionarPrestacion(1, 'Fonasa')
       })
 
-      expect(obtenerDescuentoConvenio).toHaveBeenCalledWith('Fonasa')
+      expect(obtenerDescuentoConvenio).toHaveBeenCalledWith('Fonasa', 'Endodoncia')
       // 100000 - 20% = 80000
       expect(result.current.valorPrestacion).toBe(80000)
       expect(result.current.precioBaseOriginal).toBe(100000)

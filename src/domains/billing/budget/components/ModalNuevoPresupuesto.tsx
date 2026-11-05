@@ -18,7 +18,8 @@ import {
   type ItemSeleccionadoPresupuesto
 } from './CamposFormularioPresupuesto'
 import { useAppDialog } from '../../../../shared/hooks/useAppDialog'
-import { finanzasStorageService } from '../../cash-register/services/finanzasStorageService'
+import { useConfiguracionConvenios } from '../../../organization/clinic/hooks/useConfiguracionConvenios'
+import { resolverDescuentoConvenio } from '../../../organization/clinic/schemas/configuracionConveniosSchema'
 
 const log = createLogger('ModalNuevoPresupuesto')
 
@@ -38,7 +39,8 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = memo(
   const [pacienteId, setPacienteId] = useState<string>('')
   const { alert: dialogAlert } = useAppDialog()
   const [convenio, setConvenio] = useState<string>('Particular')
-  const [convenios] = useState(() => finanzasStorageService.obtenerConvenios([]))
+  const { configuracion } = useConfiguracionConvenios()
+  const convenios = configuracion.convenios.filter((item) => item.activo)
   const [observacion, setObservacion] = useState<string>('')
   const [guardando, setGuardando] = useState(false)
 
@@ -89,13 +91,22 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = memo(
     const prest = prestaciones.find((p) => String(p.id) === String(prestacionSelId))
     if (!prest) return
 
+    const precioBase = Number(prest.precioParticular ?? prest.precio ?? 0)
+    const descuentoPct = resolverDescuentoConvenio(
+      configuracion,
+      convenio,
+      typeof prest.especialidad === 'string' ? prest.especialidad : null
+    )
+
     const nuevoItem: ItemSeleccionadoPresupuesto = {
       id: crypto.randomUUID(),
       pieza: piezaDental || 'General',
       prestacion: prest.nombre,
-      convenio,
-      precioBase: Number(prest.precioParticular ?? prest.precio ?? 0),
-      valor: Number(prest.precioParticular ?? prest.precio ?? 0),
+      convenio: convenios.find((item) => item.id === convenio)?.nombre || 'Particular',
+      convenioId: convenio === 'Particular' ? undefined : convenio,
+      precioBase,
+      descuentoPct,
+      valor: Math.round(precioBase * (1 - descuentoPct / 100)),
       estado: 'Pendiente'
     }
 

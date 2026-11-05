@@ -1,15 +1,10 @@
 import React, { useState } from 'react'
-import { Percent, Shield, Check, AlertCircle } from 'lucide-react'
+import { Percent, Check, AlertCircle } from 'lucide-react'
 import { Button } from '../../../../../shared/ui/ui/Button'
 import type { DescuentoPresupuesto } from '../../schemas/presupuestoSchema'
 
 export const CONVENIOS_SALUD = [
-  { id: 'particular', nombre: 'Particular (Sin Convenio)', descuentoPct: 0 },
-  { id: 'fonasa_b', nombre: 'FONASA Tramo B/C/D (Arancel MLE)', descuentoPct: 15 },
-  { id: 'isapre_banmedica', nombre: 'ISAPRE Banmédica / Vida Tres', descuentoPct: 20 },
-  { id: 'isapre_colmena', nombre: 'ISAPRE Colmena Golden Cross', descuentoPct: 20 },
-  { id: 'isapre_cruzblanca', nombre: 'ISAPRE CruzBlanca Dental', descuentoPct: 25 },
-  { id: 'isapre_consalud', nombre: 'ISAPRE Consalud Integral', descuentoPct: 20 },
+  // Convenios y porcentajes se administran por clínica; este formulario no tiene categoría.
 ]
 
 interface DescuentosPresupuestoProps {
@@ -22,7 +17,6 @@ export const DescuentosPresupuesto: React.FC<DescuentosPresupuestoProps> = ({
   onAplicarDescuento,
 }) => {
   const [tipo, setTipo] = useState<'convenio' | 'global' | 'por-item'>('convenio')
-  const [convenioSeleccionado, setConvenioSeleccionado] = useState(CONVENIOS_SALUD[1].id)
   const [porcentajeGlobal, setPorcentajeGlobal] = useState<number>(10)
   const [montoFijo, setMontoFijo] = useState<number>(20000)
   const [motivo, setMotivo] = useState('')
@@ -31,8 +25,7 @@ export const DescuentosPresupuesto: React.FC<DescuentosPresupuestoProps> = ({
 
   const calcularMontoDescuento = () => {
     if (tipo === 'convenio') {
-      const conv = CONVENIOS_SALUD.find((c) => c.id === convenioSeleccionado)
-      return Math.round((totalBruto * (conv?.descuentoPct || 0)) / 100)
+      return 0
     }
     if (tipo === 'global') {
       return Math.round((totalBruto * porcentajeGlobal) / 100)
@@ -50,6 +43,10 @@ export const DescuentosPresupuesto: React.FC<DescuentosPresupuestoProps> = ({
       setErrorValidacion('Debe ingresar quién autoriza el descuento.')
       return
     }
+    if (tipo === 'convenio') {
+      setErrorValidacion('El descuento de convenio requiere la categoría de cada prestación. Aplícalo desde el plan clínico.')
+      return
+    }
 
     setErrorValidacion('')
     const monto = calcularMontoDescuento()
@@ -57,7 +54,7 @@ export const DescuentosPresupuesto: React.FC<DescuentosPresupuestoProps> = ({
     onAplicarDescuento(
       {
         tipo,
-        valor: tipo === 'convenio' ? 1 : tipo === 'global' ? porcentajeGlobal : montoFijo,
+        valor: tipo === 'global' ? porcentajeGlobal : montoFijo,
         motivo,
         autorizadoPor,
       },
@@ -131,22 +128,9 @@ export const DescuentosPresupuesto: React.FC<DescuentosPresupuestoProps> = ({
 
       {/* Parámetros según Tipo */}
       {tipo === 'convenio' && (
-        <div className="space-y-1">
-          <label className="block text-xs font-semibold text-graphite-700 dark:text-graphite-300">
-            Convenio de Salud Aseguradora
-          </label>
-          <select
-            value={convenioSeleccionado}
-            onChange={(e) => setConvenioSeleccionado(e.target.value)}
-            className="w-full p-2.5 bg-surface border border-surface rounded-xl text-xs font-semibold"
-          >
-            {CONVENIOS_SALUD.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.nombre} &bull; {c.descuentoPct}% Dcto
-              </option>
-            ))}
-          </select>
-        </div>
+        <p className="rounded-xl border border-surface bg-surface p-3 text-xs text-graphite-600 dark:text-graphite-300">
+          El porcentaje depende de la categoría de cada prestación y se configura por clínica. Este formulario no tiene ese detalle; aplica el convenio al cotizar desde el plan clínico.
+        </p>
       )}
 
       {tipo === 'global' && (

@@ -4,6 +4,7 @@ import { Input } from '../../../../shared/ui/ui/Input'
 import { Button } from '../../../../shared/ui/ui/Button'
 import { Tag } from 'lucide-react'
 import type { PrestacionArancel } from '../hooks/usePresupuesto'
+import { useConfiguracionConvenios } from '../../../organization/clinic/hooks/useConfiguracionConvenios'
 
 export interface FormularioAgregarPrestacionProps {
   arancelActualizado: PrestacionArancel[]
@@ -38,6 +39,12 @@ export const FormularioAgregarPrestacion: React.FC<FormularioAgregarPrestacionPr
   setNombrePrestacion,
   setValorPrestacion
 }) => {
+  const { configuracion, cargando: cargandoConvenios } = useConfiguracionConvenios()
+  const conveniosActivos = configuracion.convenios.filter((convenio) => convenio.activo)
+  const seleccionActualExiste = convenioAplicado === 'Particular' || conveniosActivos.some((convenio) =>
+    convenio.id === convenioAplicado || convenio.nombre.toLocaleLowerCase('es-CL') === convenioAplicado.toLocaleLowerCase('es-CL')
+  )
+
   return (
     <div className="bg-gray-50 dark:bg-graphite-800 p-4 border border-gray-200 dark:border-graphite-700 rounded-2xl mb-6 print:hidden space-y-4">
       <div className="flex justify-between items-center border-b pb-2 flex-wrap gap-2">
@@ -50,12 +57,18 @@ export const FormularioAgregarPrestacion: React.FC<FormularioAgregarPrestacionPr
           <select
             value={convenioAplicado}
             onChange={(e) => handleCambiarConvenioSelect(e.target.value)}
+            disabled={cargandoConvenios}
             className="px-2.5 py-1 border rounded-lg bg-emerald-50 dark:bg-emerald-900/30 text-emerald-900 dark:text-emerald-200 font-bold border-emerald-300 dark:border-emerald-700 cursor-pointer"
           >
             <option value="Particular">Particular (Sin Descuento)</option>
-            <option value="Fonasa">Fonasa (-15%)</option>
-            <option value="Isapre">Isapre (-20%)</option>
-            <option value="Empresa">Convenio Institucional (-25%)</option>
+            {!seleccionActualExiste && convenioAplicado && (
+              <option value={convenioAplicado}>{convenioAplicado} (sin regla configurada)</option>
+            )}
+            {conveniosActivos.map((convenio) => (
+              <option key={convenio.id} value={convenio.id}>
+                {convenio.nombre}{convenio.tipo === 'fonasa' ? ` · Tramo ${convenio.tramoFonasa}` : ''}
+              </option>
+            ))}
           </select>
         </div>
       </div>

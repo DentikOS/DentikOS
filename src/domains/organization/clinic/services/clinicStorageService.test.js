@@ -207,4 +207,79 @@ describe('clinicStorageService - Sincronización y Fail-Safe', () => {
     expect(supabase.from).not.toHaveBeenCalled()
     expect(clinicStorageService.obtenerClinica()).toBeNull()
   })
+
+  it('carga el convenio remoto y conserva los demás datos de la clínica en caché', async () => {
+    const configuracion = {
+      version: 1,
+      categorias: [{ id: 'endodoncia', nombre: 'Endodoncia', especialidades: ['Endodoncia'] }],
+      convenios: [{ id: 'isapre-1', nombre: 'Isapre Uno', tipo: 'isapre', activo: true, descuentosPorCategoria: { endodoncia: 12.5 } }],
+    }
+    clinicStorageService.guardarClinica({ nombreClinica: 'Clínica vigente', ciudad: 'Santiago' })
+    const maybeSingle = vi.fn().mockResolvedValue({ data: { configuracion_convenios: configuracion }, error: null })
+    const eq = vi.fn().mockReturnValue({ maybeSingle })
+    const select = vi.fn().mockReturnValue({ eq })
+    vi.mocked(supabase.from).mockReturnValue({ select })
+
+    await expect(clinicStorageService.cargarConfiguracionConvenios('clinica-123')).resolves.toEqual(configuracion)
+    expect(select).toHaveBeenCalledWith('configuracion_convenios')
+    expect(eq).toHaveBeenCalledWith('id', 'clinica-123')
+    expect(clinicStorageService.obtenerClinica()).toMatchObject({
+      nombreClinica: 'Clínica vigente',
+      ciudad: 'Santiago',
+      configuracionConvenios: configuracion,
+    })
+  })
+
+  it('rechaza cargar datos de otra clínica sin consultar Supabase ni tocar caché', async () => {
+    clinicStorageService.guardarClinica({ nombreClinica: 'Clínica A' })
+    useSesionStore.setState({ clinicaActual: 'clinica-b' })
+
+    await expect(clinicStorageService.cargarConfiguracionConvenios('clinica-123')).rejects.toThrow(/clínica activa cambió/i)
+    expect(supabase.from).not.toHaveBeenCalled()
+    expect(clinicStorageService.obtenerClinica()?.nombreClinica).toBe('Clínica A')
+  })
+
+  it('si RLS no devuelve fila, no guarda la configuración compartida en caché', async () => {
+    const original = { version: 1, categorias: [], convenios: [] }
+    clinicStorageService.guardarClinica({ nombreClinica: 'Clínica Original', configuracionConvenios: original })
+    const select = vi.fn().mockResolvedValue({ data: [], error: null })
+    const eq = vi.fn().mockReturnValue({ select })
+    const update = vi.fn().mockReturnValue({ eq })
+    vi.mocked(supabase.from).mockReturnValue({ update })
+
+    const ok = await clinicStorageService.guardarConfiguracionConvenios('clinica-123', {
+      version: 1,
+      categorias: [{ id: 'endodoncia', nombre: 'Endodoncia', especialidades: ['Endodoncia'] }],
+      convenios: [],
+    })
+
+    expect(ok).toBe(false)
+    expect(clinicStorageService.obtenerClinica()).toMatchObject({ nombreClinica: 'Clínica Original', configuracionConvenios: original })
+  })
+
+  it('guarda solo el campo compartido aprobado y emite actualización de clínica', async () => {
+    const dispatchSpy = vi.spyOn(window, 'dispatchEvent')
+    clinicStorageService.guardarClinica({ nombreClinica: 'Clínica Original', ciudad: 'Santiago' })
+    const select = vi.fn().mockResolvedValue({ data: [{ id: 'clinica-123' }], error: null })
+    const eq = vi.fn().mockReturnValue({ select })
+    const configuracion = {
+      version: 1,
+      categorias: [{ id: 'endodoncia', nombre: 'Endodoncia', especialidades: ['Endodoncia'] }],
+      convenios: [{ id: 'isapre-1', nombre: 'Isapre Uno', tipo: 'isapre', activo: true, descuentosPorCategoria: { endodoncia: 12.5 } }],
+    }
+    const update = vi.fn().mockReturnValue({ eq })
+    vi.mocked(supabase.from).mockReturnValue({ update })
+
+    await expect(clinicStorageService.guardarConfiguracionConvenios('clinica-123', configuracion)).resolves.toBe(true)
+    expect(update).toHaveBeenCalledWith({ configuracion_convenios: configuracion })
+    expect(clinicStorageService.obtenerClinica()).toMatchObject({
+      nombreClinica: 'Clínica Original',
+      ciudad: 'Santiago',
+      configuracionConvenios: configuracion,
+    })
+    expect(dispatchSpy).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'clinica_actualizada',
+      detail: expect.objectContaining({ clinicaId: 'clinica-123', datos: expect.objectContaining({ configuracionConvenios: configuracion }) }),
+    }))
+  })
 })

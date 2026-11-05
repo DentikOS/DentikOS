@@ -15,12 +15,9 @@ export interface MetodoPagoOpcion {
   comisionPct: number
 }
 
-export const CONVENIOS_DEFAULT: readonly ConvenioConfig[] = [
-  { id: 'particular', nombre: 'Particular', descuentoDefecto: 0, descripcion: 'Tarifa general sin descuento' },
-  { id: 'fonasa', nombre: 'Fonasa (Tramo B, C, D)', descuentoDefecto: 15, descripcion: 'Descuento institucional Fonasa' },
-  { id: 'isapre', nombre: 'Isapre (Banmédica / Colmena / Consalud)', descuentoDefecto: 20, descripcion: 'Convenio libre elección' },
-  { id: 'empresa', nombre: 'Convenio Corporativo / Empresa', descuentoDefecto: 25, descripcion: 'Descuento por planilla corporativa' }
-]
+// La clínica define sus convenios en configuracion_convenios compartida.
+// No precargar tasas ilustrativas como si fueran acuerdos reales.
+export const CONVENIOS_DEFAULT: readonly ConvenioConfig[] = []
 
 export const CATEGORIAS_EGRESO: readonly string[] = [
   'Insumos Odontológicos (Casa Dental)',

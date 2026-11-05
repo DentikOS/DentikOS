@@ -9,7 +9,7 @@ import { Input } from '../../../../shared/ui/ui/Input'
 import { X } from 'lucide-react'
 
 import type { PresupuestoItemLocal } from '../services/presupuestosStorageService'
-import type { ConvenioConfig } from '../../cash-register/constants/finanzasConstants'
+import type { ConvenioClinica } from '../../../organization/clinic/schemas/configuracionConveniosSchema'
 
 export interface HallazgoOdontograma {
   pieza: string
@@ -37,7 +37,7 @@ export interface PrestacionFormRef {
 export interface CamposFormularioPresupuestoProps {
   pacientes: PacienteFormRef[]
   prestaciones: PrestacionFormRef[]
-  convenios: ConvenioConfig[]
+  convenios: ConvenioClinica[]
   pacienteId: string | number
   convenio: string
   hallazgosOdontograma: HallazgoOdontograma[]
@@ -90,8 +90,11 @@ export const CamposFormularioPresupuesto: React.FC<CamposFormularioPresupuestoPr
             onChange={(e) => {
               setPacienteId(e.target.value)
               const pac = pacientes.find((p) => String(p.id) === String(e.target.value))
-              const configurado = convenios.find((item) => item.id.toLowerCase() === pac?.prevision?.toLowerCase() || item.nombre.toLowerCase() === pac?.prevision?.toLowerCase())
-              setConvenio(configurado?.nombre || 'Particular')
+              const configurado = convenios.find((item) => item.activo && (
+                item.id.toLowerCase() === pac?.prevision?.toLowerCase() ||
+                item.nombre.toLowerCase() === pac?.prevision?.toLowerCase()
+              ))
+              setConvenio(configurado?.id || 'Particular')
             }}
             className="w-full p-2.5 rounded-xl border border-gray-300 dark:border-graphite-600 bg-white dark:bg-graphite-900 font-bold cursor-pointer dark:text-graphite-100"
           >
@@ -114,8 +117,10 @@ export const CamposFormularioPresupuesto: React.FC<CamposFormularioPresupuestoPr
             className="w-full p-2.5 rounded-xl border border-gray-300 dark:border-graphite-600 bg-white dark:bg-graphite-900 font-semibold cursor-pointer dark:text-graphite-100"
           >
             <option value="Particular">Particular</option>
-            {convenios.filter((item) => item.id !== 'particular').map((item) => (
-              <option key={item.id} value={item.nombre}>{item.nombre} ({item.descuentoDefecto}%)</option>
+            {convenios.filter((item) => item.activo).map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.nombre}{item.tipo === 'fonasa' ? ` · Tramo ${item.tramoFonasa}` : ''}
+              </option>
             ))}
           </select>
         </div>
