@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Building2, MapPin, Users, Stethoscope, ShieldCheck, Plus, Pencil, ArchiveRestore, Clock3, AlertCircle, Star } from 'lucide-react'
+import { Building2, MapPin, Users, Stethoscope, ShieldCheck, Plus, Pencil, ArchiveRestore, Clock3, AlertCircle, Star, LayoutDashboard } from 'lucide-react'
 import { DatosClinicaForm } from './components/DatosClinicaForm'
 import { GestionMiembrosModulo } from '../team/GestionMiembrosModulo'
 import { PrestacionesModulo } from '../prestations/PrestacionesModulo'
@@ -11,12 +11,13 @@ import { useSesionStore } from '../../../app/stores/sesionStore'
 import { sedeSchema, type HorarioSede, type Sede } from './schemas/sedeSchema'
 import { clinicStorageService } from './services/clinicStorageService'
 import { GestionBoxesClinicos } from './components/GestionBoxesClinicos'
+import { DashboardAdministracion } from '../../../application/analytics/dashboard/DashboardAdministracion'
 
 export interface AdministracionDentikOSProps {
   userProfile?: PerfilUsuario | null
 }
 
-type TabAdmin = 'practica' | 'sedes' | 'equipo' | 'prestaciones' | 'avanzado'
+type TabAdmin = 'resumen' | 'practica' | 'sedes' | 'equipo' | 'prestaciones' | 'avanzado'
 
 const DIAS_SEMANA = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
 const IDS_DIA_SEMANA = [1, 2, 3, 4, 5, 6, 0]
@@ -40,7 +41,7 @@ const resumenHorario = (horarios: HorarioSede[] = []): string => {
 }
 
 export const AdministracionDentikOSModulo: React.FC<AdministracionDentikOSProps> = ({ userProfile }) => {
-  const [tabActiva, setTabActiva] = useState<TabAdmin>('practica')
+  const [tabActiva, setTabActiva] = useState<TabAdmin>('resumen')
   const { sedes, sedeActiva, agregarSede, editarSede, eliminarSede, marcarPrincipal, cargando, errorSincronizacion } = useSedes()
   const perfilSesion = useSesionStore((state) => state.userProfile)
   const rol = (userProfile?.rol || perfilSesion?.rol || '').toLowerCase()
@@ -137,6 +138,15 @@ export const AdministracionDentikOSModulo: React.FC<AdministracionDentikOSProps>
         <div className="flex flex-wrap gap-1 p-1 bg-gray-100 dark:bg-slate-900 rounded-xl border border-surface text-xs">
           <button
             type="button"
+            onClick={() => setTabActiva('resumen')}
+            className={`py-1.5 px-3 rounded-lg font-medium transition flex items-center gap-1.5 ${
+              tabActiva === 'resumen' ? 'bg-white dark:bg-slate-800 text-[#D4AF37] font-semibold shadow-xs' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <LayoutDashboard size={13} /> <span>Resumen</span>
+          </button>
+          <button
+            type="button"
             onClick={() => setTabActiva('practica')}
             className={`py-1.5 px-3 rounded-lg font-medium transition flex items-center gap-1.5 ${
               tabActiva === 'practica' ? 'bg-white dark:bg-slate-800 text-[#D4AF37] font-semibold shadow-xs' : 'text-slate-400 hover:text-white'
@@ -184,6 +194,10 @@ export const AdministracionDentikOSModulo: React.FC<AdministracionDentikOSProps>
       </div>
 
       {/* Contenido según Tab */}
+      {tabActiva === 'resumen' && (
+        <DashboardAdministracion sedes={sedes} rol={rol} onNavigate={(tab) => setTabActiva(tab)} />
+      )}
+
       {tabActiva === 'practica' && (
         <DatosClinicaForm userProfile={userProfile} />
       )}
@@ -337,7 +351,7 @@ export const AdministracionDentikOSModulo: React.FC<AdministracionDentikOSProps>
           <RespaldoDatosSection />
           <div className="p-4 rounded-xl border border-surface bg-surface text-xs text-graphite-500 dark:text-slate-400">
             <h4 className="font-semibold text-graphite-900 dark:text-white mb-1">Auditoría y Seguridad</h4>
-            <p>Todas las mutaciones críticas quedan registradas en el log criptográfico audit_log según Ley 19.628.</p>
+            <p>Los cambios críticos cubiertos por auditoría quedan registrados en el log append-only <code>audit_log</code>.</p>
           </div>
         </div>
       )}
