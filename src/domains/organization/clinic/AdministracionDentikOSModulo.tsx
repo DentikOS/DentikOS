@@ -10,6 +10,7 @@ import type { PerfilUsuario } from '../../../infrastructure/auth/authService'
 import { useSesionStore } from '../../../app/stores/sesionStore'
 import { sedeSchema, type HorarioSede, type Sede } from './schemas/sedeSchema'
 import { clinicStorageService } from './services/clinicStorageService'
+import { GestionBoxesClinicos } from './components/GestionBoxesClinicos'
 
 export interface AdministracionDentikOSProps {
   userProfile?: PerfilUsuario | null
@@ -40,7 +41,7 @@ const resumenHorario = (horarios: HorarioSede[] = []): string => {
 
 export const AdministracionDentikOSModulo: React.FC<AdministracionDentikOSProps> = ({ userProfile }) => {
   const [tabActiva, setTabActiva] = useState<TabAdmin>('practica')
-  const { sedes, agregarSede, editarSede, eliminarSede, cargando, errorSincronizacion } = useSedes()
+  const { sedes, sedeActiva, agregarSede, editarSede, eliminarSede, cargando, errorSincronizacion } = useSedes()
   const perfilSesion = useSesionStore((state) => state.userProfile)
   const rol = (userProfile?.rol || perfilSesion?.rol || '').toLowerCase()
   const puedeAdministrarSedes = rol === 'admin'
@@ -237,6 +238,8 @@ export const AdministracionDentikOSModulo: React.FC<AdministracionDentikOSProps>
               <p className="col-span-full rounded-lg bg-gray-50 p-4 text-xs text-graphite-500 dark:bg-slate-900 dark:text-slate-400">Todavía no hay sucursales registradas.</p>
             )}
           </div>
+
+          <GestionBoxesClinicos sede={sedeActiva} puedeAdministrar={puedeAdministrarSedes} />
 
           {puedeAdministrarSedes ? (
             <form onSubmit={handleGuardarSede} className="border border-dashed border-gray-300 dark:border-slate-700 rounded-xl p-4 space-y-4">
