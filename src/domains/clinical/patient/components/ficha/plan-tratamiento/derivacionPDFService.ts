@@ -1,6 +1,8 @@
 import { jsPDF } from 'jspdf'
 import { getClinicaActivaSync } from '../../../../../../infrastructure/auth/authService'
 import { listaArchivosDePaciente } from '../../../../../../infrastructure/storage/r2ArchivosService'
+import type { DatosClinicaConfig } from '../../../../../organization/clinic/services/clinicStorageService'
+import { dibujarMembreteClinicaPdf } from '../../../../../organization/clinic/utils/dibujarMembreteClinicaPdf'
 import type { DerivacionClinica } from './derivacionesService'
 
 interface DatosDerivacionPDF {
@@ -8,10 +10,11 @@ interface DatosDerivacionPDF {
   pacienteNombre: string
   pacienteRut?: string
   derivacion: DerivacionClinica
+  clinica?: DatosClinicaConfig
 }
 
 export const derivacionPDFService = {
-  async generar({ pacienteId, pacienteNombre, pacienteRut, derivacion }: DatosDerivacionPDF): Promise<jsPDF> {
+  async generar({ pacienteId, pacienteNombre, pacienteRut, derivacion, clinica }: DatosDerivacionPDF): Promise<jsPDF> {
     const clinicaId = getClinicaActivaSync()
     if (!clinicaId || !pacienteId || !derivacion.id) throw new Error('No se puede generar la ficha sin clínica y paciente activos.')
     const ids = new Set(derivacion.archivoIds || [])
@@ -20,7 +23,12 @@ export const derivacionPDFService = {
       archivo.paciente_id === pacienteId && ids.has(archivo.id))
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
     const margen = 18
-    let y = 25
+    let y = (await dibujarMembreteClinicaPdf(doc, clinica || {})) + 8
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(13)
+    doc.setTextColor(35, 45, 55)
+    doc.text('Ficha de derivación clínica', margen, y)
+    y += 10
     const nuevaPagina = (alto: number) => {
       if (y + alto < 273) return
       doc.addPage()
@@ -38,12 +46,6 @@ export const derivacionPDFService = {
       y += 4
     }
 
-    doc.setFillColor(20, 44, 58)
-    doc.rect(0, 0, 210, 18, 'F')
-    doc.setTextColor(255, 255, 255)
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(14)
-    doc.text('Ficha de derivación clínica', margen, 12)
     doc.setFont('helvetica', 'normal')
     linea('Paciente', pacienteNombre)
     linea('RUT', pacienteRut || '')

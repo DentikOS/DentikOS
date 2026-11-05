@@ -241,7 +241,7 @@ export const DatosClinicaForm: React.FC<DatosClinicaFormProps> = memo(({ datosCl
       <div className="border-b border-surface pb-3">
         <h3 className="font-bold text-sm text-gray-900 dark:text-graphite-50 surgical:text-black uppercase tracking-wider inline-flex items-center gap-2"><Building2 size={14} />Información de la Clínica & Membrete</h3>
         <p className="text-gray-500 dark:text-graphite-400 text-[11px]">
-          Membrete impreso oficial para consentimientos, recetas y presupuestos.
+          Membrete compartido para presupuestos, comprobantes de pago, recetas y derivaciones.
           {esSoloLectura && (
             <span className="ml-2 inline-block px-2 py-0.5 bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 rounded text-[10px] font-semibold">
               <span className="inline-flex items-center gap-1"><Lock size={12} />Solo lectura - Contacta al administrador para cambios</span>

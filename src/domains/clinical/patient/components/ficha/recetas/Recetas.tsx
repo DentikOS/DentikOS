@@ -11,6 +11,7 @@ import { RecetaMedicamentosForm, type MedicamentoItem } from './RecetaMedicament
 import { validarAlergiasMedicamentos } from '../../../services/validacionesCruzadasClinicas'
 import { sonarAlerta220Hz } from '../../../utils/alertaSonido'
 import type { Paciente } from '../../../schemas/pacienteSchema'
+import { useClinicaDocumento } from '../../../../../organization/clinic/hooks/useClinicaDocumento'
 
 interface RecetasProps { paciente: Paciente; profesional?: string }
 
@@ -18,6 +19,7 @@ export const Recetas: React.FC<RecetasProps> = ({
   paciente,
   profesional = 'Dr. Tratante',
 }) => {
+  const clinicaDocumento = useClinicaDocumento()
   const [medicamentos, setMedicamentos] = useState<MedicamentoItem[]>([{ nombre: 'Amoxicilina 500 mg (comprimidos)', dosis: '500 mg', frecuencia: 'Cada 8 horas', duracion: '7 días' }])
   const [indicaciones, setIndicaciones] = useState('Tomar con alimentos. Abundante líquido.')
   const [recetas, setRecetas] = useState<RecetaEmitidaItem[]>([])
@@ -96,12 +98,13 @@ export const Recetas: React.FC<RecetasProps> = ({
     setRecetaRecienEmitida(nuevaReceta)
   }
 
-  const descargarPDFReceta = (r: RecetaEmitidaItem) => {
+  const descargarPDFReceta = async (r: RecetaEmitidaItem) => {
     try {
-      recetasPDFService.descargarReceta({
+      await recetasPDFService.descargarReceta({
         pacienteNombre: paciente.nombreCompleto || paciente.nombre, pacienteRut: paciente.rut,
         profesional: r.profesional, medicamentos: r.medicamentos as any, indicaciones,
         fecha: r.fecha, hashForense: r.hashForense, qrToken: r.qrToken,
+        clinica: clinicaDocumento,
       })
     } catch {
       // Ignorar en entorno de test sin soporte de canvas
@@ -168,7 +171,7 @@ export const Recetas: React.FC<RecetasProps> = ({
           isOpen={Boolean(recetaRecienEmitida)}
           titulo="Receta médica guardada exitosamente"
           onDescargar={() => {
-            descargarPDFReceta(recetaRecienEmitida)
+            void descargarPDFReceta(recetaRecienEmitida)
             setRecetaRecienEmitida(null)
           }}
           onVerLista={() => setRecetaRecienEmitida(null)}

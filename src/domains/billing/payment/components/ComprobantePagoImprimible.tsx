@@ -1,6 +1,8 @@
 import React, { memo, useState } from 'react'
 import { Printer, FileText } from 'lucide-react'
 import { DentikOSMicroSeal } from '../../../../shared/ui/brand/DentikOSMicroSeal'
+import { MembreteClinica } from '../../../organization/clinic/components/MembreteClinica'
+import { useClinicaDocumento } from '../../../organization/clinic/hooks/useClinicaDocumento'
 import type { Pago } from '../services/pagosStorageService'
 import type { UserProfileRefPago } from './ModalNuevoPago'
 
@@ -16,6 +18,7 @@ export const ComprobantePagoImprimible: React.FC<ComprobantePagoImprimibleProps>
   alCerrar
 }) => {
   const [formato, setFormato] = useState<'ticket' | 'carta'>('ticket')
+  const clinicaDocumento = useClinicaDocumento()
 
   if (!pago) return null
 
@@ -73,7 +76,7 @@ export const ComprobantePagoImprimible: React.FC<ComprobantePagoImprimibleProps>
             <h2 className="text-sm font-black uppercase">DENTIKOS</h2>
             <p className="text-[9px] font-bold uppercase">Comprobante Oficial de Pago</p>
             <p className="text-[8px] text-gray-500">
-              {userProfile?.nombreCompleto || 'Clínica Odontológica'}
+              {clinicaDocumento.nombreClinica || userProfile?.nombreCompleto || 'Clínica Odontológica'}
             </p>
           </div>
 
@@ -138,22 +141,25 @@ export const ComprobantePagoImprimible: React.FC<ComprobantePagoImprimibleProps>
       {/* FORMATO CARTA LETTER MEMBRETADA */}
       {formato === 'carta' && (
         <div className="bg-white border border-gray-300 rounded-2xl p-8 max-w-xl mx-auto space-y-6 text-gray-900 print:border-none print:max-w-none print:p-0 print:bg-white print:text-black">
-          <div className="border-b-2 border-black pb-4 flex justify-between items-start">
-            <div>
-              <h1 className="text-base font-black uppercase tracking-wider">
-                Comprobante de Recaudación & Pago
-              </h1>
-              <p className="text-[10px] text-gray-600 font-bold">
-                {userProfile?.nombreCompleto || 'Cirujano Dentista'} | DentikOS
-              </p>
-            </div>
-            <div className="text-right">
-              <span className="text-sm font-black bg-gray-100 px-3 py-1 rounded-lg border block tabular-nums">
-                {pago.folioComprobante}
-              </span>
-              <span className="text-[10px] text-gray-500 block mt-1 tabular-nums">
-                {pago.fecha} — {pago.hora} hrs
-              </span>
+          <div className="space-y-3">
+            <MembreteClinica clinica={clinicaDocumento} />
+            <div className="border-b border-gray-300 pb-4 flex justify-between items-start gap-4">
+              <div>
+                <h1 className="text-base font-black uppercase tracking-wider">
+                  Comprobante de Recaudación & Pago
+                </h1>
+                <p className="text-[10px] text-gray-600 font-bold">
+                  Recibido por {userProfile?.nombreCompleto || 'Equipo de recepción'}
+                </p>
+              </div>
+              <div className="text-right">
+                <span className="text-sm font-black bg-gray-100 px-3 py-1 rounded-lg border block tabular-nums">
+                  {pago.folioComprobante}
+                </span>
+                <span className="text-[10px] text-gray-500 block mt-1 tabular-nums">
+                  {pago.fecha} — {pago.hora} hrs
+                </span>
+              </div>
             </div>
           </div>
 

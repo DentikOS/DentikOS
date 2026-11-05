@@ -6,6 +6,7 @@ import { derivacionesService, type DerivacionClinica } from './derivacionesServi
 import { PresupuestosPaciente } from './PresupuestosPaciente'
 import { useOdontogramaStore } from '../../../../../../app/stores/odontogramaStore'
 import { useSesionStore } from '../../../../../../app/stores/sesionStore'
+import { useClinicaDocumento } from '../../../../../organization/clinic/hooks/useClinicaDocumento'
 import { usePacientesStore } from '../../../../../../app/stores/pacientesStore'
 import { useRBAC } from '../../../../../../shared/hooks/useRBAC'
 import { usePresupuestosStore } from '../../../../../../app/stores/usePresupuestosStore'
@@ -57,6 +58,7 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
   setActiveSection,
 }) => {
   const odontograma = useOdontogramaStore((s) => s.odontograma)
+  const clinicaDocumento = useClinicaDocumento()
   const { rol } = useRBAC()
   const emisor = useSesionStore((s) => s.userProfile)
   const clinicaActual = useSesionStore((s) => s.clinicaActual)
@@ -496,7 +498,7 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
             try {
               const { derivacionPDFService } = await import('./derivacionPDFService')
               await derivacionPDFService.descargar({ pacienteId, pacienteNombre: nombrePaciente,
-                pacienteRut, derivacion })
+                pacienteRut, derivacion, clinica: clinicaDocumento })
               setError('')
             } catch {
               setError('No se pudo descargar la ficha de derivación. Revisa la clínica y los antecedentes disponibles.')
