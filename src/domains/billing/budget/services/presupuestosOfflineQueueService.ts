@@ -283,6 +283,46 @@ export const transformarItemParaSupabase = (
   return itemOut
 }
 
+const sincronizarPresupuestoAtomico = async (
+  presupuesto: PresupuestoLocal | null,
+  presupuestoId: string | null,
+  items: PresupuestoItemLocal[],
+  userId: string,
+  clinicaId: string
+): Promise<string> => {
+  if (!supabase) throw new Error('Supabase no disponible')
+
+  const presupuestoPayload = presupuesto
+    ? transformarPresupuestoParaSupabase(presupuesto, userId, clinicaId)
+    : null
+  if (presupuestoPayload && presupuesto) presupuestoPayload.id = String(presupuesto.id)
+
+  const itemsPayload = items.map((item) => {
+    if (item.id === undefined || item.id === null) {
+      throw new Error('El ítem del presupuesto no tiene un ID estable')
+    }
+    const payload = transformarItemParaSupabase(
+      item,
+      presupuestoPayload?.id || presupuestoId,
+      presupuestoPayload?.paciente_id || null,
+      clinicaId
+    )
+    payload.id = String(item.id)
+    return payload
+  })
+
+  const { data, error } = await supabase.rpc('sincronizar_presupuesto_offline', {
+    p_presupuesto: presupuestoPayload,
+    p_items: itemsPayload,
+    p_presupuesto_id: presupuestoPayload ? null : presupuestoId
+  })
+  if (error) throw error
+  if (typeof data !== 'string' || !esUuidValido(data)) {
+    throw new Error('Supabase no devolvió el UUID del presupuesto sincronizado')
+  }
+  return data
+}
+
 // ──────────────────────────────────────────────────────────────────
 // ENCOLADO DE OPERACIONES
 // ──────────────────────────────────────────────────────────────────
@@ -420,91 +460,42 @@ export const guardarPresupuestoHelper = async (
     }
   }
 
-  // 3. Si hay conexión y Supabase disponible, intentar sincronizar de forma transaccional
+  // 3. Si hay conexión, subir cabecera e ítems en una sola transacción remota.
   if (USE_SUPABASE && supabase) {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
-        let uuidPadre: string | null = null
-        let padreSubido = false
+        const itemsSincronizados = presupuestoLocal.items || []
+        const uuidPadre = await sincronizarPresupuestoAtomico(
+          presupuestoLocal,
+          null,
+          itemsSincronizados,
+          user.id,
+          clinicaIdActual
+        )
+        if (!esUuidValido(id)) migrationStorageService.registrarMapeo(id, uuidPadre)
 
-        const paraSupabase = transformarPresupuestoParaSupabase(presupuestoLocal, user.id, clinicaIdActual)
+        presupuestoLocal.id = uuidPadre
+        const idsItemsSincronizados = new Set(itemsSincronizados.map((item) => String(item.id)))
+        const idsPresupuesto = new Set([String(id), uuidPadre])
+        const pendingP = obtenerPendingPresupuestos().filter((entry) => {
+          const pendingId = typeof entry === 'object' && entry !== null ? entry.id : entry
+          return !idsPresupuesto.has(String(pendingId))
+        })
+        const pendingI = obtenerPendingPresupuestoItems().filter((entry) => {
+          if (typeof entry !== 'object' || entry === null) return true
+          return !(idsPresupuesto.has(String(entry.presupuestoId)) && idsItemsSincronizados.has(String(entry.id)))
+        })
+        guardarPendingPresupuestos(pendingP)
+        guardarPendingPresupuestoItems(pendingI)
 
-        if (esUuidValido(presupuestoLocal.id)) {
-          const { error: upsertErr } = await supabase
-            .from('presupuestos')
-            .upsert(paraSupabase, { onConflict: 'id' })
-          if (!upsertErr) {
-            uuidPadre = String(presupuestoLocal.id)
-            padreSubido = true
-          }
-        } else {
-          delete paraSupabase.id
-          const { data: insertado, error: insertErr } = await supabase
-            .from('presupuestos')
-            .insert(paraSupabase)
-            .select('id')
-            .single()
-
-          if (!insertErr && insertado?.id) {
-            const nuevoUuid = String(insertado.id)
-            uuidPadre = nuevoUuid
-            padreSubido = true
-            const oldId = presupuestoLocal.id
-            presupuestoLocal.id = nuevoUuid
-            migrationStorageService.registrarMapeo(oldId, nuevoUuid)
-          }
-        }
-
-        // Si el padre subió con éxito, subir los items y drenar de colas
-        if (padreSubido && uuidPadre) {
-          guardarPendingPresupuestos(obtenerPendingPresupuestos().map((entry) =>
-            (typeof entry === 'object' && entry !== null ? entry.id : entry) === id
-              ? { id: uuidPadre!, idOriginal: id, folio: presupuestoLocal.folio, clinicaId: clinicaIdActual, padreSubido: true }
-              : entry
-          ))
-          // Subir items si existen
-          let itemsOk = true
-          const itemsSubidos = new Set<string | number>()
-          if (presupuestoLocal.items && presupuestoLocal.items.length > 0) {
-            for (const item of presupuestoLocal.items) {
-              const itemParaSupabase = transformarItemParaSupabase(item, uuidPadre, paraSupabase.paciente_id, clinicaIdActual)
-              if (!esUuidValido(item.id)) delete itemParaSupabase.id
-
-              const { error: itemErr } = await supabase
-                .from('presupuesto_items')
-                .upsert(itemParaSupabase, { onConflict: 'id' })
-
-              if (itemErr) {
-                itemsOk = false
-                log.warn(`Error al subir item de presupuesto ${item.id}:`, itemErr.message)
-              } else if (item.id != null) {
-                itemsSubidos.add(item.id)
-              }
-            }
-          }
-
-          // Drenar de colas
-          const pendingP = obtenerPendingPresupuestos().flatMap((p) => {
-            const pid = typeof p === 'object' && p !== null ? p.id : p
-            if (pid !== id && pid !== uuidPadre) return [p]
-            return itemsOk ? [] : [{ id: uuidPadre, idOriginal: id, folio: presupuestoLocal.folio, clinicaId: clinicaIdActual, padreSubido: true }]
-          })
-          guardarPendingPresupuestos(pendingP)
-
-          presupuestoLocal.sincronizado = itemsOk
-          const pendingI = obtenerPendingPresupuestoItems().filter((i) => {
-            if (typeof i !== 'object' || i === null) return true
-            return !((i.presupuestoId === id || i.presupuestoId === uuidPadre) && itemsSubidos.has(i.id))
-          })
-          guardarPendingPresupuestoItems(pendingI)
-
-          // Actualizar caché con datos sincronizados
-          const idxFinal = listado.findIndex((p) => p.id === id || p.id === uuidPadre)
-          if (idxFinal >= 0) {
-            listado[idxFinal] = presupuestoLocal
-            actualizarPresupuestosLocal(listado)
-          }
+        presupuestoLocal.sincronizado = !pendingI.some((entry) =>
+          typeof entry === 'object' && entry !== null && idsPresupuesto.has(String(entry.presupuestoId))
+        )
+        const idxFinal = listado.findIndex((p) => p.id === id || String(p.id) === uuidPadre)
+        if (idxFinal >= 0) {
+          listado[idxFinal] = presupuestoLocal
+          actualizarPresupuestosLocal(listado)
         }
       }
     } catch (errSync: unknown) {
@@ -524,11 +515,13 @@ export const guardarItemPresupuestoHelper = async (
   { obtenerPresupuestos, actualizarPresupuestosLocal }: PresupuestoHelpersContext
 ): Promise<PresupuestoItemLocal | null> => {
   if (!item || !item.presupuestoId) return null
-  if (!item.id) item = { ...item, id: crypto.randomUUID() }
+  const presupuestoIdLocal = item.presupuestoId
+  const itemIdLocal = item.id ?? crypto.randomUUID()
+  item = { ...item, id: itemIdLocal, presupuestoId: presupuestoIdLocal }
 
   const clinicaIdActual = obtenerClinicaId()
   const listado = Array.isArray(obtenerPresupuestos()) ? [...obtenerPresupuestos()] : []
-  const pIndex = listado.findIndex((p) => p.id === item.presupuestoId)
+  const pIndex = listado.findIndex((p) => p.id === presupuestoIdLocal)
   const padreYaSubido = (pIndex >= 0 && listado[pIndex].sincronizado === true) || obtenerPendingPresupuestos().some((pending) =>
     typeof pending === 'object' && pending !== null && pending.id === item.presupuestoId && pending.padreSubido === true
   )
@@ -551,37 +544,63 @@ export const guardarItemPresupuestoHelper = async (
   // Encolar item y marcar padre como pendiente
   encolarPresupuestoItem({
     ...item,
-    id: item.id,
+    id: itemIdLocal,
     clinicaId: clinicaIdActual
   })
   encolarPresupuesto({
-    id: item.presupuestoId,
+    id: presupuestoIdLocal,
     clinicaId: clinicaIdActual,
-    padreSubido: esUuidValido(item.presupuestoId) && padreYaSubido
+    padreSubido: esUuidValido(presupuestoIdLocal) && padreYaSubido
   })
 
-  // Intentar sincronizar si online
-  if (USE_SUPABASE && supabase && esUuidValido(item.presupuestoId)) {
+  // Si el padre aún no existe en Supabase, subirlo junto con sus ítems.
+  // Si ya existe, el ítem se envía solo, pero la RPC mantiene su escritura atómica.
+  if (USE_SUPABASE && supabase && clinicaIdActual && esUuidValido(clinicaIdActual)) {
     try {
-      const itemParaSupabase = transformarItemParaSupabase(item, String(item.presupuestoId), null, clinicaIdActual)
-      if (!esUuidValido(item.id)) delete itemParaSupabase.id
+      const { data: { user } } = await supabase.auth.getUser()
+      const presupuestoLocalActual = pIndex >= 0 ? listado[pIndex] : null
+      const incluirPadre = Boolean(presupuestoLocalActual && !padreYaSubido)
+      const presupuestoUuid = esUuidValido(presupuestoIdLocal)
+        ? String(presupuestoIdLocal)
+        : migrationStorageService.obtenerSupabaseId(presupuestoIdLocal)
 
-      const { error } = await supabase
-        .from('presupuesto_items')
-        .upsert(itemParaSupabase, { onConflict: 'id' })
+      if (user && (incluirPadre || (presupuestoUuid && esUuidValido(presupuestoUuid)))) {
+        const itemsAEnviar = incluirPadre && presupuestoLocalActual
+          ? presupuestoLocalActual.items || []
+          : [item]
+        const uuidPadre = await sincronizarPresupuestoAtomico(
+          incluirPadre ? presupuestoLocalActual : null,
+          incluirPadre ? null : presupuestoUuid,
+          itemsAEnviar,
+          user.id,
+          clinicaIdActual
+        )
 
-      if (!error) {
-        const pendingI = obtenerPendingPresupuestoItems().filter((i) => {
-          const iid = typeof i === 'object' && i !== null ? i.id : i
-          return iid !== item.id
+        if (incluirPadre && presupuestoLocalActual && !esUuidValido(presupuestoLocalActual.id)) {
+          migrationStorageService.registrarMapeo(presupuestoLocalActual.id, uuidPadre)
+          presupuestoLocalActual.id = uuidPadre
+        }
+
+        const idsPresupuesto = new Set([String(presupuestoIdLocal), uuidPadre])
+        const idsItemsSincronizados = new Set(itemsAEnviar.map((sincronizado) => String(sincronizado.id)))
+        const pendingI = obtenerPendingPresupuestoItems().filter((entry) => {
+          if (typeof entry !== 'object' || entry === null) return true
+          return !(idsPresupuesto.has(String(entry.presupuestoId)) && idsItemsSincronizados.has(String(entry.id)))
         })
         guardarPendingPresupuestoItems(pendingI)
-        if (pIndex >= 0 && padreYaSubido && !pendingI.some((pending) => typeof pending === 'object' && pending !== null && pending.presupuestoId === item.presupuestoId)) {
-          listado[pIndex] = { ...listado[pIndex], sincronizado: true }
+
+        const quedanItemsPendientes = pendingI.some((entry) =>
+          typeof entry === 'object' && entry !== null && idsPresupuesto.has(String(entry.presupuestoId))
+        )
+        if (pIndex >= 0) {
+          listado[pIndex] = { ...listado[pIndex], sincronizado: !quedanItemsPendientes }
           actualizarPresupuestosLocal(listado)
-          guardarPendingPresupuestos(obtenerPendingPresupuestos().filter((pending) =>
-            (typeof pending === 'object' && pending !== null ? pending.id : pending) !== item.presupuestoId
-          ))
+        }
+        if (!quedanItemsPendientes) {
+          guardarPendingPresupuestos(obtenerPendingPresupuestos().filter((entry) => {
+            const pendingId = typeof entry === 'object' && entry !== null ? entry.id : entry
+            return !idsPresupuesto.has(String(pendingId))
+          }))
         }
       }
     } catch (e: unknown) {
@@ -738,8 +757,7 @@ export const procesarPendingDeletesPresupuestosHelper = async (): Promise<void> 
 }
 
 /**
- * Procesa la cola de presupuestos e items pendientes con orden transaccional:
- * Padre primero -> items hijos después.
+ * Procesa cada presupuesto y sus ítems pendientes en una sola transacción remota.
  */
 export const procesarColaPresupuestosHelper = async ({
   obtenerPresupuestos,
@@ -811,9 +829,10 @@ export const procesarColaPresupuestosHelper = async ({
         continue
       }
 
+      let idx = -1
       try {
         const itemFolio = typeof item === 'object' && item !== null ? item.folio : undefined
-        const idx = listado.findIndex((p) => p.id === id || (itemFolio && p.folio === itemFolio))
+        idx = listado.findIndex((p) => p.id === id || (itemFolio && p.folio === itemFolio))
         if (idx < 0) {
           // Ya no existe localmente, retirar de la cola
           procesadosExitososIds.push(id)
@@ -823,95 +842,50 @@ export const procesarColaPresupuestosHelper = async ({
         const pLocal = listado[idx]
         const padreYaSubido = typeof item === 'object' && item !== null && item.padreSubido === true
         const idOriginal = typeof item === 'object' && item !== null ? item.idOriginal : undefined
-        const paraSupabase = transformarPresupuestoParaSupabase(pLocal, user.id, clinicaIdActual)
-
-        let uuidPadre: string | null = null
-
-        // 1. Subir presupuesto padre primero
-        if (padreYaSubido && esUuidValido(pLocal.id)) {
-          uuidPadre = String(pLocal.id)
-        } else if (esUuidValido(pLocal.id)) {
-          const { error: upsertErr } = await supabase
-            .from('presupuestos')
-            .upsert(paraSupabase, { onConflict: 'id' })
-
-          if (upsertErr) throw upsertErr
-          uuidPadre = String(pLocal.id)
-        } else {
-          delete paraSupabase.id
-          const { data: insertado, error: insertErr } = await supabase
-            .from('presupuestos')
-            .insert(paraSupabase)
-            .select('id')
-            .single()
-
-          if (insertErr) throw insertErr
-          if (!insertado?.id) throw new Error('No se obtuvo UUID del presupuesto padre insertado')
-
-          const nuevoUuid = String(insertado.id)
-          uuidPadre = nuevoUuid
-          const oldId = pLocal.id
-          pLocal.id = nuevoUuid
-          migrationStorageService.registrarMapeo(oldId, nuevoUuid)
-        }
-
-        // Persistir el avance: un reintento de ítems nunca reenvía la cabecera.
-        guardarPendingPresupuestos(obtenerPendingPresupuestos().map((entry) =>
-          (typeof entry === 'object' && entry !== null ? entry.id : entry) === id
-            ? { id: uuidPadre!, idOriginal: idOriginal ?? id, folio: pLocal.folio, clinicaId: clinicaIdActual, padreSubido: true }
-            : entry
-        ))
-
-        // 2. Transaccional: Buscar items asociados en pendingPresupuestoItems y subirlos
+        const uuidLocal = esUuidValido(pLocal.id)
+          ? String(pLocal.id)
+          : migrationStorageService.obtenerSupabaseId(pLocal.id)
+        const padreEstaRemoto = padreYaSubido && uuidLocal && esUuidValido(uuidLocal)
         const itemsDeEstePadre = pendingItems.filter((i) => {
           if (typeof i === 'object' && i !== null) {
-            return (i.presupuestoId === id || i.presupuestoId === idOriginal || i.presupuestoId === uuidPadre) && (!i.clinicaId || i.clinicaId === clinicaIdActual)
+            return [id, idOriginal, uuidLocal].some((idRelacionado) =>
+              idRelacionado !== undefined && String(i.presupuestoId) === String(idRelacionado)
+            ) && (!i.clinicaId || i.clinicaId === clinicaIdActual)
           }
           return false
         }) as PendingPresupuestoItemEntry[]
-        const itemsExitososIds: (string | number)[] = []
+        const uuidPadre = await sincronizarPresupuestoAtomico(
+          padreEstaRemoto ? null : pLocal,
+          padreEstaRemoto ? uuidLocal : null,
+          itemsDeEstePadre,
+          user.id,
+          clinicaIdActual
+        )
+        if (!esUuidValido(pLocal.id)) migrationStorageService.registrarMapeo(pLocal.id, uuidPadre)
+        pLocal.id = uuidPadre
 
-        if (itemsDeEstePadre.length > 0) {
-          for (const itemPending of itemsDeEstePadre) {
-            try {
-              const itemParaSupabase = transformarItemParaSupabase(itemPending, uuidPadre, paraSupabase.paciente_id, clinicaIdActual)
-              if (!esUuidValido(itemPending.id)) delete itemParaSupabase.id
-
-              const { error: itemErr } = await supabase
-                .from('presupuesto_items')
-                .upsert(itemParaSupabase, { onConflict: 'id' })
-
-              if (!itemErr) {
-                itemsExitososIds.push(itemPending.id)
-              } else {
-                log.warn(`Error al subir item ${itemPending.id}:`, itemErr.message)
-              }
-            } catch (errItem: unknown) {
-              log.warn(`Excepción al subir item ${itemPending.id}:`, errItem)
-            }
-          }
-
-          if (itemsExitososIds.length > 0) {
-            const restantes = obtenerPendingPresupuestoItems().filter((i) => {
-              if (typeof i !== 'object' || i === null) return true
-              return !((i.presupuestoId === id || i.presupuestoId === idOriginal || i.presupuestoId === uuidPadre) && itemsExitososIds.includes(i.id))
-            })
-            guardarPendingPresupuestoItems(restantes)
-          }
-        }
-        const itemsFallidos = itemsDeEstePadre.length - itemsExitososIds.length
-        pLocal.sincronizado = itemsFallidos === 0
+        const idsPresupuesto = new Set([String(id), String(idOriginal), uuidPadre])
+        const idsItemsSincronizados = new Set(itemsDeEstePadre.map((child) => String(child.id)))
+        const pendingRestantes = obtenerPendingPresupuestoItems().filter((child) => {
+          if (typeof child !== 'object' || child === null) return true
+          return !(idsPresupuesto.has(String(child.presupuestoId)) && idsItemsSincronizados.has(String(child.id)))
+        })
+        guardarPendingPresupuestoItems(pendingRestantes)
+        pLocal.sincronizado = !pendingRestantes.some((child) =>
+          typeof child === 'object' && child !== null && idsPresupuesto.has(String(child.presupuestoId))
+        )
         listado[idx] = pLocal
-        if (itemsFallidos === 0) {
-          procesadosExitososIds.push(id)
-          procesadosExitososIds.push(uuidPadre!)
-          procesados++
-        } else {
-          fallidos++
-        }
+        procesadosExitososIds.push(id)
+        if (idOriginal !== undefined) procesadosExitososIds.push(idOriginal)
+        procesadosExitososIds.push(uuidPadre)
+        procesados++
       } catch (errPadre: unknown) {
         const msg = errPadre instanceof Error ? errPadre.message : String(errPadre)
-        log.warn(`Fallo al procesar presupuesto padre ${id} (items no se subirán):`, msg)
+        log.warn(`Fallo al sincronizar presupuesto ${id}; cabecera e ítems quedan en cola:`, msg)
+        if (idx >= 0) {
+          listado[idx] = { ...listado[idx], sincronizado: false }
+          actualizarPresupuestosLocal(listado)
+        }
         fallidos++
       }
     }
