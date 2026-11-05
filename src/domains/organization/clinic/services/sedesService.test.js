@@ -168,8 +168,17 @@ describe('sedesService', () => {
       estado: 'activa',
     })
     expect(resultado[0].id).toBe(fixtures.activeClinicId)
-    expect(resultado[0].esPrincipal).toBe(false)
+    expect(resultado[0].esPrincipal).toBe(true)
+    expect(fixtures.principalSucursalId).toBe(fixtures.activeClinicId)
+    expect(fixtures.rpcCalls).toContainEqual(['designar_sucursal_principal', { p_sucursal_id: fixtures.activeClinicId }])
     expect(sedesService.obtenerSedes()[0].id).toBe(fixtures.activeClinicId)
+  })
+
+  it('resuelve automáticamente la única sucursal activa sin exigir que se seleccione a sí misma', () => {
+    const sedeUnica = { ...sedeLocal, id: fixtures.activeClinicId }
+    sedesService.guardarSedes([sedeUnica])
+
+    expect(sedesService.obtenerSedeActiva()).toBe(sedeUnica.id)
   })
 
   it('usa la configuración remota como fuente principal y reemplaza la caché vieja', async () => {

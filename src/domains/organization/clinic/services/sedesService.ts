@@ -170,6 +170,9 @@ const filasDeNube = async (clinicaId: string): Promise<SedeRow[]> => {
     .order('nombre')
   if (error) {
     log.warn('No se pudieron cargar las sucursales de la clínica.')
+    if (error.code === '42P01' || error.code === 'PGRST205') {
+      throw new Error('Faltan migraciones de BP08 para sincronizar sedes. Revisa la configuración de la base de datos.')
+    }
     throw new Error('No se pudieron sincronizar las sucursales. Verifica la conexión y los permisos.')
   }
   return (data || []) as unknown as SedeRow[]
@@ -217,6 +220,7 @@ const inferirIdPrincipalLocal = (sedes: Sede[], clinicaId: string): string | nul
 const sincronizarDesdeSupabase = async (clinicaId: string): Promise<Sede[]> => {
   let rows = await filasDeNube(clinicaId)
   verificarTenantActivo(clinicaId)
+  let migradasDesdeCache = false
   if (rows.length === 0) {
     const locales = sedesService.obtenerSedes()
     if (locales.length > 0) {
@@ -262,10 +266,18 @@ const sincronizarDesdeSupabase = async (clinicaId: string): Promise<Sede[]> => {
         }
       } else {
         rows = (resultadoInicial.data || []) as unknown as SedeRow[]
+        migradasDesdeCache = rows.length > 0
       }
     }
   }
-  const principalId = await resolverIdPrincipal(rows, clinicaId)
+  let principalId = await resolverIdPrincipal(rows, clinicaId)
+  if (!principalId && migradasDesdeCache) {
+    const candidata = inferirSucursalPrincipal(rows, clinicaId)
+    if (candidata) {
+      await sedesService.establecerSedePrincipal(candidata)
+      principalId = candidata
+    }
+  }
   return guardarFilasNubeEnCache(rows, clinicaId, principalId)
 }
 

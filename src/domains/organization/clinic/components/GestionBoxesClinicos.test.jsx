@@ -65,4 +65,11 @@ describe('GestionBoxesClinicos', () => {
     expect(screen.queryByRole('button', { name: 'Registrar box' })).not.toBeInTheDocument()
     expect(screen.getByText(/Solo administración clínica puede registrar o modificar boxes/i)).toBeInTheDocument()
   })
+
+  it('explica que falta activar una sucursal cuando no hay una disponible', () => {
+    render(<GestionBoxesClinicos sede={null} puedeAdministrar />)
+
+    expect(screen.getByText(/No hay una sucursal activa disponible/i)).toBeInTheDocument()
+    expect(screen.queryByText(/Selecciona una sucursal activa/i)).not.toBeInTheDocument()
+  })
 })

@@ -122,7 +122,7 @@ export const GestionBoxesClinicos: React.FC<GestionBoxesClinicosProps> = ({ sede
   }
 
   if (!sede) {
-    return <p className="rounded-lg bg-gray-50 p-4 text-xs text-graphite-500 dark:bg-slate-900 dark:text-slate-400">Selecciona una sucursal activa para administrar sus boxes.</p>
+    return <p className="rounded-lg bg-gray-50 p-4 text-xs text-graphite-500 dark:bg-slate-900 dark:text-slate-400">No hay una sucursal activa disponible. Activa una sucursal para gestionar sus boxes.</p>
   }
 
   return (

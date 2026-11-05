@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Building2, MapPin, Users, Stethoscope, ShieldCheck, Plus, Pencil, ArchiveRestore, Clock3, AlertCircle, Star, LayoutDashboard } from 'lucide-react'
+import { Building2, MapPin, Users, Stethoscope, ShieldCheck, Plus, Pencil, ArchiveRestore, Clock3, AlertCircle, Star, LayoutDashboard, Tag } from 'lucide-react'
 import { DatosClinicaForm } from './components/DatosClinicaForm'
 import { GestionMiembrosModulo } from '../team/GestionMiembrosModulo'
 import { PrestacionesModulo } from '../prestations/PrestacionesModulo'
@@ -12,12 +12,16 @@ import { sedeSchema, type HorarioSede, type Sede } from './schemas/sedeSchema'
 import { clinicStorageService } from './services/clinicStorageService'
 import { GestionBoxesClinicos } from './components/GestionBoxesClinicos'
 import { DashboardAdministracion } from '../../../application/analytics/dashboard/DashboardAdministracion'
+import { obtenerZonasHorariasIana } from './utils/timeZoneUtils'
+import { ConfiguracionConveniosModulo } from './components/ConfiguracionConveniosModulo'
+
+const ZONAS_HORARIAS_IANA = obtenerZonasHorariasIana()
 
 export interface AdministracionDentikOSProps {
   userProfile?: PerfilUsuario | null
 }
 
-type TabAdmin = 'resumen' | 'practica' | 'sedes' | 'equipo' | 'prestaciones' | 'avanzado'
+type TabAdmin = 'resumen' | 'practica' | 'sedes' | 'equipo' | 'prestaciones' | 'convenios' | 'avanzado'
 
 const DIAS_SEMANA = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
 const IDS_DIA_SEMANA = [1, 2, 3, 4, 5, 6, 0]
@@ -42,10 +46,11 @@ const resumenHorario = (horarios: HorarioSede[] = []): string => {
 
 export const AdministracionDentikOSModulo: React.FC<AdministracionDentikOSProps> = ({ userProfile }) => {
   const [tabActiva, setTabActiva] = useState<TabAdmin>('resumen')
-  const { sedes, sedeActiva, agregarSede, editarSede, eliminarSede, marcarPrincipal, cargando, errorSincronizacion } = useSedes()
+  const { sedes, sedeActiva, sedeActivaId, cambiarSede, agregarSede, editarSede, eliminarSede, marcarPrincipal, cargando, errorSincronizacion } = useSedes()
   const perfilSesion = useSesionStore((state) => state.userProfile)
   const rol = (userProfile?.rol || perfilSesion?.rol || '').toLowerCase()
   const puedeAdministrarSedes = rol === 'admin'
+  const sedesActivas = sedes.filter((sede) => sede.estado === 'activa')
   const zonaHorariaClinica = clinicStorageService.obtenerClinica()?.zonaHoraria || 'America/Santiago'
   const [sedeEnEdicion, setSedeEnEdicion] = useState<string | null>(null)
   const [formSede, setFormSede] = useState<Omit<Sede, 'id'>>(() => sedeVacia(zonaHorariaClinica))
@@ -183,6 +188,15 @@ export const AdministracionDentikOSModulo: React.FC<AdministracionDentikOSProps>
           </button>
           <button
             type="button"
+            onClick={() => setTabActiva('convenios')}
+            className={`py-1.5 px-3 rounded-lg font-medium transition flex items-center gap-1.5 ${
+              tabActiva === 'convenios' ? 'bg-white dark:bg-slate-800 text-[#D4AF37] font-semibold shadow-xs' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Tag size={13} /> <span>Convenios</span>
+          </button>
+          <button
+            type="button"
             onClick={() => setTabActiva('avanzado')}
             className={`py-1.5 px-3 rounded-lg font-medium transition flex items-center gap-1.5 ${
               tabActiva === 'avanzado' ? 'bg-white dark:bg-slate-800 text-[#D4AF37] font-semibold shadow-xs' : 'text-slate-400 hover:text-white'
@@ -280,6 +294,23 @@ export const AdministracionDentikOSModulo: React.FC<AdministracionDentikOSProps>
             )}
           </div>
 
+          {sedesActivas.length > 1 ? (
+            <label className="block max-w-sm text-xs font-semibold text-graphite-700 dark:text-slate-200">
+              Sucursal activa para administrar boxes
+              <select
+                aria-label="Sucursal activa para administrar boxes"
+                value={sedeActivaId || ''}
+                onChange={(event) => cambiarSede(event.target.value)}
+                className="mt-1 w-full rounded-lg border border-surface bg-white p-2 dark:bg-slate-900"
+              >
+                {sedesActivas.map((sede) => <option key={sede.id} value={sede.id}>{sede.nombre}</option>)}
+              </select>
+            </label>
+          ) : sedesActivas.length === 1 ? (
+            <p className="rounded-lg bg-gray-50 p-3 text-xs text-graphite-600 dark:bg-slate-900 dark:text-slate-300">
+              Sucursal activa para boxes: <strong>{sedesActivas[0].nombre}</strong>. Se selecciona automáticamente.
+            </p>
+          ) : null}
           <GestionBoxesClinicos sede={sedeActiva} puedeAdministrar={puedeAdministrarSedes} />
 
           {puedeAdministrarSedes ? (
@@ -295,7 +326,10 @@ export const AdministracionDentikOSModulo: React.FC<AdministracionDentikOSProps>
                 <input type="text" required minLength={2} maxLength={120} placeholder="Región" value={formSede.region} onChange={(e) => setFormSede((prev) => ({ ...prev, region: e.target.value }))} className="p-2 rounded-lg border border-surface bg-white dark:bg-slate-900" />
                 <input type="tel" required minLength={3} maxLength={40} placeholder="Teléfono de la sucursal" value={formSede.telefono || ''} onChange={(e) => setFormSede((prev) => ({ ...prev, telefono: e.target.value }))} className="p-2 rounded-lg border border-surface bg-white dark:bg-slate-900" />
                 <input type="email" maxLength={254} placeholder="Email de la sucursal (opcional)" value={formSede.email || ''} onChange={(e) => setFormSede((prev) => ({ ...prev, email: e.target.value }))} className="p-2 rounded-lg border border-surface bg-white dark:bg-slate-900" />
-                <input type="text" required placeholder="Zona horaria IANA (ej. America/Santiago)" value={formSede.zonaHoraria || zonaHorariaClinica} onChange={(e) => setFormSede((prev) => ({ ...prev, zonaHoraria: e.target.value }))} className="p-2 rounded-lg border border-surface bg-white dark:bg-slate-900" />
+                <select aria-label="Zona horaria de la sucursal" required value={formSede.zonaHoraria || zonaHorariaClinica} onChange={(e) => setFormSede((prev) => ({ ...prev, zonaHoraria: e.target.value }))} className="p-2 rounded-lg border border-surface bg-white dark:bg-slate-900">
+                  {!ZONAS_HORARIAS_IANA.includes(formSede.zonaHoraria || zonaHorariaClinica) && <option value={formSede.zonaHoraria || zonaHorariaClinica}>{formSede.zonaHoraria || zonaHorariaClinica}</option>}
+                  {ZONAS_HORARIAS_IANA.map((zona) => <option key={zona} value={zona}>{zona}</option>)}
+                </select>
                 <select value={formSede.estado || 'activa'} onChange={(e) => setFormSede((prev) => ({ ...prev, estado: e.target.value as Sede['estado'], activa: e.target.value === 'activa' }))} className="p-2 rounded-lg border border-surface bg-white dark:bg-slate-900">
                   <option value="activa">Activa</option>
                   <option value="inactiva">Inactiva</option>
@@ -344,6 +378,10 @@ export const AdministracionDentikOSModulo: React.FC<AdministracionDentikOSProps>
 
       {tabActiva === 'prestaciones' && (
         <PrestacionesModulo />
+      )}
+
+      {tabActiva === 'convenios' && (
+        <ConfiguracionConveniosModulo sedes={sedes} />
       )}
 
       {tabActiva === 'avanzado' && (
