@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Award, FileText, CheckCircle2, AlertCircle, Camera } from 'lucide-react'
+import { Award, Camera } from 'lucide-react'
 import { FirmaDigitalCanvas } from './FirmaDigitalCanvas'
 import { Button } from './ui/Button'
 import { Input } from './ui/Input'

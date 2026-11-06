@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderHook, act } from '@testing-library/react'
+import { renderHook } from '@testing-library/react'
 import { useNotificationTriggers } from './useNotificationTriggers'
 import { usePacientesStore } from '../../app/stores/usePacientesStore'
 import { useSesionStore } from '../../app/stores/sesionStore'

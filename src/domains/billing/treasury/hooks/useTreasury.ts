@@ -93,11 +93,12 @@ export function useTreasury(): TreasuryHookResult {
   useEffect(() => {
     activeClinic.current = clinicaId
     activeRole.current = rol
-    loadSequence.current++
+    const seq = loadSequence
+    seq.current++
     setSnapshot(null)
     setError(null)
     void refrescar()
-    return () => { loadSequence.current++ }
+    return () => { seq.current++ }
   }, [clinicaId, rol, refrescar])
 
   useEffect(() => {

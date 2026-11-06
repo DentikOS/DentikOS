@@ -109,7 +109,6 @@ vi.mock('../../persistence/migrationStorageService', () => ({
 
 // Importar después de definir mocks
 import { supabase } from '../supabaseClient'
-import { migrationStorageService } from '../../persistence/migrationStorageService'
 import { esUuidValido } from './uuidUtils'
 
 describe('uuidUtils', () => {

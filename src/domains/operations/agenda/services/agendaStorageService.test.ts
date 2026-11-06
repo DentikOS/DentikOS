@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { agendaStorageService } from './agendaStorageService'
-import { supabase, USE_SUPABASE } from '../../../../infrastructure/supabase/supabaseClient'
+import { supabase } from '../../../../infrastructure/supabase/supabaseClient'
 
 vi.mock('../../../../infrastructure/supabase/supabaseClient', () => ({
   USE_SUPABASE: true,

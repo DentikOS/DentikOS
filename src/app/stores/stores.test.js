@@ -58,7 +58,7 @@ vi.mock('../../infrastructure/logging/logger', () => ({
 import { useSesionStore } from './sesionStore'
 import { usePacientesStore } from './pacientesStore'
 import { usePrestacionesStore } from './prestacionesStore'
-import { esRolValido, obtenerRolPorDefecto } from '../../infrastructure/auth/rbacService'
+import { obtenerRolPorDefecto } from '../../infrastructure/auth/rbacService'
 
 describe('sesionStore', () => {
   beforeEach(() => {
@@ -275,7 +275,7 @@ describe('sesionStore', () => {
       })
 
       // Re-importar para forzar inicialización
-      const { useSesionStore: freshStore } = await import('./sesionStore?fresh=' + Date.now())
+      const { useSesionStore: _freshStore } = await import('./sesionStore?fresh=' + Date.now())
       
       // El store debería haber cargado el perfil
       // Nota: esto es difícil de testear porque el store se inicializa una vez

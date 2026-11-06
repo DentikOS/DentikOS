@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Check, ShieldAlert } from 'lucide-react'
+import { X, Check } from 'lucide-react'
 import { Button } from '../../../../../../shared/ui/ui/Button'
 import type { CaraDental } from './OdontogramaPieza'
 import { ESTADOS_ODONTOGRAMA } from './OdontogramaPanel'

@@ -147,7 +147,7 @@ const simularReload = async () => {
 
 describe('F7-36 FASE 1 — 5 tests obligatorios de aislamiento multi-tenant', () => {
   let pacientesStorageService
-  let agendaStorageService
+  let _agendaStorageService
   let guardarAdjunto
   let obtenerAdjuntosPorPaciente
   let invalidarCacheCambioClinica
@@ -185,7 +185,7 @@ describe('F7-36 FASE 1 — 5 tests obligatorios de aislamiento multi-tenant', ()
     pacientesStorageService = pacMod.pacientesStorageService
 
     const agMod = await import('../../domains/operations/agenda/services/agendaStorageService.js')
-    agendaStorageService = agMod.agendaStorageService
+    _agendaStorageService = agMod.agendaStorageService
 
     const adjMod = await import('../../infrastructure/storage/adjuntosStorageService.js')
     guardarAdjunto = adjMod.guardarAdjunto

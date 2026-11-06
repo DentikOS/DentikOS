@@ -143,7 +143,7 @@ describe('CalculadoraAnestesiaSection (F7-01)', () => {
 
   describe('Criterio 4: Caso pediátrico → contraindicaciones por edad', () => {
     it('muestra advertencia para Bupivacaína en niño < 12 años', () => {
-      const { container } = render(<CalculadoraAnestesiaSection paciente={pacientePediatrico} />)
+      render(<CalculadoraAnestesiaSection paciente={pacientePediatrico} />)
       
       // Seleccionar Bupivacaína (número 4 en el respaldo)
       const select = screen.getByTestId('anestesia-tipo')

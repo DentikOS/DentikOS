@@ -59,7 +59,7 @@ export const CatalogoPreciosLaboratorio: React.FC<CatalogoPreciosLaboratorioProp
     setCosto(precioSeleccionado ? String(precioSeleccionado.costo) : '')
     setDiasEstimados(precioSeleccionado?.diasEstimados == null ? '' : String(precioSeleccionado.diasEstimados))
     setCondicionPago(precioSeleccionado?.condicionPago || '')
-  }, [precioSeleccionado?.id])
+  }, [precioSeleccionado])
 
   const guardar = async (event: React.FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault()

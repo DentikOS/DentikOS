@@ -4,7 +4,7 @@ import type { TreasuryPanelProps } from './types'
 import { formatearMenor, numero, texto } from './types'
 import {
   inferirMapeoColumnasExtracto, parsearCsvBancario, parsearOfxBancario, parsearXlsxBancario,
-  type FilaExtractoNormalizada, type ResultadoParseoExtracto
+  type ResultadoParseoExtracto
 } from '../services/importadores/extractoParser'
 import { sugerirCoincidenciasBancarias } from '../utils/conciliacionCalculations'
 

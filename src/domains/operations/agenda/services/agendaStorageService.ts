@@ -96,15 +96,6 @@ const obtenerCitas = (defaults: Cita[] = []): Cita[] => {
 // SINCRONIZAR DESDE SUPABASE (ASYNC)
 // ═══════════════════════════════════════════════════════════════════
 
-interface QueryBuilderLike {
-  is?: (col: string, val: unknown) => QueryBuilderLike
-  order: (col: string, opts?: { ascending?: boolean }) => {
-    order: (col: string, opts?: { ascending?: boolean }) => Promise<{
-      data: Record<string, unknown>[] | null
-      error: { message: string } | null
-    }>
-  }
-}
 
 /**
  * Refresca la caché de citas desde Supabase.

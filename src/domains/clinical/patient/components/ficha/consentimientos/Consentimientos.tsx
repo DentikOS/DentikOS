@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { FileCheck, Shield, PenTool, Type, MessageSquare, CheckCircle2, UserCheck, Smartphone } from 'lucide-react'
+import { FileCheck, Shield, PenTool, Type, CheckCircle2, UserCheck, Smartphone } from 'lucide-react'
 import { Button } from '../../../../../../shared/ui/ui/Button'
 import { PLANTILLAS_CONSENTIMIENTO } from '../../../constants/plantillasConsentimiento'
 import { fichasClinicasStorageService } from '../../../services/fichasClinicasStorageService'

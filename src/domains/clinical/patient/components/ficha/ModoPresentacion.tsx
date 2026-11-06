@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react'
-import { Sparkles, X, HeartPulse, Check, LogOut, Phone, Calendar } from 'lucide-react'
+import { Sparkles, HeartPulse, Check, LogOut } from 'lucide-react'
 import type { Paciente } from '../../schemas/pacienteSchema'
 
 interface ModoPresentacionProps {

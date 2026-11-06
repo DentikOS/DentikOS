@@ -37,6 +37,8 @@ cov/
 
 # Excepciones explícitas para migraciones de Supabase
 !supabase/migrations/*.sql
+.e2e/
+graphify-out/
 .e2e/results/
 .e2e/cache/
 .e2e/sessions/

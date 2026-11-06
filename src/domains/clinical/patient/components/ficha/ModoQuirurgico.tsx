@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react'
 import { Activity, Clock, AlertTriangle, ArrowLeft, ShieldAlert, Check } from 'lucide-react'
-import { Button } from '../../../../../shared/ui/ui/Button'
 import type { Paciente } from '../../schemas/pacienteSchema'
 
 interface ModoQuirurgicoProps {

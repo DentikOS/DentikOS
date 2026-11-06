@@ -1,4 +1,3 @@
-export { PagosModulo } from './PagosModulo'
 export {
   pagosStorageService,
   crearPagoDesdeAbono,

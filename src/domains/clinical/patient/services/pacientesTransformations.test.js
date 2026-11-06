@@ -1,7 +1,5 @@
 import { describe, it, expect } from 'vitest'
 import {
-  SNAKE_TO_CAMEL_MAP,
-  CAMEL_TO_SNAKE_MAP,
   transformarDesdeSupabase,
   transformarParaSupabase
 } from './pacientesTransformations'

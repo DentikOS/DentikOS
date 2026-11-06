@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { sonidoAgendaService, type SonidoAgenda } from './sonidoAgendaService'
+import { sonidoAgendaService } from './sonidoAgendaService'
 
 describe('sonidoAgendaService (BP05 §08 & §10)', () => {
   beforeEach(() => {

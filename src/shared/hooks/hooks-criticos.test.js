@@ -19,7 +19,7 @@ import { renderHook } from '@testing-library/react'
 vi.mock('../../infrastructure/notification/notificationService', () => ({
   notificationService: {
     listar: vi.fn(() => []),
-    suscribir: vi.fn((callback) => {
+    suscribir: vi.fn((_callback) => {
       return () => {} // unsubscribe function
     }),
     warning: vi.fn(),

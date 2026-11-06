@@ -8,7 +8,7 @@ import React from 'react'
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { Input } from './Input'
-import { Mail, User } from 'lucide-react'
+import { Mail } from 'lucide-react'
 
 describe('Input (F7-25)', () => {
 

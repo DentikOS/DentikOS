@@ -6,7 +6,6 @@ import {
   obtenerTodosLosPagosDashboard,
   obtenerIngresosDelDia,
   obtenerPresupuestosDashboard,
-  obtenerAlertasOperativasDashboard,
   obtenerResumenConsultasDashboard,
   obtenerMetricasPagosDashboard,
   obtenerAlertasClinicasDashboard,

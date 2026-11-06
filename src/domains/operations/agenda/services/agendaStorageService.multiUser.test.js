@@ -3,7 +3,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { agendaStorageService } from './agendaStorageService'
-import { supabase, USE_SUPABASE } from '../../../../infrastructure/supabase/supabaseClient'
+import { supabase } from '../../../../infrastructure/supabase/supabaseClient'
 
 // Mock de Supabase Client
 vi.mock('../../../../infrastructure/supabase/supabaseClient', () => {

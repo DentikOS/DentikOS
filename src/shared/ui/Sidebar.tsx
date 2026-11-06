@@ -2,7 +2,7 @@
  * Sidebar — Blueprint 02: 5 Categorías Core, Trazo de Cera y Cascada Framer Motion
  * Respetando arquitectura DDD y límite estricto de 250 líneas.
  */
-import React, { useMemo, useEffect } from 'react'
+import React, { useEffect } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { useIsInitialMount } from '../hooks/useCascadeAnimation'
 import { usePermissions } from '../hooks/usePermissions'
@@ -69,7 +69,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       mqlMobile.removeEventListener('change', handleMedia)
       mqlTablet.removeEventListener('change', handleMedia)
     }
-  }, [setMode, propMode])
+  }, [setMode, propMode, storeMode])
 
   if (focusMode) return null
 

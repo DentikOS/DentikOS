@@ -35,7 +35,7 @@ const horaLocal = (valor?: string | null): string => valor ? new Date(valor).toL
 
 export const EsterilizacionModulo: React.FC = memo(() => {
   const userProfile = useSesionStore((state: { userProfile?: { nombreCompleto?: string; [key: string]: unknown } | null }) => state.userProfile)
-  const { snapshot, cargando, error, refrescar, esAdmin, puedeEntrar, clinicaId } = useEsterilizacion()
+  const { snapshot, cargando, error, refrescar, esAdmin, puedeEntrar } = useEsterilizacion()
   const [tabActual, setTabActual] = useState<TabEsterilizacion>('cargas')
   const [modalAbierto, setModalAbierto] = useState(false)
   const [cicloGestionado, setCicloGestionado] = useState<string | undefined>()
@@ -110,7 +110,7 @@ export const EsterilizacionModulo: React.FC = memo(() => {
       pruebasBiologicas.map((prueba) => ({ resultado: prueba.resultado })),
       pruebasBowie.map((prueba) => ({ fecha: prueba.fecha, equipo: prueba.equipo, resultado: prueba.resultado }))
     )
-  }, [snapshot.pruebas, ciclos, pruebasBiologicas, pruebasBowie])
+  }, [ciclos, pruebasBiologicas, pruebasBowie])
 
   const ciclosFiltrados = useMemo(() => ciclos.filter((ciclo) => {
     const equipoCoincide = equipoFiltro === 'Todos' || ciclo.equipoId === equipoFiltro
@@ -167,7 +167,7 @@ export const EsterilizacionModulo: React.FC = memo(() => {
     } catch {
       return { cargas: [], biologicos: [], bowie: [] }
     }
-  }, [clinicaId])
+  }, [])
 
   const cancelarCiclo = async (id: number | string) => {
     const ciclo = snapshot.ciclos.find((item) => item.id === String(id))

@@ -62,7 +62,7 @@ export const FichaUrgenciaDetalle: React.FC<FichaUrgenciaDetalleProps> = memo(({
     setFechaEdicion(ficha.updated_at)
     setEditando(false)
     setError(null)
-  }, [ficha.id, ficha.version])
+  }, [ficha])
 
   const eventosFicha = useMemo(() => eventos.filter((evento) => evento.ingreso_id === ficha.id)
     .sort((a, b) => b.created_at.localeCompare(a.created_at)), [eventos, ficha.id])

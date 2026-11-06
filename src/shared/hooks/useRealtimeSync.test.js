@@ -16,7 +16,6 @@ import { useRealtimeSync, registrarEscrituraLocal } from './useRealtimeSync'
 import * as useRealtimeSubscriptionModule from './useRealtimeSubscription'
 import * as pacientesStoreModule from '../../app/stores/pacientesStore'
 import * as sesionStoreModule from '../../app/stores/sesionStore'
-import { usePrestacionesStore } from '../../app/stores/prestacionesStore'
 import * as supabaseClientModule from '../../infrastructure/supabase/supabaseClient'
 
 // Mocks

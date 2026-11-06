@@ -55,7 +55,7 @@ const esUuid = (value: unknown): value is string =>
 
 export const useDescuentoInventario = ({
   paciente,
-  userProfile,
+  userProfile: _userProfile,
   itemsPresupuesto = [],
   setItemsPresupuesto = () => {},
 }: UseDescuentoInventarioOptions): UseDescuentoInventarioReturn => {

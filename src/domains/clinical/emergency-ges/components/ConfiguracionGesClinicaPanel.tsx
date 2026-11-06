@@ -33,7 +33,7 @@ export const ConfiguracionGesClinicaPanel: React.FC<ConfiguracionGesClinicaPanel
     setPrevisiones(configuracion?.previsiones_convenio.join(', ') || '')
     setError(null)
     setGuardado(false)
-  }, [patologiaId, configuracion?.version])
+  }, [patologiaId, configuracion])
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault()

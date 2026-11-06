@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react'
-import { CreditCard, Calendar, Check, DollarSign } from 'lucide-react'
+import { CreditCard, Calendar, Check } from 'lucide-react'
 import { Button } from '../../../../../shared/ui/ui/Button'
 import type { PlanPago as PlanPagoType } from '../../schemas/presupuestoSchema'
 

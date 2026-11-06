@@ -33,7 +33,7 @@ export interface UsePresupuestosReturn {
 }
 
 export const usePresupuestos = (
-  pacientes: (Paciente | { id: string | number; [key: string]: unknown })[] = [],
+  _pacientes: (Paciente | { id: string | number; [key: string]: unknown })[] = [],
   _prestaciones: unknown[] = []
 ): UsePresupuestosReturn => {
   const { confirm } = useAppDialog()
@@ -51,7 +51,7 @@ export const usePresupuestos = (
     // (su estado se calcula desde items del plan, no desde presupuestos formales).
     const creadosDirectos = presupuestosStorageService.obtenerPresupuestos([])
     setPresupuestos(creadosDirectos)
-  }, [pacientes])
+  }, [])
 
   useEffect(() => {
     cargarPresupuestos()

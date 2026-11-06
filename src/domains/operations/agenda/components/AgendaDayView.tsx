@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useRef, useEffect } from 'react'
 import { Plus, AlertTriangle, Calendar } from 'lucide-react'
-import { DndContext, type DragEndEvent, DragOverlay, closestCenter, PointerSensor, useSensor, useSensors, useDroppable } from '@dnd-kit/core'
+import { DndContext, type DragEndEvent, DragOverlay, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import type { Cita } from '../schemas/citaSchema'
@@ -71,7 +71,7 @@ const DraggableCard: React.FC<{
 }
 
 export const AgendaDayView: React.FC<AgendaDayViewProps> = ({
-  appointments, doctors = [], boxes = [], selectedDoctor = 'Todos', selectedBox = 'Todos',
+  appointments, doctors = [], boxes: _boxes = [], selectedDoctor = 'Todos', selectedBox = 'Todos',
   currentDateIso, onAppointmentClick, onSlotClick, onAppointmentMove, onWhatsAppClick, onLlamarSiguiente,
   onAbrirCambiarEstado, onReasignar, onEditar
 }) => {
@@ -147,7 +147,7 @@ export const AgendaDayView: React.FC<AgendaDayViewProps> = ({
     setMovimientoPendiente({ cita, nuevoHorario, validacion })
   }
 
-  const handleConfirmarMovimiento = async (notificarWhatsApp: boolean) => {
+  const handleConfirmarMovimiento = async (_notificarWhatsApp: boolean) => {
     if (!movimientoPendiente) return
     const { cita, nuevoHorario } = movimientoPendiente
     onAppointmentMove?.(String(cita.id), {
@@ -158,7 +158,6 @@ export const AgendaDayView: React.FC<AgendaDayViewProps> = ({
     })
     const uId = (userProfile as { id?: string })?.id || 'local-user'
     await registrarCambioEstado(cita.id, `Anterior: ${cita.horaInicio} ${cita.doctor || ''}`, `Nuevo: ${nuevoHorario.horaInicio} ${nuevoHorario.doctor || ''}`, uId, `Cita movida de ${cita.horaInicio} a ${nuevoHorario.horaInicio}`)
-    if (notificarWhatsApp && cita.pacienteTelefono) console.log('Notificar por WhatsApp:', cita.pacienteTelefono)
     sonidoAgendaService.play('cita_movida')
     setMovimientoPendiente(null)
   }

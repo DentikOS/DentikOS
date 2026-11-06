@@ -16,14 +16,9 @@ vi.mock('../supabase/supabaseClient', () => ({
 
 import {
   solicitaUrlUpload,
-  subeArchivoAR2,
   solicitaUrlDownload,
-  descargaArchivoDeR2,
-  abrirArchivoDeR2,
   eliminaArchivo,
   listaArchivosDePaciente,
-  listaArchivosEliminados,
-  restaurarArchivo,
   vaciarPapeleraArchivos,
   actualizarMetadataArchivo,
   solicitaUrlUploadPerfil,

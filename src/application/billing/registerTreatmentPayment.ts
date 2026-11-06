@@ -14,7 +14,6 @@
  */
 import {
   pacientesStorageService,
-  type Paciente,
 } from '../../domains/clinical/patient'
 import {
   pagosStorageService,

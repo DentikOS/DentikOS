@@ -38,7 +38,7 @@ export const CAMEL_TO_SNAKE_MAP: Readonly<Record<string, string>> = Object.fromE
  */
 const convertirFechaAISO = (valor: unknown): string | null => {
   if (!valor || typeof valor !== 'string') return null
-  const match = valor.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/)
+  const match = valor.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/)
   if (!match) return null
   const [, dd, mm, yyyy] = match
   return `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`

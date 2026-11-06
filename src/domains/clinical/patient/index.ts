@@ -1,6 +1,3 @@
-// Exportar componentes nuevos (BP06)
-export { PacientesListado } from './components/listado/PacientesListado'
-export { FichaClinica } from './components/ficha/FichaClinica'
 export { usePacientesStore } from '../../../app/stores/pacientesStore'
 
 // Schemas
