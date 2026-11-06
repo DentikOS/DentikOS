@@ -236,7 +236,7 @@ describe('useNotificationTriggers', () => {
   it('trigger recordatorio cita: dispara recordatorioCita para citas sin confirmar en las próximas 24h', () => {
     const ahora = new Date()
     const manana = new Date(ahora.getTime() + 12 * 60 * 60 * 1000)
-    const fechaManana = manana.toISOString().split('T')[0]
+    const fechaManana = `${manana.getFullYear()}-${String(manana.getMonth() + 1).padStart(2, '0')}-${String(manana.getDate()).padStart(2, '0')}`
     const horaManana = manana.toTimeString().slice(0, 5)
 
     vi.mocked(agendaStorageService.obtenerCitas).mockReturnValue([

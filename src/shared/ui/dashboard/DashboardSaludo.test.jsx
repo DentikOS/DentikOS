@@ -14,8 +14,8 @@ describe('DashboardSaludo (BP04 §02)', () => {
     )
 
     expect(screen.getByText(/Dr\. Silva/i)).toBeInTheDocument()
-    expect(screen.getByText(/8 citas hoy/i)).toBeInTheDocument()
-    expect(screen.getByText(/2 en sala de espera/i)).toBeInTheDocument()
+    expect(screen.getByText('Agenda de hoy').parentElement).toHaveTextContent('8 citas')
+    expect(screen.getByText('En sala de espera').parentElement).toHaveTextContent('2 pacientes')
     expect(screen.getByText(/Implantología/i)).toBeInTheDocument()
   })
 

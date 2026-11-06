@@ -68,7 +68,7 @@ function dependencies(options: {
   objectMime?: string;
 } = {}) {
   const calls: Array<{ url: string; method: string; headers: Headers }> = [];
-  const fetcher: typeof fetch = async (input, init = {}) => {
+  const fetcher: typeof fetch = async (input, init: RequestInit = {}) => {
     const url = String(input);
     const method = init.method || "GET";
     const headers = new Headers(init.headers);

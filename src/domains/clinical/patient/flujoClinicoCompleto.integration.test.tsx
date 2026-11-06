@@ -15,6 +15,24 @@ vi.mock('./services/fichasClinicasStorageService', () => ({
     suscribirCambiosFicha: vi.fn(() => () => {}),
   },
 }))
+vi.mock('../../organization/clinic/hooks/useConfiguracionFinanciera', () => ({
+  useConfiguracionFinanciera: () => ({
+    configuracion: {
+      validezPresupuestoDias: 15,
+      maximoCuotasSinInteres: 6,
+      frecuenciaCuotas: 'mensual',
+      descuentoMaximoPermitidoPct: 50,
+      requiereMotivoDescuento: true,
+    },
+    cargando: false,
+    cargada: true,
+    guardando: false,
+    error: null,
+    clinicaId: 'clinica-1',
+    esAdmin: true,
+    guardar: vi.fn(),
+  }),
+}))
 
 describe('Flujo Clínico E2E de Persistencia BP06 + BP07', () => {
   beforeEach(() => {

@@ -79,11 +79,12 @@ describe('useRealtimeSync', () => {
   it('debe suscribirse a todas las tablas críticas al montar', () => {
     renderHook(() => useRealtimeSync())
 
-    // Incluye el arancel clínico compartido y todas las tablas de BP09.
-    expect(mockUseRealtimeSubscription).toHaveBeenCalledTimes(25)
+    // Incluye las tablas clínicas, inventario, esterilización, laboratorio y Vademécum.
+    expect(mockUseRealtimeSubscription).toHaveBeenCalledTimes(55)
 
     // Verificar que se suscribió a las tablas correctas
     const tablas = mockUseRealtimeSubscription.mock.calls.map(call => call[0])
+    expect(new Set(tablas).size).toBe(tablas.length)
     expect(tablas).toContain('pacientes')
     expect(tablas).toContain('prestaciones')
     expect(tablas).toContain('citas')

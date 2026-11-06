@@ -17,7 +17,7 @@ describe('SelectorImputacionesPago', () => {
     render(<SelectorImputacionesPago prestaciones={prestaciones} maximoImputable={10000} valores={{}} onChange={onChange} />)
     expect(screen.getByTestId('input-imputacion-00000000-0000-4000-8000-000000000001')).toHaveValue(null)
     expect(screen.getByTestId('input-imputacion-00000000-0000-4000-8000-000000000002')).toHaveValue(null)
-    expect(screen.getByText('Por asignar: $10.000')).toBeInTheDocument()
+    expect(screen.getByText(/Por asignar:\s*CLP\s*10\.000/)).toBeInTheDocument()
     fireEvent.change(screen.getByTestId('input-imputacion-00000000-0000-4000-8000-000000000001'), { target: { value: '3000' } })
     expect(onChange).toHaveBeenCalledWith({ '00000000-0000-4000-8000-000000000001': 3000 })
   })
