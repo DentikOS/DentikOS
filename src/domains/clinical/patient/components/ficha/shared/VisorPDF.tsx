@@ -1,5 +1,5 @@
 import React from 'react'
-import { X, Download, Printer, ShieldCheck, FileText, ExternalLink } from 'lucide-react'
+import { X, Download, Printer, ShieldCheck, FileText } from 'lucide-react'
 import { Button } from '../../../../../../shared/ui/ui/Button'
 
 interface VisorPDFProps {

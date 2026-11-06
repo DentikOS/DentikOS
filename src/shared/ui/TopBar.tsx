@@ -2,7 +2,7 @@
  * TopBar — Blueprint 03: 3 Zonas (Contexto 40%, Búsqueda 30%, Identidad/Acciones 30%)
  * Altura 56px desktop / 52px tablet / 48px mobile. Acento contextual por módulo.
  */
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Search, Bell, X } from 'lucide-react'
 import { ClinicaSelector } from './ClinicaSelector'
 import { SelectorSede } from './SelectorSede'

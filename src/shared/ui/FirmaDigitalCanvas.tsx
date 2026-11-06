@@ -41,10 +41,22 @@ export const FirmaDigitalCanvas: React.FC<FirmaDigitalCanvasProps> = ({
     configurarContexto()
   }, [configurarContexto, modo])
 
+  const limpiarCanvas = useCallback((): void => {
+    const canvas = canvasRef.current
+    if (canvas) {
+      const ctx = canvas.getContext('2d')
+      if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height)
+    }
+    setPreviewSubida(null)
+    setTextoFirma('')
+    setErrorSubida(null)
+    if (alLimpiarFirma) alLimpiarFirma()
+  }, [alLimpiarFirma])
+
   useEffect(() => {
     if (resetSignal === 0) return
     limpiarCanvas()
-  }, [resetSignal])
+  }, [resetSignal, limpiarCanvas])
 
   const renderizarFirmaTipografica = useCallback((texto: string, estiloSeleccionado: EstiloFirma) => {
     const canvas = canvasRef.current
@@ -152,17 +164,6 @@ export const FirmaDigitalCanvas: React.FC<FirmaDigitalCanvasProps> = ({
     }
   }
 
-  const limpiarCanvas = (): void => {
-    const canvas = canvasRef.current
-    if (canvas) {
-      const ctx = canvas.getContext('2d')
-      if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height)
-    }
-    setPreviewSubida(null)
-    setTextoFirma('')
-    setErrorSubida(null)
-    if (alLimpiarFirma) alLimpiarFirma()
-  }
 
   return (
     <div className="space-y-3">

@@ -100,17 +100,6 @@ export const ESTADOS_CITA: Record<string, EstadoCitaConfig> = {
   REAGENDADA: { id: 'Reagendada', label: 'Reagendada', color: 'bg-orange-100 text-orange-900 border-orange-400' }
 }
 
-export const ESTADO_COLORS: Record<string, { bg: string; text: string; border: string }> = {
-  Pendiente: { bg: '#FEF3C7', text: '#92400E', border: '#D97706' },
-  Confirmada: { bg: '#D1FAE5', text: '#065F46', border: '#0D9488' },
-  'En sala de espera': { bg: '#DBEAFE', text: '#1E40AF', border: '#0284C7' },
-  'En atención': { bg: '#EDE9FE', text: '#6D28D9', border: '#7C3AED' },
-  Completada: { bg: '#D1FAE5', text: '#065F46', border: '#0D9488' },
-  Cancelada: { bg: '#FEE2E2', text: '#991B1B', border: '#E11D48' },
-  'No-show': { bg: '#E2E8F0', text: '#334155', border: '#475569' },
-  Reagendada: { bg: '#FFEDD5', text: '#9A3412', border: '#EA580C' }
-}
-
 export const ESTADOS_CITA_CORE: readonly EstadoCitaConfig[] = [
   ESTADOS_CITA.PENDIENTE,
   ESTADOS_CITA.CONFIRMADA,
@@ -121,7 +110,6 @@ export const ESTADOS_CITA_CORE: readonly EstadoCitaConfig[] = [
   ESTADOS_CITA.NO_SHOW,
   ESTADOS_CITA.REAGENDADA
 ]
-export const ESTADOS_CITA_WORLD_CLASS = ESTADOS_CITA_CORE
 
 export const TRATAMIENTOS_RAPIDOS: readonly string[] = [
   'Evaluación / Diagnóstico Inicial',

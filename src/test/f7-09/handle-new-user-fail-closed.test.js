@@ -7,7 +7,7 @@
  * 3. Nunca escala a admin sin autorización server-side
  */
 
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { obtenerRolConFailClosed } from '../../infrastructure/auth/authService'
 
 describe('F7-09: handle_new_user() fail-closed', () => {
@@ -34,7 +34,7 @@ describe('F7-09: handle_new_user() fail-closed', () => {
       const rolesClientes = ['admin', 'dentista', 'asistente', 'recepcion']
       const rolAsignadoServer = 'recepcion'
       
-      rolesClientes.forEach(rolCliente => {
+      rolesClientes.forEach(_rolCliente => {
         expect(rolAsignadoServer).toBe('recepcion')
       })
     })

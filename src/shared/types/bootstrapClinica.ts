@@ -1,7 +1,7 @@
 import type React from 'react'
 import { type BootstrapClinicaDatos } from '../../infrastructure/auth/authService'
 import { type Sede } from '../../domains/organization/clinic/schemas/sedeSchema'
-import type { PlantillaCatalogoId, PrestacionPlantilla } from '../../domains/organization/prestations/constants/prestacionesPlantillas'
+import type { PlantillaCatalogoId } from '../../domains/organization/prestations/constants/prestacionesPlantillas'
 import type { TipoBox } from '../../domains/organization/clinic/schemas/boxSchema'
 
 export type TipoActividad = 'individual' | 'clinica'

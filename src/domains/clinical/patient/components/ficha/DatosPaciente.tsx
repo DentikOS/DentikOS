@@ -1,9 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { User, Phone, Mail, MapPin, ShieldAlert, HeartPulse, Users2, Save, Loader2, CheckCircle, AlertCircle } from 'lucide-react'
+import { User, Phone, Mail, MapPin, HeartPulse, Users2, Save, Loader2, CheckCircle, AlertCircle } from 'lucide-react'
 import { Button } from '../../../../../shared/ui/ui/Button'
 import { Input } from '../../../../../shared/ui/ui/Input'
 import type { Paciente } from '../../schemas/pacienteSchema'
-import { useRBAC } from '../../../../../shared/hooks/useRBAC'
 import { usePacientesStore } from '../../../../../app/stores/pacientesStore'
 import { SelectorEstadoPaciente } from './SelectorEstadoPaciente'
 
@@ -13,7 +12,6 @@ interface DatosPacienteProps {
 }
 
 export const DatosPaciente: React.FC<DatosPacienteProps> = ({ paciente, onGuardar }) => {
-  const { esAdmin } = useRBAC()
   const [formData, setFormData] = useState<Partial<Paciente>>({
     nombreCompleto: paciente.nombreCompleto || paciente.nombre,
     rut: paciente.rut,

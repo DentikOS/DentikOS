@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { normalizarCita, normalizarEstado, normalizarDoctor, esUuid } from './normalizarCita'
+import { normalizarCita, normalizarEstado, esUuid } from './normalizarCita'
 import type { Cita } from '../schemas/citaSchema'
 
 describe('normalizarCita utility', () => {

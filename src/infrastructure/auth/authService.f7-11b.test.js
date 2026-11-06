@@ -18,8 +18,7 @@ vi.mock('../supabase/supabaseClient', () => ({
 
 import { 
   verificarBootstrapNecesario, 
-  bootstrapClinica,
-  setClinicaActiva
+  bootstrapClinica
 } from './authService'
 import { supabase } from '../supabase/supabaseClient'
 

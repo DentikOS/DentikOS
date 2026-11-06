@@ -68,7 +68,7 @@ describe('F7-36 FASE 4: Regresión de PHI en audit_log de archivos', () => {
   // TEST 1: Frontend NO invoca registrar_evento_archivo
   // ============================================================
   it('1. Frontend NO invoca registrar_evento_archivo vía supabase.rpc()', () => {
-    const { readdirSync, statSync } = require('node:fs')
+    const { readdirSync } = require('node:fs')
     const archivosFrontend = []
 
     const recorrer = (dir) => {

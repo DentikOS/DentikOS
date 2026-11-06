@@ -6,7 +6,7 @@ import { obtenerFechaLocalISO } from '../../../../shared/utils/dateUtils'
 import { useAppDialog } from '../../../../shared/hooks/useAppDialog'
 import { esUuidValido } from '../../../../infrastructure/supabase/migrations/uuidUtils'
 import { laboratorioCloudService, type NuevaOrdenLaboratorioInput } from '../services/laboratorioCloudService'
-import type { CategoriaLaboratorio, LaboratorioBase } from '../constants/laboratorioConstants'
+import type { LaboratorioBase } from '../constants/laboratorioConstants'
 import type { TipoTrabajoLaboratorio } from '../hooks/useLaboratorio'
 
 const sumarDiasISO = (fecha: string, dias: number | null | undefined): string => {

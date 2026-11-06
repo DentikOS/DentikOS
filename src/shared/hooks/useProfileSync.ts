@@ -28,17 +28,19 @@ export const useProfileSync = (): ProfileSyncResult => {
     const cargarPerfil = async () => {
       const perfil = await profileService.obtenerPerfil()
       if (perfil) {
+        const currentProfile = useSesionStore.getState().userProfile
+        if (!currentProfile) return
         // FIX: preservar campos críticos al sincronizar
         actualizarPerfil({
-          nombreCompleto: perfil.fullName || userProfile.nombreCompleto,
-          especialidad: perfil.especialidad || userProfile.especialidad,
-          telefono: perfil.telefono || userProfile.telefono,
-          rut: perfil.rut || userProfile.rut,
+          nombreCompleto: perfil.fullName || currentProfile.nombreCompleto,
+          especialidad: perfil.especialidad || currentProfile.especialidad,
+          telefono: perfil.telefono || currentProfile.telefono,
+          rut: perfil.rut || currentProfile.rut,
           fotoUrl: perfil.fotoUrl ?? undefined,
           // Preservar campos críticos
-          rol: userProfile.rol,
-          clinicaId: userProfile.clinicaId,
-          email: userProfile.email || perfil.email,
+          rol: currentProfile.rol,
+          clinicaId: currentProfile.clinicaId,
+          email: currentProfile.email || perfil.email,
         })
         log.info('Perfil sincronizado desde Supabase (rol preservado)')
       }

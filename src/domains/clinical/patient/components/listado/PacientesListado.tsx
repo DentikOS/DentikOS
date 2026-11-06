@@ -41,7 +41,6 @@ export const PacientesListado: React.FC<PacientesListadoProps> = memo(({
   const pacientes = usePacientesStore((s) => s.pacientes)
   const setPacientes = usePacientesStore((s) => s.setPacientes)
   const cargarPacientes = usePacientesStore((s) => s.cargarPacientes)
-  const isLoadingPacientes = usePacientesStore((s) => s.isLoadingPacientes)
   const setPacienteActivo = usePacientesStore((s) => s.setPacienteActivo)
   const vistaActual = usePacientesStore((s) => s.vistaActual)
   const filtros = usePacientesStore((s) => s.filtros)
@@ -143,7 +142,6 @@ export const PacientesListado: React.FC<PacientesListadoProps> = memo(({
     if (!pacienteAccion) return
     const { paciente, modo } = pacienteAccion
     const pid = paciente.id
-    const nuevoEstado = modo === 'desactivar' ? 'desactivado' : 'bloqueado'
     const estadoAnterior = paciente.estado || 'activo'
     const usuarioNombre = String(userProfile?.nombreCompleto || userProfile?.nombre || 'Admin')
 

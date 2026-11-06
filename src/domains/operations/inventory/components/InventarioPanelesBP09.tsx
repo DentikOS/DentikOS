@@ -140,7 +140,7 @@ export const InventarioPanelesBP09: React.FC<Props> = memo(({ items, ubicaciones
     return () => { vigente = false }
   }, [esAdmin, rol])
 
-  const puede = (accion: PermisoOperacion): boolean => permisos[accion] === true
+  const puede = useCallback((accion: PermisoOperacion): boolean => permisos[accion] === true, [permisos])
 
   const refrescarPaneles = useCallback(async (): Promise<void> => {
     if (!USE_SUPABASE) return
@@ -166,7 +166,7 @@ export const InventarioPanelesBP09: React.FC<Props> = memo(({ items, ubicaciones
     }
     await Promise.all(tareas)
     setDatosCargando(false)
-  }, [esAdmin, permisos])
+  }, [esAdmin, puede])
 
   useEffect(() => { void refrescarPaneles() }, [refrescarPaneles])
   useEffect(() => {
@@ -199,7 +199,7 @@ export const InventarioPanelesBP09: React.FC<Props> = memo(({ items, ubicaciones
       if (esAdmin) available.push({ id: 'permisos', label: 'Permisos' })
     }
     return available
-  }, [esAdmin, permisos])
+  }, [esAdmin, puede])
 
   useEffect(() => {
     if (tabs.length && !tabs.some((tab) => tab.id === panel)) setPanel(tabs[0].id)

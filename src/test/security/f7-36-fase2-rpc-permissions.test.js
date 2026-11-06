@@ -43,7 +43,7 @@ const ROOT = join(process.cwd())
  * excluyendo node_modules, dist, y carpetas ocultas.
  */
 const buscarArchivos = (dir, extension, exclude = ['node_modules', 'dist', '.git', '_tests']) => {
-  const { readdirSync, statSync } = require('node:fs')
+  const { readdirSync } = require('node:fs')
   const resultados = []
 
   const recorrer = (rutaActual) => {

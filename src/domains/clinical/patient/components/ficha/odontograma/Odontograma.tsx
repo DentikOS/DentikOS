@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react'
-import { Sparkles, Save, RotateCcw, Check } from 'lucide-react'
+import { Save, RotateCcw, Check } from 'lucide-react'
 import { Button } from '../../../../../../shared/ui/ui/Button'
 import { OdontogramaPieza, type CaraDental } from './OdontogramaPieza'
-import { OdontogramaPanel } from './OdontogramaPanel'
 import { OdontogramaPanelLateral } from './OdontogramaPanelLateral'
 import { OdontogramaSlider } from './OdontogramaSlider'
 import { fichasClinicasStorageService } from '../../../services/fichasClinicasStorageService'
@@ -24,7 +23,7 @@ interface OdontogramaProps {
 }
 
 export const Odontograma: React.FC<OdontogramaProps> = ({ pacienteId, onGuardar }) => {
-  const [estadoActivo, setEstadoActivo] = useState<string>('caries')
+  const [estadoActivo] = useState<string>('caries')
   const [modoVista, setModoVista] = useState<'inicial' | 'evolucion' | 'comparativo'>('evolucion')
   const [progresoTemporal, setProgresoTemporal] = useState<number>(100)
   const [mostrarTemporales, setMostrarTemporales] = useState<boolean>(false)

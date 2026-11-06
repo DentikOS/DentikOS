@@ -18,7 +18,6 @@ import {
   type UseDescuentoInventarioReturn,
   type MaterialEnriquecido
 } from './useDescuentoInventario'
-import type { EvolucionClinicaLocal } from '../services/evolucionesStorageService'
 import type { Paciente } from '../schemas/pacienteSchema'
 
 export type {

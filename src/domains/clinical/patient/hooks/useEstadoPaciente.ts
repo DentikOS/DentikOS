@@ -17,7 +17,7 @@ export const useEstadoPaciente = (paciente: Paciente | null) => {
   const estadoCalculado = useMemo(() => {
     if (!paciente) return null
     return calcularEstadoClinico(paciente)
-  }, [paciente?.id, paciente?.fechaUltimaVisita, (paciente as unknown as Record<string, unknown>)?.ultimaVisita])
+  }, [paciente])
 
   return estadoCalculado
 }

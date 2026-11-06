@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { FileText, Mic, MicOff, Plus, CheckCircle2, Key, Clock } from 'lucide-react'
+import { Mic, MicOff, Plus, CheckCircle2, Key, Clock } from 'lucide-react'
 import { Button } from '../../../../../../shared/ui/ui/Button'
 import { useDictado } from '../../../hooks/useDictado'
 import { PLANTILLAS_INTELIGENTES } from './plantillasEvoluciones'

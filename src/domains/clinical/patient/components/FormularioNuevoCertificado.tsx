@@ -5,7 +5,6 @@ import { Button } from '../../../../shared/ui/ui/Button'
 import { obtenerFechaLocalISO } from '../../../../shared/utils/dateUtils'
 import { useAppDialog } from '../../../../shared/hooks/useAppDialog'
 import type { CertificadoPapelera } from '../services/papeleraCertificadosService'
-import type { CertificadoMedico } from '../services/certificadosStorageService'
 
 export interface FormularioNuevoCertificadoProps {
   userProfile?: {

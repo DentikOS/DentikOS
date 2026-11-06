@@ -382,8 +382,6 @@ describe('useAgenda', () => {
       })
 
       // F10-C3.3: enviarWhatsAppConfirmacion ahora es async y usa useAppDialog
-      let promiseResolve
-      const dialogPromise = new Promise((resolve) => { promiseResolve = resolve })
       
       await act(async () => {
         const promise = result.current.enviarWhatsAppConfirmacion(result.current.citas[0])

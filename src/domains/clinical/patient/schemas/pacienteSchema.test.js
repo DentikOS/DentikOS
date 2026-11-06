@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { pacienteSchema, listaPacientesSchema, validarListaPacientes, rutDuplicado } from './pacienteSchema'
+import { pacienteSchema, validarListaPacientes, rutDuplicado } from './pacienteSchema'
 
 describe('pacienteSchema (F6-G)', () => {
   const pacienteValido = {

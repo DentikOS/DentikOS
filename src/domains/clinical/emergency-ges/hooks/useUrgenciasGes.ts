@@ -230,7 +230,7 @@ export const useUrgenciasGes = (): UseUrgenciasGesReturn => {
     setAtencionHistoricaSeleccionada(null)
     setLoading(true)
     void refresh()
-  }, [clinicId, refresh])
+  }, [clinicId, refresh, rol])
 
   const onRealtime = useCallback(() => { void refresh() }, [refresh])
   const realtimeEnabled = Boolean(clinicId && USE_SUPABASE)

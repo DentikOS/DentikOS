@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { useFinanzas } from './useFinanzas'
 import { finanzasStorageService } from '../services/finanzasStorageService'
 import { pagosStorageService } from '../../payment/services/pagosStorageService'
-import { obtenerAbonosPorPaciente, eliminarAbono } from '../../payment/services/pagosAbonosLegacyService'
+import { obtenerAbonosPorPaciente } from '../../payment/services/pagosAbonosLegacyService'
 import { calcularBalanceFinanzas } from '../utils/finanzasCalculations'
 import { REALTIME_EVENTS } from '../../../../infrastructure/realtime/realtimeEvents'
 

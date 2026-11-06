@@ -100,7 +100,7 @@ describe('F7-10: listarMisClinicas', () => {
       error: null
     })
 
-    const mockSelect = vi.fn().mockReturnThis()
+    const _mockSelect = vi.fn().mockReturnThis()
     const mockEq = vi.fn().mockReturnThis()
     const mockOrder = vi.fn().mockResolvedValue({
       data: [

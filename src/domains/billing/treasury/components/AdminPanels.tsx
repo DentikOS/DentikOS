@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react'
 import type { TreasuryPanelProps } from './types'
-import { dateOnlySantiago, formatearMenor, montoMenorDesdeTexto, numero, texto } from './types'
+import { dateOnlySantiago, formatearMenor, montoMenorDesdeTexto, numero } from './types'
 import { adaptarCarteraBp07 } from '../utils/carteraBp07Adapter'
 import { resumirVentasInternas } from '../utils/librosCalculations'
 import { proyectarFlujoCaja, type EscenarioFlujo } from '../utils/flujoCajaCalculations'
@@ -115,7 +115,7 @@ export const BonosPanel: React.FC<TreasuryPanelProps> = ({ snapshot, acciones, o
   const [total, setTotal] = useState('')
   const [aporte, setAporte] = useState('')
   const [copago, setCopago] = useState('')
-  const [fechaEmision, setFechaEmision] = useState(dateOnlySantiago())
+  const [fechaEmision, _setFechaEmision] = useState(dateOnlySantiago())
   const [fechaVencimiento, setFechaVencimiento] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)

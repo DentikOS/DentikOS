@@ -17,7 +17,7 @@ function useResetTabOnPacienteChange(pacienteId, navegacionClinica) {
     if (navegacionClinica && navegacionClinica.indiceActual !== undefined && pacienteId) {
       setTabActiva('Ficha Clínica')
     }
-  }, [pacienteId])
+  }, [pacienteId, navegacionClinica])
 
   return { tabActiva, setTabActiva }
 }

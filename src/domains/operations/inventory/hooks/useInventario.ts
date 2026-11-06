@@ -102,7 +102,7 @@ export const useInventario = (): UseInventarioReturn => {
       window.removeEventListener('inventario_actualizado', refrescarCacheYRemoto)
       window.removeEventListener('realtime:inventario_changed', refrescarCacheYRemoto)
     }
-  }, [sincronizar])
+  }, [sincronizar, puedeVerMovimientos])
 
   useEffect(() => {
     if (!USE_SUPABASE) return

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Clock, GripVertical, MessageCircle, AlertTriangle, Repeat, Megaphone, Edit3, RefreshCw } from 'lucide-react'
 import type { Cita } from '../schemas/citaSchema'
 import { obtenerPosicionEnSerie } from '../services/recurrenciaService'
-import { usePermisosAgenda, puedeEditarCita, puedeCancelarCita, puedeArrastrarCita } from '../utils/permisosAgenda'
+import { usePermisosAgenda, puedeEditarCita, puedeArrastrarCita } from '../utils/permisosAgenda'
 import { useSesionStore } from '../../../../app/stores/sesionStore'
 import { ESTADOS_CITA_CORE } from '../constants/agendaConstants'
 import { validarTransicion } from '../utils/validarTransicionEstado'
@@ -69,7 +69,6 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
   const userProfile = useSesionStore((s) => s.userProfile)
 
   const puedeEditar = puedeEditarCita(permisos, appointment, userProfile)
-  const puedeCancelar = puedeCancelarCita(permisos, appointment, userProfile)
   const puedeArrastrar = puedeArrastrarCita(permisos, appointment, userProfile)
 
   const estadoConfig = ESTADO_BADGES[appointment.estado] || ESTADO_BADGES.Pendiente

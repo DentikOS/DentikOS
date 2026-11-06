@@ -47,7 +47,6 @@ import { notificationService } from './infrastructure/notification/notificationS
 
 // Módulos de uso diario — carga eager (Public API, Constitución v3.0.0)
 import { Agenda as AgendaModulo } from './domains/operations/agenda'
-import { usePresupuestosStore } from './app/stores/usePresupuestosStore'
 import { usePacientesStore } from './app/stores/usePacientesStore'
 import type { PestanaFicha } from './app/stores/pacientesStore'
 import { useSessionGuard } from './shared/hooks/useSessionGuard'
@@ -62,21 +61,19 @@ const log = createLogger('App')
 
 // (F2-05) — resto de los módulos vía React.lazy: no se descargan en el
 // bundle inicial, solo cuando el usuario navega a esa sección por primera vez.
-const PacientesListado = lazy(() => import('./domains/clinical/patient').then(m => ({ default: m.PacientesListado })))
-const FichaClinica = lazy(() => import('./domains/clinical/patient').then(m => ({ default: m.FichaClinica })))
+const PacientesListado = lazy(() => import('./domains/clinical/patient/components/listado/PacientesListado').then(m => ({ default: m.PacientesListado })))
+const FichaClinica = lazy(() => import('./domains/clinical/patient/components/ficha/FichaClinica').then(m => ({ default: m.FichaClinica })))
 const FinanzasModulo = lazy(() => import('./domains/billing/treasury').then(m => ({ default: m.TreasuryModulo })))
-const InventarioModulo = lazy(() => import('./domains/operations/inventory').then(m => ({ default: m.InventarioModulo })))
+const InventarioModulo = lazy(() => import('./domains/operations/inventory/InventarioModulo').then(m => ({ default: m.InventarioModulo })))
 const UrgenciasGesModulo = lazy(() => import('./domains/clinical/emergency-ges').then(m => ({ default: m.UrgenciasGesModulo })))
 const EsterilizacionModulo = lazy(() => import('./domains/operations/sterilization').then(m => ({ default: m.EsterilizacionModulo })))
 const LaboratorioModulo = lazy(() => import('./domains/addons/lab').then(m => ({ default: m.LaboratorioModulo })))
 const PrestacionesModulo = lazy(() => import('./domains/organization/prestations').then(m => ({ default: m.PrestacionesModulo })))
-const PresupuestosModulo = lazy(() => import('./domains/billing/budget').then(m => ({ default: m.PresupuestosModulo })))
-const PagosModulo = lazy(() => import('./domains/billing/payment').then(m => ({ default: m.PagosModulo })))
+const PresupuestosModulo = lazy(() => import('./domains/billing/budget/PresupuestosModulo').then(m => ({ default: m.PresupuestosModulo })))
+const PagosModulo = lazy(() => import('./domains/billing/payment/PagosModulo').then(m => ({ default: m.PagosModulo })))
 const ComunicacionesModulo = lazy(() => import('./domains/operations/communications').then(m => ({ default: m.ComunicacionesModulo })))
 const ReportesModulo = lazy(() => import('./domains/billing/report').then(m => ({ default: m.ReportesModulo })))
-const DatosClinicaForm = lazy(() => import('./domains/organization/clinic').then(m => ({ default: m.DatosClinicaForm })))
 const AdminVademecumModulo = lazy(() => import('./domains/organization/vademecum').then(m => ({ default: m.AdminVademecumModulo })))
-const GestionMiembrosModulo = lazy(() => import('./domains/organization/team').then(m => ({ default: m.GestionMiembrosModulo })))
 const AdministracionDentikOSModulo = lazy(() => import('./domains/organization/clinic').then(m => ({ default: m.AdministracionDentikOSModulo })))
 
 interface SesionStoreState {
@@ -115,7 +112,10 @@ export const App: React.FC = () => {
   // F7-36 FASE 1 (Commit 1.5f): repo tenant-aware para paciente seleccionado (PHI).
   // La clave clinica_paciente_seleccionado_id ahora se almacena como
   // sd_<clinicaId>_clinica_paciente_seleccionado_id para aislamiento multi-tenant.
-  const pacienteSeleccionadoRepo = createTenantRepository<string | null>('clinica_paciente_seleccionado_id', null)
+  const pacienteSeleccionadoRepo = useMemo(
+    () => createTenantRepository<string | null>('clinica_paciente_seleccionado_id', null),
+    []
+  )
 
   // F4-02e: Persistir activeSection (localStorage). Si no hay, usar 'Dashboard'.
   const [activeSection, setActiveSection] = useState<string>(() => {
@@ -130,7 +130,7 @@ export const App: React.FC = () => {
   const [pacienteSeleccionado, setPacienteSeleccionadoState] = useState<Paciente | null>(null)
 
   // F4-02e + F7-36: Wrapper que persiste el pacienteId en repo tenant-aware
-  const setPacienteSeleccionado = (paciente: Paciente | null): void => {
+  const setPacienteSeleccionado = useCallback((paciente: Paciente | null): void => {
     setPacienteSeleccionadoState(paciente)
     try {
       if (paciente?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(paciente.id))) {
@@ -144,7 +144,7 @@ export const App: React.FC = () => {
     } catch (e: unknown) {
       log.error('Error al persistir pacienteId:', e)
     }
-  }
+  }, [pacienteSeleccionadoRepo])
 
   // F4-02e: Persistir activeSection cuando cambia
   useEffect(() => {
@@ -231,8 +231,6 @@ export const App: React.FC = () => {
 
   // Blueprint 02 & 03: Modo Foco, Modo Presentación y Atajos
   const focusMode = useSidebarStore((s) => s.focusMode)
-  const setFocusMode = useSidebarStore((s) => s.setFocusMode)
-  const toggleFocusMode = useSidebarStore((s) => s.toggleFocusMode)
   const presentationMode = useTopBarStore((s) => s.presentationMode)
   const setPresentationMode = useTopBarStore((s) => s.setPresentationMode)
   const startTimer = useTopBarStore((s) => s.startTimer)
@@ -371,7 +369,7 @@ export const App: React.FC = () => {
       ]
     }
     return [{ label: activeSection }]
-  }, [activeSection, pacienteSeleccionado])
+  }, [activeSection, pacienteSeleccionado, setPacienteSeleccionado])
 
   useDataMigration(userProfile)
 

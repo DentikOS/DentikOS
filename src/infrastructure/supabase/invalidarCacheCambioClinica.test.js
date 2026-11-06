@@ -62,7 +62,7 @@ import { invalidarCacheCambioClinica } from './invalidarCacheCambioClinica'
  */
 const mockIndexedDB = (resultado = 'success') => {
   global.indexedDB = {
-    deleteDatabase: vi.fn((dbName) => {
+    deleteDatabase: vi.fn((_dbName) => {
       const request = {
         onsuccess: null,
         onerror: null,

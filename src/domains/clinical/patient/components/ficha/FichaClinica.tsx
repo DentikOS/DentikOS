@@ -72,7 +72,7 @@ export const FichaClinica: React.FC<FichaClinicaProps> = ({
     if (tieneAlergias) {
       sonarAlerta220Hz()
     }
-  }, [pacienteFinal?.id, pacienteFinal?.alergias, pacienteFinal?.anticoagulantes])
+  }, [pacienteFinal?.id, pacienteFinal?.alergias, pacienteFinal?.alergiasSeveras, pacienteFinal?.anticoagulantes])
 
   // Contextual Router (WS2)
   useEffect(() => {
@@ -89,7 +89,7 @@ export const FichaClinica: React.FC<FichaClinicaProps> = ({
       )
       setPestanaActivaStore(tabDefault)
     }
-  }, [pacienteFinal?.id, pacienteFinal?.fechaUltimaVisita, pestanaActivaStore, setPestanaActivaStore])
+  }, [pacienteFinal, pestanaActivaStore, setPestanaActivaStore])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
