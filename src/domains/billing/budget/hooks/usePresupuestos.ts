@@ -9,6 +9,7 @@ import {
 } from '../utils/presupuestosCalculations'
 import { useAppDialog } from '../../../../shared/hooks/useAppDialog'
 import type { Paciente } from '../../../../domains/clinical/patient/schemas/pacienteSchema'
+import { REALTIME_EVENTS } from '../../../../infrastructure/realtime/realtimeEvents'
 
 export interface UsePresupuestosReturn {
   presupuestos: PresupuestoLocal[]
@@ -56,9 +57,14 @@ export const usePresupuestos = (
     cargarPresupuestos()
     window.addEventListener('storage', cargarPresupuestos)
     window.addEventListener('presupuestos_actualizados', cargarPresupuestos)
+    const actualizarDesdeSupabase = (): void => {
+      void presupuestosStorageService.sincronizarDesdeSupabase().then(cargarPresupuestos).catch(cargarPresupuestos)
+    }
+    window.addEventListener(REALTIME_EVENTS.PRESUPUESTOS_CHANGED, actualizarDesdeSupabase)
     return () => {
       window.removeEventListener('storage', cargarPresupuestos)
       window.removeEventListener('presupuestos_actualizados', cargarPresupuestos)
+      window.removeEventListener(REALTIME_EVENTS.PRESUPUESTOS_CHANGED, actualizarDesdeSupabase)
     }
   }, [cargarPresupuestos])
 

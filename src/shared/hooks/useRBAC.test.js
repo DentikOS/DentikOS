@@ -180,12 +180,16 @@ describe('useRBAC', () => {
       expect(result.current.permisos).toContain(PERMISOS.GESTIONAR_USUARIOS)
     })
 
-    it('RECEPCION solo tiene acceso a presupuestos entre los permisos especiales', () => {
+    it('RECEPCION solo tiene acceso a presupuesto, laboratorio y cola entre los permisos especiales', () => {
       setStore({ email: 'recepcion@example.com', rol: ROLES.RECEPCION })
 
       const { result } = renderHook(() => useRBAC())
 
-      expect(result.current.permisos).toEqual([PERMISOS.VER_PRESUPUESTOS])
+      expect(result.current.permisos).toEqual([
+        PERMISOS.VER_PRESUPUESTOS,
+        PERMISOS.VER_LABORATORIO,
+        PERMISOS.VER_COLA_URGENCIA
+      ])
     })
   })
 

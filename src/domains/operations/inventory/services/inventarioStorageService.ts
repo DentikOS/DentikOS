@@ -13,6 +13,26 @@ export interface ItemInventario extends Omit<Partial<ItemInventarioDefault>, 'id
   cantidad: number
   minimoCritico: number
   unidad: string
+  codigo?: string
+  tipoItem?: 'insumo_clinico' | 'instrumental' | 'producto_venta' | 'implante_protesis' | 'equipamiento'
+  proveedorId?: string
+  precioCompra?: number | string
+  precioVenta?: number | string
+  ivaPorcentaje?: number | string
+  cantidadMaxima?: number | string
+  puntoReorden?: number | string
+  requiereLote?: boolean
+  requiereVencimiento?: boolean
+  estadoCatalogo?: 'activo' | 'inactivo'
+  estadoInstrumental?: string
+  requiereEsterilizacion?: boolean
+  numeroSerie?: string
+  fechaInstalacion?: string
+  vidaUtilHoras?: number | string
+  ultimaMantencion?: string
+  proximaMantencion?: string
+  origenLocalKey?: string
+  updatedAt?: string
   [key: string]: unknown
 }
 

@@ -42,6 +42,7 @@ export const PresupuestoSection: React.FC<PresupuestoSectionProps> = memo((props
     prestacionSeleccionadaId,
     nombrePrestacion,
     valorPrestacion,
+    precioPendiente,
     precioBaseOriginal,
     porcentajeDescuentoAplicado,
     origenPrecioAplicado,
@@ -51,6 +52,10 @@ export const PresupuestoSection: React.FC<PresupuestoSectionProps> = memo((props
     itemPendienteDescuento,
     categoriaDetectada,
     materialesDisponibles,
+    ubicacionesInventario,
+    descuentoGuardando,
+    errorDescuento,
+    modoSincronizado,
     handleSeleccionarPrestacion,
     handleCambiarConvenioSelect,
     handleAgregarItemPresupuesto,
@@ -77,6 +82,7 @@ export const PresupuestoSection: React.FC<PresupuestoSectionProps> = memo((props
         prestacionSeleccionadaId={prestacionSeleccionadaId}
         nombrePrestacion={nombrePrestacion}
         valorPrestacion={valorPrestacion}
+        precioPendiente={precioPendiente}
         precioBaseOriginal={precioBaseOriginal}
         porcentajeDescuentoAplicado={porcentajeDescuentoAplicado}
         origenPrecioAplicado={origenPrecioAplicado}
@@ -107,6 +113,10 @@ export const PresupuestoSection: React.FC<PresupuestoSectionProps> = memo((props
         </Button>
       </div>
 
+      <p className="mb-3 rounded-xl border border-surface bg-surface-muted p-3 text-xs text-graphite-600 dark:text-graphite-300">
+        El estado “Realizado” aquí corresponde al presupuesto y al descuento de insumos. Para cerrar el tratamiento en la ficha clínica y registrar el instrumental usado, utiliza Plan de tratamiento.
+      </p>
+
       {/* Documento Imprimible del Presupuesto */}
       <DocumentoImprimiblePresupuesto
         paciente={paciente}
@@ -128,6 +138,10 @@ export const PresupuestoSection: React.FC<PresupuestoSectionProps> = memo((props
           materialesDisponibles={materialesDisponibles}
           alConfirmar={handleConfirmarDescuento}
           alCancelar={handleCancelarDescuento}
+          ubicaciones={ubicacionesInventario}
+          guardando={descuentoGuardando}
+          error={errorDescuento}
+          modoSincronizado={modoSincronizado}
         />
       )}
     </div>

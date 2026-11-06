@@ -2,6 +2,7 @@ import { getClinicaActivaSync } from '../../../../infrastructure/auth/authServic
 import { esUuidValido } from '../../../../infrastructure/supabase/migrations/uuidUtils'
 import { supabase, USE_SUPABASE } from '../../../../infrastructure/supabase/supabaseClient'
 import type { PresupuestoLocal } from './presupuestosStorageService'
+import { formatearImporteDocumento, resolverMonedaDocumento } from '../../../../shared/utils/formatoDocumento'
 
 export interface VersionPresupuesto {
   version: number
@@ -12,6 +13,7 @@ export interface VersionPresupuesto {
   motivoOrigen?: 'usuario' | 'sistema'
   totalAnterior: number
   totalNuevo: number
+  moneda?: string
   hashSha256: string
   cambios?: string[]
 }
@@ -52,13 +54,14 @@ export const presupuestoVersionesService = {
       const nuevo = row.nuevo || {}
       const totalAnterior = Number(anterior.monto_total || 0)
       const totalNuevo = Number(nuevo.monto_total || 0)
+      const moneda = resolverMonedaDocumento(nuevo.moneda)
       const cambios = row.tipo === 'creacion' ? ['Creación inicial'] : [
-        totalAnterior !== totalNuevo ? `Total: $${totalAnterior.toLocaleString('es-CL')} → $${totalNuevo.toLocaleString('es-CL')}` : 'Importes o condiciones actualizados',
+        totalAnterior !== totalNuevo ? `Total: ${formatearImporteDocumento(totalAnterior, moneda)} → ${formatearImporteDocumento(totalNuevo, moneda)}` : 'Importes o condiciones actualizados',
       ]
       return { version: indice + 1, fecha: row.fecha, usuario: row.actor_user_id,
         tipoModificacion: row.tipo === 'creacion' ? 'Creación' : 'Cambio financiero',
         motivo: row.motivo, motivoOrigen: row.motivo_origen,
-        totalAnterior, totalNuevo, hashSha256: row.hash_sha256, cambios }
+        totalAnterior, totalNuevo, moneda, hashSha256: row.hash_sha256, cambios }
     })
   },
 }

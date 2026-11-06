@@ -2,13 +2,16 @@ import React, { memo } from 'react'
 import { exportService } from '../services/exportService'
 import { FileSpreadsheet, Trophy } from 'lucide-react'
 import type { TopPrestacion } from '../utils/reportesCalculations'
+import { formatearImporteDocumento } from '../../../../shared/utils/formatoDocumento'
 
 export interface RankingPrestacionesTableProps {
   topPrestaciones?: TopPrestacion[]
+  moneda?: string
 }
 
 export const RankingPrestacionesTable: React.FC<RankingPrestacionesTableProps> = memo(({
-  topPrestaciones = []
+  topPrestaciones = [],
+  moneda = 'CLP',
 }) => {
   if (topPrestaciones.length === 0) {
     return (
@@ -30,7 +33,7 @@ export const RankingPrestacionesTable: React.FC<RankingPrestacionesTableProps> =
             Por Ingreso Generado
           </span>
           <button
-            onClick={() => exportService.exportarRankingExcel(topPrestaciones)}
+            onClick={() => exportService.exportarRankingExcel(topPrestaciones, moneda)}
             className="text-[10px] bg-emerald-600 text-white px-2 py-1 rounded font-bold hover:bg-emerald-700 transition-colors"
             aria-label="Exportar ranking de prestaciones a Excel"
             title="Descargar Excel con ranking de prestaciones"
@@ -69,7 +72,7 @@ export const RankingPrestacionesTable: React.FC<RankingPrestacionesTableProps> =
                 </span>
               </td>
               <td className="p-2.5 text-right font-black text-emerald-900">
-                ${item.montoTotal.toLocaleString('es-CL')} CLP
+                {formatearImporteDocumento(item.montoTotal, moneda)}
               </td>
             </tr>
           ))}

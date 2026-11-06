@@ -1,19 +1,21 @@
 import React, { memo } from 'react'
 import type { MetricasReportes } from '../hooks/useReportes'
+import { formatearImporteDocumento } from '../../../../shared/utils/formatoDocumento'
 
 export interface ReportesSummaryCardsProps {
   metricas: MetricasReportes
+  moneda?: string
 }
 
-export const ReportesSummaryCards: React.FC<ReportesSummaryCardsProps> = memo(({ metricas }) => {
+export const ReportesSummaryCards: React.FC<ReportesSummaryCardsProps> = memo(({ metricas, moneda = 'CLP' }) => {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 text-xs">
+    <div className="metric-grid text-xs">
       <div className="p-4 bg-white dark:bg-graphite-800 border border-gray-200 dark:border-graphite-700 rounded-2xl shadow-xs">
         <span className="text-[10px] font-bold text-gray-500 dark:text-graphite-400 uppercase tracking-wider block">
           Recaudación Real Efectiva
         </span>
         <span className="text-2xl font-black text-gray-900 dark:text-graphite-50 mt-1 block">
-          ${metricas.totalRecaudado.toLocaleString('es-CL')} CLP
+          {formatearImporteDocumento(metricas.totalRecaudado, moneda)}
         </span>
       </div>
 
@@ -31,7 +33,7 @@ export const ReportesSummaryCards: React.FC<ReportesSummaryCardsProps> = memo(({
           Ticket Promedio / Paciente
         </span>
         <span className="text-2xl font-black text-blue-900 mt-1 block">
-          ${metricas.ticketPromedio.toLocaleString('es-CL')} CLP
+          {formatearImporteDocumento(metricas.ticketPromedio, moneda)}
         </span>
       </div>
 

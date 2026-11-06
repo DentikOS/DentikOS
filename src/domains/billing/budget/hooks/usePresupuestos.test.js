@@ -4,6 +4,7 @@ import { usePresupuestos } from './usePresupuestos'
 import { presupuestosStorageService } from '../services/presupuestosStorageService'
 import { calcularResumenPresupuestos } from '../utils/presupuestosCalculations'
 import { useDialogStore } from '../../../../app/stores/dialogStore'
+import { REALTIME_EVENTS } from '../../../../infrastructure/realtime/realtimeEvents'
 
 vi.mock('../services/presupuestosStorageService', () => ({
   presupuestosStorageService: {
@@ -12,7 +13,8 @@ vi.mock('../services/presupuestosStorageService', () => ({
     guardarPresupuestos: vi.fn(),
     guardarPresupuesto: vi.fn(),
     actualizarEstadoPresupuesto: vi.fn(),
-    archivarPresupuesto: vi.fn()
+    archivarPresupuesto: vi.fn(),
+    sincronizarDesdeSupabase: vi.fn().mockResolvedValue([])
   }
 }))
 
@@ -42,6 +44,7 @@ describe('usePresupuestos', () => {
     presupuestosStorageService.guardarPresupuesto.mockImplementation(async (presupuesto) => presupuesto)
     presupuestosStorageService.actualizarEstadoPresupuesto.mockResolvedValue(true)
     presupuestosStorageService.archivarPresupuesto.mockResolvedValue(true)
+    presupuestosStorageService.sincronizarDesdeSupabase.mockResolvedValue([])
     
     calcularResumenPresupuestos.mockReturnValue({
       total: 3,
@@ -92,6 +95,15 @@ describe('usePresupuestos', () => {
         rechazados: 1,
         montoTotal: 155000
       })
+    })
+
+    it('sincroniza de nuevo cuando recibe un cambio Realtime de presupuestos', async () => {
+      renderHook(() => usePresupuestos(mockPacientes))
+      await act(async () => {
+        window.dispatchEvent(new CustomEvent(REALTIME_EVENTS.PRESUPUESTOS_CHANGED))
+        await new Promise((resolve) => setTimeout(resolve, 0))
+      })
+      expect(presupuestosStorageService.sincronizarDesdeSupabase).toHaveBeenCalledOnce()
     })
   })
 

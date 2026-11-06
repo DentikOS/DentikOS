@@ -44,7 +44,7 @@ export const SHORTCUT_CATEGORIES: ShortcutCategory[] = [
   {
     title: 'Tema',
     shortcuts: [
-      { keys: '⌘⇧D', description: 'Cambiar tema (Claro/Quirúrgico/Oscuro)' },
+      { keys: '⌘⇧D', description: 'Cambiar tema (Claro/Oscuro)' },
     ],
   },
   {

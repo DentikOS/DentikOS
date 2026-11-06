@@ -15,7 +15,8 @@ export type CategoriaArchivo =
   | "foto_clinica" 
   | "pdf" 
   | "documento" 
-  | "otro";
+  | "otro"
+  | "laboratorio";
 
 export const MIME_TYPES_PERMITIDOS: Record<CategoriaArchivo, string[]> = {
   radiografia: ["image/jpeg", "image/png", "image/webp", "application/dicom"],
@@ -28,6 +29,17 @@ export const MIME_TYPES_PERMITIDOS: Record<CategoriaArchivo, string[]> = {
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   ],
   otro: ["application/pdf", "image/jpeg", "image/png", "text/plain"],
+  laboratorio: [
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "model/stl",
+    "application/sla",
+    "application/octet-stream",
+  ],
 };
 
 export const EXTENSIONES_POR_MIME: Record<string, string[]> = {
@@ -39,6 +51,9 @@ export const EXTENSIONES_POR_MIME: Record<string, string[]> = {
   "application/msword": ["doc"],
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ["docx"],
   "text/plain": ["txt"],
+  "model/stl": ["stl"],
+  "application/sla": ["stl"],
+  "application/octet-stream": ["stl"],
 };
 
 export interface ResultadoValidacion {

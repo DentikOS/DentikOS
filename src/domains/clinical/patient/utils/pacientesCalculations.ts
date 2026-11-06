@@ -43,9 +43,9 @@ export const obtenerPrecioPrestacionConvenio = (
   input: {
     prestacionId: string | number
     especialidad?: string | null
+    categoria?: string | null
     convenioIdentificador?: string | null
     precioParticular: number
-    precioFonasa?: number
   },
 ): PrecioPrestacionCalculado & { sucursalId: string | null } => {
   const configuracion = clinicStorageService.obtenerClinica()?.configuracionConvenios

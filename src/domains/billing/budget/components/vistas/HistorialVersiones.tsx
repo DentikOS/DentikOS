@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { History, ArrowRight, ShieldCheck, ChevronDown, ChevronUp, FileText } from 'lucide-react'
 import type { VersionPresupuesto } from '../../services/presupuestoVersionesService'
+import { formatearImporteDocumento } from '../../../../../shared/utils/formatoDocumento'
 
 interface HistorialVersionesProps {
   versiones?: VersionPresupuesto[]
@@ -53,11 +54,11 @@ export const HistorialVersiones: React.FC<HistorialVersionesProps> = ({
                   <div className="flex items-center gap-1 font-mono text-xs">
                     {v.totalAnterior > 0 && (
                       <>
-                        <span className="text-graphite-400 line-through">${v.totalAnterior.toLocaleString('es-CL')}</span>
+                        <span className="text-graphite-400 line-through">{formatearImporteDocumento(v.totalAnterior, v.moneda)}</span>
                         <ArrowRight className="w-3 h-3 text-graphite-400" />
                       </>
                     )}
-                    <span className="font-bold text-primary">${v.totalNuevo.toLocaleString('es-CL')}</span>
+                    <span className="font-bold text-primary">{formatearImporteDocumento(v.totalNuevo, v.moneda)}</span>
                   </div>
 
                   <button
@@ -94,7 +95,7 @@ export const HistorialVersiones: React.FC<HistorialVersionesProps> = ({
                     <li>
                       Variación neta:{' '}
                       <span className={diferencia >= 0 ? 'text-amber-600 font-bold' : 'text-emerald-600 font-bold'}>
-                        {diferencia >= 0 ? '+' : ''}${diferencia.toLocaleString('es-CL')}
+                        {diferencia >= 0 ? '+' : ''}{formatearImporteDocumento(diferencia, v.moneda)}
                       </span>
                     </li>
                   </ul>

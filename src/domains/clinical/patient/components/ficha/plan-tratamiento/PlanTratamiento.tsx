@@ -25,6 +25,9 @@ import type { ItemDesdePlan } from '../../../../../billing/budget/utils/planBudg
 import { evaluarEstadoPlanTratamiento } from './estadoPlanTratamiento'
 import { evaluarEstadoFinancieroProcedimientos, type EstadoFinancieroProcedimiento } from './estadoFinancieroPlan'
 import { imputacionesPagoService, type SnapshotImputacionesPresupuesto } from '../../../../../billing/budget/services/imputacionesPagoService'
+import { registrarEvolucionTratamientoRealizado } from '../../../../../../application/treatment/completeTreatment'
+import { esterilizacionCloudService } from '../../../../../operations/sterilization/services/esterilizacionCloudService'
+import { ModalTrazabilidadEsterilizacion } from './ModalTrazabilidadEsterilizacion'
 import {
   generarFasesDesdeOdontograma,
   fasesVacias,
@@ -91,6 +94,8 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
   const [mostrarDerivacion, setMostrarDerivacion] = useState(false)
   const [derivaciones, setDerivaciones] = useState<DerivacionClinica[]>([])
   const [modalPresupuestoAbierto, setModalPresupuestoAbierto] = useState(false)
+  const [procedimientoParaCerrar, setProcedimientoParaCerrar] = useState<ProcedimientoPlan | null>(null)
+  const [cerrandoTratamiento, setCerrandoTratamiento] = useState(false)
   const planOdontogramaStampRef = useRef<string | null>(null)
   const planCargadoRef = useRef(false)
   const pacienteActivoRef = useRef(pacienteId)
@@ -165,6 +170,8 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
     setFases(fasesVacias())
     planOdontogramaStampRef.current = null
     planCargadoRef.current = false
+    setProcedimientoParaCerrar(null)
+    setCerrandoTratamiento(false)
     setPlanGuardado(false)
     setPlanRevision(undefined)
     setOdontogramaDesactualizado(false)
@@ -318,16 +325,13 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
     const prestacion = prestaciones.find((item) => String(item.id) === prestacionId)
     if (!prestacion) return null
     const precioParticularRaw = Number(prestacion.precioParticular ?? prestacion.precio ?? 0)
-    const precioFonasaRaw = Number(prestacion.precioFonasa)
-    const precioFonasa = Number.isFinite(precioFonasaRaw) && precioFonasaRaw >= 0 ? Math.round(precioFonasaRaw) : undefined
     return resolverPrecioPrestacion(configuracionConvenios, {
       prestacionId: prestacion.id,
       especialidad: prestacion.especialidad,
+      categoria: typeof prestacion.categoria === 'string' ? prestacion.categoria : null,
       convenioIdentificador: convenioPrecio.id,
-      tipoConvenio: convenioPrecio.tipo,
       sucursalId: sedeActivaId,
       precioParticular: Number.isFinite(precioParticularRaw) && precioParticularRaw >= 0 ? Math.round(precioParticularRaw) : 0,
-      precioFonasa,
     })
   }
 
@@ -437,6 +441,100 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
     setError('')
     setModalPresupuestoAbierto(true)
     onGenerarPresupuesto?.(fases)
+  }
+
+  const solicitarCierreTratamiento = (procedimiento: ProcedimientoPlan) => {
+    if (rol !== 'admin' && rol !== 'dentista') {
+      setError('Solo administración o el dentista asignado puede cerrar un tratamiento.')
+      return
+    }
+    if (!planGuardado || !planRevision || odontogramaDesactualizado) {
+      setError('Guarda y sincroniza el plan clínico antes de registrar un tratamiento realizado.')
+      return
+    }
+    if (!getClinicaActivaSync()) {
+      setError('Selecciona una clínica activa para registrar la trazabilidad.')
+      return
+    }
+    setError('')
+    setProcedimientoParaCerrar(procedimiento)
+  }
+
+  const cerrarTratamientoConTrazabilidad = async (datos: {
+    instrumentoCicloIds: string[]
+    idempotencyKey: string
+    trazaExistente: boolean
+  }) => {
+    const procedimiento = procedimientoParaCerrar
+    const clinicaId = getClinicaActivaSync()
+    if (!procedimiento || !clinicaId) {
+      setError('La clínica activa cambió. Cierra y vuelve a abrir el registro del tratamiento.')
+      return
+    }
+    setCerrandoTratamiento(true)
+    setError('')
+    try {
+      const ficha = await fichasClinicasStorageService.obtenerPlanTratamientoSincronizado(pacienteId)
+      const planRemoto = ficha?.plan_tratamiento as { fases?: FasePlan[]; actualizadoAt?: string; [key: string]: unknown } | null
+      if (!ficha || !planRemoto || !Array.isArray(planRemoto.fases) || planRemoto.actualizadoAt !== planRevision) {
+        throw new Error('El plan sincronizado cambió desde que lo abriste. Recarga la ficha y revisa el tratamiento antes de continuar.')
+      }
+      const procedimientoRemoto = planRemoto.fases.flatMap((fase) => fase.procedimientos || [])
+        .find((item) => item.id === procedimiento.id)
+      if (!procedimientoRemoto) throw new Error('El procedimiento ya no está en el plan clínico sincronizado.')
+      if (procedimientoRemoto.estado === 'realizado') {
+        throw new Error('Este procedimiento ya aparece realizado en el plan sincronizado. Recarga la ficha para revisar su trazabilidad.')
+      }
+
+      if (!datos.trazaExistente) {
+        if (datos.instrumentoCicloIds.length === 0) throw new Error('Selecciona instrumental esterilizado antes de continuar.')
+        await esterilizacionCloudService.vincularInstrumentalTratamiento({
+          pacienteId,
+          tratamientoRef: procedimiento.id,
+          instrumentoCicloIds: datos.instrumentoCicloIds,
+          idempotencyKey: datos.idempotencyKey,
+        })
+      }
+
+      await registrarEvolucionTratamientoRealizado(
+        pacienteId,
+        {
+          id: procedimiento.id,
+          prestacion: procedimiento.descripcion,
+          pieza: procedimiento.pieza === undefined ? 'General' : String(procedimiento.pieza),
+        },
+        String(emisor?.nombreCompleto || emisor?.email || 'Profesional clínico'),
+        [],
+        procedimiento.id
+      )
+
+      const nuevasFases = planRemoto.fases.map((fase) => ({
+        ...fase,
+        procedimientos: fase.procedimientos.map((item) => item.id === procedimiento.id
+          ? { ...item, estado: 'realizado' as const }
+          : item),
+      }))
+      if (getClinicaActivaSync() !== clinicaId) {
+        throw new Error('La clínica activa cambió durante el registro. Revisa la ficha antes de reintentar.')
+      }
+      const planActualizado = { ...planRemoto, fases: nuevasFases }
+      const guardado = await fichasClinicasStorageService.actualizarPlanTratamientoSincronizado(
+        pacienteId,
+        ficha.updated_at,
+        planActualizado
+      )
+      if (!guardado) {
+        throw new Error('La trazabilidad quedó registrada, pero no se confirmó la actualización del plan. Recarga la ficha y reintenta el cierre.')
+      }
+      setFases(nuevasFases)
+      setPlanGuardado(true)
+      setPlanRevision(planRemoto.actualizadoAt)
+      setProcedimientoParaCerrar(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo sincronizar el cierre del tratamiento.')
+    } finally {
+      setCerrandoTratamiento(false)
+    }
   }
 
   return (
@@ -653,6 +751,20 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
                               : 'Espera a que se sincronicen los convenios y sucursales antes de seleccionar una prestación.')
                             return
                           }
+                          if (precio.precio === null || precio.precioBase === null) {
+                            actualizarProcedimiento(proc.id, {
+                              prestacionId: String(prestacion.id),
+                              descripcion: `${prestacion.nombre} (P.${proc.pieza})`,
+                              costo: null,
+                              precioBase: undefined,
+                              descuentoPct: undefined,
+                              precioOrigen: undefined,
+                              convenioPrecioId: convenioPrecio.id || (convenioPrecio.tipo === 'fonasa' ? 'fonasa' : 'particular'),
+                              sucursalIdPrecio: sedeActivaId,
+                            })
+                            setError(`${prestacion.nombre} no tiene tarifa para ${previsionPaciente || 'el convenio seleccionado'}. Quedó pendiente de revisión clínica y tarifaria.`)
+                            return
+                          }
                           actualizarProcedimiento(proc.id, {
                             prestacionId: String(prestacion.id),
                             descripcion: `${prestacion.nombre} (P.${proc.pieza})`,
@@ -697,13 +809,17 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
                       <select
                         aria-label={`Estado clínico de ${proc.descripcion}`}
                         value={proc.estado}
-                        onChange={(e) => actualizarProcedimiento(proc.id, { estado: e.target.value as ProcedimientoPlan['estado'] })}
-                        disabled={proc.requiereRevision}
+                        onChange={(e) => {
+                          const estado = e.target.value as ProcedimientoPlan['estado']
+                          if (estado === 'realizado') solicitarCierreTratamiento(proc)
+                          else actualizarProcedimiento(proc.id, { estado })
+                        }}
+                        disabled={proc.requiereRevision || proc.estado === 'realizado' || cerrandoTratamiento}
                         className="text-xs bg-surface border border-surface rounded-lg px-2 py-1 font-semibold"
                       >
                         <option value="pendiente">Pendiente</option>
                         <option value="aprobado">Aprobado</option>
-                        <option value="realizado">Realizado</option>
+                        {(rol === 'admin' || rol === 'dentista') && <option value="realizado">Realizado</option>}
                         <option value="cancelado">Cancelado</option>
                       </select>
                     </div>
@@ -758,6 +874,20 @@ export const PlanTratamiento: React.FC<PlanTratamientoProps> = ({
             const emitida = await derivacionesService.emitir(pacienteId, input)
             setDerivaciones((actuales) => [emitida, ...actuales])
           }}
+        />
+      )}
+
+      {procedimientoParaCerrar && getClinicaActivaSync() && (
+        <ModalTrazabilidadEsterilizacion
+          pacienteId={pacienteId}
+          clinicaId={getClinicaActivaSync() as string}
+          tratamientoRef={procedimientoParaCerrar.id}
+          descripcionTratamiento={procedimientoParaCerrar.descripcion}
+          guardando={cerrandoTratamiento}
+          onCerrar={() => {
+            if (!cerrandoTratamiento) setProcedimientoParaCerrar(null)
+          }}
+          onConfirmar={cerrarTratamientoConTrazabilidad}
         />
       )}
 

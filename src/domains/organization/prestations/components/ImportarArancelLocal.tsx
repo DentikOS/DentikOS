@@ -10,7 +10,6 @@ const esEjemploSinCambios = (prestacion: Prestacion): boolean => {
   return Boolean(ejemplo && ejemplo.nombre === prestacion.nombre &&
     ejemplo.especialidad === prestacion.especialidad &&
     ejemplo.precioParticular === prestacion.precioParticular &&
-    ejemplo.precioFonasa === prestacion.precioFonasa &&
     ejemplo.codigoFonasa === prestacion.codigoFonasa)
 }
 
@@ -19,7 +18,6 @@ export const candidatosArancelLocal = (locales: Prestacion[], remotas: Prestacio
     !remotas.some((remota) => remota.nombre === prestacion.nombre &&
       remota.especialidad === prestacion.especialidad &&
       remota.precioParticular === prestacion.precioParticular &&
-      remota.precioFonasa === prestacion.precioFonasa &&
       remota.codigoFonasa === prestacion.codigoFonasa))
 
 interface ImportarArancelLocalProps {
@@ -46,7 +44,7 @@ export const ImportarArancelLocal: React.FC<ImportarArancelLocalProps> = ({ mone
     setError('')
     try {
       // Un id legado local nunca autoriza UPDATE de una fila remota.
-      const guardada = await prestacionesSupabaseService.guardar({ ...prestacion, id: Date.now() })
+      const guardada = await prestacionesSupabaseService.guardar({ ...prestacion, id: Date.now(), precioFonasa: null })
       usePrestacionesStore.getState().setPrestacionesArancel((actuales) => [guardada, ...actuales])
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'No se pudo importar la prestación.')
@@ -62,7 +60,7 @@ export const ImportarArancelLocal: React.FC<ImportarArancelLocalProps> = ({ mone
     {error && <p role="alert" className="text-red-700">{error}</p>}
     <div className="space-y-2">
       {candidatos.map((prestacion) => <div key={String(prestacion.id)} className="flex items-center justify-between gap-3 border-t border-amber-200 pt-2">
-        <span>{prestacion.nombre} · {prestacion.especialidad} · particular {mostrarImporteLocal(prestacion.precioParticular)} · convenio {prestacion.precioFonasa == null ? 'sin tarifa Fonasa' : mostrarImporteLocal(prestacion.precioFonasa)}</span>
+        <span>{prestacion.nombre} · {prestacion.especialidad} · precio base {mostrarImporteLocal(prestacion.precioParticular)}</span>
         <button type="button" className="rounded-lg bg-black px-3 py-1.5 text-white disabled:opacity-50"
           disabled={!puedeImportarSinConversion || estadoRemoto !== 'listo' || importando !== null}
           onClick={() => void importar(prestacion)}>

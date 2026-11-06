@@ -1,8 +1,8 @@
 /**
  * F6-D-1: Hook de sincronización de datos clínicos desde Supabase.
  *
- * Sincroniza todos los datos clínicos del paciente (odontograma, perio,
- * evoluciones, recetas) desde Supabase al abrir la ficha, y limpia la
+ * Sincroniza los módulos heredados del paciente (odontograma, perio,
+ * evoluciones) desde Supabase al abrir la ficha, y limpia la
  * caché al cerrarla (desmontar el componente).
  *
  * Uso:

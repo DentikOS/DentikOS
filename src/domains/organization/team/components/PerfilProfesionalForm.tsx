@@ -71,7 +71,7 @@ export const PerfilProfesionalForm: React.FC<PerfilProfesionalFormProps> = memo(
   return (
     <form onSubmit={handleSubmit} className="bg-surface border border-surface rounded-2xl p-6 shadow-xs space-y-4 text-xs">
       <div className="border-b border-surface pb-3">
-        <h3 className="font-bold text-sm text-gray-900 dark:text-graphite-50 surgical:text-black uppercase tracking-wider inline-flex items-center gap-2">
+        <h3 className="font-bold text-sm text-gray-900 dark:text-graphite-50  uppercase tracking-wider inline-flex items-center gap-2">
           <User size={14} />
           {esOdontologo ? 'Perfil del Odontólogo / Profesional' :
            esAsistente ? 'Perfil del Asistente Dental' :
@@ -98,8 +98,8 @@ export const PerfilProfesionalForm: React.FC<PerfilProfesionalFormProps> = memo(
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {/* Nombre - siempre visible y obligatorio */}
         <div>
-          <label htmlFor="perfil-nombre" className="block font-semibold text-gray-700 dark:text-graphite-300 surgical:text-black mb-1">
-            Nombre Completo <span className="text-red-500 dark:text-red-400 surgical:text-red-600 ml-0.5">*</span>
+          <label htmlFor="perfil-nombre" className="block font-semibold text-gray-700 dark:text-graphite-300  mb-1">
+            Nombre Completo <span className="text-red-500 dark:text-red-400  ml-0.5">*</span>
           </label>
           <input
             id="perfil-nombre"
@@ -107,16 +107,16 @@ export const PerfilProfesionalForm: React.FC<PerfilProfesionalFormProps> = memo(
             required
             value={nombreCompleto}
             onChange={(e) => setNombreCompleto(e.target.value)}
-            className="w-full p-2.5 rounded-lg border border-surface bg-white dark:bg-graphite-800 surgical:bg-graphite-200 text-graphite-900 dark:text-graphite-50 font-bold focus:outline-none focus:ring-2 focus:ring-primary/40"
+            className="w-full p-2.5 rounded-lg border border-surface bg-white dark:bg-graphite-800  text-graphite-900 dark:text-graphite-50 font-bold focus:outline-none focus:ring-2 focus:ring-primary/40"
           />
         </div>
 
         {/* RUT - siempre visible, obligatorio solo para odontólogos */}
         <div>
-          <label htmlFor="perfil-rut" className="block font-semibold text-gray-700 dark:text-graphite-300 surgical:text-black mb-1">
+          <label htmlFor="perfil-rut" className="block font-semibold text-gray-700 dark:text-graphite-300  mb-1">
             RUT {esOdontologo && (
               <>
-                Profesional <span className="text-red-500 dark:text-red-400 surgical:text-red-600 ml-0.5">*</span>
+                Profesional <span className="text-red-500 dark:text-red-400  ml-0.5">*</span>
               </>
             )}
           </label>
@@ -126,7 +126,7 @@ export const PerfilProfesionalForm: React.FC<PerfilProfesionalFormProps> = memo(
             required={esOdontologo}
             value={rut}
             onChange={(e) => setRut(e.target.value)}
-            className="w-full p-2.5 rounded-lg border border-surface bg-white dark:bg-graphite-800 surgical:bg-graphite-200 text-graphite-900 dark:text-graphite-50 font-bold focus:outline-none focus:ring-2 focus:ring-primary/40"
+            className="w-full p-2.5 rounded-lg border border-surface bg-white dark:bg-graphite-800  text-graphite-900 dark:text-graphite-50 font-bold focus:outline-none focus:ring-2 focus:ring-primary/40"
           />
         </div>
 
@@ -134,8 +134,8 @@ export const PerfilProfesionalForm: React.FC<PerfilProfesionalFormProps> = memo(
         {esOdontologo && (
           <>
             <div>
-              <label htmlFor="perfil-especialidad" className="block font-semibold text-gray-700 dark:text-graphite-300 surgical:text-black mb-1">
-                Especialidad Clínica <span className="text-red-500 dark:text-red-400 surgical:text-red-600 ml-0.5">*</span>
+              <label htmlFor="perfil-especialidad" className="block font-semibold text-gray-700 dark:text-graphite-300  mb-1">
+                Especialidad Clínica <span className="text-red-500 dark:text-red-400  ml-0.5">*</span>
               </label>
               <input
                 id="perfil-especialidad"
@@ -143,13 +143,13 @@ export const PerfilProfesionalForm: React.FC<PerfilProfesionalFormProps> = memo(
                 required
                 value={especialidad}
                 onChange={(e) => setEspecialidad(e.target.value)}
-                className="w-full p-2.5 rounded-lg border border-surface bg-white dark:bg-graphite-800 surgical:bg-graphite-200 text-graphite-900 dark:text-graphite-50 focus:outline-none focus:ring-2 focus:ring-primary/40"
+                className="w-full p-2.5 rounded-lg border border-surface bg-white dark:bg-graphite-800  text-graphite-900 dark:text-graphite-50 focus:outline-none focus:ring-2 focus:ring-primary/40"
               />
             </div>
 
             <div>
-              <label htmlFor="perfil-registro-isp" className="block font-semibold text-gray-700 dark:text-graphite-300 surgical:text-black mb-1">
-                N° Registro ISP / Super. Salud <span className="text-red-500 dark:text-red-400 surgical:text-red-600 ml-0.5">*</span>
+              <label htmlFor="perfil-registro-isp" className="block font-semibold text-gray-700 dark:text-graphite-300  mb-1">
+                N° Registro ISP / Super. Salud <span className="text-red-500 dark:text-red-400  ml-0.5">*</span>
               </label>
               <input
                 id="perfil-registro-isp"
@@ -158,7 +158,7 @@ export const PerfilProfesionalForm: React.FC<PerfilProfesionalFormProps> = memo(
                 value={numeroRegistroISP}
                 onChange={(e) => setNumeroRegistroISP(e.target.value)}
                 placeholder="Ej: 123456"
-                className="w-full p-2.5 rounded-lg border border-surface bg-white dark:bg-graphite-800 surgical:bg-graphite-200 text-graphite-900 dark:text-graphite-50 font-mono focus:outline-none focus:ring-2 focus:ring-primary/40"
+                className="w-full p-2.5 rounded-lg border border-surface bg-white dark:bg-graphite-800  text-graphite-900 dark:text-graphite-50 font-mono focus:outline-none focus:ring-2 focus:ring-primary/40"
               />
             </div>
           </>
@@ -166,7 +166,7 @@ export const PerfilProfesionalForm: React.FC<PerfilProfesionalFormProps> = memo(
 
         {/* Email - siempre visible */}
         <div className={esOdontologo ? 'sm:col-span-2' : ''}>
-          <label htmlFor="perfil-email" className="block font-semibold text-gray-700 dark:text-graphite-300 surgical:text-black mb-1">
+          <label htmlFor="perfil-email" className="block font-semibold text-gray-700 dark:text-graphite-300  mb-1">
             Email {esOdontologo ? 'Profesional' : ''}
           </label>
           <input
@@ -174,7 +174,7 @@ export const PerfilProfesionalForm: React.FC<PerfilProfesionalFormProps> = memo(
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full p-2.5 rounded-lg border border-surface bg-white dark:bg-graphite-800 surgical:bg-graphite-200 text-graphite-900 dark:text-graphite-50 focus:outline-none focus:ring-2 focus:ring-primary/40"
+            className="w-full p-2.5 rounded-lg border border-surface bg-white dark:bg-graphite-800  text-graphite-900 dark:text-graphite-50 focus:outline-none focus:ring-2 focus:ring-primary/40"
           />
         </div>
       </div>
@@ -182,7 +182,7 @@ export const PerfilProfesionalForm: React.FC<PerfilProfesionalFormProps> = memo(
       {/* Firma digital SOLO para odontólogos */}
       {esOdontologo && (
         <div className="pt-3 border-t border-surface space-y-2">
-          <label className="block font-semibold text-gray-700 dark:text-graphite-300 surgical:text-black mb-1 flex items-center gap-1.5">
+          <label className="block font-semibold text-gray-700 dark:text-graphite-300  mb-1 flex items-center gap-1.5">
             <PenTool size={13} className="text-[#D4AF37]" />
             Firma Digital (3 Modos: Dibujar, Subir imagen o Tipográfica)
           </label>

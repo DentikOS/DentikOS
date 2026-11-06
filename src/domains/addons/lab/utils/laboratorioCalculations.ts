@@ -13,9 +13,7 @@ export interface LaboratorioConTarifas {
 }
 
 export interface OrdenLabCalc {
-  costoLaboratorio?: number | string
   etapa?: string
-  estadoPagoLab?: string
 }
 
 export interface ResumenLaboratorio {
@@ -23,8 +21,6 @@ export interface ResumenLaboratorio {
   enProcesoCount: number
   listosInstalarCount: number
   repeticionesCount: number
-  montoPendientePagoLab: number
-  costoTotalLab: number
 }
 
 export const generarCodigoOrdenLab = (): string => {
@@ -46,23 +42,17 @@ export const buscarTarifaSugerida = (
 
 export const calcularResumenLaboratorio = (ordenes: OrdenLabCalc[] = []): ResumenLaboratorio => {
   let enProcesoCount = 0, listosInstalarCount = 0, repeticionesCount = 0
-  let montoPendientePagoLab = 0, costoTotalLab = 0
 
   ordenes.forEach(o => {
-    const costo = parseFloat(String(o.costoLaboratorio)) || 0
-    costoTotalLab += costo
-    if (['Enviado', 'PruebaMetal', 'PruebaBizcocho'].includes(String(o.etapa))) enProcesoCount++
-    else if (o.etapa === 'RecibidoListo') listosInstalarCount++
-    else if (o.etapa === 'Repeticion') repeticionesCount++
-    if (o.estadoPagoLab === 'Pendiente') montoPendientePagoLab += costo
+    if (o.etapa !== 'entrega') enProcesoCount++
+    if (o.etapa === 'entrega') listosInstalarCount++
+    if (o.etapa === 'ajustes') repeticionesCount++
   })
 
   return {
     totalOrdenes: ordenes.length,
     enProcesoCount,
     listosInstalarCount,
-    repeticionesCount,
-    montoPendientePagoLab,
-    costoTotalLab
+    repeticionesCount
   }
 }

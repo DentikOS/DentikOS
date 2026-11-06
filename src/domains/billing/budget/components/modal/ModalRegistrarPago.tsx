@@ -3,6 +3,8 @@ import { X, CheckCircle2 } from 'lucide-react'
 import { Button } from '../../../../../shared/ui/ui/Button'
 import { imputacionesPagoService, type PrestacionImputable } from '../../services/imputacionesPagoService'
 import { leerImputacionesSeleccionadas, SelectorImputacionesPago } from './SelectorImputacionesPago'
+import { formatearImporteDocumento, resolverIdiomaDocumento, resolverMonedaDocumento } from '../../../../../shared/utils/formatoDocumento'
+import { useClinicaDocumento } from '../../../../organization/clinic/hooks/useClinicaDocumento'
 
 export type MedioPago = 'efectivo' | 'tarjeta' | 'transferencia' | 'cheque'
 
@@ -22,6 +24,7 @@ interface ModalRegistrarPagoProps {
   presupuestoId?: string | number
   folioPresupuesto?: string
   pacienteNombre?: string
+  moneda?: string
   onRegistrarPago: (pago: PagoRegistrado) => boolean | void | Promise<boolean | void>
   onCerrar: () => void
 }
@@ -32,9 +35,13 @@ export const ModalRegistrarPago: React.FC<ModalRegistrarPagoProps> = ({
   presupuestoId,
   folioPresupuesto,
   pacienteNombre = 'Paciente',
+  moneda: monedaProp,
   onRegistrarPago,
   onCerrar,
 }) => {
+  const clinicaDocumento = useClinicaDocumento()
+  const moneda = resolverMonedaDocumento(monedaProp)
+  const idioma = resolverIdiomaDocumento(clinicaDocumento.idiomaDocumentos)
   const [monto, setMonto] = useState<number>(saldoPendiente)
   const [medioPago, setMedioPago] = useState<MedioPago>('tarjeta')
   const [referencia, setReferencia] = useState('')
@@ -68,7 +75,7 @@ export const ModalRegistrarPago: React.FC<ModalRegistrarPagoProps> = ({
     if (val <= 0) {
       setErrorMonto('El monto debe ser mayor a $0.')
     } else if (val > saldoPendiente) {
-      setErrorMonto(`El monto no puede exceder el saldo pendiente ($${saldoPendiente.toLocaleString('es-CL')}).`)
+      setErrorMonto(`El monto no puede exceder el saldo pendiente (${formatearImporteDocumento(saldoPendiente, moneda, idioma)}).`)
     } else {
       setErrorMonto('')
     }
@@ -134,13 +141,13 @@ export const ModalRegistrarPago: React.FC<ModalRegistrarPagoProps> = ({
           <div>
             <span className="text-graphite-400 block text-[11px]">Total Presupuesto</span>
             <span className="font-mono font-bold text-graphite-700 dark:text-graphite-300 text-sm">
-              ${totalPresupuesto.toLocaleString('es-CL')}
+              {formatearImporteDocumento(totalPresupuesto, moneda, idioma)}
             </span>
           </div>
           <div>
             <span className="text-graphite-400 block text-[11px]">Saldo Pendiente</span>
             <span className="font-mono font-bold text-primary text-sm">
-              ${saldoPendiente.toLocaleString('es-CL')}
+              {formatearImporteDocumento(saldoPendiente, moneda, idioma)}
             </span>
           </div>
         </div>
@@ -148,7 +155,7 @@ export const ModalRegistrarPago: React.FC<ModalRegistrarPagoProps> = ({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-semibold mb-1 text-graphite-700 dark:text-graphite-300">
-              Monto a Pagar ($ CLP)
+              Monto a Pagar ({moneda})
             </label>
             <input
               type="number"
@@ -211,6 +218,8 @@ export const ModalRegistrarPago: React.FC<ModalRegistrarPagoProps> = ({
                   maximoImputable={monto}
                   valores={valoresImputacion}
                   onChange={setValoresImputacion}
+                  moneda={moneda}
+                  idioma={idioma}
                 />
               )}
             </>
@@ -236,7 +245,7 @@ export const ModalRegistrarPago: React.FC<ModalRegistrarPagoProps> = ({
               disabled={Boolean(errorMonto) || monto <= 0 || registrando || cargandoPrestaciones}
               data-testid="btn-confirmar-registro-pago"
             >
-              Registrar Pago (${monto.toLocaleString('es-CL')})
+              Registrar Pago ({formatearImporteDocumento(monto, moneda, idioma)})
             </Button>
           </div>
         </form>

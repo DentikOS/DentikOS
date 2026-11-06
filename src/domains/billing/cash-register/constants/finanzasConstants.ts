@@ -21,7 +21,6 @@ export const CONVENIOS_DEFAULT: readonly ConvenioConfig[] = []
 
 export const CATEGORIAS_EGRESO: readonly string[] = [
   'Insumos Odontológicos (Casa Dental)',
-  'Laboratorio Dental',
   'Arriendo / Servicios Básicos / Gastos Comunes',
   'Pago Honorarios Especialista / Cirujano',
   'Sueldos Personal / TENS / Recepción',

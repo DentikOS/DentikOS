@@ -11,9 +11,13 @@ import { esUuidValido } from '../../../../../../infrastructure/supabase/migratio
 import { getClinicaActivaSync } from '../../../../../../infrastructure/auth/authService'
 import { useSesionStore } from '../../../../../../app/stores/sesionStore'
 import { useRBAC } from '../../../../../../shared/hooks/useRBAC'
+import { formatearImporteDocumento, resolverIdiomaDocumento, resolverMonedaDocumento } from '../../../../../../shared/utils/formatoDocumento'
+import { useClinicaDocumento } from '../../../../../organization/clinic/hooks/useClinicaDocumento'
 
 export const PresupuestosPaciente: React.FC<{ pacienteId: string }> = ({ pacienteId }) => {
   const { rol } = useRBAC()
+  const clinicaDocumento = useClinicaDocumento()
+  const idiomaDocumento = resolverIdiomaDocumento(clinicaDocumento.idiomaDocumentos)
   const clinicaActual = useSesionStore((s) => s.clinicaActual)
   const puedeRegistrar = rol === 'admin' || rol === 'dentista' || rol === 'recepcion'
   const [presupuestos, setPresupuestos] = useState<PresupuestoLocal[]>([])
@@ -23,7 +27,7 @@ export const PresupuestosPaciente: React.FC<{ pacienteId: string }> = ({ pacient
   const [errorPagos, setErrorPagos] = useState('')
   const [pagoAImputar, setPagoAImputar] = useState<PagoImputable | null>(null)
   const [pagos, setPagos] = useState<{ presupuestoId: string; pacienteId: string;
-    clinicaId: string | null; folio: string; registros: PagoPresupuesto[];
+    clinicaId: string | null; folio: string; moneda: string; registros: PagoPresupuesto[];
     snapshot: SnapshotImputacionesPresupuesto | null } | null>(null)
   const [historial, setHistorial] = useState<{ folio: string; versiones: VersionPresupuesto[];
     pacienteId: string; clinicaId: string | null } | null>(null)
@@ -67,13 +71,15 @@ export const PresupuestosPaciente: React.FC<{ pacienteId: string }> = ({ pacient
       {presupuestos.map((p) => {
         const total = Number(p.montoTotal || 0)
         const saldo = Math.max(0, total - Number(p.montoAbonado || 0))
+        const moneda = resolverMonedaDocumento(p.moneda)
+        const formato = (monto: number) => formatearImporteDocumento(monto, moneda, idiomaDocumento)
         const admitePago = ['aprobado', 'en-curso', 'Aprobado', 'EnTratamiento'].includes(p.estado || '')
         const sincronizado = esUuidValido(p.id) && p.sincronizado !== false
         return (
           <div key={String(p.id)} className="flex items-center justify-between gap-3 rounded-xl border border-surface p-3 text-xs">
             <div>
               <p className="font-bold">{p.folio || 'Presupuesto'} · {p.estado === 'completado' ? 'Pago completado' : p.estado || 'borrador'}</p>
-              <p className="text-graphite-500">Total ${total.toLocaleString('es-CL')} · Saldo ${saldo.toLocaleString('es-CL')}</p>
+              <p className="text-graphite-500">Total {formato(total)} · Saldo {formato(saldo)}</p>
               {p.requiereRevision && <p className="text-amber-700 font-semibold">Pendiente de revisión clínica antes del envío</p>}
             </div>
             {puedeRegistrar && admitePago && saldo > 0 && (
@@ -109,7 +115,7 @@ export const PresupuestosPaciente: React.FC<{ pacienteId: string }> = ({ pacient
                   const snapshot = await imputacionesPagoService.listar(p.id).catch(() => null)
                   if (pacienteActualRef.current === pacienteId && getClinicaActivaSync() === clinicaSolicitada) {
                     setPagos({ presupuestoId: String(p.id), pacienteId, clinicaId: clinicaSolicitada,
-                      folio: p.folio || 'Presupuesto', registros, snapshot })
+                      folio: p.folio || 'Presupuesto', moneda, registros, snapshot })
                   }
                 } catch {
                   if (pacienteActualRef.current === pacienteId && getClinicaActivaSync() === clinicaSolicitada) {
@@ -132,9 +138,9 @@ export const PresupuestosPaciente: React.FC<{ pacienteId: string }> = ({ pacient
           const tieneImputaciones = Boolean(pago && pagos.snapshot?.imputaciones.some((item) => item.pagoId === pago.id && item.montoVigente > 0))
           return <div key={registro.id} className="flex flex-wrap items-center justify-between gap-2 border-t border-surface pt-2">
             <div>
-              <p>{registro.fecha} · ${registro.monto.toLocaleString('es-CL')} · {registro.metodoPago}
+              <p>{registro.fecha} · {formatearImporteDocumento(registro.monto, pagos.moneda, idiomaDocumento)} · {registro.metodoPago}
                 {registro.referencia && <span> · Ref. {registro.referencia}</span>}</p>
-              {pago && <p className="text-graphite-500">Asignado ${pago.montoImputado.toLocaleString('es-CL')} · Sin asignar ${pago.montoSinImputar.toLocaleString('es-CL')}</p>}
+              {pago && <p className="text-graphite-500">Asignado {formatearImporteDocumento(pago.montoImputado, pagos.moneda, idiomaDocumento)} · Sin asignar {formatearImporteDocumento(pago.montoSinImputar, pagos.moneda, idiomaDocumento)}</p>}
             </div>
             {puedeRegistrar && pago && (pago.montoSinImputar > 0 || tieneImputaciones) && (
               <button type="button" className="rounded-lg border border-surface px-2 py-1 font-semibold"
@@ -148,7 +154,7 @@ export const PresupuestosPaciente: React.FC<{ pacienteId: string }> = ({ pacient
           <strong>Estado financiero por prestación</strong>
           {pagos.snapshot.items.map((item) => <p key={item.id} className="flex justify-between gap-2">
             <span>{item.nombre} · {item.estadoFinanciero === 'pagado' ? 'Pagado' : item.estadoFinanciero === 'sin_saldo' ? 'Sin saldo' : item.estadoFinanciero === 'parcial' ? 'Parcial' : 'Pendiente'}</span>
-            <span>Saldo ${item.saldoPendiente.toLocaleString('es-CL')}</span>
+            <span>Saldo {formatearImporteDocumento(item.saldoPendiente, pagos.moneda, idiomaDocumento)}</span>
           </p>)}
         </div>}
       </section>}
@@ -159,6 +165,7 @@ export const PresupuestosPaciente: React.FC<{ pacienteId: string }> = ({ pacient
       {seleccionado && <ModalRegistrarPago
         totalPresupuesto={Number(seleccionado.montoTotal || 0)}
         saldoPendiente={Math.max(0, Number(seleccionado.montoTotal || 0) - Number(seleccionado.montoAbonado || 0))}
+        moneda={resolverMonedaDocumento(seleccionado.moneda)}
         presupuestoId={seleccionado.id}
         folioPresupuesto={seleccionado.folio}
         pacienteNombre={seleccionado.pacienteNombre}
@@ -193,6 +200,8 @@ export const PresupuestosPaciente: React.FC<{ pacienteId: string }> = ({ pacient
       {pagos && pagos.snapshot && pagoAImputar && pagos.pacienteId === pacienteId && pagos.clinicaId === getClinicaActivaSync() && (
         <ModalImputarPago
           pago={pagos.snapshot.pagos.find((pago) => pago.id === pagoAImputar.id) || pagoAImputar}
+          moneda={pagos.moneda}
+          idioma={idiomaDocumento}
           prestaciones={pagos.snapshot.items}
           imputaciones={pagos.snapshot.imputaciones}
           onImputar={async (pagoId, imputaciones) => {

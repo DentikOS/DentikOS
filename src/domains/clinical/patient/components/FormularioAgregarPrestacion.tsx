@@ -14,6 +14,7 @@ export interface FormularioAgregarPrestacionProps {
   prestacionSeleccionadaId: string | number
   nombrePrestacion: string
   valorPrestacion: string | number
+  precioPendiente?: boolean
   precioBaseOriginal: number
   porcentajeDescuentoAplicado: number
   origenPrecioAplicado?: string | null
@@ -33,6 +34,7 @@ export const FormularioAgregarPrestacion: React.FC<FormularioAgregarPrestacionPr
   prestacionSeleccionadaId,
   nombrePrestacion,
   valorPrestacion,
+  precioPendiente = false,
   precioBaseOriginal,
   porcentajeDescuentoAplicado,
   origenPrecioAplicado = null,
@@ -147,6 +149,12 @@ export const FormularioAgregarPrestacion: React.FC<FormularioAgregarPrestacionPr
               : requiereSucursal && !sedeActivaId && !cargandoSedes
                 ? 'Selecciona una sucursal activa para aplicar los precios configurados.'
                 : 'Sincronizando la configuración de precios…'}
+        </p>
+      )}
+
+      {precioPendiente && (
+        <p role="status" className="text-[11px] text-amber-700 dark:text-amber-300">
+          Esta prestación no tiene tarifa Fonasa configurada. Revisa el arancel o ingresa un importe validado antes de agregarla.
         </p>
       )}
 

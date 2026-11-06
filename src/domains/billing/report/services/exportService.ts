@@ -47,10 +47,10 @@ export type ExportFormato = 'pdf' | 'excel'
 export type ExportTipo = 'completo' | 'ranking' | 'rendimiento'
 
 export interface ExportServiceApi {
-  exportarReportePDF: (metricas: MetricasReporte, userProfile?: UserProfileReporte) => boolean
-  exportarReporteCompletoExcel: (metricas: MetricasReporte, periodoSeleccionado?: string) => boolean
-  exportarRankingExcel: (topPrestaciones: PrestacionRankingItem[]) => boolean
-  exportarRendimientoExcel: (recaudacionPorMetodo: Record<string, number>) => boolean
+  exportarReportePDF: (metricas: MetricasReporte, userProfile?: UserProfileReporte, moneda?: string) => boolean
+  exportarReporteCompletoExcel: (metricas: MetricasReporte, periodoSeleccionado?: string, moneda?: string) => boolean
+  exportarRankingExcel: (topPrestaciones: PrestacionRankingItem[], moneda?: string) => boolean
+  exportarRendimientoExcel: (recaudacionPorMetodo: Record<string, number>, moneda?: string) => boolean
 }
 
 /**
@@ -144,7 +144,8 @@ const registrarExportacion = async (
  */
 export const exportarReportePDF = (
   metricas: MetricasReporte,
-  _userProfile?: UserProfileReporte
+  _userProfile?: UserProfileReporte,
+  _moneda: string = 'CLP'
 ): boolean => {
   try {
     log.info('Exportando reporte PDF', {
@@ -173,7 +174,8 @@ export const exportarReportePDF = (
  */
 const generarReporteCompletoAsync = async (
   metricas: MetricasReporte,
-  periodoSeleccionado: string
+  periodoSeleccionado: string,
+  moneda: string
 ): Promise<void> => {
   const workbook = new ExcelJS.Workbook()
   workbook.creator = 'DentikOS'
@@ -187,9 +189,9 @@ const generarReporteCompletoAsync = async (
     ['Fecha de Exportación:', new Date().toLocaleString('es-CL')],
     [],
     ['Métrica', 'Valor'],
-    ['Recaudado Total (CLP)', formatearMonto(metricas.totalRecaudado)],
+    [`Recaudado Total (${moneda})`, formatearMonto(metricas.totalRecaudado)],
     ['Tasa de Conversión (%)', metricas.tasaConversionPresupuestos],
-    ['Ticket Promedio (CLP)', formatearMonto(metricas.ticketPromedio)],
+    [`Ticket Promedio (${moneda})`, formatearMonto(metricas.ticketPromedio)],
   ])
   estilizarEncabezado(hojaResumen, 5)
 
@@ -198,7 +200,7 @@ const generarReporteCompletoAsync = async (
   const rankingRows: (string | number)[][] = [
     ['Top Procedimientos más Rentables'],
     [],
-    ['Posición', 'Procedimiento', 'Cantidad', 'Monto Total (CLP)'],
+    ['Posición', 'Procedimiento', 'Cantidad', `Monto Total (${moneda})`],
   ]
   metricas.topPrestaciones.forEach((item, index) => {
     rankingRows.push([
@@ -216,7 +218,7 @@ const generarReporteCompletoAsync = async (
   const rendimientoRows: (string | number)[][] = [
     ['Desglose por Medio de Pago'],
     [],
-    ['Método de Pago', 'Monto (CLP)'],
+    ['Método de Pago', `Monto (${moneda})`],
   ]
   Object.entries(metricas.recaudacionPorMetodo || {}).forEach(([metodo, monto]) => {
     rendimientoRows.push([metodo, formatearMonto(monto)])
@@ -236,12 +238,13 @@ const generarReporteCompletoAsync = async (
  */
 export const exportarReporteCompletoExcel = (
   metricas: MetricasReporte,
-  periodoSeleccionado: string = 'sin_periodo'
+  periodoSeleccionado: string = 'sin_periodo',
+  moneda: string = 'CLP'
 ): boolean => {
   try {
     log.info('Exportando reporte completo Excel', { periodo: periodoSeleccionado })
 
-    generarReporteCompletoAsync(metricas, periodoSeleccionado)
+    generarReporteCompletoAsync(metricas, periodoSeleccionado, moneda)
       .then(() => registrarExportacion('excel', 'completo', periodoSeleccionado))
       .catch((error: unknown) => {
         log.error('Error en generación/auditoría async de reporte completo:', error)
@@ -257,7 +260,7 @@ export const exportarReporteCompletoExcel = (
 /**
  * Genera async el ranking de prestaciones.
  */
-const generarRankingAsync = async (topPrestaciones: PrestacionRankingItem[]): Promise<void> => {
+const generarRankingAsync = async (topPrestaciones: PrestacionRankingItem[], moneda: string): Promise<void> => {
   const workbook = new ExcelJS.Workbook()
   workbook.creator = 'DentikOS'
   workbook.created = new Date()
@@ -267,7 +270,7 @@ const generarRankingAsync = async (topPrestaciones: PrestacionRankingItem[]): Pr
     ['Top Procedimientos más Rentables'],
     ['Fecha de Exportación:', new Date().toLocaleString('es-CL')],
     [],
-    ['Posición', 'Procedimiento', 'Cantidad', 'Monto Total (CLP)'],
+    ['Posición', 'Procedimiento', 'Cantidad', `Monto Total (${moneda})`],
   ]
   topPrestaciones.forEach((item, index) => {
     rows.push([
@@ -289,7 +292,7 @@ const generarRankingAsync = async (topPrestaciones: PrestacionRankingItem[]): Pr
 /**
  * Exporta solo el ranking de prestaciones como Excel.
  */
-export const exportarRankingExcel = (topPrestaciones: PrestacionRankingItem[]): boolean => {
+export const exportarRankingExcel = (topPrestaciones: PrestacionRankingItem[], moneda: string = 'CLP'): boolean => {
   try {
     log.info('Exportando ranking de prestaciones', { cantidad: topPrestaciones?.length })
 
@@ -298,7 +301,7 @@ export const exportarRankingExcel = (topPrestaciones: PrestacionRankingItem[]): 
       return false
     }
 
-    generarRankingAsync(topPrestaciones)
+    generarRankingAsync(topPrestaciones, moneda)
       .then(() => registrarExportacion('excel', 'ranking'))
       .catch((error: unknown) => {
         log.error('Error en generación/auditoría async de ranking:', error)
@@ -315,7 +318,8 @@ export const exportarRankingExcel = (topPrestaciones: PrestacionRankingItem[]): 
  * Genera async el desglose por método de pago.
  */
 const generarRendimientoAsync = async (
-  recaudacionPorMetodo: Record<string, number>
+  recaudacionPorMetodo: Record<string, number>,
+  moneda: string
 ): Promise<void> => {
   const workbook = new ExcelJS.Workbook()
   workbook.creator = 'DentikOS'
@@ -326,7 +330,7 @@ const generarRendimientoAsync = async (
     ['Desglose por Medio de Pago'],
     ['Fecha de Exportación:', new Date().toLocaleString('es-CL')],
     [],
-    ['Método de Pago', 'Monto (CLP)'],
+    ['Método de Pago', `Monto (${moneda})`],
   ]
   Object.entries(recaudacionPorMetodo).forEach(([metodo, monto]) => {
     rows.push([metodo, formatearMonto(monto)])
@@ -344,7 +348,8 @@ const generarRendimientoAsync = async (
  * Exporta solo el desglose por método de pago como Excel.
  */
 export const exportarRendimientoExcel = (
-  recaudacionPorMetodo: Record<string, number>
+  recaudacionPorMetodo: Record<string, number>,
+  moneda: string = 'CLP'
 ): boolean => {
   try {
     log.info('Exportando rendimiento por método de pago')
@@ -354,7 +359,7 @@ export const exportarRendimientoExcel = (
       return false
     }
 
-    generarRendimientoAsync(recaudacionPorMetodo)
+    generarRendimientoAsync(recaudacionPorMetodo, moneda)
       .then(() => registrarExportacion('excel', 'rendimiento'))
       .catch((error: unknown) => {
         log.error('Error en generación/auditoría async de rendimiento:', error)

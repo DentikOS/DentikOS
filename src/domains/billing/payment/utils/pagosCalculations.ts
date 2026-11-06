@@ -34,6 +34,7 @@ export const calcularResumenRecaudacion = (pagos: PagoParaResumen[] = []): Resum
 
   pagos.forEach(p => {
     const monto = parseFloat(String(p.monto)) || 0
+    if (p.estado === 'Borrador sin confirmar') return
     if (p.estado === 'Purgado') return
     if (p.estado === 'Anulado') {
       totalAnulados += monto
@@ -47,7 +48,7 @@ export const calcularResumenRecaudacion = (pagos: PagoParaResumen[] = []): Resum
   })
 
   return {
-    totalTransacciones: pagos.filter(p => p.estado !== 'Purgado').length,
+    totalTransacciones: pagos.filter(p => p.estado !== 'Purgado' && p.estado !== 'Borrador sin confirmar').length,
     recaudadoHoy, totalRecaudado, totalBoletasHonorarios, totalBonoIMed, totalTarjetasPOS, totalAnulados
   }
 }

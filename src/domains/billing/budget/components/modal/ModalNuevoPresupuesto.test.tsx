@@ -44,7 +44,7 @@ describe('ModalNuevoPresupuesto BP07', () => {
     render(<ModalNuevoPresupuesto {...props} />)
     expect(screen.getByTestId('presupuesto-vista-simplificada')).toBeInTheDocument()
     expect(screen.getByText(/Fase urgencias/i)).toBeInTheDocument()
-    expect(screen.getByText(/Total Bruto:/i)).toHaveTextContent('$0')
+    expect(screen.getByText(/Total Bruto:/i)).toHaveTextContent('CLP 0')
     expect(screen.queryByText(/Evaluación y Diagnóstico Integral/i)).not.toBeInTheDocument()
   })
 

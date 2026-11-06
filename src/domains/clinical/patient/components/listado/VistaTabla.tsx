@@ -77,8 +77,17 @@ export const VistaTabla: React.FC<VistaTablaProps> = memo(({
         />
       </div>
 
-      <div className="overflow-x-auto border border-surface rounded-xl bg-surface/90 shadow-xs">
-        <table className="w-full text-left text-xs border-collapse">
+      <p id="pacientes-tabla-scroll-hint" className="px-3 py-2 text-xs text-graphite-500 sm:hidden">
+        Desliza horizontalmente para consultar más columnas.
+      </p>
+      <div
+        role="region"
+        aria-label="Tabla de pacientes"
+        aria-describedby="pacientes-tabla-scroll-hint"
+        tabIndex={0}
+        className="scrollable-data-table max-w-full overflow-x-auto border border-surface rounded-xl bg-surface/90 shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+      >
+        <table className="w-full min-w-[1120px] text-left text-xs border-collapse">
           <thead className="bg-surface-hover/70 text-graphite-600 dark:text-graphite-400 font-semibold border-b border-surface">
             <tr className="h-10">
               <th className="p-2.5 w-10 text-center">
@@ -91,15 +100,15 @@ export const VistaTabla: React.FC<VistaTablaProps> = memo(({
                 />
               </th>
               {/* 6 Columnas Fijas Obligatorias */}
-              <th className="p-2.5">Nombre completo</th>
-              <th className="p-2.5">RUT</th>
-              <th className="p-2.5">Edad</th>
-              <th className="p-2.5">Teléfono</th>
-              <th className="p-2.5">Última visita</th>
-              <th className="p-2.5">Próxima cita</th>
+              <th className="p-2.5 min-w-[180px]">Nombre completo</th>
+              <th className="p-2.5 min-w-[132px]">RUT</th>
+              <th className="p-2.5 min-w-[80px]">Edad</th>
+              <th className="p-2.5 min-w-[140px]">Teléfono</th>
+              <th className="p-2.5 min-w-[128px]">Última visita</th>
+              <th className="p-2.5 min-w-[150px]">Próxima cita</th>
 
               {/* Columnas Personalizables */}
-              {columnasVisibles.doctorTratante && <th className="p-2.5">Doctor tratante</th>}
+              {columnasVisibles.doctorTratante && <th className="p-2.5 min-w-[144px]">Doctor tratante</th>}
               {columnasVisibles.tratamientosActivos && <th className="p-2.5">Tratamientos activos</th>}
               {columnasVisibles.estado && <th className="p-2.5">Estado</th>}
               {columnasVisibles.saldoPendiente && <th className="p-2.5">Saldo pendiente</th>}
@@ -108,7 +117,7 @@ export const VistaTabla: React.FC<VistaTablaProps> = memo(({
               {columnasVisibles.prevision && <th className="p-2.5">Previsión</th>}
               {columnasVisibles.alertasMedicas && <th className="p-2.5">Alertas Médicas</th>}
 
-              <th className="p-2.5 text-right w-36">Acciones</th>
+              <th className="p-2.5 w-36 min-w-[144px] text-right">Acciones</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-surface">
@@ -150,17 +159,17 @@ export const VistaTabla: React.FC<VistaTablaProps> = memo(({
                     {destacarCoincidencias(nombre, busqueda)}
                   </td>
                   {/* 2. RUT */}
-                  <td className="p-2.5 font-mono text-[11px] text-graphite-600 dark:text-graphite-300">{p.rut || '—'}</td>
+                  <td className="whitespace-nowrap p-2.5 font-mono text-[11px] text-graphite-600 dark:text-graphite-300">{p.rut || '—'}</td>
                   {/* 3. Edad */}
-                  <td className="p-2.5 text-graphite-600 dark:text-graphite-300">{edad}</td>
+                  <td className="whitespace-nowrap p-2.5 text-graphite-600 dark:text-graphite-300">{edad}</td>
                   {/* 4. Teléfono (Click-to-call) */}
                   <td className="p-2.5">
                     <BotonLlamarPopover paciente={p} telefono={p.telefono} esEnlaceTexto={true} />
                   </td>
                   {/* 5. Última visita */}
-                  <td className="p-2.5 text-graphite-500">{ultimaVisita}</td>
+                  <td className="whitespace-nowrap p-2.5 text-graphite-500">{ultimaVisita}</td>
                   {/* 6. Próxima cita */}
-                  <td className="p-2.5 text-primary font-medium">{proximaCita}</td>
+                  <td className="whitespace-nowrap p-2.5 text-primary font-medium">{proximaCita}</td>
 
                   {/* Opcionales */}
                   {columnasVisibles.doctorTratante && (

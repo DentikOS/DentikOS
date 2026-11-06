@@ -6,7 +6,7 @@
  * Acompañado de feedback sonoro (1200Hz, 15ms).
  */
 import React, { useEffect, useRef, useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { soundEffects } from '../utils/soundEffects'
 import type { LucideIcon } from 'lucide-react'
 
@@ -41,6 +41,7 @@ export const SidebarItemAnimated: React.FC<SidebarItemAnimatedProps> = ({
 }) => {
   const [justActivated, setJustActivated] = useState(false)
   const [tooltipOpen, setTooltipOpen] = useState(false)
+  const prefersReducedMotion = useReducedMotion()
   const isFirstRender = useRef(true)
   const prevActiveRef = useRef(isActive)
   const actuallyCollapsed = Boolean(isCollapsed || collapsed)
@@ -54,7 +55,7 @@ export const SidebarItemAnimated: React.FC<SidebarItemAnimatedProps> = ({
     }
 
     if (isActive && !prevActiveRef.current) {
-      setJustActivated(true)
+      if (!prefersReducedMotion) setJustActivated(true)
       soundEffects.selection()
 
       const timer = setTimeout(() => {
@@ -66,7 +67,7 @@ export const SidebarItemAnimated: React.FC<SidebarItemAnimatedProps> = ({
     }
 
     prevActiveRef.current = isActive
-  }, [isActive])
+  }, [isActive, prefersReducedMotion])
 
   const badgeColors: Record<'gold' | 'amber' | 'red', string> = {
     gold: 'bg-[#B88E3A] text-white',
@@ -95,7 +96,7 @@ export const SidebarItemAnimated: React.FC<SidebarItemAnimatedProps> = ({
           ${actuallyCollapsed ? 'justify-center px-1 py-2' : 'px-2.5 py-2 text-xs font-semibold'}
           ${
             isActive
-              ? 'bg-gold-light/60 text-champagne-700 shadow-xs dark:bg-surface dark:text-gold-satin surgical:bg-white surgical:text-black font-bold'
+              ? 'bg-gold-light/60 text-champagne-700 shadow-xs dark:bg-surface dark:text-gold-satin   font-bold'
               : 'text-graphite-700 dark:text-graphite-300 hover:bg-graphite-100 dark:hover:bg-graphite-800/70 hover:text-graphite-900'
           }
         `}
@@ -105,21 +106,20 @@ export const SidebarItemAnimated: React.FC<SidebarItemAnimatedProps> = ({
         <AnimatePresence>
           {isActive && (
             <>
-              {/* Borde dorado que se dibuja de arriba a abajo en 220ms */}
+              {/* Indicador de selección entra con transform y opacidad, sin animar layout. */}
               <motion.div
-                layoutId="sidebar-active-border"
-                className="absolute left-0 top-0 w-[3px] bg-[#B88E3A] rounded-r"
-                initial={{ height: 0 }}
-                animate={{ height: '100%' }}
-                exit={{ height: 0, opacity: 0 }}
+                className="absolute inset-y-2 left-0 w-[3px] origin-center rounded-r bg-[#B88E3A]"
+                initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, scaleY: 0.72 }}
+                animate={{ opacity: 1, scaleY: 1 }}
+                exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, scaleY: 0.82 }}
                 transition={{
-                  duration: 0.22,
-                  ease: [0.16, 1, 0.3, 1], // Token "Estándar"
+                  duration: prefersReducedMotion ? 0.1 : 0.16,
+                  ease: [0.23, 1, 0.32, 1],
                 }}
               />
 
               {/* Micro-destello dorado en extremo inferior */}
-              {justActivated && (
+              {justActivated && !prefersReducedMotion && (
                 <motion.div
                   className="absolute left-0 bottom-0 w-[3px] h-[8px] bg-[#E5C378] rounded-full shadow-xs pointer-events-none"
                   initial={{ opacity: 0, scale: 0.5 }}
@@ -140,10 +140,10 @@ export const SidebarItemAnimated: React.FC<SidebarItemAnimatedProps> = ({
 
         {/* Icono con pulso al activar */}
         <motion.div
-          animate={justActivated ? { scale: [1, 1.08, 1] } : { scale: 1 }}
+          animate={justActivated && !prefersReducedMotion ? { scale: [1, 1.06, 1] } : { scale: 1 }}
           transition={{
-            duration: 0.18, // Token "Rápido"
-            ease: [0.16, 1, 0.3, 1],
+            duration: 0.16,
+            ease: [0.23, 1, 0.32, 1],
           }}
           className="relative shrink-0 flex items-center justify-center"
         >
@@ -152,7 +152,7 @@ export const SidebarItemAnimated: React.FC<SidebarItemAnimatedProps> = ({
             strokeWidth={1.75}
             className={
               isActive
-                ? 'text-[#B88E3A] surgical:text-black'
+                ? 'text-[#B88E3A] '
                 : 'text-graphite-500 group-hover:text-graphite-900 dark:group-hover:text-gold-satin'
             }
           />
@@ -200,7 +200,7 @@ export const SidebarItemAnimated: React.FC<SidebarItemAnimatedProps> = ({
             initial={{ opacity: 0, x: -5 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -5 }}
-            transition={{ duration: 0.15, delay: 0.15 }} // 150ms delay
+            transition={{ duration: prefersReducedMotion ? 0.1 : 0.14, ease: [0.23, 1, 0.32, 1] }}
             className="absolute left-full top-1/2 -translate-y-1/2 ml-2 px-3 py-1.5 bg-[#0F172A] text-[#F8FAFC] text-xs rounded-md shadow-xl z-50 whitespace-nowrap pointer-events-none flex items-center gap-1.5"
           >
             <span>{label}</span>

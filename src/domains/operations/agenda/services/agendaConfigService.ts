@@ -25,15 +25,16 @@ export const agendaConfigService = {
    * Obtiene doctores reales desde miembros_clinica + perfiles + user_agenda_config
    * Solo usuarios con rol dentista o admin de la clínica activa
    */
-  obtenerDoctoresAgenda: async (): Promise<DoctorAgenda[]> => {
+  obtenerDoctoresAgenda: async (sedeId?: string | null): Promise<DoctorAgenda[]> => {
     if (!USE_SUPABASE || !supabase) {
       console.warn('Supabase no disponible, retornando array vacío')
       return []
     }
 
     try {
-      const userProfile = useSesionStore.getState().userProfile
-      const clinicaId = (userProfile as { clinicaId?: string })?.clinicaId
+      const sesion = useSesionStore.getState()
+      const userProfile = sesion.userProfile
+      const clinicaId = sesion.clinicaActual || (userProfile as { clinicaId?: string })?.clinicaId
 
       if (!clinicaId) {
         console.warn('Sin clinicaId, retornando array vacío')
@@ -56,6 +57,14 @@ export const agendaConfigService = {
       const userIds = miembros.map((m: { user_id: string }) => m.user_id)
 
       // 2. Obtener en paralelo: perfiles, user_agenda_config y user_sede_horarios
+      const consultaHorarios = supabase
+        .from('user_sede_horarios')
+        .select('user_id, dia_semana, hora_inicio, hora_fin, duracion_bloque_minutos')
+        .eq('clinica_id', clinicaId)
+      const consultaHorariosPorSede = sedeId
+        ? consultaHorarios.eq('sede_id', sedeId)
+        : consultaHorarios
+
       const [perfilesRes, configRes, horariosRes] = await Promise.all([
         supabase
           .from('profiles')
@@ -66,11 +75,7 @@ export const agendaConfigService = {
           .select('user_id, color_identidad, permite_sobrecupos, max_sobrecupos')
           .eq('clinica_id', clinicaId)
           .in('user_id', userIds),
-        supabase
-          .from('user_sede_horarios')
-          .select('user_id, dia_semana, hora_inicio, hora_fin, duracion_bloque_minutos')
-          .eq('clinica_id', clinicaId)
-          .in('user_id', userIds),
+        consultaHorariosPorSede.in('user_id', userIds),
       ])
 
       const perfilMap = new Map((perfilesRes.data || []).map((p: any) => [p.id, p]))
@@ -127,8 +132,9 @@ export const agendaConfigService = {
     if (!USE_SUPABASE || !supabase) return
 
     try {
-      const userProfile = useSesionStore.getState().userProfile
-      const clinicaId = (userProfile as { clinicaId?: string })?.clinicaId
+      const sesion = useSesionStore.getState()
+      const userProfile = sesion.userProfile
+      const clinicaId = sesion.clinicaActual || (userProfile as { clinicaId?: string })?.clinicaId
       if (!clinicaId) return
 
       const { error } = await supabase
@@ -163,16 +169,27 @@ export const agendaConfigService = {
     if (!USE_SUPABASE || !supabase) return
 
     try {
-      const userProfile = useSesionStore.getState().userProfile
-      const clinicaId = (userProfile as { clinicaId?: string })?.clinicaId
-      if (!clinicaId) return
+      const sesion = useSesionStore.getState()
+      const userProfile = sesion.userProfile
+      const clinicaId = sesion.clinicaActual || (userProfile as { clinicaId?: string })?.clinicaId
+      if (!clinicaId || !sedeId) {
+        throw new Error('Se requiere una clínica y una sucursal activa para guardar horarios.')
+      }
 
-      // Eliminar horarios anteriores para esta sede
-      await supabase
+      const consultaHorariosExistentes = await supabase
         .from('user_sede_horarios')
-        .delete()
+        .select('dia_semana')
+        .eq('clinica_id', clinicaId)
         .eq('user_id', userId)
         .eq('sede_id', sedeId)
+      if (consultaHorariosExistentes.error) {
+        throw new Error('No se pudieron consultar los horarios actuales de la sucursal.')
+      }
+
+      const diasConfigurados = new Set(horarios.map((horario) => horario.diaSemana))
+      const diasAEliminar = ((consultaHorariosExistentes.data || []) as { dia_semana: number }[])
+        .map((horario) => horario.dia_semana)
+        .filter((diaSemana) => !diasConfigurados.has(diaSemana))
 
       if (horarios.length > 0) {
         const horariosInsert = horarios.map((h) => ({
@@ -185,14 +202,30 @@ export const agendaConfigService = {
           duracion_bloque_minutos: h.duracionBloqueMinutos || 30,
         }))
 
-        const { error } = await supabase
+        const { error: errorUpsert } = await supabase
           .from('user_sede_horarios')
-          .insert(horariosInsert)
+          .upsert(horariosInsert, { onConflict: 'user_id,sede_id,dia_semana' })
 
-        if (error) console.error('Error insertando horarios:', error)
+        if (errorUpsert) {
+          throw new Error('No se pudieron guardar los horarios de la sucursal.')
+        }
+      }
+
+      if (diasAEliminar.length > 0) {
+        const { error: errorEliminacion } = await supabase
+          .from('user_sede_horarios')
+          .delete()
+          .eq('clinica_id', clinicaId)
+          .eq('user_id', userId)
+          .eq('sede_id', sedeId)
+          .in('dia_semana', diasAEliminar)
+        if (errorEliminacion) {
+          throw new Error('No se pudieron quitar los días desactivados de la sucursal.')
+        }
       }
     } catch (error) {
       console.error('Error inesperado actualizando horarios:', error)
+      throw error instanceof Error ? error : new Error('No se pudieron actualizar los horarios de la sucursal.')
     }
   },
 }

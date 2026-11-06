@@ -79,8 +79,8 @@ describe('useRealtimeSync', () => {
   it('debe suscribirse a todas las tablas críticas al montar', () => {
     renderHook(() => useRealtimeSync())
 
-    // Incluye el arancel clínico compartido.
-    expect(mockUseRealtimeSubscription).toHaveBeenCalledTimes(12)
+    // Incluye el arancel clínico compartido y todas las tablas de BP09.
+    expect(mockUseRealtimeSubscription).toHaveBeenCalledTimes(25)
 
     // Verificar que se suscribió a las tablas correctas
     const tablas = mockUseRealtimeSubscription.mock.calls.map(call => call[0])
@@ -91,6 +91,22 @@ describe('useRealtimeSync', () => {
     expect(tablas).toContain('pagos')
     expect(tablas).toContain('evoluciones_clinicas')
     expect(tablas).toContain('recetas')
+    expect(tablas).toEqual(expect.arrayContaining([
+      'inventario',
+      'inventario_proveedores',
+      'inventario_ubicaciones',
+      'inventario_lotes',
+      'inventario_stock_por_ubicacion',
+      'inventario_movimientos',
+      'inventario_ordenes_compra',
+      'inventario_orden_compra_items',
+      'inventario_kits',
+      'inventario_kit_items',
+      'inventario_ventas',
+      'inventario_venta_items',
+      'inventario_mantenciones',
+      'inventario_permisos_aditivos'
+    ]))
   })
 
   it('no debe suscribirse si no hay usuario logueado', () => {

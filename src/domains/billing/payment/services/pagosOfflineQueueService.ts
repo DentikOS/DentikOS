@@ -39,6 +39,7 @@ export type PendingPago = PendingPagoItem | string | number
 export interface ProcesarColaPagosResult {
   procesados: number
   fallidos: number
+  borradoresEfectivo?: number
   razon?: string
   offline?: boolean
   [key: string]: unknown
@@ -169,6 +170,101 @@ export const encolarPago = ({ id, folio, clinicaId }: EncolarPagoParams): void =
   }
 }
 
+const esPagoEnEfectivo = (pago: Pago): boolean => {
+  const metodo = String(pago.metodoPago || pago.metodo_pago || '').trim().toLowerCase()
+  return metodo === 'efectivo' || metodo === 'cash'
+}
+
+const registrarPagoEfectivoOnline = async (
+  pago: Pago,
+  id: string | number,
+  clinicaId: string | null,
+  { obtenerPagos, actualizarPagosLocal }: GuardarPagoContext
+): Promise<Pago | null> => {
+  if (!USE_SUPABASE || !supabase || !clinicaId
+    || (typeof navigator !== 'undefined' && navigator.onLine === false)) return null
+
+  try {
+    const { data: authData, error: authError } = await supabase.auth.getUser()
+    const user = authData?.user
+    if (authError || !user?.id) return null
+
+    const pagoLocal: Pago = { ...pago, id, clinicaId, sincronizado: false }
+    const paraSupabase: Record<string, unknown> = {
+      ...transformarParaSupabase(pagoLocal),
+      user_id: user.id,
+      clinica_id: clinicaId
+    }
+    const esActualizacion = esUuidValido(id)
+    const leerPagoConfirmado = async (): Promise<Record<string, unknown> | null> => {
+      if (!esActualizacion) return null
+      const { data, error } = await supabase!.from('pagos')
+        .select('id,user_id,clinica_id,paciente_id,folio,monto,moneda,metodo_pago,fecha,concepto,caja_sesion_id')
+        .eq('id', id)
+        .eq('clinica_id', clinicaId)
+        .maybeSingle()
+      if (error) throw error
+      return data as Record<string, unknown> | null
+    }
+    const coincidePagoConfirmado = (row: Record<string, unknown> | null): boolean => {
+      if (!row || !row.caja_sesion_id) return false
+      const fields = ['user_id', 'clinica_id', 'paciente_id', 'folio', 'monto', 'moneda', 'metodo_pago', 'fecha', 'concepto']
+      return fields.every((field) => {
+        const actual = row[field]
+        const esperado = paraSupabase[field]
+        if (actual == null || esperado == null) return actual == null && esperado == null
+        return String(actual) === String(esperado)
+      })
+    }
+
+    let idConfirmado: string | null = null
+    if (esActualizacion) {
+      const existente = await leerPagoConfirmado()
+      if (existente) {
+        if (!coincidePagoConfirmado(existente)) {
+          log.warn('El servidor contiene un pago con el mismo ID y datos distintos.')
+          return null
+        }
+        idConfirmado = String(existente.id)
+      }
+    }
+    if (!idConfirmado) {
+      if (!esActualizacion) delete paraSupabase.id
+      const { data: confirmado, error } = await supabase.from('pagos')
+        .insert(paraSupabase).select('id').single()
+      if (error || !confirmado?.id) {
+        // A concurrent retry can win the insert race; accept it only if the row matches exactly.
+        const existente = await leerPagoConfirmado()
+        if (!coincidePagoConfirmado(existente)) {
+          log.warn('El servidor no confirmó el pago en efectivo.')
+          return null
+        }
+        idConfirmado = String(existente!.id)
+      } else {
+        idConfirmado = String(confirmado.id)
+      }
+    }
+
+    if (!idConfirmado) return null
+    const idAnterior = pagoLocal.id
+    pagoLocal.id = idConfirmado
+    pagoLocal.sincronizado = true
+    if (idAnterior !== idConfirmado) migrationStorageService.registrarMapeo(idAnterior, idConfirmado)
+
+    const pagos = Array.isArray(obtenerPagos()) ? [...obtenerPagos()] : []
+    const index = pagos.findIndex((existente) => existente.id === idAnterior
+      || existente.id === idConfirmado
+      || (pagoLocal.folioComprobante && existente.folioComprobante === pagoLocal.folioComprobante))
+    if (index >= 0) pagos[index] = pagoLocal
+    else pagos.unshift(pagoLocal)
+    actualizarPagosLocal(pagos)
+    return pagoLocal
+  } catch {
+    log.warn('El servidor no confirmó el pago en efectivo.')
+    return null
+  }
+}
+
 /**
  * Registra un pago individual (offline-first).
  */
@@ -180,6 +276,11 @@ export const registrarPagoHelper = async (
 
   const id = pago.id || Date.now()
   const clinicaIdActual = obtenerClinicaId()
+
+  // El efectivo confirma caja de forma síncrona: nunca se registra como pago local pendiente.
+  if (esPagoEnEfectivo(pago)) {
+    return registrarPagoEfectivoOnline(pago, id, clinicaIdActual, { obtenerPagos, actualizarPagosLocal })
+  }
 
   const pagoLocal: Pago = {
     ...pago,
@@ -286,6 +387,7 @@ export const procesarColaPagosHelper = async ({
 
   let procesados = 0
   let fallidos = 0
+  let borradoresEfectivo = 0
   const procesadosExitososIds: Array<string | number> = []
   const listado = Array.isArray(obtenerPagos()) ? [...obtenerPagos()] : []
 
@@ -316,6 +418,14 @@ export const procesarColaPagosHelper = async ({
         const pagoLocal = listado[idx]
         if (pagoLocal.sincronizado && esUuidValido(pagoLocal.id)) {
           procesadosExitososIds.push(id)
+          continue
+        }
+
+        if (esPagoEnEfectivo(pagoLocal)) {
+          // Legacy offline cash entries become review-only drafts; never auto-confirm them later.
+          listado[idx] = { ...pagoLocal, estado: 'Borrador sin confirmar', sincronizado: false }
+          procesadosExitososIds.push(id)
+          borradoresEfectivo++
           continue
         }
 
@@ -361,7 +471,7 @@ export const procesarColaPagosHelper = async ({
       }
     }
 
-    if (procesados > 0) {
+    if (procesados > 0 || borradoresEfectivo > 0) {
       actualizarPagosLocal(listado)
     }
 
@@ -381,7 +491,7 @@ export const procesarColaPagosHelper = async ({
     return { procesados, fallidos: fallidos + 1 }
   }
 
-  return { procesados, fallidos }
+  return { procesados, fallidos, borradoresEfectivo }
 }
 
 /**

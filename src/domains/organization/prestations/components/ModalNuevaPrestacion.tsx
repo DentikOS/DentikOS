@@ -24,7 +24,6 @@ export const ModalNuevaPrestacion: React.FC<ModalNuevaPrestacionProps> = memo(({
   const [nombre, setNombre] = useState<string>('')
   const [especialidad, setEspecialidad] = useState<string>(ESPECIALIDADES_ODONTOLOGICAS[0])
   const [precioParticular, setPrecioParticular] = useState<string>('')
-  const [precioFonasa, setPrecioFonasa] = useState<string>('')
   const [codigoFonasa, setCodigoFonasa] = useState<string>('')
   const [codigoInterno, setCodigoInterno] = useState<string>('')
   const [categoria, setCategoria] = useState<string>('')
@@ -43,13 +42,11 @@ export const ModalNuevaPrestacion: React.FC<ModalNuevaPrestacionProps> = memo(({
           ? String(prestacionEditar.precio)
           : ''
       )
-      setPrecioFonasa(prestacionEditar.precioFonasa != null ? String(prestacionEditar.precioFonasa) : '')
       setCodigoFonasa(prestacionEditar.codigoFonasa || '')
       setCodigoInterno(typeof prestacionEditar.codigoInterno === 'string' ? prestacionEditar.codigoInterno : '')
       setCategoria(typeof prestacionEditar.categoria === 'string' ? prestacionEditar.categoria : '')
       setEquipamientoRequerido(Array.isArray(prestacionEditar.equipamientoRequerido) ? prestacionEditar.equipamientoRequerido : [])
     } else {
-      setPrecioFonasa('')
       setCodigoFonasa('')
       setCodigoInterno('')
       setCategoria('')
@@ -62,7 +59,6 @@ export const ModalNuevaPrestacion: React.FC<ModalNuevaPrestacionProps> = memo(({
     if (!nombre.trim() || !precioParticular) return
 
     const valParticular = parseFloat(precioParticular) || 0
-    const valFonasa = precioFonasa.trim() ? parseFloat(precioFonasa) : null
 
     const prestacionObj: PrestacionInput = {
       id: prestacionEditar ? prestacionEditar.id : Date.now(),
@@ -70,7 +66,8 @@ export const ModalNuevaPrestacion: React.FC<ModalNuevaPrestacionProps> = memo(({
       especialidad,
       precio: valParticular, // Propiedad requerida por FichaPaciente y Presupuestos
       precioParticular: valParticular,
-      precioFonasa: valFonasa,
+      // Conserva el dato legado si se edita una prestación, pero ya no se usa para cotizar.
+      precioFonasa: prestacionEditar?.precioFonasa ?? null,
       codigoFonasa: codigoFonasa.trim(),
       codigoInterno: codigoInterno.trim() || null,
       categoria: categoria.trim() || null,
@@ -147,24 +144,17 @@ export const ModalNuevaPrestacion: React.FC<ModalNuevaPrestacionProps> = memo(({
           </div>
         </fieldset>
 
-        <div className="grid grid-cols-2 gap-3">
-          <Input
-            label={`Precio Particular (${moneda})`}
-            type="number"
-            required
-            placeholder="Ej: 35000"
-            value={precioParticular}
-            onChange={(e) => setPrecioParticular(e.target.value)}
-          />
-
-          <Input
-            label={`Precio Fonasa / Convenio (${moneda})`}
-            type="number"
-            placeholder="Ej: 28000"
-            value={precioFonasa}
-            onChange={(e) => setPrecioFonasa(e.target.value)}
-          />
-        </div>
+        <Input
+          label={`Precio base (${moneda})`}
+          type="number"
+          required
+          placeholder="Ej: 35000"
+          value={precioParticular}
+          onChange={(e) => setPrecioParticular(e.target.value)}
+        />
+        <p className="text-[11px] text-gray-500 dark:text-graphite-400">
+          Los precios para ISAPRE, FONASA y sucursales se configuran en Administración → Convenios.
+        </p>
 
         <Input
           label="Código Fonasa (Opcional)"

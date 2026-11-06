@@ -1,13 +1,16 @@
 import React, { memo } from 'react'
 import { ESPECIALIDADES_COLOR } from '../constants/reportesConstants'
 import { BarChart3 } from 'lucide-react'
+import { formatearImporteDocumento } from '../../../../shared/utils/formatoDocumento'
 
 export interface GraficoProductividadProps {
   desgloseEspecialidad?: Record<string, number>
+  moneda?: string
 }
 
 export const GraficoProductividad: React.FC<GraficoProductividadProps> = memo(({
-  desgloseEspecialidad = {}
+  desgloseEspecialidad = {},
+  moneda = 'CLP',
 }) => {
   const entradas = Object.entries(desgloseEspecialidad)
   const montoMaximo = Math.max(...entradas.map(([, v]) => v), 1)
@@ -39,7 +42,7 @@ export const GraficoProductividad: React.FC<GraficoProductividadProps> = memo(({
                 <div className="flex justify-between font-semibold text-gray-800 dark:text-graphite-100 text-[11px]">
                   <span>{esp}</span>
                   <span className="font-extrabold text-emerald-900">
-                    ${monto.toLocaleString('es-CL')} CLP
+                    {formatearImporteDocumento(monto, moneda)}
                   </span>
                 </div>
                 <div className="w-full bg-gray-100 dark:bg-graphite-800 rounded-full h-3 overflow-hidden">

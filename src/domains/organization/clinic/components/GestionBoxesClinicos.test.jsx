@@ -66,10 +66,20 @@ describe('GestionBoxesClinicos', () => {
     expect(screen.getByText(/Solo administración clínica puede registrar o modificar boxes/i)).toBeInTheDocument()
   })
 
-  it('explica que falta activar una sucursal cuando no hay una disponible', () => {
-    render(<GestionBoxesClinicos sede={null} puedeAdministrar />)
+  it('explica que la sede principal de la clínica se completa y lleva a configurarla', () => {
+    const onIrAConfigurarSedePrincipal = vi.fn()
+    render(<GestionBoxesClinicos sede={null} puedeAdministrar sucursalesRegistradas={0} onIrAConfigurarSedePrincipal={onIrAConfigurarSedePrincipal} />)
 
-    expect(screen.getByText(/No hay una sucursal activa disponible/i)).toBeInTheDocument()
+    expect(screen.getByText(/la sede principal de esta clínica aún no está configurada/i)).toBeInTheDocument()
+    expect(screen.getByText(/quedará seleccionada automáticamente para gestionar boxes/i)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Completar sede principal' }))
+    expect(onIrAConfigurarSedePrincipal).toHaveBeenCalledTimes(1)
     expect(screen.queryByText(/Selecciona una sucursal activa/i)).not.toBeInTheDocument()
+  })
+
+  it('distingue las sucursales registradas pero inactivas de una clínica sin sucursales', () => {
+    render(<GestionBoxesClinicos sede={null} puedeAdministrar sucursalesRegistradas={1} />)
+
+    expect(screen.getByText(/Activa una de las sucursales registradas o registra una nueva/i)).toBeInTheDocument()
   })
 })

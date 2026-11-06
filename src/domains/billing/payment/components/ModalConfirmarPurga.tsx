@@ -3,6 +3,7 @@ import { Modal } from '../../../../shared/ui/ui/Modal'
 import { Button } from '../../../../shared/ui/ui/Button'
 import { Trash2, AlertTriangle } from 'lucide-react'
 import type { Pago } from '../services/pagosStorageService'
+import { formatearImporteDocumento, resolverMonedaDocumento } from '../../../../shared/utils/formatoDocumento'
 
 export interface ModalConfirmarPurgaProps {
   pago: Pago | null
@@ -61,7 +62,7 @@ export const ModalConfirmarPurga: React.FC<ModalConfirmarPurgaProps> = memo(({
           </p>
           <p>
             <span className="font-bold text-gray-700 dark:text-graphite-300">Monto:</span>{' '}
-            ${Number(pago?.monto || 0).toLocaleString('es-CL')} CLP
+            {formatearImporteDocumento(Number(pago?.monto || 0), resolverMonedaDocumento(pago?.moneda))}
           </p>
           <p>
             <span className="font-bold text-gray-700 dark:text-graphite-300">Fecha:</span>{' '}

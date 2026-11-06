@@ -11,9 +11,9 @@ export type InputSize = 'sm' | 'md' | 'lg'
 export type InputIconPosition = 'left' | 'right'
 
 const SIZE_STYLES: Record<InputSize, string> = {
-  sm: 'px-2.5 py-1.5 text-xs',
-  md: 'px-3 py-2 text-sm',
-  lg: 'px-4 py-2.5 text-base',
+  sm: 'min-h-9 px-2.5 py-1.5 text-xs',
+  md: 'min-h-10 px-3 py-2 text-sm',
+  lg: 'min-h-11 px-4 py-2.5 text-base',
 }
 
 const ICON_SIZES: Record<InputSize, IconSize> = {
@@ -75,7 +75,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
     text-graphite-900 dark:text-graphite-50
     placeholder:text-graphite-400 dark:placeholder:text-graphite-500
     focus:outline-none focus:ring-2
-    transition-all duration-200 shadow-sm focus:shadow-md
+    transition-[border-color,box-shadow] duration-150 ease-out shadow-xs focus:shadow-sm motion-reduce:transition-none
     disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-graphite-100 dark:disabled:bg-graphite-800
     ${IconComponent && iconPosition === 'left' ? 'pl-10' : ''}
     ${IconComponent && iconPosition === 'right' ? 'pr-10' : ''}
@@ -88,7 +88,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
       {label && (
         <label
           htmlFor={id}
-          className="block text-xs font-semibold text-graphite-700 dark:text-graphite-300 uppercase mb-1.5"
+          className="mb-1.5 block text-sm font-medium text-graphite-700 dark:text-graphite-300"
         >
           {label}
           {required && <span className="text-[#E11D48] text-clinical-error required-asterisk ml-1" aria-hidden="true">*</span>}

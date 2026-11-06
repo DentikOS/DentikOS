@@ -35,6 +35,8 @@ export interface EvolucionNotaItem {
   fecha_hora?: string
   texto?: string
   tipo?: string
+  tratamientoRef?: string
+  tratamiento_ref?: string
   [key: string]: unknown
 }
 
@@ -45,6 +47,7 @@ export interface EvolucionClinicaRow {
   fecha_hora: string
   texto: string
   tipo: string
+  tratamiento_ref?: string | null
   created_at?: string
   [key: string]: unknown
 }
@@ -69,29 +72,6 @@ export interface CertificadoRow {
   eliminado_at?: string | null
   eliminado_por?: string | null
   eliminado_motivo?: string | null
-  created_at?: string
-  [key: string]: unknown
-}
-
-export interface RecetaItem {
-  id?: string | number
-  fecha?: string
-  medicamentos?: string[]
-  diagnostico?: string
-  indicaciones?: string
-  firma?: string
-  [key: string]: unknown
-}
-
-export interface RecetaRow {
-  id: string
-  user_id: string
-  paciente_id: string
-  fecha: string
-  medicamentos: string[]
-  diagnostico?: string
-  indicaciones?: string
-  firma?: string
   created_at?: string
   [key: string]: unknown
 }
@@ -183,33 +163,7 @@ export const sincronizarPaciente = async (pacienteId: string | number): Promise<
       datosPaciente.set('certificados', certificadosTransformados)
     }
 
-    // 2. Recetas
-    const { data: recetas } = await supabase
-      .from('recetas')
-      .select('*')
-      .eq('paciente_id', pIdStr)
-      .order('fecha', { ascending: false })
-
-    if (recetas) {
-      const recetasTransformadas = recetas.map((r: {
-        id: string
-        fecha?: string
-        medicamentos?: string[]
-        diagnostico?: string
-        indicaciones?: string
-        firma?: string
-      }) => ({
-        id: r.id,
-        fecha: r.fecha,
-        medicamentos: r.medicamentos,
-        diagnostico: r.diagnostico,
-        indicaciones: r.indicaciones,
-        firma: r.firma
-      }))
-      datosPaciente.set('recetas', recetasTransformadas)
-    }
-
-    // 3. Odontograma inicial
+    // 2. Odontograma inicial
     const { data: odontoInicial } = await supabase
       .from('odontogramas')
       .select('*')
@@ -393,6 +347,31 @@ export const obtenerEvolucionesRemotas = async (
   }
 }
 
+/**
+ * Busca la nota de cierre idempotente asociada a un procedimiento del plan.
+ * Los filtros incluyen paciente y clínica para mantener el alcance por tenant.
+ */
+export const obtenerEvolucionTratamientoRealizado = async (
+  pacienteId: string | number,
+  tratamientoRef: string,
+  clinicaId: string
+): Promise<EvolucionClinicaRow | null> => {
+  if (!USE_SUPABASE || !supabase || !pacienteId || !tratamientoRef || !clinicaId) {
+    throw new Error('No hay contexto sincronizado para consultar el cierre del tratamiento.')
+  }
+  const { data, error } = await supabase
+    .from('evoluciones_clinicas')
+    .select('*')
+    .eq('paciente_id', String(pacienteId))
+    .eq('clinica_id', clinicaId)
+    .eq('tipo', 'tratamiento_realizado')
+    .eq('tratamiento_ref', tratamientoRef)
+    .maybeSingle()
+
+  if (error) throw error
+  return data as EvolucionClinicaRow | null
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // MÉTODOS DE ESCRITURA (F4-02d-2)
 // ═══════════════════════════════════════════════════════════════════
@@ -423,7 +402,10 @@ export const guardarEvolucionClinica = async (
       paciente_id: pIdStr,
       fecha_hora: evolucion.fechaHora || new Date().toISOString(),
       texto: evolucion.texto || '',
-      tipo: evolucion.tipo || 'evolucion'
+      tipo: evolucion.tipo || 'evolucion',
+      ...(evolucion.tipo === 'tratamiento_realizado'
+        ? { tratamiento_ref: String(evolucion.tratamientoRef || evolucion.tratamiento_ref || '') }
+        : {})
     }
 
     // Si tiene ID y es UUID válido, actualizar; si no, insertar
@@ -536,63 +518,6 @@ export const guardarCertificado = async (
     }
   } catch (error: unknown) {
     log.error('Error al guardar certificado:', error)
-    return null
-  }
-}
-
-/**
- * Guarda una receta en Supabase.
- *
- * @param pacienteId - UUID del paciente
- * @param receta - Datos de la receta
- * @returns La receta guardada con UUID o null si falla
- */
-export const guardarReceta = async (
-  pacienteId: string | number,
-  receta: RecetaItem
-): Promise<RecetaRow | null> => {
-  if (!USE_SUPABASE || !supabase || !pacienteId) {
-    return null
-  }
-
-  const pIdStr = String(pacienteId)
-
-  try {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return null
-
-    const recetaSupabase = {
-      user_id: user.id,
-      paciente_id: pIdStr,
-      fecha: receta.fecha || new Date().toISOString().split('T')[0],
-      medicamentos: receta.medicamentos || [],
-      diagnostico: receta.diagnostico || '',
-      indicaciones: receta.indicaciones || '',
-      firma: receta.firma || ''
-    }
-
-    if (esUuidValido(receta.id)) {
-      const { data, error } = await supabase
-        .from('recetas')
-        .update(recetaSupabase)
-        .eq('id', receta.id)
-        .select()
-        .maybeSingle()
-
-      if (error) throw error
-      return data as RecetaRow | null
-    } else {
-      const { data, error } = await supabase
-        .from('recetas')
-        .insert(recetaSupabase)
-        .select()
-        .maybeSingle()
-
-      if (error) throw error
-      return data as RecetaRow | null
-    }
-  } catch (error: unknown) {
-    log.error('Error al guardar receta:', error)
     return null
   }
 }

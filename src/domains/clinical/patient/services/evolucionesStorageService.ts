@@ -2,12 +2,14 @@ import { pacientesStorageService } from './pacientesStorageService'
 import {
   obtenerDatoClinico,
   guardarEvolucionClinica as guardarEvolucionSupabase,
-  obtenerEvolucionesRemotas
+  obtenerEvolucionesRemotas,
+  obtenerEvolucionTratamientoRealizado as obtenerCierreRemoto
 } from '../../../../infrastructure/supabase/datosClinicosSupabase'
 import type { EvolucionClinicaRow } from '../../../../infrastructure/supabase/datosClinicosSupabase'
 import { createTenantRepository } from '../../../../infrastructure/storage/localStorageRepository'
 import { getClinicaActivaSync } from '../../../../infrastructure/auth/authService'
 import { createLogger } from '../../../../infrastructure/logging/logger'
+import { USE_SUPABASE, supabase } from '../../../../infrastructure/supabase/supabaseClient'
 
 const log = createLogger('evolucionesStorageService')
 
@@ -31,6 +33,8 @@ export interface EvolucionClinicaLocal {
   sincronizado?: boolean
   pacienteId?: string
   clinicaId?: string | null
+  tratamientoRef?: string
+  tratamiento_ref?: string
   [key: string]: unknown
 }
 
@@ -135,6 +139,10 @@ export const transformarDesdeSupabase = (
     texto: String(evoSupabase.texto || ''),
     tipo: String(evoSupabase.tipo || 'evolucion')
   }
+  if (typeof evoSupabase.tratamiento_ref === 'string') {
+    res.tratamientoRef = evoSupabase.tratamiento_ref
+    res.tratamiento_ref = evoSupabase.tratamiento_ref
+  }
   if (evoSupabase.sincronizado !== undefined) {
     res.sincronizado = Boolean(evoSupabase.sincronizado)
   }
@@ -150,7 +158,10 @@ export const transformarHaciaSupabase = (
   id: evoLocal.id !== undefined && evoLocal.id !== null ? String(evoLocal.id) : undefined,
   fecha_hora: normalizarFechaHora(evoLocal.fecha || evoLocal.fecha_hora),
   texto: String(evoLocal.texto || ''),
-  tipo: String(evoLocal.tipo || 'evolucion')
+  tipo: String(evoLocal.tipo || 'evolucion'),
+  ...(evoLocal.tipo === 'tratamiento_realizado'
+    ? { tratamientoRef: String(evoLocal.tratamientoRef || evoLocal.tratamiento_ref || '') }
+    : {})
 })
 
 /**
@@ -344,6 +355,65 @@ export const guardarEvolucionClinica = async (
   }
 
   return registroLocal
+}
+
+/**
+ * Persiste el evento clínico de cierre únicamente en Supabase.
+ * Esta ruta no usa caché local ni cola offline: la ficha no debe poder
+ * marcar un procedimiento realizado si la evolución no quedó sincronizada.
+ */
+export const guardarEvolucionTratamientoRealizadoSincronizada = async (
+  pacienteId: string,
+  tratamientoRef: string,
+  texto: string
+): Promise<EvolucionClinicaLocal> => {
+  const clinicaId = obtenerClinicaId()
+  if (!USE_SUPABASE || !supabase || !esUUIDValido(pacienteId) || !clinicaId || !esUUIDValido(clinicaId) || !tratamientoRef.trim()) {
+    throw new Error('El cierre requiere una sesión sincronizada, clínica y referencia válidas.')
+  }
+
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) throw new Error('Inicia sesión nuevamente para registrar el cierre clínico.')
+
+  const existente = await obtenerCierreRemoto(pacienteId, tratamientoRef, clinicaId)
+  let remoto = existente
+
+  if (remoto) {
+    if (remoto.user_id !== user.id) {
+      throw new Error('El cierre del tratamiento ya fue iniciado por otro profesional.')
+    }
+  } else {
+    remoto = await guardarEvolucionSupabase(pacienteId, {
+      fechaHora: new Date().toISOString(),
+      texto,
+      tipo: 'tratamiento_realizado',
+      tratamientoRef
+    })
+    if (!remoto?.id || remoto.user_id !== user.id || remoto.clinica_id !== clinicaId) {
+      throw new Error('No se pudo confirmar la evolución del tratamiento en DentikOS.')
+    }
+  }
+
+  const sincronizada: EvolucionClinicaLocal = {
+    ...transformarDesdeSupabase(remoto),
+    sincronizado: true,
+    pacienteId,
+    clinicaId,
+    tratamientoRef,
+    tratamiento_ref: tratamientoRef
+  }
+  const evosLocales = pacientesStorageService.obtenerItem<EvolucionClinicaLocal[]>(
+    `evoluciones_notas_${pacienteId}`,
+    []
+  )
+  const actualizadas = Array.isArray(evosLocales) ? [...evosLocales] : []
+  const index = actualizadas.findIndex((e) => e.id === sincronizada.id || (
+    e.tipo === 'tratamiento_realizado' && (e.tratamientoRef || e.tratamiento_ref) === tratamientoRef
+  ))
+  if (index >= 0) actualizadas[index] = sincronizada
+  else actualizadas.unshift(sincronizada)
+  pacientesStorageService.guardarItem(`evoluciones_notas_${pacienteId}`, actualizadas)
+  return sincronizada
 }
 
 /**
@@ -560,6 +630,7 @@ export const evolucionesStorageService = {
   obtenerEvoluciones,
   guardarEvoluciones,
   guardarEvolucionClinica,
+  guardarEvolucionTratamientoRealizadoSincronizada,
   procesarColaEvoluciones,
   sincronizarDesdeSupabase,
   obtenerPendingEvoluciones,

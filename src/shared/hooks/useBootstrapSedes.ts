@@ -17,6 +17,7 @@ export const crearSedePrincipal = (datos: ExtendedBootstrapDatos): Sede => ({
   comuna: datos.comuna || 'Comuna Central',
   region: datos.region || 'Región Metropolitana',
   telefono: datos.telefono || '',
+  zonaHoraria: datos.zonaHoraria || 'America/Santiago',
   activa: true,
 })
 

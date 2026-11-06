@@ -32,12 +32,12 @@ describe('ImportarPlantillaCatalogo', () => {
     mocks.importarPlantilla.mockResolvedValue([{ id: 'prestacion-1', codigoInterno: 'PRE-01' }])
   })
 
-  it('muestra el precio base de BP08, deja Fonasa pendiente y confirma la carga completa', async () => {
+  it('muestra solo el precio base de BP08 y confirma la carga completa', async () => {
     render(<ImportarPlantillaCatalogo />)
     fireEvent.click(screen.getByRole('button', { name: /Clínica General/ }))
 
-    expect(screen.getByRole('spinbutton', { name: 'PRE-01 precio particular' })).toHaveValue(50000)
-    expect(screen.getByRole('spinbutton', { name: 'PRE-01 precio Fonasa' })).toHaveValue(null)
+    expect(screen.getByRole('spinbutton', { name: 'PRE-01 precio base' })).toHaveValue(50000)
+    expect(screen.queryByRole('spinbutton', { name: /Fonasa/i })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /importar 20 prestaciones/i }))
 
     await waitFor(() => expect(mocks.importarPlantilla).toHaveBeenCalledTimes(1))
@@ -54,7 +54,7 @@ describe('ImportarPlantillaCatalogo', () => {
     render(<ImportarPlantillaCatalogo />)
     fireEvent.click(screen.getByRole('button', { name: /Clínica General/ }))
 
-    expect(screen.getByRole('spinbutton', { name: 'PRE-01 precio particular' })).toHaveValue(null)
+    expect(screen.getByRole('spinbutton', { name: 'PRE-01 precio base' })).toHaveValue(null)
     expect(screen.getByRole('button', { name: /importar 20 prestaciones/i })).toBeDisabled()
   })
 })

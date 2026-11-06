@@ -2,7 +2,7 @@
  * PreferenciasModal — Panel de preferencias personales (Blueprint 03)
  *
  * Modal con 4 tabs:
- * - Tema: modo claro/quirúrgico/oscuro (delegado a useSidebarStore)
+ * - Tema: modo claro/oscuro (delegado a useSidebarStore)
  * - Idioma: selector ES/EN
  * - Notificaciones: toggles de severidades
  * - Accesibilidad: feedback sonoro, reducción de movimiento
@@ -60,7 +60,6 @@ export const PreferenciasModal: React.FC<PreferenciasModalProps> = ({ isOpen, on
 
   const THEMES: { value: Theme; label: string; icon: string }[] = [
     { value: 'light', label: 'Claro', icon: '' },
-    { value: 'surgical', label: 'Quirúrgico', icon: '' },
     { value: 'dark', label: 'Oscuro', icon: '' },
   ]
 
@@ -141,7 +140,6 @@ export const PreferenciasModal: React.FC<PreferenciasModalProps> = ({ isOpen, on
                         <p className="font-medium text-graphite-900 dark:text-graphite-100">{t.label}</p>
                         <p className="text-xs text-graphite-500">
                           {t.value === 'light' && 'Modo diurno para oficinas'}
-                          {t.value === 'surgical' && 'Antirreflejo para box dental'}
                           {t.value === 'dark' && 'Para jornadas extendidas'}
                         </p>
                       </div>

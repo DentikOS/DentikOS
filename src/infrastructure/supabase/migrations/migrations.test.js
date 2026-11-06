@@ -203,6 +203,14 @@ describe('migrateDatosClinicosToSupabase', () => {
     const resultado = await migrateDatosClinicosToSupabase('user-123')
     expect(resultado).toBeDefined()
   })
+
+  it('no considera recetas locales heredadas como pendientes para insertar en public.recetas', () => {
+    localStorage.clear()
+    localStorage.setItem('studio_dental_pacientes_v3', JSON.stringify([{ id: 'paciente-legacy' }]))
+    localStorage.setItem('recetas_paciente-legacy', JSON.stringify([{ id: 1, medicamento: 'Receta histórica' }]))
+
+    expect(verificarDatosClinicosPendientes()).toEqual({ totalPacientes: 1, conDatos: 0 })
+  })
 })
 
 describe('migratePagosToSupabase', () => {

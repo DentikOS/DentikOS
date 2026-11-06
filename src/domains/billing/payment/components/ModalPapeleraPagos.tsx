@@ -5,6 +5,7 @@ import { useAppDialog } from '../../../../shared/hooks/useAppDialog'
 import { diasRestantes, obtenerPagosPurgados, vaciarPapelera } from '../services/papeleraPagosService'
 import { Trash2 } from 'lucide-react'
 import type { Pago } from '../services/pagosStorageService'
+import { formatearImporteDocumento, resolverMonedaDocumento } from '../../../../shared/utils/formatoDocumento'
 
 export interface ModalPapeleraPagosProps {
   alCerrar: () => void
@@ -116,7 +117,7 @@ export const ModalPapeleraPagos: React.FC<ModalPapeleraPagosProps> = memo(({
                       </p>
                       <p className="text-xs text-gray-600 dark:text-graphite-400">
                         <span className="font-bold">
-                          ${(pago.monto || 0).toLocaleString('es-CL')} CLP
+                          {formatearImporteDocumento(pago.monto, resolverMonedaDocumento(pago.moneda))}
                         </span>{' '}
                         · {pago.metodoPago}
                       </p>

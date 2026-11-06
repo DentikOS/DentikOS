@@ -6,7 +6,6 @@ import { prestacionesSupabaseService, type PrestacionImportarPlantilla } from '.
 
 interface PrestacionBorrador extends PrestacionPlantilla {
   precioParticularTexto: string
-  precioFonasaTexto: string
 }
 
 const precioValido = (valor: string): boolean => {
@@ -26,8 +25,7 @@ export const ImportarPlantillaCatalogo: React.FC = () => {
     [plantillaId],
   )
   const preciosListos = borrador.length > 0 && borrador.every((item) =>
-    precioValido(item.precioParticularTexto) &&
-    (!item.precioFonasaTexto || precioValido(item.precioFonasaTexto))
+    precioValido(item.precioParticularTexto)
   )
 
   const seleccionarPlantilla = (id: PlantillaCatalogoId): void => {
@@ -36,13 +34,12 @@ export const ImportarPlantillaCatalogo: React.FC = () => {
     setBorrador(obtenerPlantillaCatalogo(id).map((item) => ({
       ...item,
       precioParticularTexto: moneda === 'CLP' ? String(item.precioParticular) : '',
-      precioFonasaTexto: '',
     })))
   }
 
-  const actualizarPrecio = (codigo: string, campo: 'precioParticularTexto' | 'precioFonasaTexto', valor: string): void => {
+  const actualizarPrecio = (codigo: string, valor: string): void => {
     if (valor !== '' && !/^\d*$/.test(valor)) return
-    setBorrador((actual) => actual.map((item) => item.codigoInterno === codigo ? { ...item, [campo]: valor } : item))
+    setBorrador((actual) => actual.map((item) => item.codigoInterno === codigo ? { ...item, precioParticularTexto: valor } : item))
   }
 
   const importar = async (event: React.FormEvent<HTMLFormElement>): Promise<void> => {
@@ -57,7 +54,7 @@ export const ImportarPlantillaCatalogo: React.FC = () => {
         nombre: item.nombre,
         especialidad: item.especialidad,
         precioParticular: Number(item.precioParticularTexto),
-        precioFonasa: item.precioFonasaTexto ? Number(item.precioFonasaTexto) : null,
+        precioFonasa: null,
       }))
       const confirmadas = await prestacionesSupabaseService.importarPlantilla(plantillaId, importadas)
       usePrestacionesStore.getState().setPrestacionesArancel(confirmadas)
@@ -95,15 +92,15 @@ export const ImportarPlantillaCatalogo: React.FC = () => {
       {plantillaSeleccionada && (
         <form onSubmit={(event) => void importar(event)} className="space-y-3">
           <div className="rounded-lg border border-amber-300/50 bg-amber-50 p-3 text-[11px] text-amber-900 dark:bg-amber-950/20 dark:text-amber-200">
-            Los precios publicados por BP08 son CLP. La clínica usa {moneda}; revisa cada precio particular antes de confirmar.
-            Las tarifas Fonasa quedan pendientes cuando se dejan vacías. No se usarán como valor cero.
+            Los precios publicados por BP08 son CLP. La clínica usa {moneda}; revisa cada precio base antes de confirmar.
+            Los precios de convenios y sucursales se configuran por separado y se aplican al cotizar.
           </div>
           <div className="max-h-[28rem] overflow-auto rounded-xl border border-surface">
-            <table className="w-full min-w-[720px] text-left text-xs">
+            <table className="w-full min-w-[600px] text-left text-xs">
               <thead className="sticky top-0 bg-surface text-[10px] uppercase text-graphite-500">
                 <tr>
                   <th className="p-2">Código</th><th className="p-2">Prestación</th><th className="p-2">Categoría</th>
-                  <th className="p-2 text-right">Particular ({moneda})</th><th className="p-2 text-right">Fonasa ({moneda})</th>
+                  <th className="p-2 text-right">Precio base ({moneda})</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-surface">
@@ -113,10 +110,7 @@ export const ImportarPlantillaCatalogo: React.FC = () => {
                     <td className="p-2">{item.nombre}</td>
                     <td className="p-2">{item.categoria}</td>
                     <td className="p-2 text-right">
-                      <input aria-label={`${item.codigoInterno} precio particular`} type="number" min="0" max="2147483647" step="1" required value={item.precioParticularTexto} onChange={(event) => actualizarPrecio(item.codigoInterno, 'precioParticularTexto', event.target.value)} className="w-32 rounded-lg border border-surface bg-white px-2 py-1.5 text-right dark:bg-slate-900" />
-                    </td>
-                    <td className="p-2 text-right">
-                      <input aria-label={`${item.codigoInterno} precio Fonasa`} type="number" min="0" max="2147483647" step="1" value={item.precioFonasaTexto} onChange={(event) => actualizarPrecio(item.codigoInterno, 'precioFonasaTexto', event.target.value)} placeholder="Pendiente" className="w-32 rounded-lg border border-surface bg-white px-2 py-1.5 text-right dark:bg-slate-900" />
+                      <input aria-label={`${item.codigoInterno} precio base`} type="number" min="0" max="2147483647" step="1" required value={item.precioParticularTexto} onChange={(event) => actualizarPrecio(item.codigoInterno, event.target.value)} className="w-32 rounded-lg border border-surface bg-white px-2 py-1.5 text-right dark:bg-slate-900" />
                     </td>
                   </tr>
                 ))}

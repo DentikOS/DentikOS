@@ -79,7 +79,7 @@ export const useKeyboardShortcuts = (): void => {
       const isKeyD = e.code === 'KeyD' || e.key === 'd' || e.key === 'D'
       if (modKey && e.shiftKey && isKeyD) {
         e.preventDefault()
-        const themes: ('light' | 'surgical' | 'dark')[] = ['light', 'surgical', 'dark']
+        const themes: ('light' | 'dark')[] = ['light', 'dark']
         const current = useSidebarStore.getState().theme
         const nextIndex = (themes.indexOf(current) + 1) % themes.length
         useSidebarStore.getState().setTheme(themes[nextIndex])

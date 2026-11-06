@@ -3,7 +3,11 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { PacientesListado } from './PacientesListado'
 import { usePacientesStore } from '../../../../../app/stores/pacientesStore'
+import { useSesionStore } from '../../../../../app/stores/sesionStore'
 import type { Paciente } from '../../schemas/pacienteSchema'
+
+const mocks = vi.hoisted(() => ({ clinicId: 'aaaaaaaa-0000-4000-8000-000000000014' }))
+const TEST_CLINIC_ID = mocks.clinicId
 
 vi.mock('../../../../../shared/hooks/useRBAC', () => ({
   useRBAC: () => ({
@@ -22,6 +26,11 @@ vi.mock('../../hooks/usePapelera', () => ({
     aniosRetencion: 5,
     refrescar: vi.fn(),
   }),
+}))
+
+vi.mock('../../../../../infrastructure/auth/authService', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../../../../../infrastructure/auth/authService')>(),
+  getClinicaActivaSync: () => mocks.clinicId,
 }))
 
 const mockPacientes: Paciente[] = [
@@ -57,6 +66,7 @@ describe('PacientesListado (BP06)', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    useSesionStore.setState({ clinicaActual: TEST_CLINIC_ID })
     usePacientesStore.setState({
       pacientes: mockPacientes,
       vistaActual: 'lista',
@@ -130,6 +140,30 @@ describe('PacientesListado (BP06)', () => {
     expect(alSeleccionar).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'pac-1', nombre: 'Ana María Gómez' })
     )
+  })
+
+  it('asigna la clínica activa al paciente recién creado en el store local', async () => {
+    usePacientesStore.setState({ pacientes: [mockPacientes[0]] })
+    render(<PacientesListado />)
+
+    fireEvent.click(screen.getByTestId('btn-nuevo-paciente'))
+    fireEvent.change(screen.getByTestId('paciente-nombre'), {
+      target: { value: 'Paciente sintético de prueba' },
+    })
+    fireEvent.change(screen.getByTestId('paciente-rut'), {
+      target: { value: '14.444.444-2' },
+    })
+    fireEvent.change(screen.getByTestId('paciente-telefono'), {
+      target: { value: '0000000000' },
+    })
+
+    fireEvent.click(screen.getByTestId('paciente-crear'))
+
+    await waitFor(() => {
+      expect(
+        usePacientesStore.getState().pacientes.find((p) => p.nombre === 'Paciente sintético de prueba')?.clinicaId
+      ).toBe(TEST_CLINIC_ID)
+    })
   })
 
   it('soporta selección múltiple y muestra barra de acciones masivas', () => {

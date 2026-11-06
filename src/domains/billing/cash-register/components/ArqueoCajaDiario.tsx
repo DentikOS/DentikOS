@@ -1,6 +1,7 @@
 import React, { memo } from 'react'
 import { Printer, ClipboardList, CreditCard, Banknote, Building2 } from 'lucide-react'
 import type { MovimientoFinanciero } from '../services/finanzasStorageService'
+import { formatearImporteDocumento } from '../../../../shared/utils/formatoDocumento'
 
 export interface ArqueoCajaDiarioProps {
   transaccionesDia?: MovimientoFinanciero[]
@@ -17,27 +18,23 @@ export const ArqueoCajaDiario = memo<ArqueoCajaDiarioProps>(({
 }) => {
   const ingresos = transaccionesDia.filter(t => (t.tipo || '').toLowerCase() === 'ingreso')
   const egresos = transaccionesDia.filter(t => (t.tipo || '').toLowerCase() === 'egreso')
-
-  const totalIngresos = ingresos.reduce((acc, curr) => acc + (Number(curr.monto) || 0), 0)
-  const totalEgresos = egresos.reduce((acc, curr) => acc + (Number(curr.monto) || 0), 0)
-  const saldoFinalCaja = totalIngresos - totalEgresos
-
-  // Desglose por Medio de Pago
-  const efectivo = transaccionesDia
-    .filter(t => t.metodoPago === 'Efectivo' && (t.tipo || '').toLowerCase() === 'ingreso')
-    .reduce((acc, curr) => acc + (Number(curr.monto) || 0), 0)
-
-  const transferencia = transaccionesDia
-    .filter(t => t.metodoPago === 'Transferencia' && (t.tipo || '').toLowerCase() === 'ingreso')
-    .reduce((acc, curr) => acc + (Number(curr.monto) || 0), 0)
-
-  const debito = transaccionesDia
-    .filter(t => t.metodoPago === 'Débito' && (t.tipo || '').toLowerCase() === 'ingreso')
-    .reduce((acc, curr) => acc + (Number(curr.monto) || 0), 0)
-
-  const credito = transaccionesDia
-    .filter(t => t.metodoPago === 'Crédito' && (t.tipo || '').toLowerCase() === 'ingreso')
-    .reduce((acc, curr) => acc + (Number(curr.monto) || 0), 0)
+  const monedas = [...new Set(transaccionesDia.map((movimiento) => movimiento.moneda || 'CLP'))]
+  if (monedas.length === 0) monedas.push('CLP')
+  const sumar = (lista: MovimientoFinanciero[]) => Object.fromEntries(monedas.map((moneda) => [
+    moneda,
+    lista.filter((movimiento) => (movimiento.moneda || 'CLP') === moneda)
+      .reduce((total, movimiento) => total + (Number(movimiento.monto) || 0), 0),
+  ])) as Record<string, number>
+  const sumarMetodo = (metodo: string) => sumar(ingresos.filter((movimiento) => movimiento.metodoPago === metodo))
+  const totalIngresos = sumar(ingresos)
+  const totalEgresos = sumar(egresos)
+  const saldoFinalCaja = Object.fromEntries(monedas.map((moneda) => [moneda, (totalIngresos[moneda] || 0) - (totalEgresos[moneda] || 0)]))
+  const efectivo = sumarMetodo('Efectivo')
+  const transferencia = sumarMetodo('Transferencia')
+  const debito = sumarMetodo('Débito')
+  const credito = sumarMetodo('Crédito')
+  const mostrarMontos = (montos: Record<string, number>, negativo = false) => Object.entries(montos)
+    .map(([moneda, monto]) => <span key={moneda} className="block">{negativo && monto > 0 ? '−' : ''}{formatearImporteDocumento(monto, moneda)}</span>)
 
   return (
     <div className="space-y-6">
@@ -80,17 +77,17 @@ export const ArqueoCajaDiario = memo<ArqueoCajaDiarioProps>(({
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 text-xs">
           <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-xl">
             <span className="text-emerald-700 font-bold block uppercase text-[10px]">Total Ingresos Día</span>
-            <span className="text-xl font-extrabold text-emerald-900">${totalIngresos.toLocaleString('es-CL')} CLP</span>
+            <span className="text-xl font-extrabold text-emerald-900">{mostrarMontos(totalIngresos)}</span>
           </div>
 
           <div className="bg-red-50 border border-red-200 p-4 rounded-xl">
             <span className="text-red-700 font-bold block uppercase text-[10px]">Total Egresos / Gastos Día</span>
-            <span className="text-xl font-extrabold text-red-900">-${totalEgresos.toLocaleString('es-CL')} CLP</span>
+            <span className="text-xl font-extrabold text-red-900">{mostrarMontos(totalEgresos, true)}</span>
           </div>
 
           <div className="bg-gray-900 text-white p-4 rounded-xl">
             <span className="text-gray-300 font-bold block uppercase text-[10px]">Saldo Neto en Caja</span>
-            <span className="text-xl font-extrabold text-white">${saldoFinalCaja.toLocaleString('es-CL')} CLP</span>
+            <span className="text-xl font-extrabold text-white">{mostrarMontos(saldoFinalCaja)}</span>
           </div>
         </div>
 
@@ -102,19 +99,19 @@ export const ArqueoCajaDiario = memo<ArqueoCajaDiarioProps>(({
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
             <div className="bg-white dark:bg-graphite-800 p-3 rounded-lg border">
               <span className="text-gray-500 dark:text-graphite-400 block text-[10px] inline-flex items-center gap-1"><Banknote size={10} />Efectivo:</span>
-              <span className="font-bold text-gray-900 dark:text-graphite-50">${efectivo.toLocaleString('es-CL')}</span>
+              <span className="font-bold text-gray-900 dark:text-graphite-50">{mostrarMontos(efectivo)}</span>
             </div>
             <div className="bg-white dark:bg-graphite-800 p-3 rounded-lg border">
               <span className="text-gray-500 dark:text-graphite-400 block text-[10px] inline-flex items-center gap-1"><Building2 size={10} />Transferencia:</span>
-              <span className="font-bold text-gray-900 dark:text-graphite-50">${transferencia.toLocaleString('es-CL')}</span>
+              <span className="font-bold text-gray-900 dark:text-graphite-50">{mostrarMontos(transferencia)}</span>
             </div>
             <div className="bg-white dark:bg-graphite-800 p-3 rounded-lg border">
               <span className="text-gray-500 dark:text-graphite-400 block text-[10px]"><span className="inline-flex items-center gap-1"><CreditCard size={8} />Débito:</span></span>
-              <span className="font-bold text-gray-900 dark:text-graphite-50">${debito.toLocaleString('es-CL')}</span>
+              <span className="font-bold text-gray-900 dark:text-graphite-50">{mostrarMontos(debito)}</span>
             </div>
             <div className="bg-white dark:bg-graphite-800 p-3 rounded-lg border">
               <span className="text-gray-500 dark:text-graphite-400 block text-[10px]"><span className="inline-flex items-center gap-1"><CreditCard size={8} />Crédito:</span></span>
-              <span className="font-bold text-gray-900 dark:text-graphite-50">${credito.toLocaleString('es-CL')}</span>
+              <span className="font-bold text-gray-900 dark:text-graphite-50">{mostrarMontos(credito)}</span>
             </div>
           </div>
         </div>
@@ -160,7 +157,7 @@ export const ArqueoCajaDiario = memo<ArqueoCajaDiarioProps>(({
                     <td className={`p-2.5 text-right font-bold ${
                       esIngreso ? 'text-emerald-700' : 'text-red-600'
                     }`}>
-                      {esIngreso ? '+' : '-'}${Math.abs(Number(t.monto)).toLocaleString('es-CL')}
+                      {esIngreso ? '+' : '-'}{formatearImporteDocumento(Math.abs(Number(t.monto)), t.moneda || 'CLP')}
                     </td>
                   </tr>
                 )

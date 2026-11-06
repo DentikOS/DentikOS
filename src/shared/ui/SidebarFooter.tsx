@@ -32,7 +32,7 @@ export const SidebarFooter: React.FC<SidebarFooterProps> = ({ compact = false })
       data-testid="sidebar-footer-expanded"
       className="border-t border-[#E2E8F0] dark:border-[#24334A] p-2 space-y-2 select-none overflow-hidden"
     >
-      {/* Theme Switcher de 3 posiciones */}
+      {/* Theme Switcher de dos posiciones */}
       <ThemeSwitcher compact={false} />
 
       {/* Separador */}

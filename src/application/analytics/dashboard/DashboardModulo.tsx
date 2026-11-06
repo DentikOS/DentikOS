@@ -2,7 +2,6 @@ import React, { memo, useState, useEffect } from 'react'
 import { useDashboard } from './hooks/useDashboard'
 import { usePacientesStore } from '../../../app/stores/pacientesStore'
 import { useSesionStore } from '../../../app/stores/sesionStore'
-import { useThemeStore } from '../../../app/stores/useThemeStore'
 import { useDashboardStore } from '../../../app/stores/useDashboardStore'
 import { useMorningBrief } from '../../../shared/hooks/useMorningBrief'
 import { useContextualIntelligence } from '../../../shared/hooks/useContextualIntelligence'
@@ -14,7 +13,6 @@ import { ChecklistOnboarding } from '../../../shared/ui/dashboard/ChecklistOnboa
 import { MiniTour } from '../../../shared/ui/dashboard/MiniTour'
 import { DashboardWidgetsGrid } from '../../../shared/ui/dashboard/DashboardWidgetsGrid'
 import { ConfigurarWidgetsModal } from '../../../shared/ui/dashboard/ConfigurarWidgetsModal'
-import { DashboardQuirurgico } from '../../../shared/ui/dashboard/DashboardQuirurgico'
 import { useDashboardRealtime } from '../../../shared/hooks/useDashboardRealtime'
 import type { Paciente } from '../../../domains/clinical/patient/schemas/pacienteSchema'
 
@@ -29,7 +27,6 @@ export const DashboardModulo: React.FC<DashboardModuloProps> = memo(({ setPacien
 
   const pacientes = usePacientesStore((state) => state.pacientes || []) as Paciente[]
   const userProfile = useSesionStore((state) => state.userProfile)
-  const theme = useThemeStore((state) => state.theme)
 
   const userRole = (userProfile?.rol as string) || 'admin'
   const { widgets, widgetOrder, reorderWidgets, initParaRol, quickResumeData } = useDashboardStore()
@@ -57,29 +54,6 @@ export const DashboardModulo: React.FC<DashboardModuloProps> = memo(({ setPacien
     if (setActiveSection) {
       setActiveSection(seccion)
     }
-  }
-
-
-
-  // BP04 §08: Modo Quirúrgico
-  if (theme === 'surgical') {
-    const pacienteActual = pacientes[0] || null
-    const citaActual = resumen.citasHoy?.[0] || null
-    const proximaCita = resumen.citasHoy?.[1] || null
-
-    return (
-      <DashboardQuirurgico
-        pacienteActual={pacienteActual}
-        citaActual={citaActual}
-        proximaCita={proximaCita}
-        resumenDia={{
-          totales: resumen.citasHoyCount || 8,
-          completadas: resumen.finalizadas?.length || 4,
-          restantes: Math.max(0, (resumen.citasHoyCount || 8) - (resumen.finalizadas?.length || 4))
-        }}
-        onAbrirFicha={handleVerFichaPaciente}
-      />
-    )
   }
 
   const primeraCita = resumen.citasHoy?.[0]
@@ -119,13 +93,7 @@ export const DashboardModulo: React.FC<DashboardModuloProps> = memo(({ setPacien
         </div>
       )}
 
-      {/* Checklist Onboarding inicial */}
-      <ChecklistOnboarding
-        onNavegarSeccion={handleNavegarSeccion}
-        onCompletarTour={() => setTourOpen(true)}
-      />
-
-      {/* Zona Superior: Saludo + Morning Brief */}
+      {/* Primero: contexto del día y trabajo inmediato. */}
       <DashboardSaludo
         userProfile={userProfile}
         citasHoyCount={resumen.citasHoyCount}
@@ -140,10 +108,15 @@ export const DashboardModulo: React.FC<DashboardModuloProps> = memo(({ setPacien
 
       <MorningBrief data={morningBriefData} onNavegar={handleNavegarSeccion} />
 
-      {/* Banner de Contextual Intelligence */}
+      {/* La configuración inicial queda disponible después del resumen operativo. */}
       <ContextualIntelligenceCard
         mensajeContextual={mensajeContextual}
         onAccion={() => handleNavegarSeccion('Agenda')}
+      />
+
+      <ChecklistOnboarding
+        onNavegarSeccion={handleNavegarSeccion}
+        onCompletarTour={() => setTourOpen(true)}
       />
 
       {/* Zona Central: 9 Widgets CORE Reordenables con Drag & Drop */}
@@ -157,8 +130,6 @@ export const DashboardModulo: React.FC<DashboardModuloProps> = memo(({ setPacien
         onNavegarSeccion={handleNavegarSeccion}
         onReorderWidgets={reorderWidgets}
       />
-
-
 
       {/* Modales de soporte */}
       <ConfigurarWidgetsModal

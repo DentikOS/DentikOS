@@ -17,7 +17,12 @@ describe('completeTreatment (Application Service)', () => {
     it('debe crear y persistir nota de evolución clínica con datos del tratamiento', async () => {
       const spyGuardar = vi
         .spyOn(evolucionesStorageService, 'guardarEvoluciones')
-        .mockResolvedValue()
+        .mockResolvedValue(true)
+      const spyCierre = vi.spyOn(evolucionesStorageService, 'guardarEvolucionTratamientoRealizadoSincronizada')
+        .mockImplementation(async (pacienteId, tratamientoRef, texto) => ({
+          id: 'evo-1', fecha: new Date().toISOString(), texto, tipo: 'tratamiento_realizado',
+          sincronizado: true, pacienteId, tratamientoRef,
+        }))
 
       const notas = await registrarEvolucionTratamientoRealizado(
         'pac-100',
@@ -29,7 +34,8 @@ describe('completeTreatment (Application Service)', () => {
       expect(notas[0].texto).toContain('TRATAMIENTO REALIZADO: Destartraje supragingival')
       expect(notas[0].texto).toContain('Pieza: 1.1')
       expect(notas[0].texto).toContain('Dr. Silva')
-      expect(spyGuardar).toHaveBeenCalledWith('pac-100', notas)
+      expect(spyCierre).toHaveBeenCalledWith('pac-100', 'item-1', expect.stringContaining('TRATAMIENTO REALIZADO'))
+      expect(spyGuardar).not.toHaveBeenCalled()
     })
   })
 
@@ -83,7 +89,11 @@ describe('completeTreatment (Application Service)', () => {
 
   describe('completarTratamiento', () => {
     it('debe coordinar registro de evolución y descuento de inventario', async () => {
-      vi.spyOn(evolucionesStorageService, 'guardarEvoluciones').mockResolvedValue()
+      vi.spyOn(evolucionesStorageService, 'guardarEvolucionTratamientoRealizadoSincronizada')
+        .mockImplementation(async (pacienteId, tratamientoRef, texto) => ({
+          id: 'evo-1', fecha: new Date().toISOString(), texto, tipo: 'tratamiento_realizado',
+          sincronizado: true, pacienteId, tratamientoRef,
+        }))
       vi.spyOn(inventarioStorageService, 'obtenerItems').mockReturnValue([
         { id: 'inv-1', cantidad: 10 } as any,
       ])

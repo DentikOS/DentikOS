@@ -28,6 +28,8 @@ Deno.test("validarMimeTypePorCategoria - casos válidos", () => {
   assertEquals(validarMimeTypePorCategoria("foto_clinica", "image/png").valido, true);
   assertEquals(validarMimeTypePorCategoria("pdf", "application/pdf").valido, true);
   assertEquals(validarMimeTypePorCategoria("documento", "application/msword").valido, true);
+  assertEquals(validarMimeTypePorCategoria("laboratorio", "application/pdf").valido, true);
+  assertEquals(validarMimeTypePorCategoria("laboratorio", "model/stl").valido, true);
 });
 
 Deno.test("validarMimeTypePorCategoria - casos inválidos", () => {
@@ -40,6 +42,8 @@ Deno.test("validarMimeTypePorCategoria - casos inválidos", () => {
 
   const resultado3 = validarMimeTypePorCategoria("pdf", "image/jpeg");
   assertEquals(resultado3.valido, false);
+
+  assertEquals(validarMimeTypePorCategoria("laboratorio", "application/x-msdownload").valido, false);
 });
 
 Deno.test("validarMimeTypePorCategoria - case insensitive", () => {
@@ -87,6 +91,9 @@ Deno.test("validarFormatoArchivo - casos completos válidos", () => {
     validarFormatoArchivo("pdf", "application/pdf", "consentimiento.pdf").valido,
     true
   );
+  assertEquals(validarFormatoArchivo("laboratorio", "application/pdf", "receta.pdf").valido, true);
+  assertEquals(validarFormatoArchivo("laboratorio", "model/stl", "diseno.stl").valido, true);
+  assertEquals(validarFormatoArchivo("laboratorio", "application/octet-stream", "diseno.stl").valido, true);
   assertEquals(
     validarFormatoArchivo("documento", "application/msword", "historia.doc").valido,
     true

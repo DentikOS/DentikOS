@@ -1,7 +1,7 @@
 import React, { memo } from 'react'
 import { persistenceStorageService, descargarArchivoBackupJSON, type BackupBaseDeDatos } from '../services/persistenceStorageService'
 import { useAppDialog } from '../../../shared/hooks/useAppDialog'
-import { AlertTriangle, Trash2, Save, Upload, Download } from 'lucide-react'
+import { Save, Upload, Download } from 'lucide-react'
 
 export interface RespaldoDatosSectionProps {
   alExportarBackup?: () => void
@@ -9,7 +9,7 @@ export interface RespaldoDatosSectionProps {
 }
 
 export const RespaldoDatosSection: React.FC<RespaldoDatosSectionProps> = memo(({ alExportarBackup, alImportarBackup }) => {
-  const { confirm, alert: dialogAlert } = useAppDialog()
+  const { alert: dialogAlert } = useAppDialog()
 
   const exportarPorDefecto = async () => {
     try {
@@ -70,38 +70,10 @@ export const RespaldoDatosSection: React.FC<RespaldoDatosSectionProps> = memo(({
     }
   }
 
-  const handleLimpiarSistema = async () => {
-    const confirmado = await confirm({
-      title: 'Advertencia de seguridad',
-      description: '¿Estás completamente seguro de borrar TODA la información local? Se perderán pacientes, fichas y agenda.',
-      variant: 'danger',
-      confirmText: 'Borrar todo'
-    })
-    if (confirmado) {
-      const ok = persistenceStorageService.limpiarBaseDeDatosCompleta()
-      if (ok) {
-        await dialogAlert({
-          title: 'Sistema reiniciado',
-          description: 'Sistema reiniciado a estado inicial. Se recargará la aplicación.',
-          variant: 'info',
-          confirmText: 'Entendido'
-        })
-        window.location.reload()
-      } else {
-        await dialogAlert({
-          title: 'Error al limpiar',
-          description: 'Error al limpiar la base de datos. Verifica el almacenamiento del navegador.',
-          variant: 'error',
-          confirmText: 'Entendido'
-        })
-      }
-    }
-  }
-
   return (
     <div className="bg-surface border border-surface rounded-2xl p-6 shadow-xs space-y-4 text-xs">
       <div className="border-b border-surface pb-3">
-        <h3 className="font-bold text-sm text-gray-900 dark:text-graphite-50 surgical:text-black uppercase tracking-wider inline-flex items-center gap-2"><Save size={14} />Copia de Seguridad y Restauración</h3>
+        <h3 className="font-bold text-sm text-gray-900 dark:text-graphite-50  uppercase tracking-wider inline-flex items-center gap-2"><Save size={14} />Copia de Seguridad y Restauración</h3>
         <p className="text-gray-500 dark:text-graphite-400 text-[11px]">Exporta o restaura la caché local de la clínica activa. No reemplaza una copia del servidor ni incluye archivos guardados en R2.</p>
       </div>
 
@@ -112,7 +84,7 @@ export const RespaldoDatosSection: React.FC<RespaldoDatosSectionProps> = memo(({
           <button
             type="button"
             onClick={exportarPorDefecto}
-            className="px-3 py-1.5 bg-primary text-white rounded-lg font-semibold hover:bg-primary-dark transition cursor-pointer text-xs"
+            className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg font-semibold hover:bg-primary-dark transition cursor-pointer text-xs"
           >
             Descargar Backup JSON
           </button>
@@ -133,21 +105,6 @@ export const RespaldoDatosSection: React.FC<RespaldoDatosSectionProps> = memo(({
         </div>
       </div>
 
-      <div className="pt-4 border-t border-red-100 dark:border-red-950/30">
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <div>
-            <h4 className="font-bold text-red-600 dark:text-red-400 inline-flex items-center gap-1.5"><AlertTriangle size={13} />Zona de Peligro: Reinicio Total</h4>
-            <p className="text-gray-500 dark:text-graphite-400 text-[11px]">Elimina todos los datos guardados en este navegador y reinicia la aplicación.</p>
-          </div>
-          <button
-            type="button"
-            onClick={handleLimpiarSistema}
-            className="px-3 py-1.5 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition cursor-pointer text-xs inline-flex items-center gap-1"
-          >
-            <Trash2 size={12} />Reiniciar Sistema
-          </button>
-        </div>
-      </div>
     </div>
   )
 })

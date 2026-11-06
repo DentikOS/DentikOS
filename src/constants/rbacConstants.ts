@@ -41,6 +41,7 @@ export const MODULOS_SIDEBAR = {
   ESTERILIZACION: 'Esterilización',
   COMUNICACIONES: 'Comunicaciones',
   REPORTES: 'Reportes',
+  FINANZAS: 'Finanzas',
   ADMINISTRACION: 'Administración DentikOS',
 } as const
 

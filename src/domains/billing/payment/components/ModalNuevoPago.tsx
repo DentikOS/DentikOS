@@ -1,5 +1,4 @@
-import React, { memo, useState, useEffect } from 'react'
-import { formatearCLP } from '../../../../shared/utils/formatoMoneda'
+import React, { memo, useState, useEffect, useRef } from 'react'
 import { Modal } from '../../../../shared/ui/ui/Modal'
 import { Input } from '../../../../shared/ui/ui/Input'
 import { Button } from '../../../../shared/ui/ui/Button'
@@ -13,6 +12,8 @@ import { useAppDialog } from '../../../../shared/hooks/useAppDialog'
 import { usePrestacionesPaciente } from '../hooks/usePrestacionesPaciente'
 import { SelectorPrestacionesImputadas } from './SelectorPrestacionesImputadas'
 import type { Pago } from '../services/pagosStorageService'
+import { clinicStorageService } from '../../../organization/clinic/services/clinicStorageService'
+import { formatearImporteDocumento, resolverMonedaDocumento } from '../../../../shared/utils/formatoDocumento'
 
 export interface PacienteRefPago {
   id: string | number
@@ -30,8 +31,26 @@ export interface ModalNuevoPagoProps {
   pagoEditar?: Pago | null
   pacientes?: PacienteRefPago[]
   userProfile?: UserProfileRefPago | null
-  alGuardar: (pago: Pago) => void
+  alGuardar: (pago: Pago) => void | boolean | Promise<void | boolean>
   alCerrar: () => void
+}
+
+interface IdentidadPagoPendiente {
+  huella: string
+  id: string
+  folio: string
+  fecha: string
+  hora: string
+}
+
+const crearIdPago = (): string => {
+  if (typeof crypto.randomUUID === 'function') return crypto.randomUUID()
+  const bytes = new Uint8Array(16)
+  crypto.getRandomValues(bytes)
+  bytes[6] = (bytes[6] & 0x0f) | 0x40
+  bytes[8] = (bytes[8] & 0x3f) | 0x80
+  const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
 }
 
 export const ModalNuevoPago: React.FC<ModalNuevoPagoProps> = memo(({
@@ -41,6 +60,7 @@ export const ModalNuevoPago: React.FC<ModalNuevoPagoProps> = memo(({
   alGuardar,
   alCerrar
 }) => {
+  const moneda = resolverMonedaDocumento(pagoEditar?.moneda || clinicStorageService.obtenerClinica()?.moneda)
   const [pacienteId, setPacienteId] = useState<string>('')
   const { alert: dialogAlert } = useAppDialog()
   const [monto, setMonto] = useState<string>('')
@@ -49,6 +69,7 @@ export const ModalNuevoPago: React.FC<ModalNuevoPagoProps> = memo(({
   const [folioDTE, setFolioDTE] = useState<string>('')
   const [concepto, setConcepto] = useState<string>(CONCEPTOS_PAGO[0])
   const [observacion, setObservacion] = useState<string>('')
+  const identidadPendiente = useRef<IdentidadPagoPendiente | null>(null)
 
   const {
     prestacionesPaciente,
@@ -85,21 +106,43 @@ export const ModalNuevoPago: React.FC<ModalNuevoPagoProps> = memo(({
 
     const pac = pacientes.find((p) => String(p.id) === String(pacienteId))
 
+    const huellaPago = JSON.stringify({
+      pacienteId: pac?.id ?? pacienteId,
+      monto: montoLimpio,
+      moneda: pagoEditar?.moneda || clinicStorageService.obtenerClinica()?.moneda || 'CLP',
+      metodoPago,
+      tipoDTE,
+      folioDTE: folioDTE.trim(),
+      concepto,
+      observacion: observacion.trim(),
+      prestacionesImputadas: prestacionesSeleccionadas
+    })
+    if (!pagoEditar && identidadPendiente.current?.huella !== huellaPago) {
+      const ahora = new Date()
+      identidadPendiente.current = {
+        huella: huellaPago,
+        id: crearIdPago(),
+        folio: generarFolioRecibo(),
+        fecha: ahora.toLocaleDateString('es-CL'),
+        hora: ahora.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })
+      }
+    }
+    const identidad = identidadPendiente.current
+
     const pagoFinal: Pago = {
       id: pagoEditar
         ? pagoEditar.id
-        : (crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`),
-      folioComprobante: pagoEditar ? pagoEditar.folioComprobante : generarFolioRecibo(),
+        : identidad!.id,
+      folioComprobante: pagoEditar ? pagoEditar.folioComprobante : identidad!.folio,
       tipoDTE,
       folioDTE: folioDTE.trim(),
       pacienteId: pac?.id,
       pacienteNombre: pac?.nombre || 'Paciente',
       pacienteRut: pac?.rut || 'N/I',
-      fecha: pagoEditar ? pagoEditar.fecha : new Date().toLocaleDateString('es-CL'),
-      hora: pagoEditar
-        ? pagoEditar.hora
-        : new Date().toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }),
+      fecha: pagoEditar ? pagoEditar.fecha : identidad!.fecha,
+      hora: pagoEditar ? pagoEditar.hora : identidad!.hora,
       monto: montoLimpio,
+      moneda: pagoEditar?.moneda || clinicStorageService.obtenerClinica()?.moneda || 'CLP',
       metodoPago,
       concepto,
       estado: pagoEditar ? pagoEditar.estado : 'Emitido',
@@ -108,13 +151,14 @@ export const ModalNuevoPago: React.FC<ModalNuevoPagoProps> = memo(({
       observacion: observacion.trim()
     }
 
-    alGuardar(pagoFinal)
+    const guardado = await alGuardar(pagoFinal)
+    if (guardado === false) return
 
     await dialogAlert({
       title: pagoEditar ? 'Pago actualizado' : 'Pago registrado',
       description: `Comprobante ${pagoFinal.folioComprobante} ${
         pagoEditar ? 'actualizado' : 'registrado'
-      } exitosamente por ${formatearCLP(montoLimpio)}.`,
+      } exitosamente por ${formatearImporteDocumento(montoLimpio, moneda)}.`,
       variant: 'success',
       confirmText: 'Entendido'
     })
@@ -150,7 +194,7 @@ export const ModalNuevoPago: React.FC<ModalNuevoPagoProps> = memo(({
 
         <div className="grid grid-cols-2 gap-3">
           <Input
-            label="Monto a Cobrar ($ CLP)"
+            label={`Monto a Cobrar (${moneda})`}
             type="text"
             required
             placeholder="Ej: 50000"
@@ -225,6 +269,7 @@ export const ModalNuevoPago: React.FC<ModalNuevoPagoProps> = memo(({
           prestaciones={prestacionesPaciente}
           seleccionadas={prestacionesSeleccionadas}
           onToggle={handleTogglePrestacion}
+          moneda={moneda}
         />
 
         <Input

@@ -20,8 +20,8 @@ describe('ModalRegistrarPago (BP07 §19)', () => {
     )
 
     expect(screen.getByTestId('modal-registrar-pago')).toBeInTheDocument()
-    expect(screen.getByText('$300.000')).toBeInTheDocument()
-    expect(screen.getByText('$600.000')).toBeInTheDocument()
+    expect(screen.getAllByText(/CLP\s300\.000/)).toHaveLength(2)
+    expect(screen.getByText(/CLP\s600\.000/)).toBeInTheDocument()
   })
 
   it('bloquea cuando el monto excede el saldo pendiente', () => {

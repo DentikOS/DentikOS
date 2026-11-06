@@ -21,7 +21,7 @@ export const TablaHistorialMensajes: React.FC<TablaHistorialMensajesProps> = mem
 }) => {
   if (historial.length === 0) {
     return (
-      <div className="p-10 text-center text-xs text-graphite-400 dark:text-graphite-500 surgical:text-black bg-surface border border-surface rounded-2xl">
+      <div className="p-10 text-center text-xs text-graphite-400 dark:text-graphite-500  bg-surface border border-surface rounded-2xl">
         No se encontraron registros en la bitácora de mensajes para el filtro seleccionado.
       </div>
     )
@@ -31,7 +31,7 @@ export const TablaHistorialMensajes: React.FC<TablaHistorialMensajesProps> = mem
     <div className="bg-surface border border-surface rounded-2xl overflow-hidden shadow-xs text-xs">
       <table className="w-full text-left border-collapse">
         <thead>
-          <tr className="bg-slate-50 dark:bg-graphite-950 surgical:bg-graphite-200 border-b border-surface text-graphite-600 dark:text-graphite-300 surgical:text-black font-bold uppercase text-[10px]">
+          <tr className="bg-slate-50 dark:bg-graphite-950  border-b border-surface text-graphite-600 dark:text-graphite-300  font-bold uppercase text-[10px]">
             <th className="p-3">Paciente / Contacto</th>
             <th className="p-3">Canal</th>
             <th className="p-3">Mensaje / Plantilla</th>
@@ -49,13 +49,13 @@ export const TablaHistorialMensajes: React.FC<TablaHistorialMensajesProps> = mem
             return (
               <tr
                 key={m.id}
-                className="hover:bg-slate-50 dark:hover:bg-graphite-800/50 surgical:hover:bg-graphite-200 transition-colors"
+                className="hover:bg-slate-50 dark:hover:bg-graphite-800/50  transition-colors"
               >
                 <td className="p-3">
-                  <span className="font-extrabold text-graphite-900 dark:text-graphite-50 surgical:text-black block">
+                  <span className="font-extrabold text-graphite-900 dark:text-graphite-50  block">
                     {m.pacienteNombre}
                   </span>
-                  <span className="text-[10px] text-graphite-500 dark:text-graphite-400 surgical:text-black font-mono tabular-nums">
+                  <span className="text-[10px] text-graphite-500 dark:text-graphite-400  font-mono tabular-nums">
                     {m.pacienteTelefono || 'Sin fono'}
                   </span>
                 </td>
@@ -83,11 +83,11 @@ export const TablaHistorialMensajes: React.FC<TablaHistorialMensajesProps> = mem
                 </td>
 
                 <td className="p-3 max-w-xs">
-                  <span className="font-bold text-graphite-800 dark:text-graphite-100 surgical:text-black block text-[11px]">
+                  <span className="font-bold text-graphite-800 dark:text-graphite-100  block text-[11px]">
                     {m.plantillaNombre}
                   </span>
                   <span
-                    className="text-graphite-500 dark:text-graphite-400 surgical:text-black text-[10px] truncate block"
+                    className="text-graphite-500 dark:text-graphite-400  text-[10px] truncate block"
                     title={m.mensajeEnviado}
                   >
                     {m.mensajeEnviado}
@@ -116,7 +116,7 @@ export const TablaHistorialMensajes: React.FC<TablaHistorialMensajesProps> = mem
                   </select>
                 </td>
 
-                <td className="p-3 font-semibold text-graphite-700 dark:text-graphite-300 surgical:text-black tabular-nums">
+                <td className="p-3 font-semibold text-graphite-700 dark:text-graphite-300  tabular-nums">
                   {m.fechaEnvio}{' '}
                   <span className="text-graphite-400 dark:text-graphite-500 font-normal block">
                     {m.horaEnvio} hrs

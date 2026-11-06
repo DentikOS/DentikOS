@@ -1,18 +1,25 @@
 import React from 'react'
 import { Plus, Pill, Trash2 } from 'lucide-react'
 import { Button } from '../../../../../../shared/ui/ui/Button'
-import type { Medicamento } from '../../../../../../app/stores/vademecumStore'
 
 export interface MedicamentoItem { nombre: string; dosis: string; frecuencia: string; duracion: string }
+export interface MedicamentoCatalogo {
+  id: string | number
+  nombre: string
+  nombreComercial?: string
+  presentacion?: string
+  familia?: string
+}
 
 interface RecetaMedicamentosFormProps {
   medicamentos: MedicamentoItem[]
-  sugerencias: { idx: number; items: Medicamento[] } | null
+  sugerencias: { idx: number; items: MedicamentoCatalogo[] } | null
   onAgregar: () => void
   onEliminar: (idx: number) => void
   onUpdate: (idx: number, campo: keyof MedicamentoItem, valor: string) => void
   onBuscar: (query: string, idx: number) => void
-  onSeleccionarSugerencia: (idx: number, m: Medicamento) => void
+  onSeleccionarSugerencia: (idx: number, m: MedicamentoCatalogo) => void
+  disabled?: boolean
 }
 
 export const RecetaMedicamentosForm: React.FC<RecetaMedicamentosFormProps> = ({
@@ -23,6 +30,7 @@ export const RecetaMedicamentosForm: React.FC<RecetaMedicamentosFormProps> = ({
   onUpdate,
   onBuscar,
   onSeleccionarSugerencia,
+  disabled = false,
 }) => {
   return (
     <>
@@ -30,7 +38,7 @@ export const RecetaMedicamentosForm: React.FC<RecetaMedicamentosFormProps> = ({
         <h3 className="text-sm font-bold text-graphite-900 dark:text-graphite-50 flex items-center gap-2">
           <Pill className="w-4 h-4 text-primary" /> Prescripción Médica Electrónica con Vademécum
         </h3>
-        <Button type="button" size="sm" variant="secondary" icon={Plus} onClick={onAgregar}>
+        <Button type="button" size="sm" variant="secondary" icon={Plus} onClick={onAgregar} disabled={disabled}>
           Agregar Fármaco
         </Button>
       </div>
@@ -43,6 +51,7 @@ export const RecetaMedicamentosForm: React.FC<RecetaMedicamentosFormProps> = ({
                 type="text"
                 placeholder="Buscar fármaco en Vademécum..."
                 value={med.nombre}
+                disabled={disabled}
                 onChange={(e) => {
                   onUpdate(idx, 'nombre', e.target.value)
                   onBuscar(e.target.value, idx)
@@ -52,32 +61,35 @@ export const RecetaMedicamentosForm: React.FC<RecetaMedicamentosFormProps> = ({
                 required
               />
               {sugerencias?.idx === idx && sugerencias.items.length > 0 && (
-                <div className="absolute z-20 left-0 right-0 bg-surface border border-surface rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto">
+                <div className="absolute z-20 left-0 right-0 bg-surface border border-surface rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto" role="listbox">
                   {sugerencias.items.map((m) => (
-                    <div
+                    <button
+                      type="button"
                       key={m.id}
                       onClick={() => onSeleccionarSugerencia(idx, m)}
-                      className="p-2 hover:bg-surface-hover text-xs cursor-pointer border-b border-surface/50 last:border-0"
+                      className="w-full p-2 text-left hover:bg-surface-hover text-xs cursor-pointer border-b border-surface/50 last:border-0"
                       data-testid="item-sugerencia-vademecum"
+                      role="option"
+                      aria-selected="false"
                     >
                       <span className="font-semibold text-graphite-900 dark:text-graphite-100">{m.nombre}</span>
                       {m.presentacion && <span className="text-[11px] text-graphite-400 block">{m.presentacion}</span>}
-                    </div>
+                    </button>
                   ))}
                 </div>
               )}
             </div>
             <div className="sm:col-span-2">
-              <input type="text" placeholder="Dosis" value={med.dosis} onChange={(e) => onUpdate(idx, 'dosis', e.target.value)} className="w-full p-2 bg-surface border border-surface rounded-lg text-xs" />
+              <input type="text" placeholder="Dosis" value={med.dosis} onChange={(e) => onUpdate(idx, 'dosis', e.target.value)} className="w-full p-2 bg-surface border border-surface rounded-lg text-xs" required disabled={disabled} />
             </div>
             <div className="sm:col-span-3">
-              <input type="text" placeholder="Frecuencia" value={med.frecuencia} onChange={(e) => onUpdate(idx, 'frecuencia', e.target.value)} className="w-full p-2 bg-surface border border-surface rounded-lg text-xs" />
+              <input type="text" placeholder="Frecuencia" value={med.frecuencia} onChange={(e) => onUpdate(idx, 'frecuencia', e.target.value)} className="w-full p-2 bg-surface border border-surface rounded-lg text-xs" required disabled={disabled} />
             </div>
             <div className="sm:col-span-2">
-              <input type="text" placeholder="Duración" value={med.duracion} onChange={(e) => onUpdate(idx, 'duracion', e.target.value)} className="w-full p-2 bg-surface border border-surface rounded-lg text-xs" />
+              <input type="text" placeholder="Duración" value={med.duracion} onChange={(e) => onUpdate(idx, 'duracion', e.target.value)} className="w-full p-2 bg-surface border border-surface rounded-lg text-xs" required disabled={disabled} />
             </div>
             <div className="sm:col-span-1 text-center">
-              <button type="button" onClick={() => onEliminar(idx)} className="text-graphite-400 hover:text-rose-500" aria-label="Eliminar fármaco">
+              <button type="button" onClick={() => onEliminar(idx)} disabled={disabled} className="text-graphite-400 hover:text-rose-500 disabled:opacity-50" aria-label="Eliminar fármaco">
                 <Trash2 className="w-4 h-4" />
               </button>
             </div>

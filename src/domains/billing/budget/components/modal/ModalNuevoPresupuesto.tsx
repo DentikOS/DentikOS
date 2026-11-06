@@ -4,8 +4,10 @@ import { Button } from '../../../../../shared/ui/ui/Button'
 import type { Presupuesto, ItemPresupuesto } from '../../schemas/presupuestoSchema'
 import { useConfiguracionConvenios } from '../../../../organization/clinic/hooks/useConfiguracionConvenios'
 import { useConfiguracionFinanciera } from '../../../../organization/clinic/hooks/useConfiguracionFinanciera'
+import { clinicStorageService } from '../../../../organization/clinic/services/clinicStorageService'
 import { ModalConfigurarCuotas, type PlanCuotasConfig } from './ModalConfigurarCuotas'
 import { ModalPresupuestoItemsView } from './ModalPresupuestoItemsView'
+import { resolverIdiomaDocumento, resolverMonedaDocumento, formatearImporteDocumento } from '../../../../../shared/utils/formatoDocumento'
 
 interface ModalNuevoPresupuestoProps {
   pacienteId: string | number
@@ -41,6 +43,8 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = ({
   const { configuracion, cargando: cargandoConvenios, error: errorConvenios } = useConfiguracionConvenios()
   const { configuracion: financiera, cargando: cargandoFinanciera, cargada: financieraCargada } = useConfiguracionFinanciera()
   const convenios = configuracion.convenios.filter((convenio) => convenio.activo)
+  const moneda = resolverMonedaDocumento(clinicStorageService.obtenerClinica()?.moneda)
+  const idioma = resolverIdiomaDocumento(clinicStorageService.obtenerClinica()?.idiomaDocumentos)
 
   useEffect(() => {
     if (financieraCargada) setValidezDias(financiera.validezPresupuestoDias)
@@ -100,6 +104,7 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = ({
     const nuevoPresupuesto: Presupuesto = {
       id: crypto.randomUUID(), folio, pacienteId: String(pacienteId), pacienteNombre, pacienteRut,
       items, totalBruto, totalDescuentos: totalDescuento, totalAPagar: totalPagar, total: totalPagar, montoTotal: totalPagar,
+      moneda,
       estado: 'borrador', prevision, validezDias, fechaVencimiento: new Date(Date.now() + validezDias * 86400000).toISOString(),
       origenPlan: Boolean(planRevision), planRevision, versionGrupoId: planRevision ? crypto.randomUUID() : undefined,
       version: 1, requiereRevision: false, descuentoGlobalPct: descuentoTotalPct,
@@ -131,10 +136,10 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = ({
           </div>
           <div className="flex items-center gap-2">
             <div className="flex items-center p-1 bg-surface-hover rounded-xl text-xs">
-              <button type="button" onClick={() => setVista('simplificada')} className={`px-2.5 py-1 rounded-lg flex items-center gap-1 font-semibold ${vista === 'simplificada' ? 'bg-primary text-white' : 'text-graphite-500'}`} data-testid="btn-vista-simplificada">
+              <button type="button" onClick={() => setVista('simplificada')} className={`px-2.5 py-1 rounded-lg flex items-center gap-1 font-semibold ${vista === 'simplificada' ? 'bg-primary text-primary-foreground' : 'text-graphite-500'}`} data-testid="btn-vista-simplificada">
                 <Layers className="w-3.5 h-3.5" /> Fases
               </button>
-              <button type="button" onClick={() => setVista('detallada')} className={`px-2.5 py-1 rounded-lg flex items-center gap-1 font-semibold ${vista === 'detallada' ? 'bg-primary text-white' : 'text-graphite-500'}`} data-testid="btn-vista-detallada">
+              <button type="button" onClick={() => setVista('detallada')} className={`px-2.5 py-1 rounded-lg flex items-center gap-1 font-semibold ${vista === 'detallada' ? 'bg-primary text-primary-foreground' : 'text-graphite-500'}`} data-testid="btn-vista-detallada">
                 <List className="w-3.5 h-3.5" /> Items
               </button>
             </div>
@@ -148,7 +153,7 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = ({
               <label className="block font-semibold mb-1">Convenio / Previsión del Paciente</label>
               <select value={prevision} onChange={(e) => setPrevision(e.target.value)} disabled={cargandoConvenios || Boolean(planRevision)} className="w-full p-2 bg-surface border border-surface rounded-lg">
                 <option value="particular">Particular (sin descuento)</option>
-                {prevision === 'fonasa' && <option value="fonasa">FONASA · tarifa del arancel</option>}
+                {prevision === 'fonasa' && <option value="fonasa">FONASA · precio base del catálogo</option>}
                 {convenios.map((convenio) => <option key={convenio.id} value={convenio.id}>{convenio.nombre}{convenio.tipo === 'fonasa' ? ` · Tramo ${convenio.tramoFonasa}` : ''}</option>)}
               </select>
               <p className="mt-1 text-[10px] text-graphite-500">{planRevision
@@ -162,7 +167,7 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = ({
             </div>
           </div>
 
-          <ModalPresupuestoItemsView vista={vista} items={items} onAgregarItem={handleAgregarItem} onEliminarItem={handleEliminarItem} onUpdateItem={handleUpdateItem} />
+          <ModalPresupuestoItemsView vista={vista} items={items} moneda={moneda} onAgregarItem={handleAgregarItem} onEliminarItem={handleEliminarItem} onUpdateItem={handleUpdateItem} />
           {error && <p role="alert" className="text-xs text-rose-600">{error}</p>}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-surface/50 border border-surface rounded-xl text-xs">
@@ -187,12 +192,12 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = ({
           <div className="pt-3 border-t border-surface flex flex-col sm:flex-row items-end sm:items-center justify-between gap-3 text-xs">
             <div className="text-graphite-500">
               Descuento manual: <span className="font-bold text-rose-600">{descuentoTotalPct}%</span>
-              {planCuotas && <span className="block text-[11px] text-emerald-600 font-semibold mt-1">Plan: {planCuotas.cuotas}x ${planCuotas.valorCuota.toLocaleString('es-CL')} ({planCuotas.frecuencia})</span>}
+              {planCuotas && <span className="block text-[11px] text-emerald-600 font-semibold mt-1">Plan: {planCuotas.cuotas}x {formatearImporteDocumento(planCuotas.valorCuota, moneda, idioma)} ({planCuotas.frecuencia})</span>}
             </div>
             <div className="text-right space-y-0.5">
-              <p className="text-graphite-500">Total Bruto: <span className="font-mono">${totalBruto.toLocaleString('es-CL')}</span></p>
-              {totalDescuento > 0 && <p className="text-rose-600 font-semibold">Descuento: -<span className="font-mono">${totalDescuento.toLocaleString('es-CL')}</span></p>}
-              <p className="text-sm font-bold text-graphite-900 dark:text-graphite-50">Total a Pagar: <span className="font-mono text-primary">${totalPagar.toLocaleString('es-CL')}</span></p>
+              <p className="text-graphite-500">Total Bruto: <span className="font-mono">{formatearImporteDocumento(totalBruto, moneda, idioma)}</span></p>
+              {totalDescuento > 0 && <p className="text-rose-600 font-semibold">Descuento: -<span className="font-mono">{formatearImporteDocumento(totalDescuento, moneda, idioma)}</span></p>}
+              <p className="text-sm font-bold text-graphite-900 dark:text-graphite-50">Total a Pagar: <span className="font-mono text-primary">{formatearImporteDocumento(totalPagar, moneda, idioma)}</span></p>
             </div>
           </div>
 
@@ -220,6 +225,7 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = ({
       {showConfigCuotas && (
         <ModalConfigurarCuotas
           montoTotal={totalPagar}
+          moneda={moneda}
           maximoCuotasSinInteres={financiera.maximoCuotasSinInteres}
           frecuenciaInicial={financiera.frecuenciaCuotas}
           onConfirmar={(plan) => setPlanCuotas(plan)}

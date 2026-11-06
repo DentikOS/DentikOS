@@ -19,6 +19,7 @@ import { esUuidValido } from '../../../../infrastructure/supabase/migrations/uui
 import { migrationStorageService } from '../../../../infrastructure/persistence/migrationStorageService'
 import { createLogger } from '../../../../infrastructure/logging/logger'
 import type { Presupuesto } from '../schemas/presupuestoSchema'
+import { resolverMonedaDocumento } from '../../../../shared/utils/formatoDocumento'
 
 const log = createLogger('presupuestosOfflineQueue')
 
@@ -40,6 +41,18 @@ export interface PresupuestoItemLocal {
   valor?: number | string
   precio?: number | string
   convenio?: string
+  inventarioId?: string | null
+  cantidadInventario?: number | null
+  inventarioUnidad?: string
+  precioUnitarioInventario?: number | null
+  ivaPorcentajeInventario?: number | null
+  esLaboratorio?: boolean
+  laboratorioId?: string | null
+  tipoTrabajoLaboratorioId?: string | null
+  piezaDentaria?: string | null
+  colorGuia?: string | null
+  indicacionesTecnicas?: string | null
+  ordenLaboratorioId?: string | null
   estado?: string
   clinicaId?: string | null
   sincronizado?: boolean
@@ -55,6 +68,7 @@ export interface PresupuestoLocal extends Omit<Partial<Presupuesto>, 'pacienteId
   pacienteRut?: string | null
   fechaEmision?: string
   convenio?: string
+  moneda?: 'CLP' | 'ARS' | 'MXN' | 'COP' | 'PEN' | 'USD' | 'EUR'
   montoTotal?: number
   total?: number
   montoAbonado?: number
@@ -105,6 +119,7 @@ export interface PresupuestoSupabaseRow {
   paciente_rut?: string | null
   fecha_emision: string
   convenio: string
+  moneda?: string
   monto_total: number
   monto_abonado?: number
   estado: string
@@ -137,6 +152,16 @@ export interface PresupuestoItemSupabaseRow {
   convenio: string
   estado: string
   clinica_id?: string | null
+  inventario_id?: string | null
+  cantidad_inventario?: number | null
+  precio_unitario_inventario?: number | null
+  iva_porcentaje_inventario?: number | null
+  es_laboratorio?: boolean
+  laboratorio_id?: string | null
+  tipo_trabajo_laboratorio_id?: string | null
+  pieza_dentaria?: string | null
+  color_guia?: string | null
+  indicaciones_tecnicas?: string | null
   [key: string]: unknown
 }
 
@@ -228,6 +253,7 @@ export const transformarPresupuestoParaSupabase = (
     paciente_rut: p.pacienteRut || null,
     fecha_emision: p.fechaEmision || new Date().toISOString().split('T')[0],
     convenio: p.convenio || String(p.prevision || 'Particular'),
+    moneda: p.moneda || 'CLP',
     monto_total: Number(p.totalAPagar ?? p.total ?? p.montoTotal ?? 0),
     estado: p.estado || 'Emitido',
     observacion: p.observacion || '',
@@ -280,6 +306,18 @@ export const transformarItemParaSupabase = (
   }
   if (clinicaId) itemOut.clinica_id = clinicaId
   if (esUuidValido(item.id)) itemOut.id = String(item.id)
+  if (item.inventarioId) {
+    itemOut.inventario_id = String(item.inventarioId)
+    itemOut.cantidad_inventario = Number(item.cantidadInventario)
+    itemOut.precio_unitario_inventario = Number(item.precioUnitarioInventario)
+    itemOut.iva_porcentaje_inventario = Number(item.ivaPorcentajeInventario)
+  }
+  itemOut.es_laboratorio = item.esLaboratorio === true
+  itemOut.laboratorio_id = item.esLaboratorio === true ? item.laboratorioId || null : null
+  itemOut.tipo_trabajo_laboratorio_id = item.esLaboratorio === true ? item.tipoTrabajoLaboratorioId || null : null
+  itemOut.pieza_dentaria = item.esLaboratorio === true ? item.piezaDentaria || null : null
+  itemOut.color_guia = item.esLaboratorio === true ? item.colorGuia || null : null
+  itemOut.indicaciones_tecnicas = item.esLaboratorio === true ? item.indicacionesTecnicas || null : null
   return itemOut
 }
 
@@ -311,7 +349,7 @@ const sincronizarPresupuestoAtomico = async (
     return payload
   })
 
-  const { data, error } = await supabase.rpc('sincronizar_presupuesto_offline', {
+  const { data, error } = await supabase.rpc('sincronizar_presupuesto_offline_bp12', {
     p_presupuesto: presupuestoPayload,
     p_items: itemsPayload,
     p_presupuesto_id: presupuestoPayload ? null : presupuestoId
@@ -974,6 +1012,7 @@ export const sincronizarPresupuestosDesdeSupabaseHelper = async ({
       pacienteRut: p.paciente_rut as string | null,
       fechaEmision: String(p.fecha_emision || ''),
       convenio: String(p.convenio || ''),
+      moneda: resolverMonedaDocumento(p.moneda),
       montoTotal: Number(p.monto_total || 0),
       totalAPagar: Number(p.monto_total || 0),
       totalBruto: Number(p.total_bruto || 0),

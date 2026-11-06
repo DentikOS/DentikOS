@@ -22,12 +22,19 @@ import { useConfiguracionConvenios } from '../../../organization/clinic/hooks/us
 import { useConfiguracionFinanciera } from '../../../organization/clinic/hooks/useConfiguracionFinanciera'
 import { useSedes } from '../../../organization/clinic/hooks/useSedes'
 import { resolverPrecioPrestacion } from '../../../organization/clinic/schemas/configuracionConveniosSchema'
+import { clinicStorageService } from '../../../organization/clinic/services/clinicStorageService'
+import { resolverMonedaDocumento } from '../../../../shared/utils/formatoDocumento'
+import type { ProductoVentaPresupuesto } from '../../../operations/inventory/services/inventarioCloudService'
+import { laboratorioCloudService, type CatalogoLaboratorioPresupuesto } from '../../../addons/lab/services/laboratorioCloudService'
 
 const log = createLogger('ModalNuevoPresupuesto')
 
 export interface ModalNuevoPresupuestoProps {
   pacientes?: PacienteFormRef[]
   prestaciones?: PrestacionFormRef[]
+  productosInventario?: ProductoVentaPresupuesto[]
+  cargandoProductosInventario?: boolean
+  errorCatalogoInventario?: boolean
   alGuardar: (nuevoPresupuesto: PresupuestoLocal) => boolean | Promise<boolean>
   alCerrar: () => void
 }
@@ -35,6 +42,9 @@ export interface ModalNuevoPresupuestoProps {
 export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = memo(({
   pacientes = [],
   prestaciones = [],
+  productosInventario = [],
+  cargandoProductosInventario = false,
+  errorCatalogoInventario = false,
   alGuardar,
   alCerrar
 }) => {
@@ -45,6 +55,7 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = memo(
   const { configuracion: financiera, cargando: cargandoFinanciera, cargada: financieraCargada } = useConfiguracionFinanciera()
   const { sedeActivaId, cargando: cargandoSucursales, errorSincronizacion: errorSucursales } = useSedes()
   const convenios = configuracion.convenios.filter((item) => item.activo)
+  const moneda = resolverMonedaDocumento(clinicStorageService.obtenerClinica()?.moneda)
   const [observacion, setObservacion] = useState<string>('')
   const [guardando, setGuardando] = useState(false)
 
@@ -53,6 +64,25 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = memo(
   const [piezaDental, setPiezaDental] = useState<string>('')
 
   const [hallazgosOdontograma, setHallazgosOdontograma] = useState<HallazgoOdontograma[]>([])
+  const [catalogoLaboratorio, setCatalogoLaboratorio] = useState<CatalogoLaboratorioPresupuesto>({ laboratorios: [], tiposTrabajo: [] })
+  const [cargandoCatalogoLaboratorio, setCargandoCatalogoLaboratorio] = useState(true)
+  const [errorCatalogoLaboratorio, setErrorCatalogoLaboratorio] = useState(false)
+
+  useEffect(() => {
+    let vigente = true
+    setCargandoCatalogoLaboratorio(true)
+    laboratorioCloudService.cargarCatalogoPresupuesto()
+      .then(catalogo => {
+        if (vigente) setCatalogoLaboratorio(catalogo)
+      })
+      .catch(() => {
+        if (vigente) setErrorCatalogoLaboratorio(true)
+      })
+      .finally(() => {
+        if (vigente) setCargandoCatalogoLaboratorio(false)
+      })
+    return () => { vigente = false }
+  }, [])
 
   useEffect(() => {
     setItemsSeleccionados([])
@@ -120,11 +150,6 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = memo(
     }
 
     const precioParticular = Number(prest.precioParticular ?? prest.precio ?? 0)
-    const precioFonasaOriginal = prest.precioFonasa
-    const precioFonasaRaw = Number(precioFonasaOriginal)
-    const precioFonasa = precioFonasaOriginal !== undefined && precioFonasaOriginal !== null && precioFonasaOriginal !== '' && Number.isFinite(precioFonasaRaw) && precioFonasaRaw >= 0
-      ? Math.round(precioFonasaRaw)
-      : undefined
     const sucursalId = sedeActivaId
     const esFonasaCatalogo = convenio === '__fonasa_catalogo__'
     const convenioConfigurado = convenios.find((item) => item.id === convenio)
@@ -133,13 +158,22 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = memo(
       {
         prestacionId: prest.id,
         convenioIdentificador: convenio === 'Particular' || esFonasaCatalogo ? null : convenio,
-        tipoConvenio: esFonasaCatalogo ? 'fonasa' : convenioConfigurado?.tipo,
         especialidad: typeof prest.especialidad === 'string' ? prest.especialidad : null,
+        categoria: typeof prest.categoria === 'string' ? prest.categoria : null,
         sucursalId,
         precioParticular: Number.isFinite(precioParticular) && precioParticular >= 0 ? Math.round(precioParticular) : 0,
-        precioFonasa: typeof precioFonasa === 'number' && Number.isFinite(precioFonasa) && precioFonasa >= 0 ? Math.round(precioFonasa) : undefined,
       }
     )
+
+    if (precio.precio === null || precio.precioBase === null) {
+      void dialogAlert({
+        title: 'Precio no disponible',
+        description: `No se pudo resolver un precio para ${prest.nombre}. Revisa el precio base y las reglas de convenio o sucursal antes de incluirla en este presupuesto.`,
+        variant: 'warning',
+        confirmText: 'Entendido',
+      })
+      return
+    }
 
     const nuevoItem: ItemSeleccionadoPresupuesto = {
       id: crypto.randomUUID(),
@@ -166,8 +200,61 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = memo(
     setPrestacionSelId('')
   }
 
+  const handleAgregarProducto = (producto: ProductoVentaPresupuesto, cantidad: number): void => {
+    if (!Number.isFinite(cantidad) || cantidad <= 0 || cantidad > 99999999999.999
+      || !Number.isFinite(producto.precioVenta) || producto.precioVenta <= 0
+      || !Number.isFinite(producto.ivaPorcentaje) || producto.ivaPorcentaje < 0 || producto.ivaPorcentaje > 100) {
+      void dialogAlert({
+        title: 'Cantidad o precio inválido',
+        description: 'Revisa la cantidad y el precio del producto antes de añadirlo.',
+        variant: 'warning',
+        confirmText: 'Entendido'
+      })
+      return
+    }
+    const total = Math.round(cantidad * producto.precioVenta * (1 + producto.ivaPorcentaje / 100))
+    setItemsSeleccionados((items) => [...items, {
+      id: crypto.randomUUID(),
+      prestacionId: null,
+      prestacionNombre: producto.nombre,
+      prestacion: producto.nombre,
+      inventarioId: producto.id,
+      cantidadInventario: cantidad,
+      inventarioUnidad: producto.unidad,
+      precioUnitarioInventario: producto.precioVenta,
+      ivaPorcentajeInventario: producto.ivaPorcentaje,
+      convenio: 'Particular',
+      valor: total,
+      estado: 'Pendiente'
+    }])
+  }
+
   const handleEliminarItem = (itemId: string | number): void => {
     setItemsSeleccionados(itemsSeleccionados.filter((i) => i.id !== itemId))
+  }
+
+  const cambiarClasificacionLaboratorio = (itemId: string | number, esLaboratorio: boolean): void => {
+    setItemsSeleccionados(items => items.map(item => String(item.id) === String(itemId)
+      ? {
+          ...item,
+          esLaboratorio,
+          laboratorioId: esLaboratorio ? item.laboratorioId || null : null,
+          tipoTrabajoLaboratorioId: esLaboratorio ? item.tipoTrabajoLaboratorioId || null : null,
+          piezaDentaria: esLaboratorio ? item.piezaDentaria || (item.pieza ? String(item.pieza) : null) : null,
+          colorGuia: esLaboratorio ? item.colorGuia || null : null,
+          indicacionesTecnicas: esLaboratorio ? item.indicacionesTecnicas || null : null,
+        }
+      : item))
+  }
+
+  const cambiarCampoLaboratorio = (
+    itemId: string | number,
+    campo: 'laboratorioId' | 'tipoTrabajoLaboratorioId' | 'piezaDentaria' | 'colorGuia' | 'indicacionesTecnicas',
+    valor: string
+  ): void => {
+    setItemsSeleccionados(items => items.map(item => String(item.id) === String(itemId)
+      ? { ...item, [campo]: valor || null }
+      : item))
   }
 
   const montoTotal = itemsSeleccionados.reduce((acc, curr) => acc + (Number(curr.valor) || 0), 0)
@@ -196,7 +283,17 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = memo(
     if (itemsSeleccionados.length === 0 || itemsSeleccionados.some((item) => !Number.isFinite(Number(item.valor)) || Number(item.valor) < 0)) {
       await dialogAlert({
         title: 'Prestaciones requeridas',
-        description: 'Agrega prestaciones configuradas y revisa sus precios antes de guardar.',
+      description: 'Agrega prestaciones o productos de inventario y revisa sus precios antes de guardar.',
+        variant: 'warning',
+        confirmText: 'Entendido'
+      })
+      return
+    }
+    if (itemsSeleccionados.some(item => item.esLaboratorio === true &&
+      !catalogoLaboratorio.tiposTrabajo.some(tipo => tipo.id === item.tipoTrabajoLaboratorioId))) {
+      await dialogAlert({
+        title: 'Tipo de laboratorio requerido',
+        description: 'Selecciona un tipo de trabajo activo para cada ítem marcado como laboratorio.',
         variant: 'warning',
         confirmText: 'Entendido'
       })
@@ -215,6 +312,7 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = memo(
       fechaEmision: obtenerFechaLocalISO(),
       vigenciaDias: financiera.validezPresupuestoDias,
       convenio,
+      moneda,
       montoTotal,
       montoAbonado: 0,
       estado: 'borrador',
@@ -261,7 +359,7 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = memo(
       size="lg"
     >
       <p className="text-[11px] text-graphite-500 dark:text-graphite-400 mb-4">
-        Selecciona prestaciones del arancel configurado para esta clínica. Los hallazgos requieren revisión clínica.
+        Selecciona prestaciones del arancel o productos de venta del inventario de esta clínica. La aprobación de un presupuesto con productos solicita ubicación y stock.
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-3">
@@ -276,6 +374,7 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = memo(
           prestacionSelId={prestacionSelId}
           itemsSeleccionados={itemsSeleccionados}
           montoTotal={montoTotal}
+          moneda={moneda}
           observacion={observacion}
           setPacienteId={setPacienteId}
           setConvenio={setConvenio}
@@ -284,6 +383,16 @@ export const ModalNuevoPresupuesto: React.FC<ModalNuevoPresupuestoProps> = memo(
           setObservacion={setObservacion}
           handleImportarHallazgo={handleImportarHallazgo}
           handleAgregarItem={handleAgregarItem}
+          productosInventario={productosInventario}
+          cargandoProductosInventario={cargandoProductosInventario}
+          errorCatalogoInventario={errorCatalogoInventario}
+          handleAgregarProducto={handleAgregarProducto}
+          laboratoriosLaboratorio={catalogoLaboratorio.laboratorios}
+          tiposTrabajoLaboratorio={catalogoLaboratorio.tiposTrabajo}
+          cargandoCatalogoLaboratorio={cargandoCatalogoLaboratorio}
+          errorCatalogoLaboratorio={errorCatalogoLaboratorio}
+          onCambiarClasificacionLaboratorio={cambiarClasificacionLaboratorio}
+          onCambiarCampoLaboratorio={cambiarCampoLaboratorio}
           handleEliminarItem={handleEliminarItem}
         />
 

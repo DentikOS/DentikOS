@@ -22,6 +22,7 @@ vi.mock('../../../../app/stores/sesionStore', () => ({
 describe('agendaConfigService', () => {
   const mockClinicaId = 'clinica-test-uuid'
   const mockUserId = 'user-test-uuid'
+  const mockSedeId = 'sede-test-uuid'
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -80,6 +81,11 @@ describe('agendaConfigService', () => {
         hora_fin: '18:00:00',
         duracion_bloque_minutos: 30,
       }]
+      const eqClinicaHorarios = vi.fn()
+      const eqSedeHorarios = vi.fn()
+      const inUsuariosHorarios = vi.fn().mockResolvedValue({ data: mockHorarios, error: null })
+      eqClinicaHorarios.mockReturnValue({ eq: eqSedeHorarios })
+      eqSedeHorarios.mockReturnValue({ in: inUsuariosHorarios })
 
       vi.mocked(supabase!.from).mockImplementation((table: string) => {
         if (table === 'miembros_clinica') {
@@ -111,17 +117,13 @@ describe('agendaConfigService', () => {
         }
         if (table === 'user_sede_horarios') {
           return {
-            select: vi.fn().mockReturnValue({
-              eq: vi.fn().mockReturnValue({
-                in: vi.fn().mockResolvedValue({ data: mockHorarios, error: null }),
-              }),
-            }),
+            select: vi.fn().mockReturnValue({ eq: eqClinicaHorarios }),
           } as any
         }
         return {} as any
       })
 
-      const result = await agendaConfigService.obtenerDoctoresAgenda()
+      const result = await agendaConfigService.obtenerDoctoresAgenda(mockSedeId)
 
       expect(result).toHaveLength(1)
       expect(result[0]).toEqual({
@@ -141,6 +143,9 @@ describe('agendaConfigService', () => {
           duracionBloqueMinutos: 30,
         }],
       })
+      expect(eqClinicaHorarios).toHaveBeenCalledWith('clinica_id', mockClinicaId)
+      expect(eqSedeHorarios).toHaveBeenCalledWith('sede_id', mockSedeId)
+      expect(inUsuariosHorarios).toHaveBeenCalledWith('user_id', [mockUserId])
     })
   })
 
@@ -171,19 +176,29 @@ describe('agendaConfigService', () => {
   })
 
   describe('actualizarHorariosUsuario', () => {
-    it('elimina horarios previos e inserta nuevos registros', async () => {
-      const deleteMock = vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          eq: vi.fn().mockResolvedValue({ error: null }),
-        }),
-      })
-      const insertMock = vi.fn().mockResolvedValue({ error: null })
+    it('actualiza los días configurados antes de quitar los días desactivados', async () => {
+      const eqClinicaLectura = vi.fn()
+      const eqUsuarioLectura = vi.fn()
+      const eqSedeLectura = vi.fn().mockResolvedValue({ data: [{ dia_semana: 1 }, { dia_semana: 2 }], error: null })
+      eqClinicaLectura.mockReturnValue({ eq: eqUsuarioLectura })
+      eqUsuarioLectura.mockReturnValue({ eq: eqSedeLectura })
+      const selectMock = vi.fn().mockReturnValue({ eq: eqClinicaLectura })
+      const eqClinicaBorrado = vi.fn()
+      const eqUsuarioBorrado = vi.fn()
+      const eqSedeBorrado = vi.fn()
+      const inDiasBorrados = vi.fn().mockResolvedValue({ error: null })
+      eqClinicaBorrado.mockReturnValue({ eq: eqUsuarioBorrado })
+      eqUsuarioBorrado.mockReturnValue({ eq: eqSedeBorrado })
+      eqSedeBorrado.mockReturnValue({ in: inDiasBorrados })
+      const deleteMock = vi.fn().mockReturnValue({ eq: eqClinicaBorrado })
+      const upsertMock = vi.fn().mockResolvedValue({ error: null })
 
       vi.mocked(supabase!.from).mockImplementation((table: string) => {
         if (table === 'user_sede_horarios') {
           return {
+            select: selectMock,
             delete: deleteMock,
-            insert: insertMock,
+            upsert: upsertMock,
           } as any
         }
         return {} as any
@@ -193,8 +208,10 @@ describe('agendaConfigService', () => {
         { diaSemana: 1, horaInicio: '08:00', horaFin: '14:00', duracionBloqueMinutos: 30 },
       ])
 
-      expect(deleteMock).toHaveBeenCalled()
-      expect(insertMock).toHaveBeenCalledWith([
+      expect(eqClinicaLectura).toHaveBeenCalledWith('clinica_id', mockClinicaId)
+      expect(eqUsuarioLectura).toHaveBeenCalledWith('user_id', mockUserId)
+      expect(eqSedeLectura).toHaveBeenCalledWith('sede_id', 'sede-1')
+      expect(upsertMock).toHaveBeenCalledWith([
         {
           user_id: mockUserId,
           clinica_id: mockClinicaId,
@@ -204,7 +221,12 @@ describe('agendaConfigService', () => {
           hora_fin: '14:00',
           duracion_bloque_minutos: 30,
         },
-      ])
+      ], { onConflict: 'user_id,sede_id,dia_semana' })
+      expect(deleteMock).toHaveBeenCalled()
+      expect(eqClinicaBorrado).toHaveBeenCalledWith('clinica_id', mockClinicaId)
+      expect(eqUsuarioBorrado).toHaveBeenCalledWith('user_id', mockUserId)
+      expect(eqSedeBorrado).toHaveBeenCalledWith('sede_id', 'sede-1')
+      expect(inDiasBorrados).toHaveBeenCalledWith('dia_semana', [2])
     })
   })
 })

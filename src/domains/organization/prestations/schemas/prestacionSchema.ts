@@ -10,8 +10,10 @@ import { EQUIPAMIENTO_CLINICO_IDS } from '../../../../shared/constants/equipamie
  * - `id`: identificador único (number o string)
  * - `nombre`: nombre descriptivo de la prestación
  * - `especialidad`: especialidad odontológica a la que pertenece
- * - `precioParticular`: precio para paciente particular (number)
- * - `precioFonasa`: precio convenio Fonasa/Isapre (number)
+ * - `precioParticular`: precio base del catálogo (el nombre interno se conserva
+ *   por compatibilidad).
+ * - `precioFonasa`: campo legado nullable requerido por el contrato histórico;
+ *   las tarifas de convenio se guardan en su configuración, fuera del catálogo.
  * - `codigoFonasa`: código Fonasa oficial (string, formato XX-XX-XXX)
  *
  * Campos opcionales:
@@ -28,7 +30,7 @@ export const prestacionSchema = z.object({
   id: z.union([z.number(), z.string()]),
   nombre: z.string().trim().min(1, 'El nombre de la prestación es obligatorio'),
   especialidad: z.string().trim().min(1, 'La especialidad es obligatoria'),
-  precioParticular: z.number({ message: 'El precio particular es obligatorio' }),
+  precioParticular: z.number({ message: 'El precio base es obligatorio' }),
   precioFonasa: z.number({ message: 'El precio Fonasa debe ser un número' }).nullable(),
   codigoFonasa: z.string().trim(),
   codigoInterno: z.string().trim().max(80).nullable().optional(),

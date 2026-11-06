@@ -1,7 +1,7 @@
 import React, { memo, useState, useEffect } from 'react'
 import { convertirImagenADataURL } from '../utils/clinicCalculations'
 import { createLogger } from '../../../../infrastructure/logging/logger'
-import { Lock, Building2, CheckCircle2, AlertCircle } from 'lucide-react'
+import { Lock, Building2, CheckCircle2, AlertCircle, Upload } from 'lucide-react'
 import { CLINICA_DEFAULT, type ClinicaConfig } from '../constants/clinicConstants'
 import { clinicStorageService, type DatosClinicaConfig } from '../services/clinicStorageService'
 import { MembreteClinica } from './MembreteClinica'
@@ -10,11 +10,12 @@ import { useSesionStore } from '../../../../app/stores/sesionStore'
 import { markFormDirty, markFormSaved } from '../../../../shared/utils/formDirtyUtils'
 import { supabase, USE_SUPABASE } from '../../../../infrastructure/supabase/supabaseClient'
 import { subirLogoClinicaAR2 } from '../../../../infrastructure/storage/r2ArchivosService'
-import { esZonaHorariaIanaValida } from '../utils/timeZoneUtils'
+import { esZonaHorariaIanaValida, obtenerZonasHorariasIana } from '../utils/timeZoneUtils'
 
 const log = createLogger('DatosClinicaForm')
 const MAX_LOGO_BYTES = 5 * 1024 * 1024
 const LOGO_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
+const ZONAS_HORARIAS_IANA = obtenerZonasHorariasIana()
 
 export interface DatosClinicaFormProps {
   datosClinica?: DatosClinicaConfig | ClinicaConfig
@@ -106,6 +107,7 @@ export const DatosClinicaForm: React.FC<DatosClinicaFormProps> = memo(({ datosCl
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (esSoloLectura) return
     const file = e.target.files?.[0]
+    e.target.value = ''
     if (!file) return
 
     if (!LOGO_MIME_TYPES.has(file.type)) {
@@ -221,7 +223,7 @@ export const DatosClinicaForm: React.FC<DatosClinicaFormProps> = memo(({ datosCl
   }
 
   const inputClass = `w-full p-2.5 rounded-lg border border-surface text-graphite-900 dark:text-graphite-50 focus:outline-none focus:ring-2 focus:ring-primary/40 ${
-    esSoloLectura ? 'bg-gray-100 dark:bg-graphite-900/50 cursor-not-allowed text-gray-500' : 'bg-white dark:bg-graphite-800 surgical:bg-graphite-200'
+    esSoloLectura ? 'bg-gray-100 dark:bg-graphite-900/50 cursor-not-allowed text-gray-500' : 'bg-white dark:bg-graphite-800 '
   }`
   const configuracionMembrete = normalizarConfiguracionMembrete((form as DatosClinicaConfig).configuracionMembrete)
   const elementosMembrete: { key: keyof ConfiguracionMembrete['mostrar']; label: string }[] = [
@@ -239,7 +241,7 @@ export const DatosClinicaForm: React.FC<DatosClinicaFormProps> = memo(({ datosCl
   return (
     <form onSubmit={handleSubmit} className="bg-surface border border-surface rounded-2xl p-6 shadow-xs space-y-4 text-xs">
       <div className="border-b border-surface pb-3">
-        <h3 className="font-bold text-sm text-gray-900 dark:text-graphite-50 surgical:text-black uppercase tracking-wider inline-flex items-center gap-2"><Building2 size={14} />Información de la Clínica & Membrete</h3>
+        <h3 className="font-bold text-sm text-gray-900 dark:text-graphite-50  uppercase tracking-wider inline-flex items-center gap-2"><Building2 size={14} />Información de la Clínica & Membrete</h3>
         <p className="text-gray-500 dark:text-graphite-400 text-[11px]">
           Membrete compartido para presupuestos, comprobantes de pago, recetas y derivaciones.
           {esSoloLectura && (
@@ -252,7 +254,7 @@ export const DatosClinicaForm: React.FC<DatosClinicaFormProps> = memo(({ datosCl
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
-          <label className="block font-semibold text-gray-700 dark:text-graphite-300 surgical:text-black mb-1">Nombre Fantasía Clínica *</label>
+          <label className="block font-semibold text-gray-700 dark:text-graphite-300  mb-1">Nombre Fantasía Clínica *</label>
           <input
             type="text"
             required
@@ -263,7 +265,7 @@ export const DatosClinicaForm: React.FC<DatosClinicaFormProps> = memo(({ datosCl
           />
         </div>
         <div>
-          <label className="block font-semibold text-gray-700 dark:text-graphite-300 surgical:text-black mb-1">Razón Social</label>
+          <label className="block font-semibold text-gray-700 dark:text-graphite-300  mb-1">Razón Social</label>
           <input
             type="text"
             disabled={esSoloLectura}
@@ -273,7 +275,7 @@ export const DatosClinicaForm: React.FC<DatosClinicaFormProps> = memo(({ datosCl
           />
         </div>
         <div>
-          <label className="block font-semibold text-gray-700 dark:text-graphite-300 surgical:text-black mb-1">RUT Empresa</label>
+          <label className="block font-semibold text-gray-700 dark:text-graphite-300  mb-1">RUT Empresa</label>
           <input
             type="text"
             disabled={esSoloLectura}
@@ -283,7 +285,7 @@ export const DatosClinicaForm: React.FC<DatosClinicaFormProps> = memo(({ datosCl
           />
         </div>
         <div>
-          <label className="block font-semibold text-gray-700 dark:text-graphite-300 surgical:text-black mb-1">Giro comercial</label>
+          <label className="block font-semibold text-gray-700 dark:text-graphite-300  mb-1">Giro comercial</label>
           <input
             type="text"
             disabled={esSoloLectura}
@@ -293,7 +295,7 @@ export const DatosClinicaForm: React.FC<DatosClinicaFormProps> = memo(({ datosCl
           />
         </div>
         <div>
-          <label className="block font-semibold text-gray-700 dark:text-graphite-300 surgical:text-black mb-1">Teléfono Contacto</label>
+          <label className="block font-semibold text-gray-700 dark:text-graphite-300  mb-1">Teléfono Contacto</label>
           <input
             type="text"
             disabled={esSoloLectura}
@@ -303,7 +305,7 @@ export const DatosClinicaForm: React.FC<DatosClinicaFormProps> = memo(({ datosCl
           />
         </div>
         <div>
-          <label className="block font-semibold text-gray-700 dark:text-graphite-300 surgical:text-black mb-1">Email Oficial</label>
+          <label className="block font-semibold text-gray-700 dark:text-graphite-300  mb-1">Email Oficial</label>
           <input
             type="email"
             disabled={esSoloLectura}
@@ -313,7 +315,7 @@ export const DatosClinicaForm: React.FC<DatosClinicaFormProps> = memo(({ datosCl
           />
         </div>
         <div>
-          <label htmlFor="clinica-ciudad" className="block font-semibold text-gray-700 dark:text-graphite-300 surgical:text-black mb-1">Ciudad</label>
+          <label htmlFor="clinica-ciudad" className="block font-semibold text-gray-700 dark:text-graphite-300  mb-1">Ciudad</label>
           <input
             id="clinica-ciudad"
             type="text"
@@ -324,7 +326,7 @@ export const DatosClinicaForm: React.FC<DatosClinicaFormProps> = memo(({ datosCl
           />
         </div>
         <div>
-          <label htmlFor="clinica-comuna" className="block font-semibold text-gray-700 dark:text-graphite-300 surgical:text-black mb-1">Comuna</label>
+          <label htmlFor="clinica-comuna" className="block font-semibold text-gray-700 dark:text-graphite-300  mb-1">Comuna</label>
           <input
             id="clinica-comuna"
             type="text"
@@ -335,7 +337,7 @@ export const DatosClinicaForm: React.FC<DatosClinicaFormProps> = memo(({ datosCl
           />
         </div>
         <div>
-          <label htmlFor="clinica-region" className="block font-semibold text-gray-700 dark:text-graphite-300 surgical:text-black mb-1">Región</label>
+          <label htmlFor="clinica-region" className="block font-semibold text-gray-700 dark:text-graphite-300  mb-1">Región</label>
           <input
             id="clinica-region"
             type="text"
@@ -346,30 +348,25 @@ export const DatosClinicaForm: React.FC<DatosClinicaFormProps> = memo(({ datosCl
           />
         </div>
         <div>
-          <label htmlFor="clinica-zona-horaria" className="block font-semibold text-gray-700 dark:text-graphite-300 surgical:text-black mb-1">Zona horaria *</label>
-          <input
+          <label htmlFor="clinica-zona-horaria" className="block font-semibold text-gray-700 dark:text-graphite-300  mb-1">Zona horaria *</label>
+          <select
             id="clinica-zona-horaria"
-            type="text"
             required
-            list="zonas-horarias-clinica"
             disabled={esSoloLectura}
             value={(form as DatosClinicaConfig).zonaHoraria || 'America/Santiago'}
             onChange={(e) => handleChange('zonaHoraria', e.target.value)}
             className={inputClass}
-          />
-          <datalist id="zonas-horarias-clinica">
-            <option value="America/Santiago" />
-            <option value="America/Argentina/Buenos_Aires" />
-            <option value="America/Lima" />
-            <option value="Europe/Madrid" />
-            <option value="America/New_York" />
-            <option value="America/Los_Angeles" />
-          </datalist>
+          >
+            {!ZONAS_HORARIAS_IANA.includes((form as DatosClinicaConfig).zonaHoraria || 'America/Santiago') && (
+              <option value={(form as DatosClinicaConfig).zonaHoraria}>{(form as DatosClinicaConfig).zonaHoraria}</option>
+            )}
+            {ZONAS_HORARIAS_IANA.map((zona) => <option key={zona} value={zona}>{zona}</option>)}
+          </select>
         </div>
       </div>
 
       <div>
-        <label className="block font-semibold text-gray-700 dark:text-graphite-300 surgical:text-black mb-1">Dirección Completa</label>
+        <label className="block font-semibold text-gray-700 dark:text-graphite-300  mb-1">Dirección Completa</label>
         <input
           type="text"
           disabled={esSoloLectura}
@@ -380,7 +377,7 @@ export const DatosClinicaForm: React.FC<DatosClinicaFormProps> = memo(({ datosCl
       </div>
 
       <div>
-        <label className="block font-semibold text-gray-700 dark:text-graphite-300 surgical:text-black mb-1">Eslogan o Frase Identitaria</label>
+        <label className="block font-semibold text-gray-700 dark:text-graphite-300  mb-1">Eslogan o Frase Identitaria</label>
         <input
           type="text"
           disabled={esSoloLectura}
@@ -391,45 +388,55 @@ export const DatosClinicaForm: React.FC<DatosClinicaFormProps> = memo(({ datosCl
       </div>
 
       <fieldset className="space-y-3 rounded-xl border border-surface p-3">
-        <legend className="px-1 font-semibold text-gray-700 dark:text-graphite-300 surgical:text-black">Datos públicos y registros</legend>
+        <legend className="px-1 font-semibold text-gray-700 dark:text-graphite-300 ">Datos públicos y registros</legend>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <label className="block font-semibold text-gray-700 dark:text-graphite-300 surgical:text-black">
+          <label className="block font-semibold text-gray-700 dark:text-graphite-300 ">
             Sitio web
             <input type="url" disabled={esSoloLectura} value={(form as DatosClinicaConfig).sitioWeb || ''} onChange={(e) => handleChange('sitioWeb', e.target.value)} className={`${inputClass} mt-1 font-normal`} placeholder="https://clinica.cl" />
           </label>
-          <label className="block font-semibold text-gray-700 dark:text-graphite-300 surgical:text-black">
+          <label className="block font-semibold text-gray-700 dark:text-graphite-300 ">
             Instagram
             <input type="text" disabled={esSoloLectura} value={(form as DatosClinicaConfig).instagram || ''} onChange={(e) => handleChange('instagram', e.target.value)} className={`${inputClass} mt-1 font-normal`} placeholder="@clinica" />
           </label>
-          <label className="block font-semibold text-gray-700 dark:text-graphite-300 surgical:text-black">
+          <label className="block font-semibold text-gray-700 dark:text-graphite-300 ">
             Facebook
             <input type="text" disabled={esSoloLectura} value={(form as DatosClinicaConfig).facebook || ''} onChange={(e) => handleChange('facebook', e.target.value)} className={`${inputClass} mt-1 font-normal`} placeholder="facebook.com/clinica" />
           </label>
-          <label className="block font-semibold text-gray-700 dark:text-graphite-300 surgical:text-black">
+          <label className="block font-semibold text-gray-700 dark:text-graphite-300 ">
             Registro SEREMI
             <input type="text" disabled={esSoloLectura} value={(form as DatosClinicaConfig).registroSeremi || ''} onChange={(e) => handleChange('registroSeremi', e.target.value)} className={`${inputClass} mt-1 font-normal`} />
           </label>
-          <label className="block font-semibold text-gray-700 dark:text-graphite-300 surgical:text-black">
+          <label className="block font-semibold text-gray-700 dark:text-graphite-300 ">
             Registro ISP
             <input type="text" disabled={esSoloLectura} value={(form as DatosClinicaConfig).registroIsp || ''} onChange={(e) => handleChange('registroIsp', e.target.value)} className={`${inputClass} mt-1 font-normal`} />
           </label>
-          <label className="block font-semibold text-gray-700 dark:text-graphite-300 surgical:text-black">
+          <label className="block font-semibold text-gray-700 dark:text-graphite-300 ">
             Idioma de documentos
             <select disabled={esSoloLectura} value={(form as DatosClinicaConfig).idiomaDocumentos || 'es-CL'} onChange={(e) => handleChange('idiomaDocumentos', e.target.value)} className={`${inputClass} mt-1 font-normal`}>
               <option value="es-CL">Español (Chile)</option>
+              <option value="es-419">Español (Latinoamérica)</option>
+              <option value="es-ES">Español (España)</option>
+              <option value="pt-BR">Português (Brasil)</option>
+              <option value="en">English</option>
             </select>
           </label>
-          <label className="block font-semibold text-gray-700 dark:text-graphite-300 surgical:text-black">
+          <label className="block font-semibold text-gray-700 dark:text-graphite-300 ">
             Moneda de la clínica
             <select disabled={esSoloLectura} value={(form as DatosClinicaConfig).moneda || 'CLP'} onChange={(e) => handleChange('moneda', e.target.value)} className={`${inputClass} mt-1 font-normal`}>
               <option value="CLP">CLP — Peso chileno</option>
+              <option value="ARS">ARS — Peso argentino</option>
+              <option value="MXN">MXN — Peso mexicano</option>
+              <option value="COP">COP — Peso colombiano</option>
+              <option value="PEN">PEN — Sol peruano</option>
+              <option value="USD">USD — Dólar estadounidense</option>
+              <option value="EUR">EUR — Euro</option>
             </select>
           </label>
         </div>
       </fieldset>
 
       <fieldset className="space-y-4 rounded-xl border border-surface p-3">
-        <legend className="px-1 font-semibold text-gray-700 dark:text-graphite-300 surgical:text-black">Membrete de documentos</legend>
+        <legend className="px-1 font-semibold text-gray-700 dark:text-graphite-300 ">Membrete de documentos</legend>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
           {[
             { id: 'clasico', nombre: 'Clásico', descripcion: 'Logo a la izquierda y datos alineados a la derecha.' },
@@ -507,20 +514,31 @@ export const DatosClinicaForm: React.FC<DatosClinicaFormProps> = memo(({ datosCl
       </fieldset>
 
       <div>
-        <label className="block font-semibold text-gray-700 dark:text-graphite-300 surgical:text-black mb-1">Logo Impresión (Blanco y Negro o Color)</label>
-        <div className="flex items-center gap-4 mt-2">
+        <label htmlFor="logo-clinica-upload" className="block font-semibold text-gray-700 dark:text-graphite-300 mb-1">Logo para documentos</label>
+        <p id="logo-clinica-ayuda" className="mb-2 text-[11px] text-gray-500 dark:text-graphite-400">Elige una imagen JPG, PNG o WebP de hasta 5 MB. Puedes definir blanco y negro o color en la opción «Logo monocromático» del membrete.</p>
+        <div className="flex flex-wrap items-center gap-4 mt-2">
           {form.logoUrl && (
             <div className="w-16 h-16 border rounded-lg p-1 bg-white dark:bg-graphite-800 flex items-center justify-center">
               <img src={form.logoUrl} alt="Logo" className="max-w-full max-h-full object-contain" />
             </div>
           )}
           <input
+            id="logo-clinica-upload"
             type="file"
             accept="image/jpeg,image/png,image/webp"
             disabled={esSoloLectura || subiendoLogo}
             onChange={handleLogoUpload}
-            className={`text-xs ${esSoloLectura || subiendoLogo ? 'cursor-not-allowed text-gray-400' : ''}`}
+            aria-describedby="logo-clinica-ayuda"
+            className="sr-only peer"
           />
+          <label
+            htmlFor="logo-clinica-upload"
+            className={`inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-lg border border-surface bg-white px-3 py-2 font-semibold text-graphite-800 shadow-xs hover:bg-gray-50 peer-focus-visible:ring-2 peer-focus-visible:ring-primary/50 dark:bg-graphite-800 dark:text-graphite-100 dark:hover:bg-graphite-700 ${esSoloLectura || subiendoLogo ? 'pointer-events-none cursor-not-allowed opacity-60' : ''}`}
+          >
+            <Upload size={15} aria-hidden="true" />
+            {subiendoLogo ? 'Subiendo logo…' : form.logoUrl ? 'Cambiar logo' : 'Seleccionar archivo'}
+          </label>
+          {!form.logoUrl && <span className="text-[11px] text-gray-500 dark:text-graphite-400">Todavía no hay un logo cargado.</span>}
         </div>
       </div>
 
@@ -537,7 +555,7 @@ export const DatosClinicaForm: React.FC<DatosClinicaFormProps> = memo(({ datosCl
           <button
             type="submit"
             disabled={guardando || subiendoLogo}
-            className="px-4 py-2 bg-primary text-white rounded-lg font-bold hover:bg-primary-dark transition cursor-pointer disabled:opacity-50"
+            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg font-bold hover:bg-primary-dark transition cursor-pointer disabled:opacity-50"
           >
             {subiendoLogo ? 'Subiendo logo...' : guardando ? 'Guardando...' : 'Guardar Configuración Clínica'}
           </button>

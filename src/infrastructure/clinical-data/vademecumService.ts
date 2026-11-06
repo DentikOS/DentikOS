@@ -259,7 +259,7 @@ export const obtenerFarmacoPorNumero = (numero: number): FarmacoVademecum | null
 }
 
 /**
- * Búsqueda por texto en nombre genérico (autocompletado en RecetasSection).
+ * Búsqueda por texto en nombre genérico para el formulario de prescripción.
  * @param texto - Texto a buscar (mínimo 2 caracteres)
  */
 export const buscarFarmacoPorNombre = (texto?: string | null): FarmacoVademecum[] => {
@@ -566,6 +566,9 @@ export const sincronizarDesdeSupabase = async (): Promise<void> => {
     escribirEnLocalStorage(CLAVES.SINCRONIZADO, timestamp)
 
     log.info('Sincronización completa desde Supabase')
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent(REALTIME_EVENTS.VADEMECUM_CHANGED))
+    }
   } catch (e: unknown) {
     log.error('Error en sincronización desde Supabase:', e)
     // No rompemos la app — los datos de respaldo siguen disponibles

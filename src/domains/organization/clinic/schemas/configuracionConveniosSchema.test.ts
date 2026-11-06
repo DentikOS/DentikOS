@@ -102,31 +102,59 @@ describe('configuracionConveniosSchema', () => {
     })).toEqual({ precioBase: 60000, precio: 60000, descuentoPct: 0, origen: 'sucursal' })
   })
 
-  it('usa precioFonasa del catálogo si no hay regla fija ni de categoría ni de sucursal', () => {
+  it('usa el precio base del catálogo para FONASA cuando no hay una regla específica', () => {
     const configuracion = {
       version: 1 as const,
       categorias: [],
       convenios: [{ id: 'fonasa-b', nombre: 'FONASA B', tipo: 'fonasa' as const, tramoFonasa: 'B' as const, activo: true, descuentosPorCategoria: {} }],
     }
     expect(resolverPrecioPrestacion(configuracion, {
-      prestacionId: 8, convenioIdentificador: 'fonasa-b', precioParticular: 100000, precioFonasa: 42000,
-    })).toEqual({ precioBase: 42000, precio: 42000, descuentoPct: 0, origen: 'catalogo' })
+      prestacionId: 8, convenioIdentificador: 'fonasa-b', precioParticular: 100000,
+    })).toEqual({ precioBase: 100000, precio: 100000, descuentoPct: 0, origen: 'catalogo' })
   })
 
-  it('respeta precioFonasa igual a cero como precio válido explícito', () => {
+  it('prioriza el precio específico del tramo FONASA sobre sucursal y precio base', () => {
     const configuracion = {
       version: 1 as const,
       categorias: [],
       convenios: [{ id: 'fonasa-b', nombre: 'FONASA B', tipo: 'fonasa' as const, tramoFonasa: 'B' as const, activo: true, descuentosPorCategoria: {} }],
+      preciosEspecificos: [
+        { prestacionId: '8', alcance: 'convenio' as const, contextoId: 'fonasa-b', precio: 42000 },
+        { prestacionId: '8', alcance: 'sucursal' as const, contextoId: 'sede-1', precio: 60000 },
+      ],
     }
     expect(resolverPrecioPrestacion(configuracion, {
-      prestacionId: 8, convenioIdentificador: 'fonasa-b', precioParticular: 100000, precioFonasa: 0,
-    })).toEqual({ precioBase: 0, precio: 0, descuentoPct: 0, origen: 'catalogo' })
+      prestacionId: 8, convenioIdentificador: 'fonasa-b', sucursalId: 'sede-1', precioParticular: 100000,
+    })).toEqual({ precioBase: 42000, precio: 42000, descuentoPct: 0, origen: 'convenio-precio-fijo' })
   })
 
-  it('falla de forma segura al precio particular ante configuración o precioFonasa inválidos', () => {
+  it('usa el precio específico de sucursal para FONASA antes del precio base', () => {
+    const configuracion = {
+      version: 1 as const,
+      categorias: [],
+      convenios: [{ id: 'fonasa-b', nombre: 'FONASA B', tipo: 'fonasa' as const, tramoFonasa: 'B' as const, activo: true, descuentosPorCategoria: {} }],
+      preciosEspecificos: [{ prestacionId: '8', alcance: 'sucursal' as const, contextoId: 'sede-1', precio: 60000 }],
+    }
+    expect(resolverPrecioPrestacion(configuracion, {
+      prestacionId: 8, convenioIdentificador: 'fonasa-b', sucursalId: 'sede-1', precioParticular: 100000,
+    })).toEqual({ precioBase: 60000, precio: 60000, descuentoPct: 0, origen: 'sucursal' })
+  })
+
+  it('resuelve el porcentaje por categoría explícita del catálogo', () => {
+    const configuracion = {
+      version: 1 as const,
+      categorias: [{ id: 'preventivo', nombre: 'Preventivo', especialidades: [] }],
+      convenios: [{ id: 'seguro', nombre: 'Seguro', tipo: 'isapre' as const, activo: true, descuentosPorCategoria: { preventivo: 10 } }],
+    }
+    expect(resolverPrecioPrestacion(configuracion, {
+      prestacionId: 8, categoria: 'Preventivo', especialidad: 'Diagnóstico y Prevención',
+      convenioIdentificador: 'seguro', precioParticular: 50000,
+    })).toEqual({ precioBase: 50000, precio: 45000, descuentoPct: 10, origen: 'convenio-categoria' })
+  })
+
+  it('falla de forma segura al precio particular ante configuración inválida', () => {
     expect(resolverPrecioPrestacion({ invalid: true }, {
-      prestacionId: 8, convenioIdentificador: 'fonasa-b', precioParticular: 100000, precioFonasa: 42000,
+      prestacionId: 8, convenioIdentificador: 'fonasa-b', precioParticular: 100000,
     })).toEqual({ precioBase: 100000, precio: 100000, descuentoPct: 0, origen: 'catalogo' })
   })
 })

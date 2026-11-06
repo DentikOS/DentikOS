@@ -4,6 +4,7 @@ export const CATEGORIAS_CONVENIO_DEFAULT = [
   { id: 'preventivo', nombre: 'Preventivo', especialidades: [] },
   { id: 'restaurador', nombre: 'Restaurador', especialidades: [] },
   { id: 'cirugia', nombre: 'Cirugía', especialidades: [] },
+  { id: 'rehabilitacion', nombre: 'Rehabilitación', especialidades: [] },
   { id: 'ortodoncia', nombre: 'Ortodoncia', especialidades: [] },
   { id: 'periodoncia', nombre: 'Periodoncia', especialidades: [] },
   { id: 'endodoncia', nombre: 'Endodoncia', especialidades: [] },
@@ -103,8 +104,8 @@ export type PrecioEspecificoPrestacion = z.infer<typeof precioEspecificoSchema>
 export type ConfiguracionConvenios = z.infer<typeof configuracionConveniosSchema>
 
 export interface PrecioPrestacionCalculado {
-  precioBase: number
-  precio: number
+  precioBase: number | null
+  precio: number | null
   descuentoPct: number
   origen: 'convenio-precio-fijo' | 'convenio-categoria' | 'sucursal' | 'catalogo'
 }
@@ -167,11 +168,10 @@ export const resolverPrecioPrestacion = (
   input: {
     prestacionId: string | number
     especialidad?: string | null
+    categoria?: string | null
     convenioIdentificador?: string | null
-    tipoConvenio?: ConvenioClinica['tipo']
     sucursalId?: string | null
     precioParticular: number
-    precioFonasa?: number
   },
 ): PrecioPrestacionCalculado => {
   const config = leerConfiguracionConvenios(configuracion)
@@ -197,10 +197,16 @@ export const resolverPrecioPrestacion = (
     }
 
     const convenio = config?.convenios.find((item) => item.id === convenioId)
+    const categoriaPrestacion = normalizarClave(input.categoria || '')
+    const categoriasPorNombre = categoriaPrestacion
+      ? config?.categorias.filter((item) => normalizarClave(item.id) === categoriaPrestacion || normalizarClave(item.nombre) === categoriaPrestacion) ?? []
+      : []
     const especialidad = normalizarClave(input.especialidad || '')
-    const categoria = config?.categorias.find((item) =>
+    const categoriasPorEspecialidad = config?.categorias.filter((item) =>
       item.especialidades.some((itemEspecialidad) => normalizarClave(itemEspecialidad) === especialidad)
-    )
+    ) ?? []
+    const categorias = categoriasPorNombre.length > 0 ? categoriasPorNombre : categoriasPorEspecialidad
+    const categoria = categorias.length === 1 ? categorias[0] : undefined
     const porcentaje = categoria ? convenio?.descuentosPorCategoria[categoria.id] : undefined
     if (porcentaje !== undefined && Number.isFinite(porcentaje) && porcentaje > 0 && porcentaje <= 100) {
       return {
@@ -221,10 +227,5 @@ export const resolverPrecioPrestacion = (
     }
   }
 
-  const convenio = convenioId ? config?.convenios.find((item) => item.id === convenioId) : undefined
-  const fonasa = convenio?.tipo === 'fonasa' || input.tipoConvenio === 'fonasa'
-  const precioFonasa = input.precioFonasa
-  const precioFonasaValido = typeof precioFonasa === 'number' && Number.isSafeInteger(precioFonasa) && precioFonasa >= 0
-  const precioBase = fonasa && precioFonasaValido ? precioFonasa : particular
-  return { precioBase, precio: precioBase, descuentoPct: 0, origen: 'catalogo' }
+  return { precioBase: particular, precio: particular, descuentoPct: 0, origen: 'catalogo' }
 }

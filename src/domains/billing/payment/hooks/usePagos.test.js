@@ -11,6 +11,7 @@ vi.mock('../services/pagosStorageService', () => ({
   pagosStorageService: {
     obtenerPagos: vi.fn(() => []),
     guardarPagos: vi.fn(),
+    registrarPago: vi.fn(),
     purgarPago: vi.fn(() => true),
     obtenerPagosParaAuditoria: vi.fn(() => [])
   }
@@ -100,6 +101,36 @@ describe('usePagos', () => {
 
       expect(ok).toBe(false)
       expect(mockAlert).toHaveBeenCalledWith(expect.objectContaining({ variant: 'error' }))
+    })
+  })
+
+  describe('confirmación de pagos en efectivo', () => {
+    const pagoEfectivo = { id: 'local-id', folioComprobante: 'REC-EF-1', pacienteId: 'patient-1', pacienteNombre: 'Ana', monto: 25000, metodoPago: 'Efectivo' }
+
+    it('no publica ni vincula un pago si Supabase no lo confirmó', async () => {
+      pagosStorageService.registrarPago.mockResolvedValue(null)
+      const { result } = renderHook(() => usePagos())
+      let ok
+
+      await act(async () => { ok = await result.current.agregarOActualizarPago(pagoEfectivo) })
+
+      expect(ok).toBe(false)
+      expect(result.current.todosLosPagos).toEqual([])
+      expect(pagosStorageService.guardarPagos).not.toHaveBeenCalled()
+      expect(sincronizarAbonoConFichaPaciente).not.toHaveBeenCalled()
+    })
+
+    it('publica y vincula el pago después de la confirmación del servidor', async () => {
+      pagosStorageService.registrarPago.mockResolvedValue({ ...pagoEfectivo, id: 'server-id', sincronizado: true })
+      const { result } = renderHook(() => usePagos())
+      let ok
+
+      await act(async () => { ok = await result.current.agregarOActualizarPago(pagoEfectivo) })
+
+      expect(ok).toBe(true)
+      expect(result.current.todosLosPagos[0]).toMatchObject({ id: 'server-id', sincronizado: true })
+      expect(pagosStorageService.guardarPagos).not.toHaveBeenCalled()
+      expect(sincronizarAbonoConFichaPaciente).toHaveBeenCalledWith('patient-1', expect.objectContaining({ id: 'server-id' }))
     })
   })
 

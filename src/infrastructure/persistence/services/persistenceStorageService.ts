@@ -1,5 +1,5 @@
 /**
- * Servicio de Persistencia y Copias de Seguridad (Backup / Restore / Reset)
+ * Servicio de Persistencia y Copias de Seguridad (Backup / Restore)
  */
 import { getClinicaActivaSync } from '../../auth/authService'
 import { createLogger } from '../../logging/logger'
@@ -166,16 +166,6 @@ export const persistenceStorageService = {
     reemplazarDatosTenant(clinicaId, datos)
   },
 
-  limpiarBaseDeDatosCompleta: (): boolean => {
-    try {
-      localStorage.clear()
-      window.dispatchEvent(new Event('storage'))
-      return true
-    } catch (e: unknown) {
-      log.error('Error al limpiar base de datos:', e)
-      return false
-    }
-  }
 }
 
 export const descargarArchivoBackupJSON = (datos: unknown, nombreArchivo: string): void => {

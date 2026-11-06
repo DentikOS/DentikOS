@@ -5,7 +5,6 @@
  * 1. Itera sobre todos los pacientes migrados (con UUID en Supabase)
  * 2. Para cada paciente, lee las claves dinámicas de localStorage:
  *    - evoluciones_notas_${pacienteId}
- *    - recetas_${pacienteId}
  *    - odonto_inicial_${pacienteId}
  *    - odonto_evolucion_${pacienteId}
  *    - periodontograma_${pacienteId}
@@ -15,12 +14,13 @@
  *    - pediatria_${pacienteId}
  *    - quirurgico_implantes_${pacienteId}
  *    - quirurgico_endodoncia_${pacienteId}
- * 3. Transforma y sube a las tablas correspondientes en Supabase
+ * 3. Transforma y sube las secciones heredadas que aún corresponden
  * 4. Retorna un resumen de la migración
  *
  * Nota: Este script NO modifica los componentes que usan estos datos.
  * Los componentes seguirán usando localStorage y se refactorizarán en F4-02d.
- * Esta fase es solo para asegurar que los datos estén respaldados en Supabase.
+ * Las recetas no se migran desde localStorage: la fuente histórica conciliada
+ * es fichas_clinicas.recetas y public.recetas es la fuente canónica vigente.
  */
 import { supabase } from '../supabaseClient'
 import { migrationStorageService } from '../../persistence/migrationStorageService'
@@ -39,6 +39,7 @@ export interface MigrateDatosClinicosError {
 export interface MigrateDatosClinicosResult {
   success: boolean
   evolucionesMigradas: number
+  /** Compatibilidad del resultado histórico; permanece en cero desde BP11. */
   recetasMigradas: number
   otrosMigrados: number
   errores: Array<MigrateDatosClinicosError | string>
@@ -56,16 +57,6 @@ interface EvolucionLegacy {
   texto?: string
   nota?: string
   tipo?: string
-  [key: string]: unknown
-}
-
-interface RecetaLegacy {
-  id?: string | number
-  fecha?: string
-  medicamentos?: unknown[]
-  diagnostico?: string
-  indicaciones?: string
-  firma?: string
   [key: string]: unknown
 }
 
@@ -126,56 +117,6 @@ const migrarEvoluciones = async (
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : String(error)
       errores.push({ tipo: 'evolucion', error: msg })
-    }
-  }
-
-  return { migradas, errores }
-}
-
-const migrarRecetas = async (
-  pacienteUuid: string,
-  userId: string,
-  recetas: RecetaLegacy[]
-): Promise<MigrarColeccionResult> => {
-  let migradas = 0
-  const errores: MigrateDatosClinicosError[] = []
-
-  if (!Array.isArray(recetas) || recetas.length === 0) {
-    return { migradas: 0, errores: [] }
-  }
-
-  for (const receta of recetas) {
-    try {
-      const recetaId = receta.id || `${pacienteUuid}_${Date.now()}_${Math.random()}`
-      
-      if (migrationStorageService.yaFueMigrado(recetaId)) continue
-
-      const recetaSupabase = {
-        user_id: userId,
-        paciente_id: pacienteUuid,
-        fecha: receta.fecha || new Date().toISOString().split('T')[0],
-        medicamentos: receta.medicamentos || [],
-        diagnostico: receta.diagnostico || '',
-        indicaciones: receta.indicaciones || '',
-        firma: receta.firma || ''
-      }
-
-      if (!supabase) throw new Error('Supabase no configurado')
-
-      const { error } = await supabase
-        .from('recetas')
-        .insert(recetaSupabase)
-
-      if (error) {
-        errores.push({ tipo: 'receta', id: recetaId, error: error.message })
-        continue
-      }
-
-      migrationStorageService.registrarMapeo(recetaId, `${pacienteUuid}_receta`)
-      migradas++
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : String(error)
-      errores.push({ tipo: 'receta', error: msg })
     }
   }
 
@@ -350,61 +291,55 @@ export const migrateDatosClinicosToSupabase = async (userId: string): Promise<Mi
       resultado.evolucionesMigradas += resultadoEvoluciones.migradas
       resultado.errores.push(...resultadoEvoluciones.errores)
 
-      // 2. Recetas
-      const recetas = leerJSON<RecetaLegacy[]>(`recetas_${legacyId}`, [])
-      const resultadoRecetas = await migrarRecetas(paciente.id, userId, recetas)
-      resultado.recetasMigradas += resultadoRecetas.migradas
-      resultado.errores.push(...resultadoRecetas.errores)
-
-      // 3. Odontograma inicial
+      // 2. Odontograma inicial
       const odontoInicial = leerJSON<Record<string, unknown>>(`odonto_inicial_${legacyId}`, {})
       const resultadoOdontoInicial = await migrarOdontograma(paciente.id, userId, odontoInicial, 'inicial')
       if (resultadoOdontoInicial.migrado) resultado.otrosMigrados++
       if (resultadoOdontoInicial.error) resultado.errores.push({ tipo: 'odontograma_inicial', error: resultadoOdontoInicial.error })
 
-      // 4. Odontograma evolución
+      // 3. Odontograma evolución
       const odontoEvolucion = leerJSON<Record<string, unknown>>(`odonto_evolucion_${legacyId}`, {})
       const resultadoOdontoEvolucion = await migrarOdontograma(paciente.id, userId, odontoEvolucion, 'evolucion')
       if (resultadoOdontoEvolucion.migrado) resultado.otrosMigrados++
       if (resultadoOdontoEvolucion.error) resultado.errores.push({ tipo: 'odontograma_evolucion', error: resultadoOdontoEvolucion.error })
 
-      // 5. Periodontograma inicial
+      // 4. Periodontograma inicial
       const periodontoInicial = leerJSON<Record<string, unknown>>(`periodontograma_${legacyId}`, {})
       const resultadoPeriodontoInicial = await migrarPeriodontograma(paciente.id, userId, periodontoInicial, 'inicial')
       if (resultadoPeriodontoInicial.migrado) resultado.otrosMigrados++
       if (resultadoPeriodontoInicial.error) resultado.errores.push({ tipo: 'periodontograma_inicial', error: resultadoPeriodontoInicial.error })
 
-      // 6. Periodontograma control
+      // 5. Periodontograma control
       const periodontoControl = leerJSON<Record<string, unknown>>(`periodontograma_control_${legacyId}`, {})
       const resultadoPeriodontoControl = await migrarPeriodontograma(paciente.id, userId, periodontoControl, 'control')
       if (resultadoPeriodontoControl.migrado) resultado.otrosMigrados++
       if (resultadoPeriodontoControl.error) resultado.errores.push({ tipo: 'periodontograma_control', error: resultadoPeriodontoControl.error })
 
-      // 7. Historial periodontal
+      // 6. Historial periodontal
       const periodontoHistorial = leerJSON<Record<string, unknown>>(`periodonto_historial_${legacyId}`, {})
       const resultadoPeriodontoHistorial = await migrarDatosGenericos(paciente.id, userId, periodontoHistorial, 'periodontogramas_historial')
       if (resultadoPeriodontoHistorial.migrado) resultado.otrosMigrados++
       if (resultadoPeriodontoHistorial.error) resultado.errores.push({ tipo: 'periodonto_historial', error: resultadoPeriodontoHistorial.error })
 
-      // 8. DSD config
+      // 7. DSD config
       const dsdConfig = leerJSON<Record<string, unknown>>(`dsd_config_${legacyId}`, {})
       const resultadoDsd = await migrarDatosGenericos(paciente.id, userId, dsdConfig, 'dsd_configs')
       if (resultadoDsd.migrado) resultado.otrosMigrados++
       if (resultadoDsd.error) resultado.errores.push({ tipo: 'dsd_config', error: resultadoDsd.error })
 
-      // 9. Odontopediatría
+      // 8. Odontopediatría
       const pediatria = leerJSON<Record<string, unknown>>(`pediatria_${legacyId}`, {})
       const resultadoPediatria = await migrarDatosGenericos(paciente.id, userId, pediatria, 'odontopediatria')
       if (resultadoPediatria.migrado) resultado.otrosMigrados++
       if (resultadoPediatria.error) resultado.errores.push({ tipo: 'pediatria', error: resultadoPediatria.error })
 
-      // 10. Quirúrgico implantes
+      // 9. Quirúrgico implantes
       const implantes = leerJSON<unknown[]>(`quirurgico_implantes_${legacyId}`, [])
       const resultadoImplantes = await migrarDatosGenericos(paciente.id, userId, implantes, 'quirurgico_implantes')
       if (resultadoImplantes.migrado) resultado.otrosMigrados++
       if (resultadoImplantes.error) resultado.errores.push({ tipo: 'implantes', error: resultadoImplantes.error })
 
-      // 11. Quirúrgico endodoncia
+      // 10. Quirúrgico endodoncia
       const endodoncia = leerJSON<unknown[]>(`quirurgico_endodoncia_${legacyId}`, [])
       const resultadoEndodoncia = await migrarDatosGenericos(paciente.id, userId, endodoncia, 'quirurgico_endodoncia')
       if (resultadoEndodoncia.migrado) resultado.otrosMigrados++
@@ -435,10 +370,9 @@ export const verificarDatosClinicosPendientes = (): VerificarDatosClinicosPendie
   let conDatos = 0
   for (const paciente of pacientes) {
     const evoluciones = leerJSON<unknown[]>(`evoluciones_notas_${paciente.id}`, [])
-    const recetas = leerJSON<unknown[]>(`recetas_${paciente.id}`, [])
     const odontoInicial = leerJSON<Record<string, unknown>>(`odonto_inicial_${paciente.id}`, {})
     
-    if (evoluciones.length > 0 || recetas.length > 0 || Object.keys(odontoInicial).length > 0) {
+    if (evoluciones.length > 0 || Object.keys(odontoInicial).length > 0) {
       conDatos++
     }
   }

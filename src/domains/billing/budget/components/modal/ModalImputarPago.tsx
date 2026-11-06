@@ -3,9 +3,12 @@ import { CheckCircle2, X } from 'lucide-react'
 import { Button } from '../../../../../shared/ui/ui/Button'
 import type { ImputacionRegistrada, PagoImputable, PrestacionImputable } from '../../services/imputacionesPagoService'
 import { leerImputacionesSeleccionadas, SelectorImputacionesPago } from './SelectorImputacionesPago'
+import { formatearImporteDocumento, resolverIdiomaDocumento, resolverMonedaDocumento } from '../../../../../shared/utils/formatoDocumento'
 
 interface ModalImputarPagoProps {
   pago: PagoImputable
+  moneda?: string
+  idioma?: string
   prestaciones: PrestacionImputable[]
   imputaciones: ImputacionRegistrada[]
   onImputar: (pagoId: string, imputaciones: Array<{ itemId: string; monto: number }>) => Promise<boolean>
@@ -13,16 +16,19 @@ interface ModalImputarPagoProps {
   onCerrar: () => void
 }
 
-const clp = (monto: number) => `$${monto.toLocaleString('es-CL')}`
-
 export const ModalImputarPago: React.FC<ModalImputarPagoProps> = ({
   pago,
+  moneda: monedaProp,
+  idioma: idiomaProp,
   prestaciones,
   imputaciones,
   onImputar,
   onRevertir,
   onCerrar,
 }) => {
+  const moneda = resolverMonedaDocumento(monedaProp)
+  const idioma = resolverIdiomaDocumento(idiomaProp)
+  const formatear = (monto: number) => formatearImporteDocumento(monto, moneda, idioma)
   const [valores, setValores] = useState<Record<string, number>>({})
   const [reversionActiva, setReversionActiva] = useState<string | null>(null)
   const [motivo, setMotivo] = useState('')
@@ -75,7 +81,7 @@ export const ModalImputarPago: React.FC<ModalImputarPagoProps> = ({
         <header className="flex items-start justify-between gap-3 border-b border-surface pb-3">
           <div>
             <h3 className="text-base font-bold">Imputar abono a prestaciones</h3>
-            <p className="text-xs text-graphite-500">Abono de {clp(pago.monto)} · {pago.metodoPago} · {pago.fecha}</p>
+            <p className="text-xs text-graphite-500">Abono de {formatear(pago.monto)} · {pago.metodoPago} · {pago.fecha}</p>
           </div>
           <button type="button" onClick={onCerrar} className="rounded-lg p-1 text-graphite-400 hover:bg-surface-hover" aria-label="Cerrar imputación">
             <X className="h-5 w-5" />
@@ -83,7 +89,7 @@ export const ModalImputarPago: React.FC<ModalImputarPagoProps> = ({
         </header>
 
         <p className="rounded-xl bg-primary/10 p-3 text-xs">
-          Sin asignar: <strong>{clp(pago.montoSinImputar)}</strong> · Asignado actualmente: {clp(pago.montoImputado)}
+          Sin asignar: <strong>{formatear(pago.montoSinImputar)}</strong> · Asignado actualmente: {formatear(pago.montoImputado)}
         </p>
 
         {pago.montoSinImputar > 0 ? (
@@ -93,12 +99,14 @@ export const ModalImputarPago: React.FC<ModalImputarPagoProps> = ({
               maximoImputable={pago.montoSinImputar}
               valores={valores}
               onChange={setValores}
+              moneda={moneda}
+              idioma={idioma}
             />
             <div className="flex justify-end gap-2">
               <Button type="button" variant="ghost" size="sm" onClick={onCerrar}>Cerrar</Button>
               <Button type="submit" variant="primary" size="sm" icon={CheckCircle2}
                 disabled={procesando || !seleccionadas.length || totalSeleccionado > pago.montoSinImputar}>
-                Asignar {clp(totalSeleccionado)}
+                Asignar {formatear(totalSeleccionado)}
               </Button>
             </div>
           </form>
@@ -113,7 +121,7 @@ export const ModalImputarPago: React.FC<ModalImputarPagoProps> = ({
                   <div>
                     <p className="font-semibold">{imputacion.itemNombre}</p>
                     <p className="text-graphite-500">
-                      Original {clp(imputacion.monto)} · Vigente {clp(imputacion.montoVigente)}
+                      Original {formatear(imputacion.monto)} · Vigente {formatear(imputacion.montoVigente)}
                     </p>
                   </div>
                   {imputacion.montoVigente > 0 && (
@@ -126,7 +134,7 @@ export const ModalImputarPago: React.FC<ModalImputarPagoProps> = ({
                 </div>
                 {imputacion.reversiones.map((reversion) => (
                   <p key={reversion.id} className="border-t border-surface pt-2 text-graphite-500">
-                    Revertido {clp(reversion.monto)} · {reversion.motivo} · {new Date(reversion.createdAt).toLocaleString('es-CL')}
+                    Revertido {formatear(reversion.monto)} · {reversion.motivo} · {new Date(reversion.createdAt).toLocaleString(idioma)}
                   </p>
                 ))}
                 {reversionActiva === imputacion.id && (
@@ -142,7 +150,7 @@ export const ModalImputarPago: React.FC<ModalImputarPagoProps> = ({
                       <Button type="button" variant="ghost" size="sm" onClick={() => setReversionActiva(null)}>Cancelar</Button>
                       <Button type="submit" variant="primary" size="sm"
                         disabled={procesando || motivo.trim().length < 5}>
-                        Revertir {clp(imputacion.montoVigente)}
+                        Revertir {formatear(imputacion.montoVigente)}
                       </Button>
                     </div>
                   </form>

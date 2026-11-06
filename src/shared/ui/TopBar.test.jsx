@@ -1,6 +1,6 @@
 /**
  * Tests — TopBar component (Blueprint 02)
- * Valida breadcrumbs, usuario, rol, logout, ClinicaSelector, selector de sede y ocultamiento en modo quirúrgico.
+ * Valida breadcrumbs, usuario, rol, logout, ClinicaSelector y selector de sede.
  */
 import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
@@ -105,13 +105,6 @@ describe('TopBar (Blueprint 02)', () => {
       expect(logoutBtn).toBeInTheDocument()
       fireEvent.click(logoutBtn)
       expect(defaultProps.onLogout).toHaveBeenCalledTimes(1)
-    })
-  })
-
-  describe('modo quirúrgico', () => {
-    it('se oculta completamente cuando theme="surgical"', () => {
-      const { container } = render(<TopBar {...defaultProps} theme="surgical" />)
-      expect(container.querySelector('header')).not.toBeInTheDocument()
     })
   })
 
@@ -253,7 +246,6 @@ describe('TopBar (Blueprint 02)', () => {
       
       expect(screen.queryByRole('button', { name: /Tema claro/i })).not.toBeInTheDocument()
       expect(screen.queryByRole('button', { name: /Tema oscuro/i })).not.toBeInTheDocument()
-      expect(screen.queryByRole('button', { name: /Modo Quirúrgico/i })).not.toBeInTheDocument()
     })
   })
 })

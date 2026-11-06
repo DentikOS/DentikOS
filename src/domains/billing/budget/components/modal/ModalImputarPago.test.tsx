@@ -24,7 +24,7 @@ describe('ModalImputarPago', () => {
     render(<ModalImputarPago pago={pago} prestaciones={[prestacion]} imputaciones={[]}
       onImputar={onImputar} onRevertir={vi.fn()} onCerrar={vi.fn()} />)
     fireEvent.change(screen.getByTestId(`input-imputacion-${prestacion.id}`), { target: { value: '2000' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Asignar $2.000' }))
+    fireEvent.click(screen.getByRole('button', { name: /Asignar\sCLP\s2\.000/ }))
     await waitFor(() => expect(onImputar).toHaveBeenCalledWith(pago.id, [{ itemId: prestacion.id, monto: 2000 }]))
   })
 
@@ -34,7 +34,7 @@ describe('ModalImputarPago', () => {
       onImputar={vi.fn()} onRevertir={onRevertir} onCerrar={vi.fn()} />)
     fireEvent.click(screen.getByRole('button', { name: 'Corregir' }))
     fireEvent.change(screen.getByLabelText('Motivo de la corrección'), { target: { value: 'Prestación incorrecta' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Revertir $1.000' }))
+    fireEvent.click(screen.getByRole('button', { name: /Revertir\sCLP\s1\.000/ }))
     await waitFor(() => expect(onRevertir).toHaveBeenCalledWith(imputacion.id, 'Prestación incorrecta'))
   })
 })

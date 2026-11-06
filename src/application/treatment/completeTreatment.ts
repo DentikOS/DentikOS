@@ -30,6 +30,7 @@ export interface MaterialEnriquecido {
   cantidad: number | string
   unidad: string
   stockActual: number
+  stockPorUbicacion?: Record<string, number>
 }
 
 export interface ItemTratamiento {
@@ -43,6 +44,7 @@ export interface ItemTratamiento {
 export interface CompletarTratamientoParams {
   pacienteId: string | number
   item: ItemTratamiento
+  tratamientoRef?: string
   profesional?: string
   evolucionesPrevias?: EvolucionClinicaLocal[]
   materialesSeleccionados?: unknown[]
@@ -60,34 +62,18 @@ export const registrarEvolucionTratamientoRealizado = async (
   pacienteId: string | number,
   item: ItemTratamiento,
   profesional: string = 'Cirujano Dentista',
-  evolucionesNotas: EvolucionClinicaLocal[] = []
+  evolucionesNotas: EvolucionClinicaLocal[] = [],
+  tratamientoRef: string = String(item.id || '')
 ): Promise<EvolucionClinicaLocal[]> => {
-  const fechaHora =
-    new Date().toLocaleDateString('es-CL') +
-    ' ' +
-    new Date().toLocaleTimeString('es-CL', {
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-
-  const nuevaNota: EvolucionClinicaLocal = {
-    id: Date.now(),
-    fecha: fechaHora,
-    texto: `TRATAMIENTO REALIZADO: ${item.prestacion || 'Sin prestación'} (Pieza: ${item.pieza || 'General'}) — Ejecutado por: ${profesional}`,
-    tipo: 'evolucion',
-  }
-
-  const notasActualizadas = [nuevaNota, ...evolucionesNotas]
-  try {
-    await evolucionesStorageService.guardarEvoluciones(
-      String(pacienteId),
-      notasActualizadas
-    )
-  } catch (err) {
-    log.warn('Error al guardar evolución clínica:', err)
-  }
-
-  return notasActualizadas
+  if (!tratamientoRef.trim()) throw new Error('La referencia del tratamiento es obligatoria para cerrarlo.')
+  const nuevaNota = await evolucionesStorageService.guardarEvolucionTratamientoRealizadoSincronizada(
+    String(pacienteId),
+    tratamientoRef,
+    `TRATAMIENTO REALIZADO: ${item.prestacion || 'Sin prestación'} (Pieza: ${item.pieza || 'General'}) — Ejecutado por: ${profesional}`
+  )
+  return [nuevaNota, ...evolucionesNotas.filter((nota) =>
+    nota.id !== nuevaNota.id && (nota.tratamientoRef || nota.tratamiento_ref) !== tratamientoRef
+  )]
 }
 
 /**
@@ -178,6 +164,7 @@ export const descontarMateriales = (materialesSeleccionados: unknown[]): boolean
 export const completarTratamiento = async ({
   pacienteId,
   item,
+  tratamientoRef,
   profesional,
   evolucionesPrevias = [],
   materialesSeleccionados = [],
@@ -186,7 +173,8 @@ export const completarTratamiento = async ({
     pacienteId,
     item,
     profesional,
-    evolucionesPrevias
+    evolucionesPrevias,
+    tratamientoRef || String(item.id)
   )
 
   let descuentoExitoso = false

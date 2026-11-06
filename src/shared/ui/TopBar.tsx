@@ -17,8 +17,6 @@ import { useSidebarStore } from '../../app/stores/useSidebarStore'
 import { useTopBarStore, type BreadcrumbItem } from '../../app/stores/useTopBarStore'
 import type { Paciente } from '../../domains/clinical/patient/schemas/pacienteSchema'
 
-export type AppTheme = 'light' | 'dark' | 'surgical'
-
 const ACENTOS_MODULO: Record<string, string> = {
   Dashboard: '#B88E3A',
   Pacientes: '#B88E3A',
@@ -47,7 +45,6 @@ export interface TopBarProps {
   accionesSecundarias?: AccionContextualItem[]
   onLogout?: () => void
   darkMode?: boolean
-  theme?: AppTheme | string
   onCambioClinica?: (nuevaClinicaId: string) => void
   onOpenSearch?: () => void
   onOpenAtajos?: () => void
@@ -65,7 +62,6 @@ export const TopBar: React.FC<TopBarProps> = ({
   accionPrimaria,
   accionesSecundarias = [],
   onLogout,
-  theme,
   onCambioClinica,
   onOpenSearch,
   onOpenAtajos,
@@ -107,14 +103,14 @@ export const TopBar: React.FC<TopBarProps> = ({
   const sedeSincronizada = useSedeSincronizada()
   const contextualMessage = useContextualIntelligence(pacienteSeleccionado)
 
-  const isSurgical = theme === 'surgical'
   const acentoColor = ACENTOS_MODULO[activeSection] || '#B88E3A'
+  const accionPrimariaGlobal = activeSection === 'Dashboard' ? accionPrimaria : null
 
-  if (isSurgical || focusMode || presentationMode) return null
+  if (focusMode || presentationMode) return null
 
   return (
     <>
-      <header className="sticky top-0 z-40 bg-white dark:bg-surface surgical:bg-surface border-b border-surface shadow-2xs transition-all flex flex-col">
+      <header className="sticky top-0 z-40 bg-white dark:bg-surface  border-b border-surface shadow-2xs transition-[background-color,border-color] flex flex-col pt-[env(safe-area-inset-top)]">
         {/* Acento por módulo activo (borde superior de 2px) */}
         <div className="h-[2px] w-full shrink-0 transition-colors" style={{ backgroundColor: acentoColor }} />
 
@@ -139,7 +135,7 @@ export const TopBar: React.FC<TopBarProps> = ({
 
         <div className="flex items-center justify-between px-3 sm:px-4 lg:px-6 h-12 sm:h-[52px] lg:h-[56px] gap-2 sm:gap-3">
           {/* Zona Izquierda 40%: Breadcrumbs, Timer, isDirty y Contextual Intelligence */}
-          <div className="flex items-center gap-2 sm:gap-3 w-[40%] min-w-0">
+          <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3 md:flex-[4]">
             {hamburger}
             <TopBarBreadcrumbs
               items={breadcrumbs}
@@ -156,11 +152,11 @@ export const TopBar: React.FC<TopBarProps> = ({
           </div>
 
           {/* Zona Centro 30%: Búsqueda ⌘K */}
-          <div className="flex items-center justify-center gap-1 sm:gap-2 w-[30%]">
+          <div className="flex min-w-0 flex-none items-center justify-center gap-1 sm:flex-1 sm:gap-2 md:flex-[3]">
             <button
               type="button"
               onClick={onOpenSearch}
-              className="flex items-center justify-between w-full max-w-[200px] sm:max-w-[240px] px-2 sm:px-2.5 py-1 sm:py-1.5 text-xs text-graphite-500 dark:text-graphite-400 bg-graphite-100/80 dark:bg-graphite-800/80 hover:bg-graphite-200 dark:hover:bg-graphite-700/80 rounded-lg border border-surface transition-colors cursor-pointer"
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-surface bg-graphite-100/80 px-0 text-xs text-graphite-500 transition-colors hover:bg-graphite-200 dark:bg-graphite-800/80 dark:text-graphite-400 dark:hover:bg-graphite-700/80 cursor-pointer sm:h-auto sm:w-full sm:max-w-[240px] sm:justify-between sm:px-2.5 sm:py-1.5"
               title="Buscar (⌘K)"
               aria-label="Buscar pacientes y módulos (Command Palette ⌘K)"
             >
@@ -175,11 +171,11 @@ export const TopBar: React.FC<TopBarProps> = ({
           </div>
 
           {/* Zona Derecha 30%: Acciones contextuales, Pill Sede, Bell 36px y Avatar 32px */}
-          <div className="flex items-center justify-end gap-1 sm:gap-2 w-[30%] shrink-0">
-            {/* Acciones contextuales (primaria dorada + menú ⋯) - Ocultas en Agenda por redundancia con botones del módulo */}
+          <div className="flex flex-none items-center justify-end gap-1 sm:gap-2 md:min-w-0 md:flex-[3]">
+            {/* La acción global vive en Dashboard; cada módulo mantiene su acción principal en el encabezado propio. */}
             {activeSection !== 'Agenda' && (
               <TopBarActions
-                primaria={accionPrimaria}
+                primaria={accionPrimariaGlobal}
                 secundarias={accionesSecundarias}
                 className="hidden lg:flex"
               />
@@ -198,7 +194,7 @@ export const TopBar: React.FC<TopBarProps> = ({
               type="button"
               onClick={() => setNotifOpen(true)}
               aria-label="Centro de notificaciones"
-              className="relative w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-lg text-[#64748B] dark:text-[#94A3B8] surgical:text-[#334155] hover:text-[#0F172A] dark:hover:text-[#F8FAFC] surgical:hover:text-[#000000] hover:bg-graphite-100 dark:hover:bg-graphite-800 transition-colors duration-100 cursor-pointer shrink-0"
+              className="relative w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-lg text-[#64748B] dark:text-[#94A3B8]  hover:text-[#0F172A] dark:hover:text-[#F8FAFC]  hover:bg-graphite-100 dark:hover:bg-graphite-800 transition-colors duration-100 cursor-pointer shrink-0"
             >
               <Bell size={20} className="shrink-0" />
               {notificaciones.length > 0 && (

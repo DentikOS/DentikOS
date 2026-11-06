@@ -109,16 +109,16 @@ export const Consentimientos: React.FC<ConsentimientosProps> = ({ paciente }) =>
           </div>
 
           <div className="flex items-center p-1 bg-surface-hover rounded-xl text-xs gap-1">
-            <button type="button" onClick={() => setModoFirma('tipografica')} className={`p-1.5 rounded-lg flex items-center gap-1 ${modoFirma === 'tipografica' ? 'bg-primary text-white' : 'text-graphite-500'}`} title="Firma Tipográfica">
+            <button type="button" onClick={() => setModoFirma('tipografica')} className={`p-1.5 rounded-lg flex items-center gap-1 ${modoFirma === 'tipografica' ? 'bg-primary text-primary-foreground' : 'text-graphite-500'}`} title="Firma Tipográfica">
               <Type className="w-3.5 h-3.5" /> <span className="hidden sm:inline text-[11px]">Tipográfica</span>
             </button>
-            <button type="button" onClick={() => setModoFirma('canvas')} className={`p-1.5 rounded-lg flex items-center gap-1 ${modoFirma === 'canvas' ? 'bg-primary text-white' : 'text-graphite-500'}`} title="Trazado Táctil">
+            <button type="button" onClick={() => setModoFirma('canvas')} className={`p-1.5 rounded-lg flex items-center gap-1 ${modoFirma === 'canvas' ? 'bg-primary text-primary-foreground' : 'text-graphite-500'}`} title="Trazado Táctil">
               <PenTool className="w-3.5 h-3.5" /> <span className="hidden sm:inline text-[11px]">Trazado</span>
             </button>
-            <button type="button" onClick={() => setModoFirma('otp')} className={`p-1.5 rounded-lg flex items-center gap-1 ${modoFirma === 'otp' ? 'bg-primary text-white' : 'text-graphite-500'}`} title="Código SMS/WhatsApp">
+            <button type="button" onClick={() => setModoFirma('otp')} className={`p-1.5 rounded-lg flex items-center gap-1 ${modoFirma === 'otp' ? 'bg-primary text-primary-foreground' : 'text-graphite-500'}`} title="Código SMS/WhatsApp">
               <Smartphone className="w-3.5 h-3.5" /> <span className="hidden sm:inline text-[11px]">OTP</span>
             </button>
-            <button type="button" onClick={() => setModoFirma('presencial')} className={`p-1.5 rounded-lg flex items-center gap-1 ${modoFirma === 'presencial' ? 'bg-primary text-white' : 'text-graphite-500'}`} title="Presencial en Tablet">
+            <button type="button" onClick={() => setModoFirma('presencial')} className={`p-1.5 rounded-lg flex items-center gap-1 ${modoFirma === 'presencial' ? 'bg-primary text-primary-foreground' : 'text-graphite-500'}`} title="Presencial en Tablet">
               <UserCheck className="w-3.5 h-3.5" /> <span className="hidden sm:inline text-[11px]">Presencial</span>
             </button>
           </div>

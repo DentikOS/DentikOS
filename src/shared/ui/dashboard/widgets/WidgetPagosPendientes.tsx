@@ -1,11 +1,15 @@
 import React from 'react'
 import { DollarSign, ArrowUpRight, TrendingUp } from 'lucide-react'
 import { WidgetBase } from './WidgetBase'
+import { formatearImporteDocumento } from '../../../../shared/utils/formatoDocumento'
 
 export interface WidgetPagosPendientesProps {
   porCobrarHoy?: number
   pagosVencidos?: number
   recaudadoHoy?: number
+  porCobrarHoyPorMoneda?: Record<string, number>
+  pagosVencidosPorMoneda?: Record<string, number>
+  recaudadoHoyPorMoneda?: Record<string, number>
   onIrPagos?: () => void
   dragHandle?: React.ReactNode
 }
@@ -14,9 +18,16 @@ export const WidgetPagosPendientes: React.FC<WidgetPagosPendientesProps> = ({
   porCobrarHoy = 180000,
   pagosVencidos = 240000,
   recaudadoHoy = 350000,
+  porCobrarHoyPorMoneda,
+  pagosVencidosPorMoneda,
+  recaudadoHoyPorMoneda,
   onIrPagos,
   dragHandle
 }) => {
+  const formatearMontos = (montos: Record<string, number> | undefined, respaldo: number) => {
+    const entradas = montos && Object.keys(montos).length > 0 ? Object.entries(montos) : [['CLP', respaldo] as [string, number]]
+    return entradas.map(([moneda, monto]) => <span key={moneda} className="block">{formatearImporteDocumento(monto, moneda)}</span>)
+  }
   return (
     <WidgetBase
       titulo="Pagos & Flujo de Caja"
@@ -48,7 +59,7 @@ export const WidgetPagosPendientes: React.FC<WidgetPagosPendientesProps> = ({
             <TrendingUp className="w-3.5 h-3.5" />
           </div>
           <p className="text-xl font-bold text-emerald-900 dark:text-emerald-200">
-            ${recaudadoHoy.toLocaleString('es-CL')} CLP
+            {formatearMontos(recaudadoHoyPorMoneda, recaudadoHoy)}
           </p>
         </div>
 
@@ -56,13 +67,13 @@ export const WidgetPagosPendientes: React.FC<WidgetPagosPendientesProps> = ({
           <div className="p-2.5 rounded-xl bg-surface-muted/50 border border-surface-border">
             <p className="text-[11px] text-slate-500 font-medium">Por cobrar hoy</p>
             <p className="text-sm font-bold text-[#0F172A] dark:text-white mt-0.5">
-              ${porCobrarHoy.toLocaleString('es-CL')}
+              {formatearMontos(porCobrarHoyPorMoneda, porCobrarHoy)}
             </p>
           </div>
           <div className="p-2.5 rounded-xl bg-surface-muted/50 border border-surface-border">
             <p className="text-[11px] text-slate-500 font-medium">Saldos vencidos</p>
             <p className="text-sm font-bold text-rose-600 dark:text-rose-400 mt-0.5">
-              ${pagosVencidos.toLocaleString('es-CL')}
+              {formatearMontos(pagosVencidosPorMoneda, pagosVencidos)}
             </p>
           </div>
         </div>

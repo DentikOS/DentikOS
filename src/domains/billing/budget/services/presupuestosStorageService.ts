@@ -24,6 +24,7 @@ import { supabase, USE_SUPABASE } from '../../../../infrastructure/supabase/supa
 import { migrationStorageService } from '../../../../infrastructure/persistence/migrationStorageService'
 import { esUuidValido } from '../../../../infrastructure/supabase/migrations/uuidUtils'
 import { createLogger } from '../../../../infrastructure/logging/logger'
+import { REALTIME_EVENTS } from '../../../../infrastructure/realtime/realtimeEvents'
 import { TRANSICIONES_MANUALES_PRESUPUESTO } from '../constants/presupuestosConstants'
 import {
   guardarPresupuestoHelper,
@@ -293,6 +294,45 @@ export const actualizarEstadoPresupuesto = async (
   return Boolean(guardado)
 }
 
+export const aprobarPresupuestoConInventario = async (
+  presupuestoId: string | number,
+  ubicacionId: string
+): Promise<PresupuestoLocal> => {
+  if (!USE_SUPABASE || !supabase || !esUuidValido(presupuestoId) || !esUuidValido(ubicacionId)) {
+    throw new Error('La aprobación de productos requiere sincronización y una ubicación válidas.')
+  }
+  const presupuesto = obtenerPresupuestos([]).find((item) => String(item.id) === String(presupuestoId))
+  if (!presupuesto || !presupuesto.items?.some((item) => Boolean(item.inventarioId))) {
+    throw new Error('El presupuesto con productos no está disponible para aprobación.')
+  }
+
+  const { data, error } = await supabase.rpc('aprobar_presupuesto_bp09', {
+    p_presupuesto_id: presupuestoId,
+    p_ubicacion_id: ubicacionId
+  })
+  if (error) throw error
+  const resultado = data as { ok?: boolean; estado?: string; version?: number } | null
+  if (resultado?.ok !== true || typeof resultado.estado !== 'string') {
+    throw new Error('El servidor no confirmó la aprobación del presupuesto.')
+  }
+
+  const actualizado: PresupuestoLocal = {
+    ...presupuesto,
+    estado: resultado.estado,
+    version: Number(resultado.version || presupuesto.version || 1),
+    sincronizado: true,
+    updatedAt: new Date().toISOString()
+  }
+  actualizarPresupuestosLocal(obtenerPresupuestos([]).map((item) =>
+    String(item.id) === String(presupuestoId) ? actualizado : item
+  ))
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(REALTIME_EVENTS.PRESUPUESTOS_CHANGED, { detail: { source: 'bp09' } }))
+    window.dispatchEvent(new CustomEvent(REALTIME_EVENTS.INVENTARIO_CHANGED, { detail: { source: 'bp09' } }))
+  }
+  return actualizado
+}
+
 export const presupuestosStorageService = {
   obtenerPresupuestos,
   guardarPresupuestos,
@@ -307,6 +347,7 @@ export const presupuestosStorageService = {
   aplicarAbonoConfirmado,
   archivarPresupuesto,
   actualizarEstadoPresupuesto,
+  aprobarPresupuestoConInventario,
   obtenerPendingPresupuestos,
   guardarPendingPresupuestos,
   obtenerPendingPresupuestoItems,

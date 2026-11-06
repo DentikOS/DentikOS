@@ -110,7 +110,7 @@ export const PlanPago: React.FC<PlanPagoProps> = ({ totalAPagar, onConfirmarPlan
                 onClick={() => setNumeroCuotas(n)}
                 className={`p-2.5 rounded-xl border font-mono font-bold transition-all ${
                   numeroCuotas === n
-                    ? 'bg-primary text-white shadow-xs'
+                    ? 'bg-primary text-primary-foreground shadow-xs'
                     : 'bg-surface border-surface hover:bg-surface-hover text-graphite-700 dark:text-graphite-300'
                 }`}
               >

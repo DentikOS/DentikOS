@@ -33,6 +33,29 @@ describe('Acceso a abonos BP07', () => {
     expect(onRegistrarPago).toHaveBeenCalledWith(presupuestoBase)
   })
 
+  it('deriva la aprobación de un presupuesto con productos al flujo que solicita ubicación', () => {
+    const presupuestoConProducto = {
+      ...presupuestoBase,
+      estado: 'enviado',
+      items: [{ id: 'item-1', inventarioId: '33333333-4444-4555-8666-777777777777' }]
+    }
+    const onCambiarEstado = vi.fn().mockResolvedValue(true)
+    const onSolicitarAprobacionConInventario = vi.fn()
+    render(<TablaPresupuestosGlobales
+      presupuestos={[presupuestoConProducto]}
+      onCambiarEstado={onCambiarEstado}
+      onVerFichaPaciente={vi.fn()}
+      onVerDocumento={vi.fn()}
+      onArchivar={vi.fn()}
+      onSolicitarAprobacionConInventario={onSolicitarAprobacionConInventario}
+    />)
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'aprobado' } })
+
+    expect(onSolicitarAprobacionConInventario).toHaveBeenCalledWith(presupuestoConProducto)
+    expect(onCambiarEstado).not.toHaveBeenCalled()
+  })
+
   it('impide registrar pagos antes de sincronizar o cuando no queda saldo', () => {
     const { unmount } = render(<TablaPresupuestosGlobales
       presupuestos={[{ ...presupuestoBase, sincronizado: false }]}

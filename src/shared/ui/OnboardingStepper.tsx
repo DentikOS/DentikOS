@@ -5,28 +5,34 @@ export interface OnboardingStepperProps {
   totalPasos?: number
 }
 
-const PASOS = ['1. Tipo', '2. Espacio', '3. Sedes', '4. Equipo']
+const PASOS = [
+  '1. Clínica', '2. Preferencias', '3. Plantilla', '4. Sedes y boxes',
+  '5. Equipo', '6. Catálogo', '7. Convenios', '8. Listo',
+]
 
 export const OnboardingStepper: React.FC<OnboardingStepperProps> = ({
   paso,
-  totalPasos = 4,
+  totalPasos = 8,
 }) => {
   return (
-    <div className="mb-6">
-      <div className="flex justify-between text-xs font-medium text-gray-500 dark:text-slate-400 mb-2">
-        {PASOS.map((nombre, idx) => (
-          <span
-            key={idx}
-            className={paso === idx + 1 ? 'text-[#D4AF37] font-semibold' : ''}
-          >
-            {nombre}
-          </span>
-        ))}
+    <div className="mb-6" aria-label="Progreso de configuración">
+      <div className="mb-2 flex items-center justify-between gap-3 text-xs font-medium text-graphite-500 dark:text-graphite-400" aria-live="polite">
+        <span className="shrink-0">Paso {paso} de {totalPasos}</span>
+        <span className="truncate text-right font-semibold text-champagne-700 dark:text-gold-satin">
+          {PASOS[paso - 1]?.replace(/^\d+\.\s*/, '') || 'Configuración'}
+        </span>
       </div>
-      <div className="w-full bg-gray-200 dark:bg-slate-800 rounded-full h-2">
+      <div
+        className="h-1.5 w-full overflow-hidden rounded-full bg-graphite-200 dark:bg-graphite-800"
+        role="progressbar"
+        aria-label="Progreso de configuración inicial"
+        aria-valuemin={0}
+        aria-valuemax={totalPasos}
+        aria-valuenow={paso}
+      >
         <div
-          className="bg-[#D4AF37] h-2 rounded-full transition-all duration-300"
-          style={{ width: `${(paso / totalPasos) * 100}%` }}
+          className="h-full origin-left rounded-full bg-gradient-to-r from-champagne-300 to-gold-solid transition-transform duration-300 ease-out motion-reduce:transition-none"
+          style={{ transform: `scaleX(${paso / totalPasos})` }}
         />
       </div>
     </div>

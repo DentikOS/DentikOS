@@ -8,19 +8,14 @@ import { obtenerAbonosPorPaciente, eliminarAbono, type AbonoFicha } from "../../
 import { createLogger } from '../../../../infrastructure/logging/logger'
 import { useAppDialog } from '../../../../shared/hooks/useAppDialog'
 import type { Paciente } from '../../../../domains/clinical/patient/schemas/pacienteSchema'
+import { type BalanceFinanzas } from '../utils/finanzasCalculations'
+import { REALTIME_EVENTS } from '../../../../infrastructure/realtime/realtimeEvents'
 
 const log = createLogger('useFinanzas')
 
 export type { MovimientoFinanciero, ConvenioConfig }
 
-export interface BalanceFinanzasResult {
-  totalIngresos: number
-  totalEgresos: number
-  saldoNeto: number
-  totalEfectivo: number
-  totalTarjetas: number
-  totalTransferencias: number
-}
+export interface BalanceFinanzasResult extends BalanceFinanzas {}
 
 export interface UseFinanzasReturn {
   movimientos: MovimientoFinanciero[]
@@ -61,14 +56,16 @@ export const useFinanzas = (pacientes: Paciente[] = []): UseFinanzasReturn => {
     // Pagos globales vigentes: los anulados quedan solo en auditoría de Pagos
     pagos.forEach(p => {
       if (p.estado === 'Anulado' || p.estado === 'Purgado') return
+      const ventaInventario = typeof p.concepto === 'string' && p.concepto.startsWith('Venta de inventario ')
       lista.push({
         id: `pago_global_${p.id}`,
         fecha: p.fecha || hoy(),
         tipo: 'Ingreso',
-        categoria: 'Pago Paciente (Boleta/Factura)',
+        categoria: ventaInventario ? 'Venta de Inventario' : 'Pago Paciente (Boleta/Factura)',
         monto: parseInt(String(p.monto || 0), 10),
+        moneda: p.moneda || 'CLP',
         metodoPago: p.metodoPago || 'Efectivo',
-        pacienteNombre: p.pacienteNombre || 'Paciente General',
+        pacienteNombre: p.pacienteNombre || (ventaInventario ? 'Venta de inventario' : 'Paciente General'),
         origen: 'Pagos'
       })
     })
@@ -91,6 +88,7 @@ export const useFinanzas = (pacientes: Paciente[] = []): UseFinanzasReturn => {
           tipo: 'Ingreso',
           categoria: 'Abono Plan de Tratamiento',
           monto: parseInt(String(a.monto || 0), 10),
+          moneda: 'CLP',
           metodoPago: a.metodoPago || 'Efectivo',
           pacienteNombre: pac.nombre,
           origen: 'Presupuestos'
@@ -104,6 +102,14 @@ export const useFinanzas = (pacientes: Paciente[] = []): UseFinanzasReturn => {
     recargarTransaccionesConsolidadas()
     window.addEventListener('storage', recargarTransaccionesConsolidadas)
     return () => window.removeEventListener('storage', recargarTransaccionesConsolidadas)
+  }, [recargarTransaccionesConsolidadas])
+
+  useEffect(() => {
+    const actualizarPagos = (): void => {
+      void pagosStorageService.sincronizarDesdeSupabase().then(recargarTransaccionesConsolidadas).catch(recargarTransaccionesConsolidadas)
+    }
+    window.addEventListener(REALTIME_EVENTS.PAGOS_CHANGED, actualizarPagos)
+    return () => window.removeEventListener(REALTIME_EVENTS.PAGOS_CHANGED, actualizarPagos)
   }, [recargarTransaccionesConsolidadas])
 
   const movimientosConsolidadosTotal = useMemo(() => {
@@ -128,6 +134,8 @@ export const useFinanzas = (pacientes: Paciente[] = []): UseFinanzasReturn => {
 
   const eliminarMovimiento = useCallback(async (id: string | number): Promise<void> => {
     const strId = String(id)
+    const movimientoLaboratorio = movimientosManuales.find(m => String(m.id) === strId)
+    if (movimientoLaboratorio?.ordenLaboratorioId || movimientoLaboratorio?.categoria === 'Laboratorio Dental') return
     const esPagoGlobal = strId.startsWith('pago_global_')
     const esAbono = strId.startsWith('abono_')
     const ok = await confirm({
@@ -152,7 +160,7 @@ export const useFinanzas = (pacientes: Paciente[] = []): UseFinanzasReturn => {
       })
     }
     recargarTransaccionesConsolidadas()
-  }, [confirm, recargarTransaccionesConsolidadas])
+  }, [confirm, movimientosManuales, recargarTransaccionesConsolidadas])
 
   const actualizarDescuentoConvenio = useCallback((convenioId: string | number, nuevoDescuento: string | number): void => {
     setConvenios(prev => {

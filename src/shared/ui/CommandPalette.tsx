@@ -28,7 +28,6 @@ export interface CommandPaletteProps {
 const overlayStyles: Record<string, string> = {
   light: 'bg-[rgba(248,250,252,0.6)]',
   dark: 'bg-[rgba(7,11,20,0.5)]',
-  surgical: 'bg-[rgba(203,213,225,0.6)]',
 }
 
 export const CommandPalette: React.FC<CommandPaletteProps> = ({
@@ -93,7 +92,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.95, opacity: 0, y: -10 }}
             transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-            className="relative w-[560px] max-w-[90vw] sm:max-w-[92vw] max-h-[70vh] sm:max-h-[420px] bg-white dark:bg-graphite-950 surgical:bg-graphite-200 rounded-2xl shadow-2xl border border-surface flex flex-col overflow-hidden"
+            className="relative w-[560px] max-w-[90vw] sm:max-w-[92vw] max-h-[70vh] sm:max-h-[420px] bg-white dark:bg-graphite-950  rounded-2xl shadow-2xl border border-surface flex flex-col overflow-hidden"
             role="dialog"
             aria-modal="true"
             aria-label="Paleta de comandos"

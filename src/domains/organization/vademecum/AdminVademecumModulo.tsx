@@ -30,6 +30,8 @@ import type { FarmacoVademecum, FarmacoInput } from '../../../infrastructure/cli
 import type { FarmacoUrgencia, Antirresortivo } from './schemas/vademecumSchema'
 import { createLogger } from '../../../infrastructure/logging/logger'
 import { Lock, Pill, RefreshCw } from 'lucide-react'
+import { Button } from '../../../shared/ui/ui/Button'
+import { PageHeader } from '../../../shared/ui/ui/PageHeader'
 
 const log = createLogger('AdminVademecumModulo')
 
@@ -152,42 +154,41 @@ export const AdminVademecumModulo: React.FC = () => {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
-      {/* Header del módulo */}
-      <div className="bg-white dark:bg-graphite-800 border border-gray-200 dark:border-graphite-700 rounded-xl p-6">
-        <div className="flex items-center justify-between mb-2">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-graphite-50 inline-flex items-center gap-2">
-            <Pill size={24} />
-            Vademécum Odontológico
-          </h1>
-          <button
+    <div className="mx-auto max-w-7xl space-y-6">
+      <PageHeader
+        icon={Pill}
+        title="Vademécum odontológico"
+        description="Referencia clínica curada. Los cambios se sincronizan entre los dispositivos de la clínica."
+        actions={
+          <Button
             onClick={() => void admin.refrescar()}
             disabled={admin.cargando}
-            className="px-3 py-1.5 text-sm font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 disabled:opacity-50"
+            variant="secondary"
+            size="sm"
+            icon={RefreshCw}
           >
-            <span className="inline-flex items-center gap-1">
-              <RefreshCw size={14} />
-              Refrescar
-            </span>
-          </button>
-        </div>
-        <p className="text-sm text-gray-600 dark:text-graphite-400">
-          Gestione los datos de referencia clínicos del vademécum odontológico curado (v1.1).
-          Los cambios se sincronizan en tiempo real entre todos los dispositivos.
-        </p>
-      </div>
+            Refrescar
+          </Button>
+        }
+      />
 
       {/* Tabs de navegación */}
       <div className="bg-white dark:bg-graphite-800 border border-gray-200 dark:border-graphite-700 rounded-xl overflow-hidden">
-        <div className="flex border-b border-gray-200 dark:border-graphite-700 bg-gray-50 dark:bg-graphite-800 overflow-x-auto">
+        <div
+          className="scrollable-tab-strip flex border-b border-gray-200 dark:border-graphite-700 bg-gray-50 dark:bg-graphite-800 overflow-x-auto"
+          role="group"
+          aria-label="Secciones del vademécum"
+        >
           {TABS.map((tab) => (
             <button
               key={tab.id}
+              type="button"
               onClick={() => setTabActivo(tab.id)}
-              className={`px-6 py-3 text-sm font-semibold transition-all border-b-2 whitespace-nowrap ${
+              aria-pressed={tabActivo === tab.id}
+              className={`px-6 py-3 text-sm font-semibold transition-colors duration-150 border-b-2 whitespace-nowrap ${
                 tabActivo === tab.id
-                  ? 'border-blue-600 text-blue-700 bg-white dark:bg-graphite-800'
-                  : 'border-transparent text-gray-600 dark:text-graphite-400 hover:bg-gray-100 dark:hover:bg-graphite-700'
+                  ? 'border-primary text-graphite-900 bg-white dark:bg-graphite-800 dark:text-gold-satin'
+                  : 'border-transparent text-graphite-600 dark:text-graphite-400 hover:bg-graphite-100 dark:hover:bg-graphite-700'
               }`}
             >
               <div>{tab.nombre}</div>
@@ -196,7 +197,7 @@ export const AdminVademecumModulo: React.FC = () => {
           ))}
         </div>
 
-        <div className="p-6">
+        <div className="p-3 sm:p-6">
           {admin.cargando && (
             <div className="text-center py-8 text-gray-500 dark:text-graphite-400">
               Cargando datos...

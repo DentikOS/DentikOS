@@ -80,6 +80,34 @@ describe('r2ArchivosService', () => {
       })
     })
 
+    it('incluye la orden y el tipo documental al subir un archivo de laboratorio', async () => {
+      mockGetSession.mockResolvedValueOnce({
+        data: { session: { access_token: 'tok-123' } },
+      })
+      global.fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ archivo_id: 'arch-lab-1', upload_url: 'https://r2/upload' }),
+      })
+
+      await solicitaUrlUpload({
+        pacienteId: 'pac-1',
+        categoria: 'laboratorio',
+        nombreArchivo: 'evidencia.jpg',
+        mimeType: 'image/jpeg',
+        tamanoBytes: 1024,
+        ordenLaboratorioId: 'orden-1',
+        tipoDocumento: 'evidencia_garantia',
+      })
+
+      const [, request] = global.fetch.mock.calls[0]
+      expect(JSON.parse(request.body)).toMatchObject({
+        paciente_id: 'pac-1',
+        categoria: 'laboratorio',
+        orden_laboratorio_id: 'orden-1',
+        tipo_documento: 'evidencia_garantia',
+      })
+    })
+
     it('retorna null si la respuesta no es ok', async () => {
       mockGetSession.mockResolvedValueOnce({
         data: { session: { access_token: 'tok-123' } },

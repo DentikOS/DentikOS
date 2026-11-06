@@ -20,6 +20,7 @@ describe('pagosTransformations (Commit K1)', () => {
         id: '0f6bc8ef-965a-4962-ac20-0ab5edf95e46',
         folioComprobante: 'REC-2026-1730',
         monto: 10000,
+        moneda: 'USD',
         metodoPago: 'Efectivo',
         tipoDTE: 'boleta_honorarios',
         folioDTE: 'BH-100',
@@ -40,6 +41,7 @@ describe('pagosTransformations (Commit K1)', () => {
       expect(result.id).toBe('0f6bc8ef-965a-4962-ac20-0ab5edf95e46')
       expect(result.folio).toBe('REC-2026-1730')
       expect(result.monto).toBe(10000)
+      expect(result.moneda).toBe('USD')
       expect(result.metodo_pago).toBe('Efectivo')
       expect(result.motivo_purga).toBe('Probando APP')
       expect(result.fecha_purga).toBe('2026-09-13') // Convertido a ISO
@@ -120,6 +122,7 @@ describe('pagosTransformations (Commit K1)', () => {
         motivo_anulacion: 'err',
         fecha_anulacion: '13/09',
         clinica_id: 'clin-uuid'
+        , moneda: 'EUR'
       }
       const result = transformarDesdeSupabase(db)
       expect(result.id).toBe('uuid-1')
@@ -129,6 +132,7 @@ describe('pagosTransformations (Commit K1)', () => {
       expect(result.motivoAnulacion).toBe('err')
       expect(result.fechaAnulacion).toBe('13/09')
       expect(result.clinicaId).toBe('clin-uuid')
+      expect(result.moneda).toBe('EUR')
     })
 
     it('pasa columnas desconocidas tal cual', () => {

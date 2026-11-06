@@ -54,13 +54,13 @@ export const VistaLista: React.FC<VistaListaProps> = memo(({
           <div
             key={idStr}
             data-testid={`paciente-card-${p.id}`}
-            className={`min-h-[58px] p-3 border rounded-xl transition-all duration-150 flex items-center justify-between gap-3 group ${
+            className={`min-h-[58px] p-3 border rounded-xl transition-all duration-150 flex flex-col gap-2 group md:flex-row md:items-center md:justify-between md:gap-3 ${
               isSelected
                 ? 'bg-primary/5 border-primary/40'
                 : 'bg-surface/90 border-surface hover:border-primary/30 hover:shadow-xs'
             }`}
           >
-            <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="flex w-full min-w-0 flex-1 items-start gap-3 md:items-center">
               <input
                 type="checkbox"
                 checked={isSelected}
@@ -69,7 +69,7 @@ export const VistaLista: React.FC<VistaListaProps> = memo(({
                 className={`w-4 h-4 rounded border-graphite-300 text-primary focus:ring-primary cursor-pointer shrink-0 transition-opacity ${
                   modoSeleccionActivo || isSelected
                     ? 'opacity-100'
-                    : 'opacity-0 group-hover:opacity-100 focus:opacity-100'
+                    : 'opacity-100 md:opacity-0 md:group-hover:opacity-100 focus:opacity-100'
                 }`}
                 onClick={(e) => e.stopPropagation()}
               />
@@ -78,21 +78,27 @@ export const VistaLista: React.FC<VistaListaProps> = memo(({
                 onClick={() => alSeleccionarPaciente(p)}
                 className="cursor-pointer min-w-0 flex-1 space-y-0.5"
               >
-                {/* Línea 1: Nombre completo · Edad · Última · Próxima */}
-                <div className="flex items-center gap-2 text-xs truncate">
-                  <span className="font-bold text-graphite-900 dark:text-graphite-50 group-hover:text-primary transition-colors truncate flex items-center gap-1.5">
+                {/* Línea principal; en móvil deja los datos de citas en una línea aparte. */}
+                <div className="flex min-w-0 items-center gap-2 text-xs md:truncate">
+                  <span className="flex min-w-0 items-center gap-1.5 truncate font-bold text-graphite-900 dark:text-graphite-50 group-hover:text-primary transition-colors">
                     <User className="w-3.5 h-3.5 text-graphite-400 shrink-0" />
-                    <span>{destacarCoincidencias(nombre, busqueda)}</span>
+                    <span className="truncate">{destacarCoincidencias(nombre, busqueda)}</span>
                   </span>
-                  <span className="text-graphite-400">·</span>
+                  <span className="hidden text-graphite-400 md:inline">·</span>
                   <span className="text-graphite-600 dark:text-graphite-300 shrink-0">{edadTexto}</span>
-                  <span className="text-graphite-400">·</span>
-                  <span className="text-graphite-500 shrink-0">Última: {ultimaVisitaTexto}</span>
-                  <span className="text-graphite-400">·</span>
-                  <span className="text-primary font-medium shrink-0">Próxima: {proximaCitaTexto}</span>
+                  <span className="hidden text-graphite-400 md:inline">·</span>
+                  <span className="hidden shrink-0 text-graphite-500 md:inline">Última: {ultimaVisitaTexto}</span>
+                  <span className="hidden text-graphite-400 md:inline">·</span>
+                  <span className="hidden shrink-0 font-medium text-primary md:inline">Próxima: {proximaCitaTexto}</span>
                 </div>
 
-                {/* Línea 2: pill de estado · Dr. tratante */}
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] md:hidden">
+                  <span className="text-graphite-500">Última: {ultimaVisitaTexto}</span>
+                  <span className="text-graphite-400">·</span>
+                  <span className="font-medium text-primary">Próxima: {proximaCitaTexto}</span>
+                </div>
+
+                {/* Línea de estado · Dr. tratante */}
                 <div className="flex items-center gap-2 text-[11px] text-graphite-500">
                   <Badge
                     size="sm"
@@ -119,13 +125,15 @@ export const VistaLista: React.FC<VistaListaProps> = memo(({
             </div>
 
             {/* Derecha: exactamente los 4 iconos rápidos */}
-            <AccionesFilaPaciente
-              paciente={p}
-              alSeleccionarPaciente={alSeleccionarPaciente}
-              onDesactivar={onDesactivarPaciente}
-              onBloquear={onBloquearPaciente}
-              onAgendarCita={onAgendarCita}
-            />
+            <div className="self-end md:self-auto">
+              <AccionesFilaPaciente
+                paciente={p}
+                alSeleccionarPaciente={alSeleccionarPaciente}
+                onDesactivar={onDesactivarPaciente}
+                onBloquear={onBloquearPaciente}
+                onAgendarCita={onAgendarCita}
+              />
+            </div>
           </div>
         )
       })}

@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react'
 import { Calendar, CreditCard, X, Check } from 'lucide-react'
 import { Button } from '../../../../../shared/ui/ui/Button'
+import { formatearImporteDocumento } from '../../../../../shared/utils/formatoDocumento'
 
 export interface PlanCuotasConfig {
   modalidad: 'unico' | 'cuotas'
@@ -12,6 +13,7 @@ export interface PlanCuotasConfig {
 
 interface ModalConfigurarCuotasProps {
   montoTotal: number
+  moneda?: string
   maximoCuotasSinInteres?: number
   frecuenciaInicial?: 'mensual' | 'quincenal'
   onConfirmar: (plan: PlanCuotasConfig) => void
@@ -20,6 +22,7 @@ interface ModalConfigurarCuotasProps {
 
 export const ModalConfigurarCuotas: React.FC<ModalConfigurarCuotasProps> = ({
   montoTotal,
+  moneda = 'CLP',
   maximoCuotasSinInteres = 6,
   frecuenciaInicial = 'mensual',
   onConfirmar,
@@ -111,7 +114,7 @@ export const ModalConfigurarCuotas: React.FC<ModalConfigurarCuotasProps> = ({
                       key={n}
                       type="button"
                       onClick={() => setCuotas(n)}
-                      className={`p-2 rounded-lg border text-center font-bold font-mono ${cuotas === n ? 'bg-primary text-white border-primary' : 'bg-surface border-surface'}`}
+                      className={`p-2 rounded-lg border text-center font-bold font-mono ${cuotas === n ? 'bg-primary text-primary-foreground border-primary' : 'bg-surface border-surface'}`}
                     >
                       {n}x
                     </button>
@@ -136,13 +139,13 @@ export const ModalConfigurarCuotas: React.FC<ModalConfigurarCuotasProps> = ({
           <div className="p-3 bg-surface-hover/70 rounded-xl border border-surface space-y-2">
             <div className="flex items-center justify-between font-semibold">
               <span className="flex items-center gap-1.5"><Calendar className="w-4 h-4 text-primary" /> Calendario Proyectado</span>
-              <span className="font-mono text-primary font-bold">${valorCuota.toLocaleString('es-CL')} / cuota</span>
+              <span className="font-mono text-primary font-bold">{formatearImporteDocumento(valorCuota, moneda)} / cuota</span>
             </div>
             <div className="max-h-32 overflow-y-auto space-y-1 pr-1">
               {calendario.map((item) => (
                 <div key={item.cuota} className="flex justify-between text-[11px] p-1.5 rounded-lg bg-surface border border-surface">
                   <span className="text-graphite-600 dark:text-graphite-300">Cuota {item.cuota} ({item.fecha})</span>
-                  <span className="font-mono font-bold text-graphite-900 dark:text-graphite-100">${item.monto.toLocaleString('es-CL')}</span>
+                  <span className="font-mono font-bold text-graphite-900 dark:text-graphite-100">{formatearImporteDocumento(item.monto, moneda)}</span>
                 </div>
               ))}
             </div>

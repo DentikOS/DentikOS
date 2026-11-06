@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import type React from 'react'
 import { PAGOS_DEFAULT } from '../constants/pagosConstants'
 import { pagosStorageService, type Pago } from '../services/pagosStorageService'
@@ -7,6 +7,7 @@ import { exportarAuditoriaPagosXLSX } from '../services/pagosExportService'
 import { calcularResumenRecaudacion, type ResumenRecaudacion } from '../utils/pagosCalculations'
 import { useAppDialog } from '../../../../shared/hooks/useAppDialog'
 import { useSesionStore } from '../../../../app/stores/sesionStore'
+import { REALTIME_EVENTS } from '../../../../infrastructure/realtime/realtimeEvents'
 
 export type { Pago, ResumenRecaudacion }
 
@@ -22,7 +23,7 @@ export interface UsePagosReturn {
   setEstadoFiltro: React.Dispatch<React.SetStateAction<string>>
   mostrarPurgados: boolean
   setMostrarPurgados: React.Dispatch<React.SetStateAction<boolean>>
-  agregarOActualizarPago: (pagoData: Pago) => boolean | void
+  agregarOActualizarPago: (pagoData: Pago) => boolean | void | Promise<boolean>
   anularPago: (idPago: string | number, motivoAnulacion?: string) => Promise<void>
   purgarPago: (idPago: string | number, motivo: string) => Promise<boolean>
   exportarAuditoria: () => Promise<void>
@@ -57,10 +58,45 @@ export const usePagos = (): UsePagosReturn => {
     })
   }, [pagos, busqueda, metodoFiltro, estadoFiltro, mostrarPurgados])
 
-  const agregarOActualizarPago = useCallback((pagoData: Pago): boolean | void => {
+  const agregarOActualizarPago = useCallback((pagoData: Pago): boolean | void | Promise<boolean> => {
     if (!pagoData?.folioComprobante || !pagoData?.pacienteNombre) {
       alert({ title: 'Pago inválido', description: 'El pago requiere folio y paciente.', variant: 'error' })
       return false
+    }
+    const metodoPago = String(pagoData.metodoPago || pagoData.metodo_pago || '').trim().toLowerCase()
+    if (metodoPago === 'efectivo' || metodoPago === 'cash') {
+      return (async () => {
+        try {
+          const confirmado = await pagosStorageService.registrarPago(pagoData)
+          if (!confirmado?.sincronizado) {
+            await alert({
+              title: 'Efectivo no confirmado',
+              description: 'El servidor no confirmó el pago. Verifica la conexión y que la caja de esta clínica y moneda esté abierta.',
+              variant: 'error'
+            })
+            return false
+          }
+          setPagos((prev) => {
+            const existe = prev.some((p) => String(p.id) === String(confirmado.id)
+              || String(p.id) === String(pagoData.id))
+            return existe
+              ? prev.map((p) => String(p.id) === String(confirmado.id) || String(p.id) === String(pagoData.id)
+                ? { ...p, ...confirmado } : p)
+              : [confirmado, ...prev]
+          })
+          if (confirmado.pacienteId) {
+            sincronizarAbonoConFichaPaciente(confirmado.pacienteId, confirmado as unknown as NuevoPagoAbono)
+          }
+          return true
+        } catch {
+          await alert({
+            title: 'Efectivo no confirmado',
+            description: 'El servidor no confirmó el pago. Verifica la conexión y que la caja de esta clínica y moneda esté abierta.',
+            variant: 'error'
+          })
+          return false
+        }
+      })()
     }
     setPagos(prev => {
       const existe = prev.some(p => String(p.id) === String(pagoData.id))
@@ -152,6 +188,19 @@ export const usePagos = (): UsePagosReturn => {
   const refrescarPagos = useCallback((): void => {
     const nuevos = pagosStorageService.obtenerPagos([]).map(p => ({ ...p }))
     setPagos(nuevos)
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const actualizarDesdeSupabase = (): void => {
+      void pagosStorageService.sincronizarDesdeSupabase().then(() => {
+        setPagos(pagosStorageService.obtenerPagos([]).map(p => ({ ...p })))
+      }).catch(() => {
+        setPagos(pagosStorageService.obtenerPagos([]).map(p => ({ ...p })))
+      })
+    }
+    window.addEventListener(REALTIME_EVENTS.PAGOS_CHANGED, actualizarDesdeSupabase)
+    return () => window.removeEventListener(REALTIME_EVENTS.PAGOS_CHANGED, actualizarDesdeSupabase)
   }, [])
 
   return {

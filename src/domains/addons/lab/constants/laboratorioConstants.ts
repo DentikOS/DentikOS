@@ -3,12 +3,30 @@
  */
 
 export interface EtapaLaboratorio {
-  id: string
+  id: EtapaLaboratorioId
   nombre: string
   colorBg: string
   colorText: string
   colorBorder: string
 }
+
+export type EtapaLaboratorioId =
+  | 'solicitud'
+  | 'enviada'
+  | 'diseno'
+  | 'fabricacion'
+  | 'prueba'
+  | 'ajustes'
+  | 'entrega'
+
+export type CategoriaLaboratorio =
+  | 'protesis_fija'
+  | 'protesis_removible'
+  | 'implantoprotesis'
+  | 'ortodoncia'
+  | 'ferulas_protectores'
+  | 'provisionales'
+  | 'reparaciones'
 
 export interface TarifaLaboratorio {
   trabajo: string
@@ -18,11 +36,18 @@ export interface TarifaLaboratorio {
 export interface LaboratorioBase {
   id: number | string
   nombre: string
-  contacto: string
+  tipo?: 'externo' | 'interno' | 'digital'
+  rut?: string
+  contacto?: string
   telefono: string
   email: string
   direccion: string
-  tarifas: readonly TarifaLaboratorio[]
+  representante?: string
+  tecnicoResponsable?: string
+  horarioRetiroEntrega?: string
+  especialidades?: string[]
+  estado?: 'activo' | 'inactivo'
+  tarifas?: readonly TarifaLaboratorio[]
 }
 
 export interface OrdenLaboratorio {
@@ -31,26 +56,59 @@ export interface OrdenLaboratorio {
   pacienteId: number | string
   pacienteNombre: string
   pacienteRut: string
-  laboratorioId: number | string
+  laboratorioId: number | string | null
   laboratorioNombre: string
   tipoTrabajo: string
+  tipoTrabajoId?: string
+  categoria?: CategoriaLaboratorio
   piezaDientaria: string
   colorGuia: string
   fechaEnvio: string
   fechaEntregaPrometida: string
-  etapa: string
-  costoLaboratorio: number
-  estadoPagoLab: string
+  etapa: EtapaLaboratorioId
+  version?: number
+  updatedAt?: string
+  plantillaId?: string | null
+  plantillaSnapshot?: Record<string, unknown>
+  costoLaboratorio?: number | null
+  estadoPagoLab?: string
   indicacionesTecnicas: string
+  observaciones?: string
+  responsableId?: string | null
+  solicitudLimitada?: boolean
+  garantiaId?: string | null
+  esReposicion?: boolean
+  historial?: Array<{
+    etapa: EtapaLaboratorioId
+    etapaAnterior: EtapaLaboratorioId | null
+    actorId: string
+    registradoEn: string
+    notas: string | null
+  }>
 }
 
 export const ETAPAS_LABORATORIO: readonly EtapaLaboratorio[] = [
-  { id: 'Enviado', nombre: 'Enviado al Lab', colorBg: 'bg-blue-50', colorText: 'text-blue-800', colorBorder: 'border-blue-300' },
-  { id: 'PruebaMetal', nombre: 'Prueba de Metal / Estructura', colorBg: 'bg-purple-50', colorText: 'text-purple-800', colorBorder: 'border-purple-300' },
-  { id: 'PruebaBizcocho', nombre: 'Prueba de Bizcocho / Color', colorBg: 'bg-amber-50', colorText: 'text-amber-800', colorBorder: 'border-amber-300' },
-  { id: 'RecibidoListo', nombre: 'Recibido / Listo en Clínica', colorBg: 'bg-emerald-50', colorText: 'text-emerald-800', colorBorder: 'border-emerald-300' },
-  { id: 'Instalado', nombre: 'Instalado al Paciente', colorBg: 'bg-gray-100', colorText: 'text-gray-800', colorBorder: 'border-gray-300' },
-  { id: 'Repeticion', nombre: 'Repetición / Ajuste Garantía', colorBg: 'bg-red-50', colorText: 'text-red-800', colorBorder: 'border-red-300' }
+  { id: 'solicitud', nombre: 'Solicitud', colorBg: 'bg-slate-50', colorText: 'text-slate-800', colorBorder: 'border-slate-300' },
+  { id: 'enviada', nombre: 'Enviada', colorBg: 'bg-blue-50', colorText: 'text-blue-800', colorBorder: 'border-blue-300' },
+  { id: 'diseno', nombre: 'Diseño', colorBg: 'bg-violet-50', colorText: 'text-violet-800', colorBorder: 'border-violet-300' },
+  { id: 'fabricacion', nombre: 'Fabricación', colorBg: 'bg-amber-50', colorText: 'text-amber-800', colorBorder: 'border-amber-300' },
+  { id: 'prueba', nombre: 'Prueba', colorBg: 'bg-cyan-50', colorText: 'text-cyan-800', colorBorder: 'border-cyan-300' },
+  { id: 'ajustes', nombre: 'Ajustes', colorBg: 'bg-orange-50', colorText: 'text-orange-800', colorBorder: 'border-orange-300' },
+  { id: 'entrega', nombre: 'Entrega', colorBg: 'bg-emerald-50', colorText: 'text-emerald-800', colorBorder: 'border-emerald-300' }
+]
+
+export const CATEGORIAS_LABORATORIO: readonly {
+  id: CategoriaLaboratorio
+  nombre: string
+  subtipos: readonly string[]
+}[] = [
+  { id: 'protesis_fija', nombre: 'Prótesis fija', subtipos: ['Corona', 'Puente', 'Carilla', 'Incrustación'] },
+  { id: 'protesis_removible', nombre: 'Prótesis removible', subtipos: ['Total', 'Parcial acrílica', 'Parcial metálica'] },
+  { id: 'implantoprotesis', nombre: 'Implantoprótesis', subtipos: ['Corona sobre implante', 'Prótesis híbrida', 'Estructura'] },
+  { id: 'ortodoncia', nombre: 'Ortodoncia', subtipos: ['Aparato removible', 'Retenedor', 'Mantenedor de espacio'] },
+  { id: 'ferulas_protectores', nombre: 'Férulas y protectores', subtipos: ['Férula oclusal', 'Protector deportivo'] },
+  { id: 'provisionales', nombre: 'Provisionales', subtipos: ['Corona provisional', 'Puente provisional'] },
+  { id: 'reparaciones', nombre: 'Reparaciones', subtipos: ['Reparación de prótesis', 'Agregado de diente'] }
 ]
 
 // Sugerencias para autocompletado (el usuario puede escribir cualquier otra cosa)
@@ -67,54 +125,4 @@ export const TIPOS_TRABAJO_SUGERIDOS: readonly string[] = [
   'Estructura / Implante (Silla Multi-Unit)',
   'Prótesis Híbrida sobre Implantes',
   'Reparación de Prótesis / Agregado de Diente'
-]
-
-export const LABORATORIOS_BASE: readonly LaboratorioBase[] = [
-  {
-    id: 1,
-    nombre: 'Laboratorio Oral Art & Cerámica',
-    contacto: 'Sr. Roberto Gómez',
-    telefono: '+56 9 8877 6655',
-    email: 'contacto@oralart.cl',
-    direccion: 'Av. Providencia 1234, Of. 502',
-    tarifas: [
-      { trabajo: 'Corona de Zirconio Monolítico', precio: 45000 },
-      { trabajo: 'Carilla Estética de Disilicato de Litio (E-Max)', precio: 55000 },
-      { trabajo: 'Incrustación Estética (Overlay / Inlay)', precio: 38000 }
-    ]
-  },
-  {
-    id: 2,
-    nombre: 'Laboratorio 3D CadCam Digital',
-    contacto: 'Dra. Andrea Morales',
-    telefono: '+56 9 1122 3344',
-    email: 'lab3d@cadcamdent.cl',
-    direccion: 'Av. Las Condes 8900',
-    tarifas: [
-      { trabajo: 'Corona de Zirconio Monolítico', precio: 50000 },
-      { trabajo: 'Corona de Porcelana sobre Metal (PFM)', precio: 35000 },
-      { trabajo: 'Estructura / Implante (Silla Multi-Unit)', precio: 75000 }
-    ]
-  }
-]
-
-export const ORDENES_DEFAULT: readonly OrdenLaboratorio[] = [
-  {
-    id: 101,
-    codigoOrden: 'LAB-2026-101',
-    pacienteId: 1,
-    pacienteNombre: 'Camila Silva Morales',
-    pacienteRut: '18.452.123-K',
-    laboratorioId: 1,
-    laboratorioNombre: 'Laboratorio Oral Art & Cerámica',
-    tipoTrabajo: 'Corona de Zirconio Monolítico',
-    piezaDientaria: 'Pieza 1.1',
-    colorGuia: 'A2 (Vita Classical)',
-    fechaEnvio: '2026-08-01',
-    fechaEntregaPrometida: '2026-08-08',
-    etapa: 'Enviado',
-    costoLaboratorio: 45000,
-    estadoPagoLab: 'Pendiente',
-    indicacionesTecnicas: 'Margen chamfer subgingival 0.5mm. Caracterización anatómica natural.'
-  }
 ]

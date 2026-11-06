@@ -14,6 +14,8 @@ export interface BiologicoEsterilizacion {
 
 export interface TestDiarioEsterilizacion {
   fecha?: string
+  equipo?: string
+  resultado?: string
 }
 
 export interface ResumenEsterilizacion {
@@ -22,7 +24,7 @@ export interface ResumenEsterilizacion {
   conformes: number
   rechazadas: number
   biologicosPendientes: number
-  testBowieDickHoy: boolean
+  testBowieDickHoy: number
 }
 
 export const generarCodigoLoteEsterilizacion = (): string => {
@@ -30,8 +32,10 @@ export const generarCodigoLoteEsterilizacion = (): string => {
   const yyyy = hoy.getFullYear()
   const mm = String(hoy.getMonth() + 1).padStart(2, '0')
   const dd = String(hoy.getDate()).padStart(2, '0')
-  const random = Math.floor(10 + Math.random() * 90)
-  return `LOTE-${yyyy}${mm}${dd}-${random}`
+  if (typeof crypto === 'undefined' || typeof crypto.randomUUID !== 'function') {
+    throw new Error('El navegador no permite crear un identificador seguro para el lote.')
+  }
+  return `LOTE-${yyyy}${mm}${dd}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`
 }
 
 export const calcularResumenEsterilizacion = (
@@ -47,12 +51,14 @@ export const calcularResumenEsterilizacion = (
 
   cargas.forEach(c => {
     if (c.fecha === hoyStr) cargasHoy++
-    if (c.estado === 'Conforme') conformes++
+    if (c.estado === 'Liberado' || c.estado === 'Conforme') conformes++
     if (c.estado === 'Rechazado' || (c.indicadorQuimico && c.indicadorQuimico.includes('Fallo'))) rechazadas++
   })
 
   const biologicosPendientes = biologicos.filter(b => b.resultado === 'Pendiente').length
-  const testBowieDickHoy = testDiarios.some(t => t.fecha === hoyStr)
+  const testBowieDickHoy = new Set(testDiarios
+    .filter(t => t.fecha === hoyStr && t.resultado === 'Aprobado')
+    .map(t => t.equipo || 'equipo-sin-identificar')).size
 
   return {
     totalCargas: cargas.length,

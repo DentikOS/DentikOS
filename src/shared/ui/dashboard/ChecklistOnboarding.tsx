@@ -55,7 +55,7 @@ export const ChecklistOnboarding: React.FC<ChecklistOnboardingProps> = ({
   const primerPendiente = items.find((i) => !i.completado)
 
   return (
-    <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-[#B88E3A]/30 shadow-xs space-y-4">
+    <div className="p-3 sm:p-5 rounded-2xl bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-[#B88E3A]/30 shadow-xs space-y-3 sm:space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <span className="text-xs font-bold text-[#B88E3A] uppercase tracking-wider">
@@ -75,19 +75,28 @@ export const ChecklistOnboarding: React.FC<ChecklistOnboardingProps> = ({
         </button>
       </div>
 
-      <div className="w-full h-2 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+      <div
+        className="h-1.5 w-full overflow-hidden rounded-full bg-graphite-200 dark:bg-graphite-800"
+        role="progressbar"
+        aria-label="Progreso de configuración inicial"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={porcentaje}
+      >
         <div
-          className="h-full bg-gradient-to-r from-[#E5C378] to-[#B88E3A] transition-all duration-300"
-          style={{ width: `${porcentaje}%` }}
+          className="h-full origin-left rounded-full bg-gradient-to-r from-[#E5C378] to-[#B88E3A] transition-transform duration-300 ease-out motion-reduce:transition-none"
+          style={{ transform: `scaleX(${porcentaje / 100})` }}
         />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
         {items.map((item) => (
-          <div
+          <button
             key={item.id}
+            type="button"
+            aria-pressed={item.completado}
             onClick={() => toggleItem(item.id)}
-            className="flex items-center gap-2.5 p-2 rounded-xl bg-surface/80 hover:bg-surface border border-surface-border cursor-pointer transition-all"
+            className="group flex min-h-12 min-w-0 items-center gap-2 rounded-xl border border-surface-border bg-surface/80 p-2 text-left transition-[background-color,border-color,box-shadow,transform] duration-150 hover:border-champagne-300 hover:bg-surface hover:shadow-xs active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-satin focus-visible:ring-offset-2 motion-reduce:transition-none motion-reduce:active:scale-100"
           >
             {item.completado ? (
               <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
@@ -95,7 +104,7 @@ export const ChecklistOnboarding: React.FC<ChecklistOnboardingProps> = ({
               <Circle className="w-4 h-4 text-slate-400 shrink-0" />
             )}
             <span
-              className={`text-xs truncate ${
+              className={`text-xs leading-tight ${
                 item.completado
                   ? 'line-through text-slate-400'
                   : 'font-semibold text-[#0F172A] dark:text-white'
@@ -103,16 +112,16 @@ export const ChecklistOnboarding: React.FC<ChecklistOnboardingProps> = ({
             >
               {item.label}
             </span>
-          </div>
+          </button>
         ))}
       </div>
 
-      <div className="flex items-center justify-between pt-1">
+      <div className="flex flex-col items-start gap-2 pt-1 sm:flex-row sm:items-center sm:justify-between">
         {primerPendiente && (
           <button
             type="button"
             onClick={() => onNavegarSeccion?.(primerPendiente.seccion)}
-            className="flex items-center gap-1.5 text-xs font-bold text-[#B88E3A] hover:underline cursor-pointer"
+            className="flex min-w-0 items-center gap-1.5 text-left text-xs font-bold text-[#B88E3A] hover:underline cursor-pointer"
           >
             <span>Siguiente tarea: {primerPendiente.label}</span>
             <ArrowRight className="w-3.5 h-3.5" />
@@ -122,7 +131,7 @@ export const ChecklistOnboarding: React.FC<ChecklistOnboardingProps> = ({
           <button
             type="button"
             onClick={onCompletarTour}
-            className="text-xs font-semibold text-slate-500 hover:text-[#B88E3A] transition-colors cursor-pointer ml-auto"
+            className="text-xs font-semibold text-slate-500 hover:text-[#B88E3A] transition-colors cursor-pointer sm:ml-auto"
           >
             Ver mini-tour guiado
           </button>

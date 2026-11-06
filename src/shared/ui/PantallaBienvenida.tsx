@@ -7,7 +7,13 @@ export interface PantallaBienvenidaProps {
   nombreClinica: string
   tipoActividad: 'individual' | 'clinica'
   totalSedes?: number
-  equipoInvitado?: number
+  invitacionesCreadas?: number
+  invitacionesPendientes?: number
+  sucursalesSincronizadas?: boolean
+  errorSincronizacionSedes?: string | null
+  boxesCreados?: number
+  catalogoPlantillaAplicado?: boolean
+  advertenciasConfiguracion?: string[]
   alFinalizar: (conTour: boolean) => void
 }
 
@@ -15,16 +21,25 @@ export const PantallaBienvenida: React.FC<PantallaBienvenidaProps> = ({
   nombreClinica,
   tipoActividad,
   totalSedes = 1,
-  equipoInvitado = 0,
+  invitacionesCreadas = 0,
+  invitacionesPendientes = 0,
+  sucursalesSincronizadas = true,
+  errorSincronizacionSedes = null,
+  boxesCreados = 0,
+  catalogoPlantillaAplicado = false,
+  advertenciasConfiguracion = [],
   alFinalizar,
 }) => {
   const [mostrarTour, setMostrarTour] = useState<boolean>(true)
 
   const items = [
     { id: 'espacio', label: tipoActividad === 'individual' ? 'Consulta configurada' : 'Espacio clínico creado', completado: true },
-    { id: 'sedes', label: `${totalSedes} sede${totalSedes > 1 ? 's' : ''} configurada${totalSedes > 1 ? 's' : ''}`, completado: true },
-    { id: 'equipo', label: equipoInvitado > 0 ? `${equipoInvitado} miembro(s) invitado(s)` : 'Invitar a tu equipo', completado: equipoInvitado > 0 },
-    { id: 'aranceles', label: 'Revisar arancel y prestaciones', completado: false },
+    { id: 'sedes', label: sucursalesSincronizadas
+      ? `${totalSedes} sede${totalSedes > 1 ? 's' : ''} sincronizada${totalSedes > 1 ? 's' : ''}`
+      : `${totalSedes} sede${totalSedes > 1 ? 's' : ''} guardada${totalSedes > 1 ? 's' : ''} localmente`, completado: sucursalesSincronizadas },
+    { id: 'boxes', label: boxesCreados > 0 ? `${boxesCreados} boxes sincronizados` : 'Revisar boxes y equipamiento', completado: boxesCreados > 0 },
+    { id: 'equipo', label: invitacionesCreadas > 0 ? `${invitacionesCreadas} invitación(es) creada(s)` : 'Invitar a tu equipo', completado: invitacionesCreadas > 0 && invitacionesPendientes === 0 },
+    { id: 'aranceles', label: catalogoPlantillaAplicado ? 'Catálogo importado' : 'Revisar arancel y prestaciones', completado: catalogoPlantillaAplicado },
     { id: 'agenda', label: 'Configurar horarios de atención', completado: false },
     { id: 'paciente', label: 'Registrar primer paciente', completado: false },
   ]
@@ -48,7 +63,7 @@ export const PantallaBienvenida: React.FC<PantallaBienvenidaProps> = ({
           </h1>
           <p className="text-sm text-slate-300">
             Tu {tipoActividad === 'individual' ? 'consulta' : 'clínica'}{' '}
-            <span className="font-semibold text-white">{nombreClinica}</span> ya está lista para operar.
+            <span className="font-semibold text-white">{nombreClinica}</span> ya fue creada. El checklist muestra qué quedó sincronizado y qué falta revisar.
           </p>
         </div>
 
@@ -76,6 +91,24 @@ export const PantallaBienvenida: React.FC<PantallaBienvenidaProps> = ({
               </div>
             ))}
           </div>
+          {invitacionesCreadas > 0 && (
+            <p className="text-[11px] text-slate-400">Comparte los enlaces desde Administración &gt; Equipo; el asistente no envía correos automáticamente.</p>
+          )}
+          {invitacionesPendientes > 0 && (
+            <p role="status" className="rounded-lg border border-amber-500/30 bg-amber-950/20 p-2.5 text-[11px] text-amber-200">
+              No se crearon {invitacionesPendientes} invitación(es). Puedes volver a intentarlo desde Administración &gt; Equipo.
+            </p>
+          )}
+          {advertenciasConfiguracion.length > 0 && (
+            <div role="status" className="space-y-1 rounded-lg border border-amber-500/30 bg-amber-950/20 p-2.5 text-[11px] text-amber-200">
+              {advertenciasConfiguracion.map((advertencia, index) => <p key={`${index}-${advertencia}`}>{advertencia}</p>)}
+            </div>
+          )}
+          {!sucursalesSincronizadas && (
+            <p role="status" className="rounded-lg border border-amber-500/30 bg-amber-950/20 p-2.5 text-[11px] text-amber-200">
+              La sucursal quedó guardada en este dispositivo, pero falta sincronizarla. {errorSincronizacionSedes || 'Reintenta en Administración > Sucursales antes de gestionar boxes.'}
+            </p>
+          )}
         </div>
 
         {/* Recursos de ayuda */}

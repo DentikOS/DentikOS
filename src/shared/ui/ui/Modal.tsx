@@ -9,6 +9,7 @@
  */
 import React, { useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { X } from 'lucide-react'
 import { Icon } from '../Icon'
 
@@ -47,6 +48,7 @@ export const Modal: React.FC<ModalProps> = ({
   zIndex = 'z-50',
   'aria-label': ariaLabel,
 }) => {
+  const prefersReducedMotion = useReducedMotion()
   const modalRef = useRef<HTMLDivElement | null>(null)
   const previousActiveElement = useRef<HTMLElement | null>(null)
 
@@ -114,7 +116,6 @@ export const Modal: React.FC<ModalProps> = ({
     }
   }, [isOpen, onClose, closeOnEscape])
 
-  if (!isOpen) return null
   if (typeof document === 'undefined') return null
 
   const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -130,45 +131,58 @@ export const Modal: React.FC<ModalProps> = ({
       : undefined
 
   return createPortal(
-    <div
-      className={`fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm ${zIndex} flex items-center justify-center p-4 animate-in fade-in duration-200`}
-      onClick={handleOverlayClick}
-      role="presentation"
-    >
-      <div
-        ref={modalRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        aria-label={ariaLabel}
-        tabIndex={-1}
-        className={`bg-surface border border-surface rounded-2xl shadow-2xl w-full ${sizeStyle} max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200`}
-      >
-        {/* Header */}
-        {title && (
-          <div className="sticky top-0 bg-surface-muted surgical:bg-graphite-200 border-b border-surface px-6 py-4 flex items-center justify-between z-10">
-            <h2 id={titleId} className="text-xl font-bold text-graphite-900 dark:text-graphite-50">
-              {title}
-            </h2>
-            {showCloseButton && (
-              <button
-                onClick={onClose}
-                className="text-graphite-400 hover:text-graphite-600 dark:text-graphite-400 dark:hover:text-graphite-200 transition-colors p-1 rounded-lg hover:bg-graphite-200 dark:hover:bg-graphite-700"
-                aria-label="Cerrar modal"
-                type="button"
-              >
-                <Icon icon={X} size="md" />
-              </button>
+    <AnimatePresence initial={false}>
+      {isOpen && (
+        <motion.div
+          key="modal-overlay"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: prefersReducedMotion ? 0.1 : 0.18, ease: [0.23, 1, 0.32, 1] }}
+          className={`fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm ${zIndex} flex items-center justify-center p-3 sm:p-4`}
+          onClick={handleOverlayClick}
+          role="presentation"
+        >
+          <motion.div
+            ref={modalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={titleId}
+            aria-label={ariaLabel}
+            tabIndex={-1}
+            initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 8, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 4, scale: 0.985 }}
+            transition={{ duration: prefersReducedMotion ? 0.1 : 0.2, ease: [0.23, 1, 0.32, 1] }}
+            className={`bg-surface border border-surface rounded-2xl shadow-2xl w-full ${sizeStyle} max-h-[90dvh] overflow-y-auto`}
+          >
+            {/* Header */}
+            {title && (
+              <div className="sticky top-0 bg-surface-muted  border-b border-surface px-6 py-4 flex items-center justify-between z-10">
+                <h2 id={titleId} className="text-xl font-bold text-graphite-900 dark:text-graphite-50">
+                  {title}
+                </h2>
+                {showCloseButton && (
+                  <button
+                    onClick={onClose}
+                    className="text-graphite-400 hover:text-graphite-600 dark:text-graphite-400 dark:hover:text-graphite-200 transition-colors p-1 rounded-lg hover:bg-graphite-200 dark:hover:bg-graphite-700"
+                    aria-label="Cerrar modal"
+                    type="button"
+                  >
+                    <Icon icon={X} size="md" />
+                  </button>
+                )}
+              </div>
             )}
-          </div>
-        )}
 
-        {/* Contenido */}
-        <div className="p-6">
-          {children}
-        </div>
-      </div>
-    </div>,
+            {/* Contenido */}
+            <div className="p-6">
+              {children}
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>,
     document.body
   )
 }

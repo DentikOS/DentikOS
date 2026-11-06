@@ -14,6 +14,7 @@ import { restaurarPago, limpiarVencidos } from './services/papeleraPagosService'
 import { ModalPapeleraPagos } from './components/ModalPapeleraPagos'
 import { Trash2, CreditCard, Download } from 'lucide-react'
 import type { Pago } from './services/pagosStorageService'
+import { PageHeader } from '../../../shared/ui/ui/PageHeader'
 
 export const PagosModulo: React.FC = memo(() => {
   const pacientes = usePacientesStore((state) => state.pacientes)
@@ -83,49 +84,44 @@ export const PagosModulo: React.FC = memo(() => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center flex-wrap gap-3 print:hidden">
-        <div>
-          <h2 className="text-xl font-bold text-gray-900 dark:text-graphite-50 uppercase tracking-wider">
-            <span className="inline-flex items-center gap-1">
-              <CreditCard size={16} />Control de Pagos, Recaudación & DTE
-            </span>
-          </h2>
-          <p className="text-xs text-gray-500 dark:text-graphite-400">
-            Gestión de ingresos por caja, boletas de honorarios, bonos I-Med e imputación a tratamientos.
-          </p>
-        </div>
-
-        <div className="flex gap-2 flex-wrap">
-          {puedePurgar && (
+      <PageHeader
+        icon={CreditCard}
+        title="Control de pagos, recaudación y DTE"
+        description="Gestión de ingresos por caja, boletas de honorarios, bonos I-Med e imputación a tratamientos."
+        className="print:hidden"
+        actions={
+          <div className="flex flex-wrap gap-2">
+            {puedePurgar && (
+              <button
+                onClick={handleAbrirPapelera}
+                className="bg-white dark:bg-graphite-800  text-graphite-800 dark:text-graphite-100  text-xs font-bold px-4 py-2.5 rounded-lg hover:bg-slate-50 dark:hover:bg-graphite-900 transition-micro border border-surface cursor-pointer"
+                title="Ver pagos purgados (papelera)"
+              >
+                <span className="inline-flex items-center gap-1">
+                  <Trash2 size={12} />Papelera
+                </span>
+              </button>
+            )}
+            {puedeExportar && (
+              <button
+                onClick={() => exportarAuditoria()}
+                className="bg-white dark:bg-graphite-800  text-graphite-800 dark:text-graphite-100  text-xs font-bold px-4 py-2.5 rounded-lg hover:bg-slate-50 dark:hover:bg-graphite-900 transition-micro border border-surface cursor-pointer"
+                title="Exportar todos los pagos (vigentes + anulados) a XLSX"
+              >
+                <span className="inline-flex items-center gap-1">
+                  <Download size={14} />Exportar auditoría
+                </span>
+              </button>
+            )}
             <button
-              onClick={handleAbrirPapelera}
-              className="bg-white dark:bg-graphite-800 surgical:bg-surface text-graphite-800 dark:text-graphite-100 surgical:text-black text-xs font-bold px-4 py-2.5 rounded-lg hover:bg-slate-50 dark:hover:bg-graphite-900 transition-micro border border-surface cursor-pointer"
-              title="Ver pagos purgados (papelera)"
+              onClick={handleAbrirNuevo}
+              className="bg-primary hover:bg-champagne-400 dark:bg-champagne-300 dark:hover:bg-champagne-200 text-primary-foreground text-xs font-bold px-4 py-2.5 rounded-lg transition-micro shadow-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
             >
-              <span className="inline-flex items-center gap-1">
-                <Trash2 size={12} />Papelera
-              </span>
+              + Registrar Pago / Recibo
             </button>
-          )}
-          {puedeExportar && (
-            <button
-              onClick={() => exportarAuditoria()}
-              className="bg-white dark:bg-graphite-800 surgical:bg-surface text-graphite-800 dark:text-graphite-100 surgical:text-black text-xs font-bold px-4 py-2.5 rounded-lg hover:bg-slate-50 dark:hover:bg-graphite-900 transition-micro border border-surface cursor-pointer"
-              title="Exportar todos los pagos (vigentes + anulados) a XLSX"
-            >
-              <span className="inline-flex items-center gap-1">
-                <Download size={14} />Exportar auditoría
-              </span>
-            </button>
-          )}
-          <button
-            onClick={handleAbrirNuevo}
-            className="bg-primary hover:bg-champagne-600 dark:bg-gold-satin dark:hover:bg-primary text-white dark:text-graphite-950 text-xs font-bold px-4 py-2.5 rounded-lg transition-micro shadow-xs cursor-pointer"
-          >
-            + Registrar Pago / Recibo
-          </button>
-        </div>
-      </div>
+          </div>
+        }
+      />
 
       <div className="print:hidden rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-xs text-graphite-700 dark:text-graphite-200">
         Para abonar un presupuesto aprobado, usa su acción «Registrar pago» en Presupuestos; así se actualizan el saldo y el estado del presupuesto.
@@ -139,7 +135,7 @@ export const PagosModulo: React.FC = memo(() => {
       </div>
 
       <div className="print:hidden">
-        <PagosSummaryCards resumen={resumen} />
+        <PagosSummaryCards resumen={resumen} pagos={pagos} />
       </div>
 
       {comprobanteVer ? (
@@ -150,15 +146,15 @@ export const PagosModulo: React.FC = memo(() => {
         />
       ) : (
         <>
-          <div className="bg-slate-50 dark:bg-surface surgical:bg-surface p-4 border border-surface rounded-2xl flex justify-between items-center flex-wrap gap-3 text-xs print:hidden">
+          <div className="bg-slate-50 dark:bg-surface  p-4 border border-surface rounded-2xl flex justify-between items-center flex-wrap gap-3 text-xs print:hidden">
             <div className="flex items-center gap-2 w-full sm:w-auto">
-              <span className="font-semibold text-graphite-600 dark:text-graphite-400 surgical:text-black">
+              <span className="font-semibold text-graphite-600 dark:text-graphite-400 ">
                 Medio:
               </span>
               <select
                 value={metodoFiltro}
                 onChange={(e) => setMetodoFiltro(e.target.value)}
-                className="p-2 border border-surface rounded-lg bg-white dark:bg-graphite-800 surgical:bg-graphite-200 text-graphite-900 dark:text-graphite-100 surgical:text-black font-semibold flex-1 sm:flex-initial focus:ring-2 focus:ring-primary/40"
+                className="p-2 border border-surface rounded-lg bg-white dark:bg-graphite-800  text-graphite-900 dark:text-graphite-100  font-semibold flex-1 sm:flex-initial focus:ring-2 focus:ring-primary/40"
               >
                 <option value="Todos">Todos los métodos</option>
                 {METODOS_PAGO_GOLD.map((m) => (
@@ -168,13 +164,13 @@ export const PagosModulo: React.FC = memo(() => {
                 ))}
               </select>
 
-              <span className="font-semibold text-graphite-600 dark:text-graphite-400 surgical:text-black ml-2">
+              <span className="font-semibold text-graphite-600 dark:text-graphite-400  ml-2">
                 Estado:
               </span>
               <select
                 value={estadoFiltro}
                 onChange={(e) => setEstadoFiltro(e.target.value)}
-                className="p-2 border border-surface rounded-lg bg-white dark:bg-graphite-800 surgical:bg-graphite-200 text-graphite-900 dark:text-graphite-100 surgical:text-black font-semibold focus:ring-2 focus:ring-primary/40"
+                className="p-2 border border-surface rounded-lg bg-white dark:bg-graphite-800  text-graphite-900 dark:text-graphite-100  font-semibold focus:ring-2 focus:ring-primary/40"
               >
                 <option value="Todos">Todos</option>
                 <option value="Emitido">Vigentes</option>
@@ -182,7 +178,7 @@ export const PagosModulo: React.FC = memo(() => {
               </select>
             </div>
 
-            <label className="flex items-center gap-1.5 font-semibold text-graphite-600 dark:text-graphite-400 surgical:text-black cursor-pointer ml-2">
+            <label className="flex items-center gap-1.5 font-semibold text-graphite-600 dark:text-graphite-400  cursor-pointer ml-2">
               <input
                 type="checkbox"
                 checked={mostrarPurgados}
@@ -197,7 +193,7 @@ export const PagosModulo: React.FC = memo(() => {
               placeholder="Buscar por recibo, DTE, paciente o RUT..."
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
-              className="p-2 border border-surface rounded-lg bg-white dark:bg-graphite-800 surgical:bg-graphite-200 text-graphite-900 dark:text-graphite-100 surgical:text-black w-full sm:w-64 focus:ring-2 focus:ring-primary/40"
+              className="p-2 border border-surface rounded-lg bg-white dark:bg-graphite-800  text-graphite-900 dark:text-graphite-100  w-full sm:w-64 focus:ring-2 focus:ring-primary/40"
             />
           </div>
 

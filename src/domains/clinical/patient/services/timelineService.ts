@@ -5,7 +5,7 @@ import { esUuidValido } from '../../../../infrastructure/supabase/migrations/uui
 
 export interface EventoTimeline {
   id?: string
-  tipo: 'cita' | 'evolucion' | 'receta' | 'consentimiento' | 'cambio_estado' | 'pago' | 'adjunto' | 'presupuesto' | 'llamada' | 'email' | 'admin' | string
+  tipo: 'cita' | 'evolucion' | 'receta' | 'consentimiento' | 'cambio_estado' | 'pago' | 'adjunto' | 'presupuesto' | 'llamada' | 'email' | 'admin' | 'urgencia_ges' | string
   fecha: string
   titulo: string
   detalles?: string
@@ -38,6 +38,18 @@ export const timelineService = {
         profesional: evento.profesional || null,
         metadata: evento.metadata || null,
       })
+      if (error?.code === '23505' && evento.id) {
+        const existente = await supabase.from('timeline_paciente')
+          .select('id,tipo,metadata')
+          .eq('clinica_id', clinicaId)
+          .eq('paciente_id', String(pacienteId))
+          .eq('id', evento.id)
+          .maybeSingle()
+        const metadataExistente = existente.data?.metadata as Record<string, unknown> | null | undefined
+        const idUrgenciaCoincide = evento.tipo !== 'urgencia_ges'
+          || metadataExistente?.urgencia_id === evento.metadata?.urgencia_id
+        if (!existente.error && existente.data?.tipo === evento.tipo && idUrgenciaCoincide) return true
+      }
       if (error) return false
       const anteriores = timelineService.obtenerTimeline(pacienteId)
       tenantCache.escribirTenant(claveTimeline(pacienteId), [{ ...evento, id }, ...anteriores])

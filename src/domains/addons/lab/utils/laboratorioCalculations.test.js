@@ -20,16 +20,18 @@ describe('laboratorioCalculations', () => {
     expect(buscarTarifaSugerida(labs, 2, 'Corona Zirconio')).toBe(0)
   })
 
-  it('calcula resumen de laboratorio con costos y etapas', () => {
+  it('calcula el resumen operativo sin incluir información financiera', () => {
     const ordenes = [
-      { costoLaboratorio: 50000, etapa: 'Enviado', estadoPagoLab: 'Pendiente' },
-      { costoLaboratorio: 30000, etapa: 'RecibidoListo', estadoPagoLab: 'Pagado' }
+      { etapa: 'solicitud' },
+      { etapa: 'ajustes' },
+      { etapa: 'entrega' }
     ]
     const res = calcularResumenLaboratorio(ordenes)
-    expect(res.totalOrdenes).toBe(2)
-    expect(res.costoTotalLab).toBe(80000)
-    expect(res.montoPendientePagoLab).toBe(50000)
-    expect(res.enProcesoCount).toBe(1)
+    expect(res.totalOrdenes).toBe(3)
+    expect(res.enProcesoCount).toBe(2)
     expect(res.listosInstalarCount).toBe(1)
+    expect(res.repeticionesCount).toBe(1)
+    expect(res).not.toHaveProperty('costoTotalLab')
+    expect(res).not.toHaveProperty('montoPendientePagoLab')
   })
 })

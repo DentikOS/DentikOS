@@ -96,7 +96,7 @@ export const SelectorEstadoPaciente: React.FC<Props> = ({ paciente }) => {
               disabled={deshabilitado}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                 activo
-                  ? 'bg-primary text-white'
+                  ? 'bg-primary text-primary-foreground'
                   : 'bg-surface-hover text-graphite-600 dark:text-graphite-400 hover:bg-surface'
               } ${deshabilitado ? 'opacity-50 cursor-not-allowed' : ''}`}
             >

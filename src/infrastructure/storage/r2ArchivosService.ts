@@ -36,6 +36,8 @@ export interface SolicitaUrlUploadParams {
   nombreArchivo: string
   mimeType: string
   tamanoBytes: number
+  ordenLaboratorioId?: string
+  tipoDocumento?: string
 }
 
 export interface R2UploadUrlResponse {
@@ -84,6 +86,7 @@ export interface AbrirArchivoDeR2Params {
 export interface ArchivoClinicoRow {
   id: string
   paciente_id: string
+  orden_laboratorio_id?: string | null
   clinica_id?: string | null
   categoria: string
   nombre_archivo: string
@@ -113,7 +116,9 @@ export const solicitaUrlUpload = async ({
   categoria,
   nombreArchivo,
   mimeType,
-  tamanoBytes
+  tamanoBytes,
+  ordenLaboratorioId,
+  tipoDocumento
 }: SolicitaUrlUploadParams): Promise<R2UploadUrlResponse | null> => {
   try {
     if (!supabase) {
@@ -138,6 +143,8 @@ export const solicitaUrlUpload = async ({
         nombre_archivo: nombreArchivo,
         mime_type: mimeType,
         tamano_bytes: tamanoBytes,
+        ...(ordenLaboratorioId ? { orden_laboratorio_id: ordenLaboratorioId } : {}),
+        ...(tipoDocumento ? { tipo_documento: tipoDocumento } : {}),
       }),
     })
 

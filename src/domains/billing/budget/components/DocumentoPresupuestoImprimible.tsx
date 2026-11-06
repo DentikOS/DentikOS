@@ -7,6 +7,7 @@ import type { PresupuestoLocal } from '../services/presupuestosStorageService'
 import { esUuidValido } from '../../../../infrastructure/supabase/migrations/uuidUtils'
 import { MembreteClinica } from '../../../organization/clinic/components/MembreteClinica'
 import { useClinicaDocumento } from '../../../organization/clinic/hooks/useClinicaDocumento'
+import { formatearImporteDocumento, resolverIdiomaDocumento, resolverMonedaDocumento, traducirEtiquetaDocumento } from '../../../../shared/utils/formatoDocumento'
 
 const log = createLogger('DocumentoPresupuestoImprimible')
 
@@ -59,6 +60,9 @@ export const DocumentoPresupuestoImprimible: React.FC<DocumentoPresupuestoImprim
   const saldoPendiente =
     (parseFloat(String(presupuesto.montoTotal ?? 0)) || 0) -
     (parseFloat(String(presupuesto.montoAbonado ?? 0)) || 0)
+  const idioma = resolverIdiomaDocumento(clinicaDocumento.idiomaDocumentos)
+  const moneda = resolverMonedaDocumento(presupuesto.moneda)
+  const etiqueta = (clave: Parameters<typeof traducirEtiquetaDocumento>[1]) => traducirEtiquetaDocumento(idioma, clave)
 
   return (
     <div className="space-y-4">
@@ -67,7 +71,7 @@ export const DocumentoPresupuestoImprimible: React.FC<DocumentoPresupuestoImprim
           onClick={alCerrar}
           className="text-xs font-bold text-gray-600 dark:text-gray-300 hover:text-black bg-white dark:bg-graphite-800 px-3 py-2 rounded-xl border border-gray-300 dark:border-graphite-700 cursor-pointer"
         >
-          ← Volver al Panel
+          ← {etiqueta('budget')}
         </button>
 
         <div className="flex items-center gap-2 flex-wrap">
@@ -76,7 +80,7 @@ export const DocumentoPresupuestoImprimible: React.FC<DocumentoPresupuestoImprim
               onClick={() => onCambiarEstado?.('enviado')}
               className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl text-xs transition-colors cursor-pointer"
             >
-              Enviar al paciente
+              {etiqueta('sendToPatient')}
             </button>
           )}
           {presupuesto.estado === 'enviado' && onCambiarEstado && (
@@ -85,13 +89,13 @@ export const DocumentoPresupuestoImprimible: React.FC<DocumentoPresupuestoImprim
                 onClick={() => onCambiarEstado?.('aprobado')}
                 className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl text-xs transition-colors cursor-pointer"
               >
-                Aprobar verbal
+                {etiqueta('approveVerbally')}
               </button>
               <button
                 onClick={() => onCambiarEstado?.('rechazado')}
                 className="px-3 py-2 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-xl text-xs transition-colors cursor-pointer"
               >
-                Rechazar
+              {etiqueta('reject')}
               </button>
             </>
           )}
@@ -108,7 +112,7 @@ export const DocumentoPresupuestoImprimible: React.FC<DocumentoPresupuestoImprim
             onClick={() => window.print()}
             className="bg-black text-white text-xs font-bold px-4 py-2 rounded-xl hover:bg-gray-800 transition-colors shadow-xs cursor-pointer flex items-center gap-1"
           >
-            <Printer size={14} /> Imprimir (Letter)
+            <Printer size={14} /> {etiqueta('print')} (Letter)
           </button>
         </div>
       </div>
@@ -121,16 +125,16 @@ export const DocumentoPresupuestoImprimible: React.FC<DocumentoPresupuestoImprim
           <div className="flex justify-between items-start gap-4">
             <div>
               <p className="text-xs font-semibold text-gray-700">
-                {userProfile?.nombreCompleto || 'Profesional tratante'}
+                {userProfile?.nombreCompleto || etiqueta('professional')}
               </p>
               <p className="text-[10px] text-gray-500">
                 {userProfile?.especialidad || 'Cirujano Dentista'} | RUT: {userProfile?.rut || 'N/I'}
               </p>
             </div>
           <div className="text-right">
-            <h2 className="text-lg font-bold text-gray-800 uppercase">Cotización de Presupuesto</h2>
-            <p className="text-xs font-bold text-blue-800">Folio: {presupuesto.folio}</p>
-            <p className="text-xs text-gray-500">Fecha Emisión: {presupuesto.fechaEmision}</p>
+            <h2 className="text-lg font-bold text-gray-800 uppercase">{etiqueta('quotation')}</h2>
+            <p className="text-xs font-bold text-blue-800">{etiqueta('folio')}: {presupuesto.folio}</p>
+            <p className="text-xs text-gray-500">{etiqueta('issueDate')}: {presupuesto.fechaEmision}</p>
           </div>
           </div>
         </div>
@@ -138,23 +142,23 @@ export const DocumentoPresupuestoImprimible: React.FC<DocumentoPresupuestoImprim
         {/* Datos Paciente */}
         <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 text-xs grid grid-cols-2 gap-2 print:bg-white print:border">
           <p>
-            <span className="font-bold">Paciente:</span> {presupuesto.pacienteNombre}
+            <span className="font-bold">{etiqueta('patient')}:</span> {presupuesto.pacienteNombre}
           </p>
           <p>
             <span className="font-bold">RUT:</span> {presupuesto.pacienteRut}
           </p>
           <p>
-            <span className="font-bold">Convenio / Previsión:</span> {presupuesto.convenio}
+            <span className="font-bold">{etiqueta('agreement')}:</span> {presupuesto.convenio}
           </p>
           <p>
-            <span className="font-bold">Vigencia:</span> {Number(presupuesto.vigenciaDias) || 30} días
+            <span className="font-bold">{etiqueta('validity')}:</span> {Number(presupuesto.vigenciaDias) || 30} días
           </p>
         </div>
 
         {/* Odontograma Integrado en Impresión */}
         <div className="p-4 bg-gray-50 rounded-xl border border-gray-200 print:bg-white print:border">
           <h4 className="text-[10px] font-bold text-gray-600 uppercase mb-2 text-center">
-            Estado de Dentición Registrado (Odontograma Clínico)
+            {etiqueta('odontogram')}
           </h4>
           <div className="flex flex-col gap-1 items-center scale-90 sm:scale-100 origin-center">
             <div className="flex gap-0.5 justify-center">
@@ -184,22 +188,25 @@ export const DocumentoPresupuestoImprimible: React.FC<DocumentoPresupuestoImprim
           <table className="w-full text-left text-xs mb-6 border-collapse">
             <thead>
               <tr className="border-b-2 border-gray-300 bg-gray-100 text-gray-800 print:bg-gray-50">
-                <th className="p-3">Pieza</th>
-                <th className="p-3">Tratamiento / Prestación</th>
-                <th className="p-3 text-center">Estado</th>
-                <th className="p-3 text-right">Valor</th>
+                <th className="p-3">{etiqueta('piece')}</th>
+                <th className="p-3">{etiqueta('treatment')}</th>
+                <th className="p-3 text-center">{etiqueta('status')}</th>
+                <th className="p-3 text-right">{etiqueta('value')}</th>
               </tr>
             </thead>
             <tbody>
               {(presupuesto.items || []).map((item, idx) => (
                 <tr key={idx} className="border-b border-gray-200">
-                  <td className="p-3 font-bold text-gray-900">{item.pieza ? String(item.pieza) : 'General'}</td>
-                  <td className="p-3 text-gray-700">{item.prestacion}</td>
+                  <td className="p-3 font-bold text-gray-900">{String(item.piezaDental ?? item.pieza ?? 'General')}</td>
+                  <td className="p-3 text-gray-700">
+                    {String(item.nombrePrestacion || item.prestacionNombre || item.prestacion || item.nombre || 'Prestación')}
+                    {item.inventarioId && <span className="block text-[10px] text-gray-500">Cantidad: {Number(item.cantidadInventario)} {item.inventarioUnidad || 'unidades'} · IVA {Number(item.ivaPorcentajeInventario || 0)}%</span>}
+                  </td>
                   <td className="p-3 text-center font-semibold text-gray-600">
                     {item.estado || 'Cotizado'}
                   </td>
                   <td className="p-3 text-right font-bold text-gray-900">
-                    ${(parseFloat(String(item.valor ?? 0)) || 0).toLocaleString('es-CL')} CLP
+                    {formatearImporteDocumento(item.subtotal ?? item.valor ?? item.precio ?? item.precioUnitario, moneda, idioma)}
                   </td>
                 </tr>
               ))}
@@ -209,28 +216,28 @@ export const DocumentoPresupuestoImprimible: React.FC<DocumentoPresupuestoImprim
           {/* Desglose de Totales */}
           <div className="border-t-2 border-black pt-4 space-y-1 text-right text-xs">
             <p>
-              <span className="text-gray-600">Total Cotizado:</span>{' '}
+              <span className="text-gray-600">{etiqueta('quotedTotal')}:</span>{' '}
               <span className="font-bold">
-                ${(parseFloat(String(presupuesto.montoTotal ?? 0)) || 0).toLocaleString('es-CL')} CLP
+                {formatearImporteDocumento(presupuesto.montoTotal, moneda, idioma)}
               </span>
             </p>
             <p>
-              <span className="text-green-700">Abonos Registrados:</span>{' '}
+              <span className="text-green-700">{etiqueta('paymentsReceived')}:</span>{' '}
               <span className="font-bold text-green-700">
-                -${(parseFloat(String(presupuesto.montoAbonado ?? 0)) || 0).toLocaleString('es-CL')} CLP
+                -{formatearImporteDocumento(presupuesto.montoAbonado, moneda, idioma)}
               </span>
             </p>
             <p className="text-sm pt-2">
-              <span className="font-bold text-gray-900">Saldo Pendiente:</span>{' '}
+              <span className="font-bold text-gray-900">{etiqueta('balanceDue')}:</span>{' '}
               <span className="font-extrabold text-red-600">
-                ${saldoPendiente.toLocaleString('es-CL')} CLP
+                {formatearImporteDocumento(saldoPendiente, moneda, idioma)}
               </span>
             </p>
           </div>
 
           {presupuesto.observacion && (
             <div className="mt-6 p-3 bg-gray-50 border rounded-xl text-xs text-gray-600 print:bg-white print:border">
-              <strong>Notas / Condiciones:</strong> {presupuesto.observacion}
+              <strong>{etiqueta('notesConditions')}:</strong> {presupuesto.observacion}
             </div>
           )}
 

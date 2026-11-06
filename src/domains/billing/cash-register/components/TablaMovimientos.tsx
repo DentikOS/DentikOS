@@ -1,5 +1,5 @@
 import React, { memo } from 'react'
-import { formatearCLP } from '../utils/finanzasCalculations'
+import { formatearImporteDocumento } from '../../../../shared/utils/formatoDocumento'
 import { Trash2 } from 'lucide-react'
 import type { MovimientoFinanciero } from '../services/finanzasStorageService'
 
@@ -52,15 +52,21 @@ export const TablaMovimientos = memo<TablaMovimientosProps>(({ movimientos, onEl
                 </td>
                 <td className="p-3 font-medium text-gray-600 dark:text-graphite-400">{m.metodoPago}</td>
                 <td className={`p-3 text-right font-black ${ingreso ? 'text-emerald-700' : 'text-red-700'}`}>
-                  {ingreso ? '+' : '-'}{formatearCLP(m.monto)}
+                  {ingreso ? '+' : '-'}{formatearImporteDocumento(m.monto, m.moneda || 'CLP')}
                 </td>
                 <td className="p-3 text-center print:hidden">
-                  <button
-                    onClick={() => onEliminar(m.id)}
-                    className="text-red-500 hover:text-red-700 font-bold px-2 py-1 rounded hover:bg-red-50"
-                  >
-                    <Trash2 size={12} />
-                  </button>
+                  {m.ordenLaboratorioId || m.categoria === 'Laboratorio Dental' ? (
+                    <span className="text-[10px] font-semibold text-gray-400 dark:text-graphite-400">
+                      Orden vinculada
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => onEliminar(m.id)}
+                      className="text-red-500 hover:text-red-700 font-bold px-2 py-1 rounded hover:bg-red-50"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  )}
                 </td>
               </tr>
             )

@@ -186,7 +186,11 @@ export const FichaClinica: React.FC<FichaClinicaProps> = ({
       />
 
       {/* 8 Pestañas exactas según BP06 §09 */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-2 border-b border-surface">
+      <div
+        className="scrollable-tab-strip flex items-center gap-1.5 overflow-x-auto pb-2 border-b border-surface"
+        role="group"
+        aria-label="Secciones de la ficha clínica"
+      >
         {TABS_FICHA.map((tab) => {
           const Icon = tab.icon
           const isActiva = pestanaActual === tab.id
@@ -195,9 +199,10 @@ export const FichaClinica: React.FC<FichaClinicaProps> = ({
               key={tab.id}
               type="button"
               onClick={() => setPestanaActivaStore(tab.id)}
+              aria-pressed={isActiva}
               className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
                 isActiva
-                  ? 'bg-primary text-white shadow-xs'
+                  ? 'bg-primary text-primary-foreground shadow-xs'
                   : 'bg-surface border border-surface hover:bg-surface-hover text-graphite-600 dark:text-graphite-300'
               }`}
               data-testid={`tab-${tab.id}`}

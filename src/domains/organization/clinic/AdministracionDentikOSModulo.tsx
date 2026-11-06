@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { Building2, MapPin, Users, Stethoscope, ShieldCheck, Plus, Pencil, ArchiveRestore, Clock3, AlertCircle, Star, LayoutDashboard, Tag } from 'lucide-react'
+import React, { useRef, useState } from 'react'
+import { Building2, MapPin, Users, Stethoscope, ShieldCheck, Plus, Pencil, ArchiveRestore, Clock3, AlertCircle, Star, LayoutDashboard, Tag, DollarSign } from 'lucide-react'
 import { DatosClinicaForm } from './components/DatosClinicaForm'
 import { GestionMiembrosModulo } from '../team/GestionMiembrosModulo'
 import { PrestacionesModulo } from '../prestations/PrestacionesModulo'
@@ -14,6 +14,7 @@ import { GestionBoxesClinicos } from './components/GestionBoxesClinicos'
 import { DashboardAdministracion } from '../../../application/analytics/dashboard/DashboardAdministracion'
 import { obtenerZonasHorariasIana } from './utils/timeZoneUtils'
 import { ConfiguracionConveniosModulo } from './components/ConfiguracionConveniosModulo'
+import { ConfiguracionFinancieraManager } from './components/ConfiguracionFinancieraManager'
 
 const ZONAS_HORARIAS_IANA = obtenerZonasHorariasIana()
 
@@ -21,7 +22,7 @@ export interface AdministracionDentikOSProps {
   userProfile?: PerfilUsuario | null
 }
 
-type TabAdmin = 'resumen' | 'practica' | 'sedes' | 'equipo' | 'prestaciones' | 'convenios' | 'avanzado'
+type TabAdmin = 'resumen' | 'practica' | 'sedes' | 'equipo' | 'prestaciones' | 'convenios' | 'finanzas' | 'avanzado'
 
 const DIAS_SEMANA = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
 const IDS_DIA_SEMANA = [1, 2, 3, 4, 5, 6, 0]
@@ -53,6 +54,8 @@ export const AdministracionDentikOSModulo: React.FC<AdministracionDentikOSProps>
   const sedesActivas = sedes.filter((sede) => sede.estado === 'activa')
   const zonaHorariaClinica = clinicStorageService.obtenerClinica()?.zonaHoraria || 'America/Santiago'
   const [sedeEnEdicion, setSedeEnEdicion] = useState<string | null>(null)
+  const [mostrarFormularioNuevaSede, setMostrarFormularioNuevaSede] = useState(false)
+  const formularioSedeRef = useRef<HTMLFormElement>(null)
   const [formSede, setFormSede] = useState<Omit<Sede, 'id'>>(() => sedeVacia(zonaHorariaClinica))
   const [guardandoSede, setGuardandoSede] = useState(false)
   const [marcandoPrincipal, setMarcandoPrincipal] = useState(false)
@@ -61,6 +64,7 @@ export const AdministracionDentikOSModulo: React.FC<AdministracionDentikOSProps>
 
   const abrirEdicion = (sede: Sede) => {
     setSedeEnEdicion(sede.id || null)
+    setMostrarFormularioNuevaSede(false)
     const datos = {
       ...sede,
       zonaHoraria: sede.zonaHoraria || zonaHorariaClinica,
@@ -73,8 +77,36 @@ export const AdministracionDentikOSModulo: React.FC<AdministracionDentikOSProps>
 
   const cancelarEdicion = () => {
     setSedeEnEdicion(null)
+    setMostrarFormularioNuevaSede(false)
     setFormSede(sedeVacia(zonaHorariaClinica))
     setErrorSede(null)
+  }
+
+  const abrirNuevaSede = () => {
+    setSedeEnEdicion(null)
+    setMostrarFormularioNuevaSede(true)
+    setFormSede(sedeVacia(zonaHorariaClinica))
+    setErrorSede(null)
+  }
+
+  const irAConfigurarSedePrincipal = () => {
+    const formulario = formularioSedeRef.current
+    if (!formulario) return
+    if (sedes.length === 0) {
+      const datosClinica = clinicStorageService.obtenerClinica()
+      setFormSede((actual) => ({
+        ...actual,
+        nombre: actual.nombre || 'Sede Principal',
+        direccion: actual.direccion || datosClinica?.direccion || '',
+        comuna: actual.comuna || datosClinica?.comuna || '',
+        region: actual.region || datosClinica?.region || '',
+        telefono: actual.telefono || datosClinica?.telefono || '',
+        email: actual.email || datosClinica?.emailContacto || '',
+        zonaHoraria: actual.zonaHoraria || datosClinica?.zonaHoraria || zonaHorariaClinica,
+      }))
+    }
+    formulario.scrollIntoView?.({ behavior: 'smooth', block: 'center' })
+    formulario.querySelector<HTMLInputElement>('input')?.focus()
   }
 
   const handleMarcarPrincipal = async (sede: Sede) => {
@@ -197,6 +229,15 @@ export const AdministracionDentikOSModulo: React.FC<AdministracionDentikOSProps>
           </button>
           <button
             type="button"
+            onClick={() => setTabActiva('finanzas')}
+            className={`py-1.5 px-3 rounded-lg font-medium transition flex items-center gap-1.5 ${
+              tabActiva === 'finanzas' ? 'bg-white dark:bg-slate-800 text-[#D4AF37] font-semibold shadow-xs' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <DollarSign size={13} /> <span>Finanzas</span>
+          </button>
+          <button
+            type="button"
             onClick={() => setTabActiva('avanzado')}
             className={`py-1.5 px-3 rounded-lg font-medium transition flex items-center gap-1.5 ${
               tabActiva === 'avanzado' ? 'bg-white dark:bg-slate-800 text-[#D4AF37] font-semibold shadow-xs' : 'text-slate-400 hover:text-white'
@@ -220,7 +261,7 @@ export const AdministracionDentikOSModulo: React.FC<AdministracionDentikOSProps>
         <div className="bg-surface border border-surface rounded-2xl p-6 shadow-xs space-y-6">
           <div className="border-b border-surface pb-3">
             <h2 className="text-base font-bold text-graphite-900 dark:text-white">Gestión de Sedes DentikOS</h2>
-            <p className="text-xs text-graphite-500 dark:text-slate-400">Datos, horarios y estado de cada sucursal. Los boxes se configuran en el siguiente módulo.</p>
+            <p className="text-xs text-graphite-500 dark:text-slate-400">Datos, horarios y estado de cada sucursal. Configura sus boxes en esta misma sección.</p>
           </div>
 
           {errorSincronizacion && (
@@ -233,7 +274,9 @@ export const AdministracionDentikOSModulo: React.FC<AdministracionDentikOSProps>
           {confirmacionPrincipal && <p role="status" className="text-xs text-emerald-700 dark:text-emerald-300">{confirmacionPrincipal}</p>}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {sedes.map((s) => (
+            {sedes.map((s) => {
+              const unicaSedeActiva = sedes.length === 1 && s.estado === 'activa'
+              return (
               <article key={s.id || s.nombre} className="p-4 rounded-xl border border-surface bg-gray-50/50 dark:bg-slate-900/50 text-xs">
                 <div className="flex justify-between items-start gap-3">
                   <div>
@@ -256,7 +299,7 @@ export const AdministracionDentikOSModulo: React.FC<AdministracionDentikOSProps>
                 </div>
                 {puedeAdministrarSedes && s.id && (
                   <div className="mt-3 flex flex-wrap gap-2 border-t border-surface pt-3">
-                    {!s.esPrincipal && s.estado === 'activa' && (
+                    {!unicaSedeActiva && !s.esPrincipal && s.estado === 'activa' && (
                       <Button type="button" size="sm" variant="outline" className="text-[11px]" disabled={marcandoPrincipal || guardandoSede} onClick={() => { void handleMarcarPrincipal(s) }}>
                         <Star size={13} className="mr-1" /> {marcandoPrincipal ? 'Actualizando…' : 'Establecer como principal'}
                       </Button>
@@ -264,7 +307,7 @@ export const AdministracionDentikOSModulo: React.FC<AdministracionDentikOSProps>
                     <Button type="button" size="sm" variant="outline" className="text-[11px]" onClick={() => abrirEdicion(s)}>
                       <Pencil size={13} className="mr-1" /> Editar
                     </Button>
-                    <Button
+                    {!unicaSedeActiva && <Button
                       type="button"
                       size="sm"
                       variant="outline"
@@ -284,13 +327,14 @@ export const AdministracionDentikOSModulo: React.FC<AdministracionDentikOSProps>
                       }}
                     >
                       <ArchiveRestore size={13} className="mr-1" /> {s.estado === 'activa' ? 'Desactivar' : 'Activar'}
-                    </Button>
+                    </Button>}
                   </div>
                 )}
               </article>
-            ))}
+              )
+            })}
             {sedes.length === 0 && !cargando && (
-              <p className="col-span-full rounded-lg bg-gray-50 p-4 text-xs text-graphite-500 dark:bg-slate-900 dark:text-slate-400">Todavía no hay sucursales registradas.</p>
+              <p className="col-span-full rounded-lg bg-gray-50 p-4 text-xs text-graphite-500 dark:bg-slate-900 dark:text-slate-400">La sede principal de esta clínica aún no está configurada.</p>
             )}
           </div>
 
@@ -308,19 +352,27 @@ export const AdministracionDentikOSModulo: React.FC<AdministracionDentikOSProps>
             </label>
           ) : sedesActivas.length === 1 ? (
             <p className="rounded-lg bg-gray-50 p-3 text-xs text-graphite-600 dark:bg-slate-900 dark:text-slate-300">
-              Sucursal activa para boxes: <strong>{sedesActivas[0].nombre}</strong>. Se selecciona automáticamente.
+              {sedes.length === 1 ? 'Sede principal' : 'Sede activa para boxes'}: <strong>{sedesActivas[0].nombre}</strong>. Se selecciona automáticamente.
             </p>
           ) : null}
-          <GestionBoxesClinicos sede={sedeActiva} puedeAdministrar={puedeAdministrarSedes} />
+          <GestionBoxesClinicos
+            sede={sedeActiva}
+            puedeAdministrar={puedeAdministrarSedes}
+            sucursalesRegistradas={sedes.length}
+            onIrAConfigurarSedePrincipal={irAConfigurarSedePrincipal}
+          />
 
-          {puedeAdministrarSedes ? (
-            <form onSubmit={handleGuardarSede} className="border border-dashed border-gray-300 dark:border-slate-700 rounded-xl p-4 space-y-4">
+          {puedeAdministrarSedes && (sedes.length === 0 || sedeEnEdicion || mostrarFormularioNuevaSede) ? (
+            <form ref={formularioSedeRef} onSubmit={handleGuardarSede} className="border border-dashed border-gray-300 dark:border-slate-700 rounded-xl p-4 space-y-4">
               <div className="flex items-center justify-between gap-2">
-                <h3 className="text-xs font-semibold text-graphite-800 dark:text-slate-200">{sedeEnEdicion ? 'Editar sucursal' : 'Agregar nueva sucursal'}</h3>
-                {sedeEnEdicion && <button type="button" onClick={cancelarEdicion} className="text-[11px] text-graphite-500 hover:text-graphite-900 dark:hover:text-white">Cancelar edición</button>}
+                <h3 className="text-xs font-semibold text-graphite-800 dark:text-slate-200">
+                  {sedeEnEdicion ? 'Editar sucursal' : sedes.length === 0 ? 'Completar sede principal de la clínica' : 'Agregar nueva sucursal'}
+                </h3>
+                {(sedeEnEdicion || mostrarFormularioNuevaSede) && <button type="button" onClick={cancelarEdicion} className="text-[11px] text-graphite-500 hover:text-graphite-900 dark:hover:text-white">Cancelar</button>}
               </div>
+              {sedes.length === 0 && <p className="text-[11px] text-graphite-500 dark:text-slate-400">Esta es la ubicación de la clínica actual. Al guardarla, será su sede principal y quedará seleccionada automáticamente para administrar boxes.</p>}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                <input type="text" required minLength={2} maxLength={100} placeholder="Nombre de sucursal" value={formSede.nombre} onChange={(e) => setFormSede((prev) => ({ ...prev, nombre: e.target.value }))} className="p-2 rounded-lg border border-surface bg-white dark:bg-slate-900" />
+                <input type="text" required minLength={2} maxLength={100} placeholder={sedes.length === 0 ? 'Nombre de la sede principal' : 'Nombre de sucursal'} value={formSede.nombre} onChange={(e) => setFormSede((prev) => ({ ...prev, nombre: e.target.value }))} className="p-2 rounded-lg border border-surface bg-white dark:bg-slate-900" />
                 <input type="text" required minLength={5} maxLength={240} placeholder="Dirección completa" value={formSede.direccion} onChange={(e) => setFormSede((prev) => ({ ...prev, direccion: e.target.value }))} className="p-2 rounded-lg border border-surface bg-white dark:bg-slate-900" />
                 <input type="text" required minLength={2} maxLength={120} placeholder="Comuna" value={formSede.comuna} onChange={(e) => setFormSede((prev) => ({ ...prev, comuna: e.target.value }))} className="p-2 rounded-lg border border-surface bg-white dark:bg-slate-900" />
                 <input type="text" required minLength={2} maxLength={120} placeholder="Región" value={formSede.region} onChange={(e) => setFormSede((prev) => ({ ...prev, region: e.target.value }))} className="p-2 rounded-lg border border-surface bg-white dark:bg-slate-900" />
@@ -363,9 +415,13 @@ export const AdministracionDentikOSModulo: React.FC<AdministracionDentikOSProps>
               {errorSede && <p role="alert" className="text-xs text-red-600 dark:text-red-300">{errorSede}</p>}
               <Button type="submit" size="sm" variant="primary" disabled={guardandoSede} className="text-xs">
                 {sedeEnEdicion ? <Pencil size={14} className="mr-1" /> : <Plus size={14} className="mr-1" />}
-                {guardandoSede ? 'Guardando…' : sedeEnEdicion ? 'Guardar cambios' : 'Registrar sucursal'}
+                {guardandoSede ? 'Guardando…' : sedeEnEdicion ? 'Guardar cambios' : sedes.length === 0 ? 'Guardar sede principal' : 'Registrar sucursal'}
               </Button>
             </form>
+          ) : puedeAdministrarSedes ? (
+            <Button type="button" size="sm" variant="outline" onClick={abrirNuevaSede} className="text-xs">
+              <Plus size={14} className="mr-1" />Agregar otra sucursal
+            </Button>
           ) : (
             <p className="text-xs text-graphite-500 dark:text-slate-400">Solo administración clínica puede registrar o modificar sucursales.</p>
           )}
@@ -383,6 +439,8 @@ export const AdministracionDentikOSModulo: React.FC<AdministracionDentikOSProps>
       {tabActiva === 'convenios' && (
         <ConfiguracionConveniosModulo sedes={sedes} />
       )}
+
+      {tabActiva === 'finanzas' && <ConfiguracionFinancieraManager />}
 
       {tabActiva === 'avanzado' && (
         <div className="space-y-4">

@@ -32,9 +32,16 @@ const etiquetaEstado = (estado: BoxClinico['estado']): string => ({
 interface GestionBoxesClinicosProps {
   sede: Sede | null
   puedeAdministrar: boolean
+  sucursalesRegistradas?: number
+  onIrAConfigurarSedePrincipal?: () => void
 }
 
-export const GestionBoxesClinicos: React.FC<GestionBoxesClinicosProps> = ({ sede, puedeAdministrar }) => {
+export const GestionBoxesClinicos: React.FC<GestionBoxesClinicosProps> = ({
+  sede,
+  puedeAdministrar,
+  sucursalesRegistradas = sede ? 1 : 0,
+  onIrAConfigurarSedePrincipal,
+}) => {
   const clinicaId = useSesionStore((state) => state.clinicaActual || state.userProfile?.clinicaId || '')
   const { boxes, cargando, error, crear, actualizar } = useBoxesClinicos(sede?.id || null)
   const [edicionId, setEdicionId] = useState<string | null>(null)
@@ -122,7 +129,25 @@ export const GestionBoxesClinicos: React.FC<GestionBoxesClinicosProps> = ({ sede
   }
 
   if (!sede) {
-    return <p className="rounded-lg bg-gray-50 p-4 text-xs text-graphite-500 dark:bg-slate-900 dark:text-slate-400">No hay una sucursal activa disponible. Activa una sucursal para gestionar sus boxes.</p>
+    const noHaySucursales = sucursalesRegistradas === 0
+    const mensaje = noHaySucursales
+      ? puedeAdministrar
+        ? 'La sede principal de esta clínica aún no está configurada. Completa sus datos y quedará seleccionada automáticamente para gestionar boxes.'
+        : 'La sede principal de esta clínica aún no está configurada. Solicita a administración completar sus datos para gestionar boxes.'
+      : puedeAdministrar
+        ? 'No hay una sucursal activa. Activa una de las sucursales registradas o registra una nueva para gestionar boxes.'
+        : 'No hay una sucursal activa disponible. Solicita a administración que active una sucursal para gestionar boxes.'
+
+    return (
+      <div role="status" className="rounded-lg bg-gray-50 p-4 text-xs text-graphite-500 dark:bg-slate-900 dark:text-slate-400">
+        <p>{mensaje}</p>
+        {noHaySucursales && puedeAdministrar && onIrAConfigurarSedePrincipal && (
+          <Button type="button" size="sm" variant="outline" className="mt-3 text-[11px]" onClick={onIrAConfigurarSedePrincipal}>
+            {noHaySucursales ? 'Completar sede principal' : 'Gestionar sucursales'}
+          </Button>
+        )}
+      </div>
+    )
   }
 
   return (

@@ -81,7 +81,7 @@ describe('ModalNuevoPresupuesto precios BP08', () => {
     })))
   })
 
-  it('usa el precio FONASA del catálogo cuando no hay convenio ni regla fija configurada', async () => {
+  it('usa el precio base del catálogo para FONASA e ignora la tarifa heredada', async () => {
     const alGuardar = vi.fn().mockResolvedValue(true)
     render(<ModalNuevoPresupuesto
       pacientes={[{ id: 'paciente-2', nombre: 'Luis Test', rut: '12.345.678-5', prevision: 'FONASA' }]}
@@ -96,7 +96,37 @@ describe('ModalNuevoPresupuesto precios BP08', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Guardar borrador' }))
 
     await waitFor(() => expect(alGuardar).toHaveBeenCalledWith(expect.objectContaining({
-      items: [expect.objectContaining({ convenio: 'FONASA', convenioId: 'fonasa', precioBase: 80000, valor: 80000 })],
+      items: [expect.objectContaining({ convenio: 'FONASA', convenioId: 'fonasa', precioBase: 100000, valor: 100000 })],
+    })))
+  })
+
+  it('incluye productos de inventario con cantidad, precio e IVA en el borrador', async () => {
+    const alGuardar = vi.fn().mockResolvedValue(true)
+    render(<ModalNuevoPresupuesto
+      pacientes={[{ id: 'paciente-1', nombre: 'Ana Test', rut: '12.345.678-5' }]}
+      productosInventario={[{
+        id: '33333333-4444-4555-8666-777777777777',
+        nombre: 'Cepillo dental', unidad: 'Unidades', precioVenta: 1000, ivaPorcentaje: 19
+      }]}
+      alGuardar={alGuardar}
+      alCerrar={vi.fn()}
+    />)
+
+    fireEvent.change(screen.getByDisplayValue('-- Seleccionar Paciente --'), { target: { value: 'paciente-1' } })
+    fireEvent.change(screen.getByDisplayValue('-- Seleccionar producto --'), { target: { value: '33333333-4444-4555-8666-777777777777' } })
+    fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '2' } })
+    fireEvent.click(screen.getByRole('button', { name: '+ Añadir producto' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar borrador' }))
+
+    await waitFor(() => expect(alGuardar).toHaveBeenCalledWith(expect.objectContaining({
+      montoTotal: 2380,
+      items: [expect.objectContaining({
+        inventarioId: '33333333-4444-4555-8666-777777777777',
+        cantidadInventario: 2,
+        precioUnitarioInventario: 1000,
+        ivaPorcentajeInventario: 19,
+        valor: 2380,
+      })],
     })))
   })
 })

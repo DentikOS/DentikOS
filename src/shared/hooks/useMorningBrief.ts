@@ -2,14 +2,19 @@ import { useState, useEffect, useCallback } from 'react'
 import type { MorningBriefLine, MorningBriefData } from '../types/dashboardTypes'
 import { agendaStorageService } from '../../domains/operations/agenda/services/agendaStorageService'
 import { inventarioStorageService } from '../../domains/operations/inventory/services/inventarioStorageService'
-import { esterilizacionStorageService } from '../../domains/operations/sterilization/services/esterilizacionStorageService'
+import { esterilizacionCloudService } from '../../domains/operations/sterilization/services/esterilizacionCloudService'
+import { getClinicaActivaSync } from '../../infrastructure/auth/authService'
 import { usePacientesStore } from '../../app/stores/pacientesStore'
 import { obtenerMetricasPagosDashboard } from '../../application/analytics/dashboardQueries'
+import { formatearImporteDocumento } from '../utils/formatoDocumento'
+
+const formatearMontosPorMoneda = (montos: Record<string, number> = {}): string =>
+  Object.entries(montos).map(([moneda, monto]) => formatearImporteDocumento(monto, moneda)).join(' · ')
 
 export const useMorningBrief = (userRole = 'admin'): MorningBriefData => {
   const [data, setData] = useState<MorningBriefData>({ lineas: [], fechaActualizacion: '' })
 
-  const calcularBrief = useCallback(() => {
+  const calcularBrief = useCallback(async () => {
     const today = new Date().toISOString().split('T')[0]
     const citas = (agendaStorageService.obtenerCitas() || []).filter((c) => c.fecha === today)
     const canceladas = citas.filter((c) => c.estado === 'Cancelado').length
@@ -38,12 +43,12 @@ export const useMorningBrief = (userRole = 'admin'): MorningBriefData => {
     const pacientes = usePacientesStore.getState().pacientes || []
     const metricasPagos = obtenerMetricasPagosDashboard(pacientes)
     let textoFinanzas = 'Sin movimientos ni pagos pendientes registrados para hoy'
-    if (metricasPagos.recaudadoHoy > 0) {
-      textoFinanzas = `$${metricasPagos.recaudadoHoy.toLocaleString('es-CL')} recaudado en caja hoy`
-    } else if (metricasPagos.porCobrarHoy > 0) {
-      textoFinanzas = `$${metricasPagos.porCobrarHoy.toLocaleString('es-CL')} por cobrar hoy`
-    } else if (metricasPagos.pagosVencidos > 0) {
-      textoFinanzas = `$${metricasPagos.pagosVencidos.toLocaleString('es-CL')} en pagos vencidos`
+    if (Object.keys(metricasPagos.recaudadoHoyPorMoneda).length > 0) {
+      textoFinanzas = `${formatearMontosPorMoneda(metricasPagos.recaudadoHoyPorMoneda)} recaudado en caja hoy`
+    } else if (Object.keys(metricasPagos.porCobrarHoyPorMoneda).length > 0) {
+      textoFinanzas = `${formatearMontosPorMoneda(metricasPagos.porCobrarHoyPorMoneda)} por cobrar hoy`
+    } else if (Object.keys(metricasPagos.pagosVencidosPorMoneda).length > 0) {
+      textoFinanzas = `${formatearMontosPorMoneda(metricasPagos.pagosVencidosPorMoneda)} en pagos vencidos`
     }
 
     const lineaFinanzas: MorningBriefLine = {
@@ -54,13 +59,19 @@ export const useMorningBrief = (userRole = 'admin'): MorningBriefData => {
       severidad: 'info'
     }
 
-    const infoEsterilizacion = esterilizacionStorageService.obtenerInfoEsterilizacionDashboard()
-    let textoEsterilizacion = 'Autoclave #1: todos los ciclos validados y listos'
-    if (infoEsterilizacion) {
-      if (infoEsterilizacion.estado === 'en_curso') {
-        textoEsterilizacion = `${infoEsterilizacion.equipo}: ciclo #${infoEsterilizacion.ciclo} en curso (${infoEsterilizacion.tiempoRestante})`
-      } else {
-        textoEsterilizacion = `${infoEsterilizacion.equipo}: ciclo #${infoEsterilizacion.ciclo} validado y listo`
+    let textoEsterilizacion = 'Estado de esterilización no sincronizado con DentikOS'
+    let severidadEsterilizacion: MorningBriefLine['severidad'] = 'advertencia'
+    const clinicaId = getClinicaActivaSync()
+    if (clinicaId && (userRole === 'admin' || userRole === 'asistente')) {
+      try {
+        const esterilizacion = await esterilizacionCloudService.cargar(clinicaId, false)
+        const cicloActivo = esterilizacion.ciclos.find((ciclo) => ['preparacion', 'en_curso'].includes(ciclo.estado))
+        textoEsterilizacion = cicloActivo
+          ? `${cicloActivo.lote}: ${cicloActivo.estado === 'preparacion' ? 'en preparación' : 'autoclave en curso'}`
+          : 'Sin ciclos en preparación ni autoclave en curso'
+        severidadEsterilizacion = 'info'
+      } catch {
+        // No se presenta un resultado local como si estuviera validado en DentikOS.
       }
     }
     const lineaEsterilizacion: MorningBriefLine = {
@@ -68,7 +79,7 @@ export const useMorningBrief = (userRole = 'admin'): MorningBriefData => {
       icono: 'lab',
       texto: textoEsterilizacion,
       seccion: 'Esterilización',
-      severidad: 'info'
+      severidad: severidadEsterilizacion
     }
 
     const itemsCriticos = inventarioStorageService.obtenerItemsInventarioCriticoDashboard()

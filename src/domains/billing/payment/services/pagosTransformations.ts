@@ -15,6 +15,7 @@ import { esUuidValido } from '../../../../infrastructure/supabase/migrations/uui
 export const SNAKE_TO_CAMEL_MAP: Readonly<Record<string, string>> = {
   paciente_id: 'pacienteId',
   metodo_pago: 'metodoPago',
+  moneda: 'moneda',
   user_id: 'userId',
   created_at: 'createdAt',
   updated_at: 'updatedAt',
@@ -47,6 +48,7 @@ const convertirFechaAISO = (valor: unknown): string | null => {
 const COLUMNAS_SUPABASE_VALIDAS: ReadonlySet<string> = new Set([
   'id', 'user_id', 'paciente_id', 'clinica_id',
   'folio', 'monto', 'metodo_pago', 'fecha',
+  'moneda',
   'concepto', 'estado',
   'motivo_anulacion', 'fecha_anulacion',
   'motivo_purga', 'fecha_purga', 'purgado_por',

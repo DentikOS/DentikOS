@@ -1,7 +1,7 @@
 import React, { memo, useState } from 'react'
 import { TrendingUp, ClipboardList, Gift } from 'lucide-react'
-import { Icon } from '../../../shared/ui/Icon'
 import { Tooth } from '../../../shared/ui/icons/Tooth'
+import { PageHeader } from '../../../shared/ui/ui/PageHeader'
 import { ESPECIALIDADES_ODONTOLOGICAS } from './constants/prestacionesConstants'
 import { usePrestaciones, type PrestacionInput } from './hooks/usePrestaciones'
 import { PrestacionesSummaryCards } from './components/PrestacionesSummaryCards'
@@ -77,61 +77,61 @@ export const PrestacionesModulo: React.FC = memo(() => {
           : estadoRemoto === 'error'
             ? 'No se pudo cargar el arancel compartido. Revisa la conexión y vuelve a intentar.'
             : prestacionesProp.length === 0
-              ? 'La clínica aún no tiene prestaciones sincronizadas. Registra las prestaciones y sus precios clínicos aquí.'
+            ? 'La clínica aún no tiene prestaciones sincronizadas. Importa una plantilla revisada o agrega prestaciones manualmente.'
               : 'Arancel compartido con Plan de Tratamiento y Presupuestos.'}
         {estadoRemoto === 'error' && <button type="button" className="ml-2 underline" onClick={() => void usePrestacionesStore.getState().sincronizarDesdeSupabase()}>Reintentar</button>}
       </div>}
       {errorOperacion && <p role="alert" className="text-red-700 text-xs">{errorOperacion}</p>}
-      {USE_SUPABASE && rol === 'admin' && estadoRemoto === 'listo' && prestacionesProp.length === 0 && <ImportarPlantillaCatalogo />}
+      {USE_SUPABASE && rol === 'admin' && estadoRemoto === 'listo' && prestacionesProp.length === 0 && (
+        <ImportarPlantillaCatalogo />
+      )}
       {USE_SUPABASE && (rol === 'admin' || rol === 'dentista') && <ImportarArancelLocal moneda={moneda} idioma={idioma} />}
-      <div className="flex justify-between items-center flex-wrap gap-3 print:hidden">
-        <div>
-          <h2 className="text-xl font-bold text-gray-900 dark:text-graphite-50 uppercase tracking-wider flex items-center gap-2">
-            <Icon icon={Tooth} size="md" />
-            Arancel de Prestaciones & Paquetes Clínicos
-          </h2>
-          <p className="text-xs text-gray-500 dark:text-graphite-400">
-            Catálogo oficial de procedimientos, convenios y promociones de la clínica.
-          </p>
-        </div>
-
-        <div className="flex gap-2">
-          {tabActual === 'arancel' && (
-            <>
-              <button
-                onClick={() => setModalReajusteAbierto(true)}
-                disabled={USE_SUPABASE && (estadoRemoto !== 'listo' || !puedeReajustar || prestacionesProp.length === 0)}
-                title={USE_SUPABASE && estadoRemoto !== 'listo' ? 'Espera a que cargue el arancel compartido' :
-                  USE_SUPABASE && !puedeReajustar ? 'Requiere rol de administración o dentista' :
-                    USE_SUPABASE && prestacionesProp.length === 0 ? 'No hay prestaciones sincronizadas para reajustar' : undefined}
-                className="bg-gray-100 dark:bg-graphite-800 text-gray-800 dark:text-graphite-100 text-xs font-bold px-3 py-2.5 rounded-xl hover:bg-gray-200 transition-colors border cursor-pointer"
-              >
-                <span className="inline-flex items-center gap-1">
-                  <TrendingUp size={12} />Reajuste %
-                </span>
-              </button>
-              <button
-                onClick={handleAbrirNuevo}
-                disabled={USE_SUPABASE && estadoRemoto !== 'listo'}
-                className="bg-black text-white text-xs font-bold px-4 py-2.5 rounded-xl hover:bg-gray-800 transition-colors shadow-xs cursor-pointer"
-              >
-                + Nueva Prestación
-              </button>
-            </>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        icon={Tooth}
+        title="Arancel de prestaciones y paquetes clínicos"
+        description="Catálogo oficial de procedimientos, convenios y promociones de la clínica."
+        className="print:hidden"
+        actions={
+          <>
+            {tabActual === 'arancel' && (
+              <>
+                <button
+                  onClick={() => setModalReajusteAbierto(true)}
+                  disabled={USE_SUPABASE && (estadoRemoto !== 'listo' || !puedeReajustar || prestacionesProp.length === 0)}
+                  title={USE_SUPABASE && estadoRemoto !== 'listo' ? 'Espera a que cargue el arancel compartido' :
+                    USE_SUPABASE && !puedeReajustar ? 'Requiere rol de administración o dentista' :
+                      USE_SUPABASE && prestacionesProp.length === 0 ? 'No hay prestaciones sincronizadas para reajustar' : undefined}
+                  className="bg-gray-100 dark:bg-graphite-800 text-gray-800 dark:text-graphite-100 text-xs font-bold px-3 py-2.5 rounded-xl hover:bg-gray-200 transition-colors border cursor-pointer"
+                >
+                  <span className="inline-flex items-center gap-1">
+                    <TrendingUp size={12} />Reajuste %
+                  </span>
+                </button>
+                <button
+                  onClick={handleAbrirNuevo}
+                  disabled={USE_SUPABASE && estadoRemoto !== 'listo'}
+                  className="bg-primary hover:bg-champagne-400 dark:bg-champagne-300 dark:hover:bg-champagne-200 text-primary-foreground text-xs font-bold px-4 py-2.5 rounded-xl transition-micro shadow-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                >
+                  + Nueva Prestación
+                </button>
+              </>
+            )}
+          </>
+        }
+      />
 
       <div className="print:hidden">
         <PrestacionesSummaryCards resumen={resumen} moneda={moneda} idioma={idioma} />
       </div>
 
-      <div className="flex gap-2 border-b pb-1 print:hidden text-xs">
+      <div className="scrollable-tab-strip flex flex-nowrap gap-2 overflow-x-auto border-b pb-1 print:hidden text-xs" role="group" aria-label="Secciones de prestaciones">
         <button
+          type="button"
           onClick={() => setTabActual('arancel')}
-          className={`px-4 py-2 rounded-xl font-bold transition-all cursor-pointer ${
+          aria-pressed={tabActual === 'arancel'}
+          className={`shrink-0 whitespace-nowrap px-4 py-2 rounded-xl font-bold transition-all cursor-pointer ${
             tabActual === 'arancel'
-              ? 'bg-black text-white shadow-xs'
+              ? 'bg-primary text-primary-foreground dark:bg-champagne-300 dark:text-graphite-950 shadow-xs'
               : 'bg-gray-100 dark:bg-graphite-800 text-gray-600 dark:text-graphite-400 hover:bg-gray-200'
           }`}
         >
@@ -141,10 +141,12 @@ export const PrestacionesModulo: React.FC = memo(() => {
         </button>
 
         <button
+          type="button"
           onClick={() => setTabActual('paquetes')}
-          className={`px-4 py-2 rounded-xl font-bold transition-all cursor-pointer ${
+          aria-pressed={tabActual === 'paquetes'}
+          className={`shrink-0 whitespace-nowrap px-4 py-2 rounded-xl font-bold transition-all cursor-pointer ${
             tabActual === 'paquetes'
-              ? 'bg-black text-white shadow-xs'
+              ? 'bg-primary text-primary-foreground dark:bg-champagne-300 dark:text-graphite-950 shadow-xs'
               : 'bg-gray-100 dark:bg-graphite-800 text-gray-600 dark:text-graphite-400 hover:bg-gray-200'
           }`}
         >
@@ -175,7 +177,7 @@ export const PrestacionesModulo: React.FC = memo(() => {
 
             <input
               type="text"
-              placeholder="Buscar por procedimiento o código Fonasa..."
+              placeholder="Buscar prestación, código o categoría..."
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
               className="p-2 border rounded-xl bg-white dark:bg-graphite-800 w-full sm:w-64"

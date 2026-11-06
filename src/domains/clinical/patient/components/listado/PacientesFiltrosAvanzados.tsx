@@ -58,7 +58,7 @@ export const PacientesFiltrosAvanzados: React.FC = () => {
                 }}
                 className={`px-2.5 py-1 rounded-lg text-xs capitalize transition-colors ${
                   estadosSeleccionados.includes(est)
-                    ? 'bg-primary text-white font-medium'
+                    ? 'bg-primary text-primary-foreground font-medium'
                     : 'bg-surface-hover text-graphite-600 dark:text-graphite-400'
                 }`}
               >
@@ -162,7 +162,7 @@ export const PacientesFiltrosAvanzados: React.FC = () => {
                 }}
                 className={`px-2.5 py-1 rounded-lg text-xs transition-colors ${
                   previsionSeleccionada.includes(prevision)
-                    ? 'bg-primary text-white font-medium'
+                    ? 'bg-primary text-primary-foreground font-medium'
                     : 'bg-surface-hover text-graphite-600 dark:text-graphite-400'
                 }`}
               >

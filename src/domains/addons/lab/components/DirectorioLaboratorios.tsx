@@ -1,315 +1,111 @@
 import React, { memo, useState } from 'react'
 import { Input } from '../../../../shared/ui/ui/Input'
 import { Button } from '../../../../shared/ui/ui/Button'
-import {
-  TIPOS_TRABAJO_SUGERIDOS,
-  type LaboratorioBase,
-  type TarifaLaboratorio
-} from '../constants/laboratorioConstants'
+import { Plus, Pencil, Building2 } from 'lucide-react'
+import type { LaboratorioBase } from '../constants/laboratorioConstants'
 import type { LabDataInput } from '../hooks/useLaboratorio'
-import { Plus, Settings, Pencil, Trash2, Folder, X } from 'lucide-react'
 
 export interface DirectorioLaboratoriosProps {
   laboratorios: LaboratorioBase[]
-  alGuardarLab: (labData: LabDataInput) => void
-  alEliminarLab: (idLab: number | string) => void | Promise<void>
+  puedeGestionar: boolean
+  alGuardarLab: (labData: LabDataInput) => Promise<void>
 }
 
-export const DirectorioLaboratorios: React.FC<DirectorioLaboratoriosProps> = memo(({
-  laboratorios,
-  alGuardarLab,
-  alEliminarLab
-}) => {
-  const [labEditar, setLabEditar] = useState<LaboratorioBase | null>(null)
+const blankForm: LabDataInput = { nombre: '', tipo: 'externo' }
 
-  const [nombre, setNombre] = useState<string>('')
-  const [contacto, setContacto] = useState<string>('')
-  const [telefono, setTelefono] = useState<string>('')
-  const [email, setEmail] = useState<string>('')
-  const [direccion, setDireccion] = useState<string>('')
+export const DirectorioLaboratorios: React.FC<DirectorioLaboratoriosProps> = memo(({ laboratorios, puedeGestionar, alGuardarLab }) => {
+  const [editar, setEditar] = useState<LaboratorioBase | null>(null)
+  const [form, setForm] = useState<LabDataInput>(blankForm)
+  const [especialidades, setEspecialidades] = useState('')
+  const [guardando, setGuardando] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  // Tarifario
-  const [trabajoTexto, setTrabajoTexto] = useState<string>('')
-  const [precioSel, setPrecioSel] = useState<string>('')
-  const [tarifasTemp, setTarifasTemp] = useState<TarifaLaboratorio[]>([])
-
-  const handleAbrirNuevo = (): void => {
-    setLabEditar(null)
-    setNombre('')
-    setContacto('')
-    setTelefono('')
-    setEmail('')
-    setDireccion('')
-    setTarifasTemp([])
+  const iniciarNuevo = (): void => {
+    setEditar(null)
+    setForm(blankForm)
+    setEspecialidades('')
+    setError(null)
   }
 
-  const handleAbrirEditar = (lab: LaboratorioBase): void => {
-    setLabEditar(lab)
-    setNombre(lab.nombre || '')
-    setContacto(lab.contacto || '')
-    setTelefono(lab.telefono || '')
-    setEmail(lab.email || '')
-    setDireccion(lab.direccion || '')
-    setTarifasTemp(lab.tarifas ? [...lab.tarifas] : [])
+  const iniciarEdicion = (lab: LaboratorioBase): void => {
+    setEditar(lab)
+    setForm({ ...lab, id: lab.id })
+    setEspecialidades((lab.especialidades || []).join(', '))
+    setError(null)
   }
 
-  const handleAgregarTarifa = (): void => {
-    if (!trabajoTexto.trim() || !precioSel || parseFloat(precioSel) <= 0) return
-    const trabajoClean = trabajoTexto.trim()
-    const existe = tarifasTemp.some(
-      (t) => t.trabajo.toLowerCase() === trabajoClean.toLowerCase()
-    )
+  const actualizar = (campo: keyof LabDataInput, valor: string): void => {
+    setForm(current => ({ ...current, [campo]: valor }))
+  }
 
-    if (existe) {
-      setTarifasTemp(
-        tarifasTemp.map((t) =>
-          t.trabajo.toLowerCase() === trabajoClean.toLowerCase()
-            ? { ...t, precio: parseFloat(precioSel) }
-            : t
-        )
-      )
-    } else {
-      setTarifasTemp([
-        ...tarifasTemp,
-        { trabajo: trabajoClean, precio: parseFloat(precioSel) }
-      ])
+  const guardar = async (event: React.FormEvent<HTMLFormElement>): Promise<void> => {
+    event.preventDefault()
+    if (!form.nombre.trim()) return
+    setGuardando(true)
+    setError(null)
+    try {
+      await alGuardarLab({
+        ...form,
+        nombre: form.nombre.trim(),
+        especialidades: especialidades.split(',').map(item => item.trim()).filter(Boolean)
+      })
+      iniciarNuevo()
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'No se pudo guardar el laboratorio.')
+    } finally {
+      setGuardando(false)
     }
-    setTrabajoTexto('')
-    setPrecioSel('')
-  }
-
-  const handleEliminarTarifa = (trabajoNombre: string): void => {
-    setTarifasTemp(tarifasTemp.filter((t) => t.trabajo !== trabajoNombre))
-  }
-
-  const handleGuardarSubmit = (e: React.FormEvent<HTMLFormElement>): void => {
-    e.preventDefault()
-    if (!nombre.trim()) return
-
-    const labObj: LabDataInput = {
-      id: labEditar ? labEditar.id : Date.now(),
-      nombre: nombre.trim(),
-      contacto,
-      telefono,
-      email,
-      direccion,
-      tarifas: tarifasTemp
-    }
-
-    alGuardarLab(labObj)
-    handleAbrirNuevo()
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-xs">
-      {/* Formulario Crear / Editar Lab */}
-      <form
-        onSubmit={handleGuardarSubmit}
-        className="bg-white dark:bg-graphite-800 border border-gray-200 dark:border-graphite-700 rounded-2xl p-6 shadow-xs space-y-3"
-      >
-        <div className="border-b border-gray-200 dark:border-graphite-700 pb-2 flex justify-between items-center">
-          <h3 className="font-bold text-sm text-gray-900 dark:text-graphite-50 uppercase">
-            {labEditar ? (
-              'Editar Proveedor Lab'
-            ) : (
-              <span className="inline-flex items-center gap-1">
-                <Plus size={12} />
-                Registrar Nuevo Lab
-              </span>
-            )}
-          </h3>
-          {labEditar && (
-            <Button type="button" onClick={handleAbrirNuevo} variant="ghost" size="sm">
-              Cancelar
-            </Button>
-          )}
+    <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(18rem,0.8fr)] gap-5 text-sm">
+      {puedeGestionar && <form onSubmit={guardar} className="rounded-2xl border border-surface bg-surface p-5 space-y-3">
+        <div className="flex items-center justify-between border-b border-surface pb-3">
+          <h3 className="font-semibold">{editar ? 'Editar laboratorio' : 'Registrar laboratorio'}</h3>
+          {editar && <Button type="button" variant="ghost" size="sm" onClick={iniciarNuevo}>Cancelar</Button>}
         </div>
-
-        <Input
-          label="Nombre Laboratorio"
-          type="text"
-          required
-          placeholder="Ej: Laboratorio Estética & Cerámica"
-          value={nombre}
-          onChange={(e) => setNombre(e.target.value)}
-        />
-
-        <div className="grid grid-cols-2 gap-2">
-          <Input
-            label="Contacto / Ceramista"
-            type="text"
-            placeholder="Ej: Roberto Gómez"
-            value={contacto}
-            onChange={(e) => setContacto(e.target.value)}
-          />
-          <Input
-            label="Teléfono"
-            type="text"
-            placeholder="+56 9 1234 5678"
-            value={telefono}
-            onChange={(e) => setTelefono(e.target.value)}
-          />
-        </div>
-
-        <div className="border-t border-gray-200 dark:border-graphite-700 pt-3 space-y-2">
-          <label className="block font-bold text-gray-800 dark:text-graphite-100 uppercase text-[10px]">
-            <span className="inline-flex items-center gap-1">
-              <Settings size={12} />
-              Tarifario Personalizado del Laboratorio
-            </span>
+        <Input label="Nombre *" required value={form.nombre} onChange={event => actualizar('nombre', event.target.value)} />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <label className="space-y-1 font-medium">
+            <span>Tipo</span>
+            <select value={form.tipo || 'externo'} onChange={event => actualizar('tipo', event.target.value)} className="w-full min-h-10 rounded-lg border border-surface bg-background px-3">
+              <option value="externo">Externo</option><option value="interno">Interno</option><option value="digital">Digital</option>
+            </select>
           </label>
-
-          <div className="space-y-2 bg-gray-50 dark:bg-graphite-800 p-3 rounded-xl border border-gray-200 dark:border-graphite-700">
-            <input
-              type="text"
-              list="tarifas-sugeridas-list"
-              placeholder="Nombre del trabajo (Ej: Carilla E-Max, Protesis Valplast...)"
-              value={trabajoTexto}
-              onChange={(e) => setTrabajoTexto(e.target.value)}
-              className="w-full p-2 rounded-lg border border-gray-300 dark:border-graphite-600 bg-white dark:bg-graphite-800 font-semibold text-[11px]"
-            />
-            <datalist id="tarifas-sugeridas-list">
-              {TIPOS_TRABAJO_SUGERIDOS.map((t) => (
-                <option key={t} value={t} />
-              ))}
-            </datalist>
-
-            <div className="flex gap-2">
-              <Input
-                type="number"
-                placeholder="Precio ($ CLP)"
-                value={precioSel}
-                onChange={(e) => setPrecioSel(e.target.value)}
-              />
-              <Button type="button" onClick={handleAgregarTarifa} variant="primary">
-                + Añadir
-              </Button>
-            </div>
-          </div>
-
-          <div className="space-y-1 max-h-40 overflow-y-auto pt-1">
-            {tarifasTemp.map((t) => (
-              <div
-                key={t.trabajo}
-                className="flex justify-between items-center p-2 bg-white dark:bg-graphite-800 border border-gray-200 dark:border-graphite-700 rounded-lg"
-              >
-                <span className="font-semibold text-[11px] text-gray-800 dark:text-graphite-100 truncate max-w-[170px]">
-                  {t.trabajo}
-                </span>
-                <div className="flex items-center gap-2">
-                  <span className="font-black text-emerald-800 dark:text-emerald-400">
-                    ${t.precio.toLocaleString('es-CL')}
-                  </span>
-                  <Button
-                    type="button"
-                    onClick={() => handleEliminarTarifa(t.trabajo)}
-                    variant="danger"
-                    size="sm"
-                    className="px-2 py-0.5"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </Button>
-                </div>
-              </div>
-            ))}
+          <Input label="RUT" value={form.rut || ''} onChange={event => actualizar('rut', event.target.value)} />
+          <Input label="Representante" value={form.representante || form.contacto || ''} onChange={event => actualizar('representante', event.target.value)} />
+          <Input label="Técnico responsable" value={form.tecnicoResponsable || ''} onChange={event => actualizar('tecnicoResponsable', event.target.value)} />
+          <Input label="Teléfono" value={form.telefono || ''} onChange={event => actualizar('telefono', event.target.value)} />
+          <Input label="Correo" type="email" value={form.email || ''} onChange={event => actualizar('email', event.target.value)} />
+          <Input label="Dirección" value={form.direccion || ''} onChange={event => actualizar('direccion', event.target.value)} />
+          <Input label="Horario de retiro y entrega" value={form.horarioRetiroEntrega || ''} onChange={event => actualizar('horarioRetiroEntrega', event.target.value)} />
+          <div className="sm:col-span-2">
+            <Input label="Especialidades (separadas por coma)" value={especialidades} onChange={event => setEspecialidades(event.target.value)} />
           </div>
         </div>
-
-        <Button type="submit" variant="primary" fullWidth>
-          {labEditar ? 'Guardar Cambios Proveedor' : 'Registrar Laboratorio y Tarifas'}
+        {error && <p role="alert" className="text-xs text-clinical-error">{error}</p>}
+        <Button type="submit" loading={guardando} icon={editar ? Pencil : Plus} fullWidth>
+          {editar ? 'Guardar cambios' : 'Registrar laboratorio'}
         </Button>
-      </form>
+      </form>}
 
-      {/* Directorio de Laboratorios Guardados */}
-      <div className="md:col-span-2 space-y-4">
-        <h3 className="font-bold text-sm text-gray-900 dark:text-graphite-50 uppercase tracking-wider">
-          <span className="inline-flex items-center gap-1">
-            <Folder size={12} />
-            Directorio de Laboratorios y Aranceles ({laboratorios.length})
-          </span>
-        </h3>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {laboratorios.map((lab) => (
-            <div
-              key={lab.id}
-              className="bg-white dark:bg-graphite-800 border border-gray-200 dark:border-graphite-700 rounded-2xl p-5 shadow-xs flex flex-col justify-between space-y-3"
-            >
-              <div>
-                <div className="flex justify-between items-start border-b border-gray-200 dark:border-graphite-700 pb-2">
-                  <h4 className="font-black text-sm text-gray-900 dark:text-graphite-50">
-                    {lab.nombre}
-                  </h4>
-                  <div className="flex gap-1">
-                    <Button
-                      onClick={() => handleAbrirEditar(lab)}
-                      variant="ghost"
-                      size="sm"
-                      className="p-1"
-                      title="Editar"
-                      aria-label="Editar laboratorio"
-                    >
-                      <Pencil size={12} />
-                    </Button>
-                    <Button
-                      onClick={() => void alEliminarLab(lab.id)}
-                      variant="danger"
-                      size="sm"
-                      className="p-1"
-                      title="Eliminar"
-                      aria-label="Eliminar laboratorio"
-                    >
-                      <Trash2 size={12} />
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="text-[11px] text-gray-600 dark:text-graphite-400 mt-2 space-y-1">
-                  <p>
-                    <span className="font-semibold text-gray-800 dark:text-graphite-100">
-                      Contacto:
-                    </span>{' '}
-                    {lab.contacto || 'N/I'}
-                  </p>
-                  <p>
-                    <span className="font-semibold text-gray-800 dark:text-graphite-100">
-                      Teléfono:
-                    </span>{' '}
-                    {lab.telefono || 'N/I'}
-                  </p>
-                </div>
-
-                <div className="mt-3 pt-2 border-t border-gray-200 dark:border-graphite-700 space-y-1">
-                  <span className="font-bold text-[10px] text-gray-500 dark:text-graphite-400 uppercase block">
-                    Tarifas Registradas ({lab.tarifas?.length || 0}):
-                  </span>
-                  {lab.tarifas && lab.tarifas.length > 0 ? (
-                    <div className="space-y-1 max-h-32 overflow-y-auto">
-                      {lab.tarifas.map((t) => (
-                        <div
-                          key={t.trabajo}
-                          className="flex justify-between text-[10px] bg-gray-50 dark:bg-graphite-800 p-1.5 rounded"
-                        >
-                          <span className="truncate max-w-[160px] font-medium text-gray-700 dark:text-graphite-300">
-                            {t.trabajo}
-                          </span>
-                          <span className="font-bold text-gray-900 dark:text-graphite-50">
-                            ${t.precio.toLocaleString('es-CL')} CLP
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-gray-400 dark:text-graphite-500 italic text-[10px]">
-                      Sin tarifas asignadas.
-                    </p>
-                  )}
-                </div>
+      <section className="rounded-2xl border border-surface bg-surface p-5 space-y-3" aria-label="Directorio de laboratorios">
+        <h3 className="font-semibold">Laboratorios registrados</h3>
+        {laboratorios.length === 0 ? <p className="py-8 text-center text-sm text-muted-foreground">No hay laboratorios en el directorio.</p> : (
+          <ul className="divide-y divide-surface">
+            {laboratorios.map(lab => <li key={lab.id} className="flex items-start justify-between gap-3 py-3">
+              <div className="min-w-0">
+                <p className="font-semibold truncate"><Building2 size={14} className="mr-1 inline" />{lab.nombre}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{lab.tipo || 'externo'} · {lab.estado || 'activo'}</p>
+                <p className="text-xs text-muted-foreground">{lab.representante || lab.contacto || 'Sin representante'} · {lab.telefono || 'Sin teléfono'}</p>
+                {lab.especialidades?.length ? <p className="mt-1 text-xs">{lab.especialidades.join(' · ')}</p> : null}
               </div>
-            </div>
-          ))}
-        </div>
-      </div>
+              {puedeGestionar && typeof lab.id === 'string' && <Button type="button" variant="ghost" size="sm" aria-label={`Editar ${lab.nombre}`} onClick={() => iniciarEdicion(lab)} icon={Pencil} />}
+            </li>)}
+          </ul>
+        )}
+        {!puedeGestionar && <p className="text-xs text-muted-foreground">Solo usuarios con permiso de gestión pueden modificar el directorio.</p>}
+      </section>
     </div>
   )
 })

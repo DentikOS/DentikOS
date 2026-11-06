@@ -82,7 +82,7 @@ export const CitaCard: React.FC<CitaCardProps> = memo(({
   return (
     <div
       onClick={() => alHacerClic?.(cita)}
-      className={`p-3.5 rounded-lg border transition-all cursor-pointer space-y-2.5 bg-white dark:bg-graphite-800 surgical:bg-white hover:shadow-md ${
+      className={`p-3.5 rounded-lg border transition-all cursor-pointer space-y-2.5 bg-white dark:bg-graphite-800  hover:shadow-md ${
         estado === 'En Sillón'
           ? 'border-purple-500 ring-2 ring-purple-400/30 bg-purple-50/20 dark:bg-purple-900/20'
           : estado === 'Confirmado'
@@ -91,7 +91,7 @@ export const CitaCard: React.FC<CitaCardProps> = memo(({
       }`}
     >
       <div className="flex justify-between items-center text-xs">
-        <span className="font-semibold text-graphite-900 dark:text-graphite-50 surgical:text-black text-[11px] flex items-center gap-1">
+        <span className="font-semibold text-graphite-900 dark:text-graphite-50  text-[11px] flex items-center gap-1">
           <Icon icon={Clock} size="xs" />
           {cita.horaInicio} - {cita.horaFin} ({cita.duracionMinutos || 30} min)
         </span>
@@ -101,7 +101,7 @@ export const CitaCard: React.FC<CitaCardProps> = memo(({
             value={estado}
             onClick={(e) => e.stopPropagation()}
             onChange={(e) => alCambiarEstado?.(cita.id, e.target.value)}
-            className="text-[10px] font-semibold rounded-lg px-2 py-0.5 border border-surface bg-white dark:bg-surface surgical:bg-white focus:outline-none cursor-pointer text-graphite-900 dark:text-graphite-100 surgical:text-black"
+            className="text-[10px] font-semibold rounded-lg px-2 py-0.5 border border-surface bg-white dark:bg-surface  focus:outline-none cursor-pointer text-graphite-900 dark:text-graphite-100 "
           >
             <option value="Agendado">Agendado</option>
             <option value="Confirmado">Confirmado</option>

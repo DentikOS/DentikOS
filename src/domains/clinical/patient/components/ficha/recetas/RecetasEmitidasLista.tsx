@@ -1,11 +1,14 @@
 import React from 'react'
-import { QrCode } from 'lucide-react'
+import type { MedicamentoItem } from './RecetaMedicamentosForm'
 
 export interface RecetaEmitidaItem {
   id: string
   fecha: string
   profesional: string
-  medicamentos: Array<{ nombre: string; dosis: string }>
+  medicamentos: MedicamentoItem[]
+  diagnostico: string | null
+  indicaciones: string | null
+  firma: string | null
   hashForense: string
   qrToken: string
 }
@@ -33,11 +36,12 @@ export const RecetasEmitidasLista: React.FC<RecetasEmitidasListaProps> = ({ rece
               {rx.medicamentos.map((m) => `${m.nombre} ${m.dosis}`).join(', ')}
             </span>
             <p className="text-[11px] text-graphite-500 mt-1">
-              Emitida por: {rx.profesional} &bull; {new Date(rx.fecha).toLocaleDateString()}
+              Emitida por: {rx.profesional} &bull; {new Date(`${rx.fecha}T12:00:00`).toLocaleDateString('es-CL')}
             </p>
             <p className="text-[10px] font-mono text-primary mt-0.5">
-              Forense: {rx.hashForense}
+              Trazabilidad: {rx.hashForense}
             </p>
+            <p className="text-[10px] text-graphite-400 mt-0.5">Sin firma electrónica</p>
           </div>
 
           <div className="flex items-center gap-2">
@@ -51,9 +55,6 @@ export const RecetasEmitidasLista: React.FC<RecetasEmitidasListaProps> = ({ rece
                 Ver
               </button>
             )}
-            <div className="p-2 rounded-xl bg-surface-hover border border-surface flex items-center gap-2">
-              <QrCode className="w-7 h-7 text-graphite-700 dark:text-graphite-200" />
-            </div>
           </div>
         </div>
       ))}

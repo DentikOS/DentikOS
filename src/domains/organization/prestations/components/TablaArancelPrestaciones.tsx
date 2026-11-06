@@ -36,8 +36,7 @@ export const TablaArancelPrestaciones: React.FC<TablaArancelPrestacionesProps> =
             <th className="p-3">Nombre del Procedimiento / Prestación</th>
             <th className="p-3">Categoría</th>
             <th className="p-3">Especialidad Clínica</th>
-            <th className="p-3 text-right">Precio Particular ({moneda})</th>
-            <th className="p-3 text-right">Precio Fonasa / Convenio ({moneda})</th>
+            <th className="p-3 text-right">Precio base ({moneda})</th>
             <th className="p-3 text-right print:hidden">Acciones</th>
           </tr>
         </thead>
@@ -70,12 +69,6 @@ export const TablaArancelPrestaciones: React.FC<TablaArancelPrestacionesProps> =
 
               <td className="p-3 text-right font-black text-emerald-900 text-sm">
                 {formatearImporteDocumento(Number(p.precioParticular ?? p.precio ?? 0), moneda, idioma)}
-              </td>
-
-              <td className="p-3 text-right font-bold text-blue-900">
-                {p.precioFonasa == null
-                  ? <span className="text-amber-700 dark:text-amber-300">Pendiente de revisión</span>
-                  : formatearImporteDocumento(Number(p.precioFonasa), moneda, idioma)}
               </td>
 
               <td className="p-3 text-right print:hidden space-x-1">

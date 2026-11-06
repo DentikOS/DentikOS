@@ -19,7 +19,7 @@ vi.mock('../hooks/useAppDialog', () => ({
 import { useBootstrapClinica } from '../hooks/useBootstrapClinica'
 import { useAppDialog } from '../hooks/useAppDialog'
 
-describe('BootstrapClinica - 4 Pasos Onboarding', () => {
+describe('BootstrapClinica - 8 Pasos Onboarding', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
@@ -55,9 +55,9 @@ describe('BootstrapClinica - 4 Pasos Onboarding', () => {
     expect(screen.getByText('Clínica dental')).toBeInTheDocument()
   })
 
-  it('debe mostrar campos de datos en paso 2', () => {
+  it('debe mostrar datos requeridos de la clínica en paso 1', () => {
     vi.mocked(useBootstrapClinica).mockReturnValue({
-      paso: 2,
+      paso: 1,
       tipoActividad: 'clinica',
       datos: { nombre: '', rutEmpresa: '', direccion: '', telefono: '', emailContacto: '' },
       sedes: [],
@@ -81,15 +81,51 @@ describe('BootstrapClinica - 4 Pasos Onboarding', () => {
 
     render(<BootstrapClinica onComplete={vi.fn()} />)
 
-    expect(screen.getByLabelText(/cómo se llama tu clínica/i)).toBeInTheDocument()
-    expect(screen.getByPlaceholderText(/clínica dental/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/rut de la empresa/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/nombre de la clínica o consulta/i)).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('76.123.456-7')).toBeInTheDocument()
+    expect(screen.getByLabelText(/giro comercial/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/dirección/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/email de contacto/i)).toBeInTheDocument()
   })
 
-  it('debe mostrar sedes en paso 3', () => {
+  it('debe mostrar preferencias regionales en paso 2', () => {
     vi.mocked(useBootstrapClinica).mockReturnValue({
-      paso: 3,
+      paso: 2,
+      tipoActividad: 'clinica',
+      datos: { nombre: 'Clínica Dental Sonrisas', zonaHoraria: 'America/Santiago', moneda: 'CLP', idiomaDocumentos: 'es-CL' },
+      sedes: [], equipo: [], errores: {}, procesando: false, errorGeneral: null, completado: false,
+      setTipoActividad: vi.fn(), actualizarCampo: vi.fn(), agregarSede: vi.fn(), eliminarSede: vi.fn(),
+      agregarMiembro: vi.fn(), eliminarMiembro: vi.fn(), avanzarPaso: vi.fn(), retrocederPaso: vi.fn(),
+      cancelarConfiguracion: vi.fn(), handleSubmit: vi.fn(), finalizarBienvenida: vi.fn(),
+    })
+
+    render(<BootstrapClinica onComplete={vi.fn()} />)
+
+    expect(screen.getByLabelText(/zona horaria/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/idioma de documentos/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/moneda de la clínica/i)).toBeInTheDocument()
+  })
+
+  it('debe mostrar plantillas de catálogo en paso 3', () => {
+    vi.mocked(useBootstrapClinica).mockReturnValue({
+      paso: 3, tipoActividad: 'clinica', datos: {}, sedes: [], equipo: [], errores: {},
+      procesando: false, errorGeneral: null, completado: false,
+      setTipoActividad: vi.fn(), actualizarCampo: vi.fn(), agregarSede: vi.fn(), eliminarSede: vi.fn(),
+      agregarMiembro: vi.fn(), eliminarMiembro: vi.fn(), avanzarPaso: vi.fn(), retrocederPaso: vi.fn(),
+      cancelarConfiguracion: vi.fn(), handleSubmit: vi.fn(), finalizarBienvenida: vi.fn(),
+      seleccionarPlantilla: vi.fn(), plantillaSeleccionada: null,
+    })
+
+    render(<BootstrapClinica onComplete={vi.fn()} />)
+    expect(screen.getByText('Clínica General')).toBeInTheDocument()
+    expect(screen.getByText('Ortodoncia')).toBeInTheDocument()
+    expect(screen.getByText('Cirugía + Rehabilitación')).toBeInTheDocument()
+    expect(screen.getByText('Configurar desde cero')).toBeInTheDocument()
+  })
+
+  it('debe mostrar sedes en paso 4', () => {
+    vi.mocked(useBootstrapClinica).mockReturnValue({
+      paso: 4,
       tipoActividad: 'clinica',
       datos: { nombre: 'Clínica Dental Sonrisas', direccion: 'Av. Providencia 123' },
       sedes: [{ nombre: 'Sede Central', direccion: 'Av. Providencia 123', comuna: 'Providencia', region: 'RM', activa: true }],
@@ -117,9 +153,9 @@ describe('BootstrapClinica - 4 Pasos Onboarding', () => {
     expect(screen.getByText('Sede Central')).toBeInTheDocument()
   })
 
-  it('debe mostrar equipo y botón Crear Clínica en paso 4', () => {
+  it('debe mostrar equipo en paso 5 y el cierre en paso 7', () => {
     vi.mocked(useBootstrapClinica).mockReturnValue({
-      paso: 4,
+      paso: 5,
       tipoActividad: 'clinica',
       datos: { nombre: 'Clínica Dental Sonrisas' },
       sedes: [{ nombre: 'Sede Central', direccion: 'Av. Providencia 123', comuna: 'Providencia', region: 'RM', activa: true }],
@@ -141,15 +177,25 @@ describe('BootstrapClinica - 4 Pasos Onboarding', () => {
       finalizarBienvenida: vi.fn(),
     })
 
-    render(<BootstrapClinica onComplete={vi.fn()} />)
+    const { unmount } = render(<BootstrapClinica onComplete={vi.fn()} />)
 
     expect(screen.getByText(/invitar colaboradores/i)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /crear clínica/i })).toBeInTheDocument()
+    unmount()
+
+    vi.mocked(useBootstrapClinica).mockReturnValue({
+      paso: 7, tipoActividad: 'clinica', datos: {}, sedes: [], equipo: [], errores: {},
+      procesando: false, errorGeneral: null, completado: false,
+      setTipoActividad: vi.fn(), actualizarCampo: vi.fn(), agregarSede: vi.fn(), eliminarSede: vi.fn(),
+      agregarMiembro: vi.fn(), eliminarMiembro: vi.fn(), avanzarPaso: vi.fn(), retrocederPaso: vi.fn(),
+      cancelarConfiguracion: vi.fn(), handleSubmit: vi.fn(), finalizarBienvenida: vi.fn(),
+    })
+    render(<BootstrapClinica onComplete={vi.fn()} />)
+    expect(screen.getByRole('button', { name: /crear y sincronizar clínica/i })).toBeInTheDocument()
   })
 
   it('debe mostrar PantallaBienvenida al completar el flujo', () => {
     vi.mocked(useBootstrapClinica).mockReturnValue({
-      paso: 4,
+      paso: 8,
       tipoActividad: 'clinica',
       datos: { nombre: 'Clínica Dental Sonrisas' },
       sedes: [{ nombre: 'Sede Central', direccion: 'Av. Providencia 123', comuna: 'Providencia', region: 'RM', activa: true }],
@@ -199,7 +245,7 @@ describe('Ruta de escape del onboarding', () => {
       return {
         paso,
         tipoActividad,
-        datos: { nombre: 'Clínica Test', rutEmpresa: '', direccion: 'Av. Test 123', telefono: '', emailContacto: '' },
+        datos: { nombre: 'Clínica Test', rutEmpresa: '76.123.456-7', giroComercial: 'Servicios odontológicos', direccion: 'Av. Test 123', comuna: 'Central', region: 'RM', telefono: '+56912345678', emailContacto: 'test@clinica.cl' },
         sedes: [{ nombre: 'Sede Principal', direccion: 'Av. Test 123', comuna: 'Central', region: 'RM', activa: true }],
         equipo: [],
         errores: {},
@@ -212,7 +258,7 @@ describe('Ruta de escape del onboarding', () => {
         eliminarSede: vi.fn(),
         agregarMiembro: vi.fn(),
         eliminarMiembro: vi.fn(),
-        avanzarPaso: () => setPaso((prev) => Math.min(prev + 1, 4)),
+        avanzarPaso: () => setPaso((prev) => Math.min(prev + 1, 7)),
         retrocederPaso: () => setPaso((prev) => Math.max(prev - 1, 1)),
         cancelarConfiguracion: mockCancelarConfiguracion,
         handleSubmit: vi.fn(),

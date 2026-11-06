@@ -24,13 +24,4 @@ describe('useThemeClass', () => {
     expect(document.documentElement.classList.contains('light')).toBe(false)
   })
 
-  it('aplica clases surgical y theme-surgical al cambiar a quirúrgico', () => {
-    renderHook(() => useThemeClass())
-    act(() => {
-      useSidebarStore.getState().setTheme('surgical')
-    })
-    expect(document.documentElement.classList.contains('surgical')).toBe(true)
-    expect(document.documentElement.classList.contains('theme-surgical')).toBe(true)
-    expect(document.documentElement.classList.contains('dark')).toBe(false)
-  })
 })

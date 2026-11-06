@@ -12,12 +12,13 @@ describe('prestacionesConstants', () => {
     expect(ESPECIALIDADES_ODONTOLOGICAS).toContain('Implantología')
   })
 
-  it('contiene prestaciones de arancel por defecto con precios y codigos fonasa', () => {
+  it('contiene prestaciones de arancel con precio base y código FONASA, sin tarifas de convenio de ejemplo', () => {
     expect(ARANCEL_DEFAULT.length).toBe(10)
     ARANCEL_DEFAULT.forEach(item => {
       expect(item.id).toBeDefined()
       expect(item.nombre).toBeDefined()
       expect(item.precioParticular).toBeGreaterThan(0)
+      expect(item.precioFonasa).toBeNull()
       expect(item.codigoFonasa).toMatch(/^\d{2}-\d{2}-\d{3}$/)
     })
   })

@@ -7,7 +7,7 @@ import {
 describe('esterilizacionCalculations', () => {
   it('genera un codigo de lote con prefijo LOTE y fecha', () => {
     const lote = generarCodigoLoteEsterilizacion()
-    expect(lote).toMatch(/^LOTE-\d{8}-\d{2}$/)
+    expect(lote).toMatch(/^LOTE-\d{8}-[A-F0-9]{8}$/)
   })
 
   it('calcula resumen de esterilizacion con conformes y rechazadas', () => {

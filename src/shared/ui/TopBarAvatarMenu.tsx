@@ -10,7 +10,7 @@
  */
 import React, { useState, useRef, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { User, Settings, Terminal, Maximize2, Smartphone, LogOut, Sun, Moon, Microscope } from 'lucide-react'
+import { User, Settings, Terminal, Maximize2, Smartphone, LogOut, Sun, Moon } from 'lucide-react'
 import { Badge } from './ui/Badge'
 import { useSidebarStore } from '../../app/stores/useSidebarStore'
 import { NOMBRES_ROLES } from '../../constants/rbacConstants'
@@ -171,13 +171,6 @@ export const TopBarAvatarMenu: React.FC<TopBarAvatarMenuProps> = ({
                         className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs cursor-pointer ${theme === 'dark' ? 'bg-surface-muted font-bold text-graphite-900 dark:text-white' : 'hover:bg-surface-muted text-graphite-700 dark:text-graphite-300'}`}
                       >
                         <Moon className="w-3.5 h-3.5 text-indigo-400" /> Oscuro
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setTheme('surgical')}
-                        className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs cursor-pointer ${theme === 'surgical' ? 'bg-surface-muted font-bold text-graphite-900 dark:text-white' : 'hover:bg-surface-muted text-graphite-700 dark:text-graphite-300'}`}
-                      >
-                        <Microscope className="w-3.5 h-3.5 text-teal-500" /> Quirúrgico
                       </button>
                     </div>
                   )}

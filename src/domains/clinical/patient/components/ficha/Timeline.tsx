@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Clock, FileText, CreditCard, ShieldCheck, Pill, Calendar, Activity, ShieldAlert } from 'lucide-react'
+import { Clock, FileText, CreditCard, ShieldCheck, Pill, Calendar, Activity, ShieldAlert, Siren } from 'lucide-react'
 import { timelineService, type EventoTimeline } from '../../services/timelineService'
 import { Badge } from '../../../../../shared/ui/ui/Badge'
 
@@ -16,6 +16,7 @@ const ICONOS_TIPO: Record<string, React.ElementType> = {
   presupuesto: Activity,
   cambio_estado: ShieldAlert,
   admin: ShieldAlert,
+  urgencia_ges: Siren,
 }
 
 const BADGES_TIPO: Record<string, { label: string; variant: 'success' | 'warning' | 'info' | 'neutral' }> = {
@@ -27,6 +28,7 @@ const BADGES_TIPO: Record<string, { label: string; variant: 'success' | 'warning
   presupuesto: { label: 'Presupuesto', variant: 'warning' },
   cambio_estado: { label: 'Estado', variant: 'warning' },
   admin: { label: 'Administrativo', variant: 'warning' },
+  urgencia_ges: { label: 'Urgencia GES', variant: 'warning' },
 }
 
 export const Timeline: React.FC<TimelineProps> = ({ pacienteId }) => {

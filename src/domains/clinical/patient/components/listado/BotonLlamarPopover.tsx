@@ -111,7 +111,7 @@ export const BotonLlamarPopover: React.FC<BotonLlamarPopoverProps> = ({
               <button
                 type="button"
                 onClick={handleCopiar}
-                className="flex-1 py-1.5 px-2 bg-primary text-white rounded-lg font-bold flex items-center justify-center gap-1 text-[11px] cursor-pointer"
+                className="flex-1 py-1.5 px-2 bg-primary text-primary-foreground rounded-lg font-bold flex items-center justify-center gap-1 text-[11px] cursor-pointer"
               >
                 {copiado ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
                 {copiado ? 'Copiado' : 'Copiar'}

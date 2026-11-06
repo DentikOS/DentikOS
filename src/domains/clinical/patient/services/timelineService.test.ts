@@ -3,7 +3,7 @@ import { timelineService, type EventoTimeline } from './timelineService'
 import { getClinicaActivaSync } from '../../../../infrastructure/auth/authService'
 import { supabase } from '../../../../infrastructure/supabase/supabaseClient'
 
-const mocks = vi.hoisted(() => ({ insert: vi.fn(), order: vi.fn() }))
+const mocks = vi.hoisted(() => ({ insert: vi.fn(), order: vi.fn(), maybeSingle: vi.fn() }))
 vi.mock('../../../../infrastructure/auth/authService', () => ({ getClinicaActivaSync: vi.fn() }))
 vi.mock('../../../../infrastructure/supabase/supabaseClient', () => ({
   USE_SUPABASE: true,
@@ -11,9 +11,13 @@ vi.mock('../../../../infrastructure/supabase/supabaseClient', () => ({
     auth: { getUser: vi.fn() },
     from: vi.fn(() => ({
       insert: mocks.insert,
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({ eq: vi.fn(() => ({ order: mocks.order })) })),
-      })),
+      select: vi.fn(() => {
+        const query: { eq: ReturnType<typeof vi.fn>; order: typeof mocks.order; maybeSingle: typeof mocks.maybeSingle } = {
+          eq: vi.fn(), order: mocks.order, maybeSingle: mocks.maybeSingle
+        }
+        query.eq.mockReturnValue(query)
+        return query
+      }),
     })),
   },
 }))
@@ -29,6 +33,7 @@ describe('timelineService', () => {
     vi.mocked(supabase!.auth.getUser).mockResolvedValue({ data: { user: { id: 'cccccccc-0000-4000-8000-000000000003' } } } as any)
     mocks.insert.mockResolvedValue({ error: null })
     mocks.order.mockResolvedValue({ data: [], error: null })
+    mocks.maybeSingle.mockResolvedValue({ data: null, error: null })
   })
 
   it('no inventa eventos para una ficha sin historial', () => {
@@ -64,6 +69,27 @@ describe('timelineService', () => {
       tipo: 'receta', fecha: new Date().toISOString(), titulo: 'Receta',
     })).toBe(false)
     expect(timelineService.obtenerTimeline(pacienteId)).toEqual([])
+  })
+
+  it('acepta un conflicto de ID como reintento solo cuando coincide la misma urgencia', async () => {
+    const id = 'dddddddd-0000-4000-8000-000000000004'
+    mocks.insert.mockResolvedValue({ error: { code: '23505' } })
+    mocks.maybeSingle.mockResolvedValue({ data: {
+      id, tipo: 'urgencia_ges', metadata: { urgencia_id: id }
+    }, error: null })
+
+    expect(await timelineService.agregarEvento(pacienteId, {
+      id, tipo: 'urgencia_ges', fecha: new Date().toISOString(), titulo: 'Urgencia GES',
+      metadata: { urgencia_id: id }
+    })).toBe(true)
+
+    mocks.maybeSingle.mockResolvedValueOnce({ data: {
+      id, tipo: 'urgencia_ges', metadata: { urgencia_id: 'otra-urgencia' }
+    }, error: null })
+    expect(await timelineService.agregarEvento(pacienteId, {
+      id, tipo: 'urgencia_ges', fecha: new Date().toISOString(), titulo: 'Urgencia GES',
+      metadata: { urgencia_id: id }
+    })).toBe(false)
   })
 
   it('descarta filas remotas ajenas al paciente o clínica', async () => {

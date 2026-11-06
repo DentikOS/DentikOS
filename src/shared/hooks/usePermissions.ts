@@ -35,14 +35,19 @@ export const usePermissions = (): UsePermissionsReturn => {
 
         // Si existen permisos explícitos en metadata o perfil
         if (metadataPermisos && metadataPermisos.length > 0) {
-          return metadataPermisos.includes(item.permisoRequerido as PermisoValue)
+          // BP15 habilita a admin completo y a recepción solo para caja. Los perfiles
+          // existentes pueden tener permisos explícitos previos a la incorporación del módulo.
+          if (item.slug === 'finanzas' && (rol === 'admin' || rol === 'recepcion')) return true
+          const requeridos = [item.permisoRequerido, ...(item.permisosAlternativos || [])]
+          return requeridos.some((permiso) => metadataPermisos.includes(permiso as PermisoValue))
         }
 
         // Delegar a la matriz central de RBAC
         return puede(item.permisoRequerido)
+          || (item.permisosAlternativos || []).some((permiso) => puede(permiso))
       }),
     })).filter((seccion) => seccion.items.length > 0) // Eliminar categorías sin items visibles
-  }, [user, userProfile, puede])
+  }, [user, userProfile, puede, rol])
 
   return {
     seccionesFiltradas,

@@ -1,21 +1,21 @@
 import React, { memo } from 'react'
 import { ETAPAS_LABORATORIO, type OrdenLaboratorio } from '../constants/laboratorioConstants'
-import { FileText, Trash2 } from 'lucide-react'
+import { FileText } from 'lucide-react'
 
 export interface TablaOrdenesLaboratorioProps {
   ordenes: OrdenLaboratorio[]
-  onActualizarEtapa: (idOrden: number | string, nuevaEtapa: string) => void
-  onCambiarPago: (idOrden: number | string, nuevoEstado: string) => void
+  onActualizarEtapa: (idOrden: number | string, nuevaEtapa: string) => void | Promise<void>
   onSeleccionarImprimir: (orden: OrdenLaboratorio) => void
-  onEliminar: (idOrden: number | string) => void | Promise<void>
+  onSeleccionarDetalle: (orden: OrdenLaboratorio) => void
+  puedeCambiarEtapa: boolean
 }
 
 export const TablaOrdenesLaboratorio: React.FC<TablaOrdenesLaboratorioProps> = memo(({
   ordenes,
   onActualizarEtapa,
-  onCambiarPago,
   onSeleccionarImprimir,
-  onEliminar
+  onSeleccionarDetalle,
+  puedeCambiarEtapa
 }) => {
   if (ordenes.length === 0) {
     return (
@@ -26,16 +26,15 @@ export const TablaOrdenesLaboratorio: React.FC<TablaOrdenesLaboratorioProps> = m
   }
 
   return (
-    <div className="bg-surface border border-surface rounded-2xl overflow-hidden shadow-xs text-xs">
-      <table className="w-full text-left border-collapse">
+    <div className="bg-surface border border-surface rounded-2xl overflow-x-auto shadow-xs text-xs">
+      <table className="w-full min-w-[920px] text-left border-collapse">
         <thead>
-          <tr className="bg-graphite-50 dark:bg-graphite-950 surgical:bg-graphite-200 border-b border-surface text-gray-700 dark:text-graphite-300 surgical:text-black font-bold uppercase text-[10px]">
+          <tr className="bg-graphite-50 dark:bg-graphite-950  border-b border-surface text-gray-700 dark:text-graphite-300  font-bold uppercase text-[10px]">
             <th className="p-3">Código / Paciente</th>
             <th className="p-3">Trabajo / Pieza</th>
             <th className="p-3">Laboratorio Proveedor</th>
             <th className="p-3">Fechas (Envío / Promesa)</th>
             <th className="p-3 text-center">Etapa Actual</th>
-            <th className="p-3 text-right">Costo / Estado Pago</th>
             <th className="p-3 text-right print:hidden">Acciones</th>
           </tr>
         </thead>
@@ -43,50 +42,50 @@ export const TablaOrdenesLaboratorio: React.FC<TablaOrdenesLaboratorioProps> = m
           {ordenes.map((o) => {
             const etapaConfig =
               ETAPAS_LABORATORIO.find((e) => e.id === o.etapa) || ETAPAS_LABORATORIO[0]
-            const estaPagado = o.estadoPagoLab === 'Pagado'
 
             return (
               <tr
                 key={o.id}
-                className="hover:bg-gray-50 dark:hover:bg-graphite-800 surgical:hover:bg-slate-200 transition-colors"
+                className="hover:bg-gray-50 dark:hover:bg-graphite-800  transition-colors"
               >
                 <td className="p-3">
-                  <span className="bg-graphite-50 dark:bg-graphite-950 surgical:bg-white text-gray-900 dark:text-graphite-50 surgical:text-black px-2 py-0.5 rounded border border-surface font-mono text-[11px] font-bold block w-max tabular-nums">
+                  <span className="bg-graphite-50 dark:bg-graphite-950  text-gray-900 dark:text-graphite-50  px-2 py-0.5 rounded border border-surface font-mono text-[11px] font-bold block w-max tabular-nums">
                     {o.codigoOrden}
                   </span>
-                  <span className="font-extrabold text-gray-900 dark:text-graphite-50 surgical:text-black block mt-1">
+                  {o.esReposicion && <span className="mt-1 inline-block rounded bg-emerald-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-emerald-800">Reposición</span>}
+                  <span className="font-extrabold text-gray-900 dark:text-graphite-50  block mt-1">
                     {o.pacienteNombre}
                   </span>
-                  <span className="text-[10px] text-gray-500 dark:text-graphite-400 surgical:text-graphite-600 tabular-nums">
+                  <span className="text-[10px] text-gray-500 dark:text-graphite-400  tabular-nums">
                     RUT: {o.pacienteRut}
                   </span>
                 </td>
 
                 <td className="p-3">
-                  <span className="font-bold text-gray-900 dark:text-graphite-50 surgical:text-black block">
+                  <span className="font-bold text-gray-900 dark:text-graphite-50  block">
                     {o.tipoTrabajo}
                   </span>
-                  <span className="text-[11px] font-semibold text-blue-900 dark:text-sky-300 surgical:text-black block">
+                  <span className="text-[11px] font-semibold text-blue-900 dark:text-sky-300  block">
                     {o.piezaDientaria}
                   </span>
-                  <span className="text-[10px] text-gray-500 dark:text-graphite-400 surgical:text-graphite-600">
+                  <span className="text-[10px] text-gray-500 dark:text-graphite-400 ">
                     Color: {o.colorGuia || 'N/I'}
                   </span>
                 </td>
 
-                <td className="p-3 font-semibold text-gray-800 dark:text-graphite-100 surgical:text-black">
+                <td className="p-3 font-semibold text-gray-800 dark:text-graphite-100 ">
                   {o.laboratorioNombre}
                 </td>
 
                 <td className="p-3 tabular-nums">
-                  <span className="text-gray-600 dark:text-graphite-300 surgical:text-black block">
-                    <strong className="text-gray-800 dark:text-graphite-100 surgical:text-black">
+                  <span className="text-gray-600 dark:text-graphite-300  block">
+                    <strong className="text-gray-800 dark:text-graphite-100 ">
                       Envío:
                     </strong>{' '}
                     {o.fechaEnvio}
                   </span>
-                  <span className="text-gray-600 dark:text-graphite-400 surgical:text-graphite-700 block">
-                    <strong className="text-emerald-800 dark:text-emerald-300 surgical:text-black">
+                  <span className="text-gray-600 dark:text-graphite-400  block">
+                    <strong className="text-emerald-800 dark:text-emerald-300 ">
                       Promesa:
                     </strong>{' '}
                     {o.fechaEntregaPrometida}
@@ -95,9 +94,11 @@ export const TablaOrdenesLaboratorio: React.FC<TablaOrdenesLaboratorioProps> = m
 
                 <td className="p-3 text-center">
                   <select
+                    aria-label={`Etapa de ${o.codigoOrden}`}
                     value={o.etapa}
-                    onChange={(e) => onActualizarEtapa(o.id, e.target.value)}
-                    className={`px-2.5 py-1 rounded-xl font-extrabold text-[11px] border bg-white dark:bg-surface surgical:bg-white surgical:text-black border-surface ${etapaConfig.colorText}`}
+                    disabled={!puedeCambiarEtapa || o.etapa === 'entrega'}
+                    onChange={(e) => void onActualizarEtapa(o.id, e.target.value)}
+                    className={`px-2.5 py-1 rounded-xl font-extrabold text-[11px] border bg-white dark:bg-surface   border-surface ${etapaConfig.colorText}`}
                   >
                     {ETAPAS_LABORATORIO.map((e) => (
                       <option key={e.id} value={e.id}>
@@ -107,24 +108,17 @@ export const TablaOrdenesLaboratorio: React.FC<TablaOrdenesLaboratorioProps> = m
                   </select>
                 </td>
 
-                <td className="p-3 text-right">
-                  <span className="font-black text-gray-900 dark:text-graphite-50 surgical:text-black block tabular-nums">
-                    ${(parseFloat(String(o.costoLaboratorio)) || 0).toLocaleString('es-CL')} CLP
-                  </span>
-                  <button
-                    onClick={() => onCambiarPago(o.id, estaPagado ? 'Pendiente' : 'Pagado')}
-                    className={`px-2 py-0.5 rounded-lg text-[9px] font-bold mt-1 border transition-all ${
-                      estaPagado
-                        ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-900 dark:text-emerald-200 border-emerald-300 dark:border-emerald-800 surgical:bg-white surgical:text-black surgical:border-graphite-600'
-                        : 'bg-amber-100 dark:bg-amber-950 text-amber-900 dark:text-amber-200 border-amber-300 dark:border-amber-800 surgical:bg-white surgical:text-black surgical:border-graphite-600'
-                    }`}
-                  >
-                    {estaPagado ? 'PAGADO' : 'PENDIENTE PAGO'}
-                  </button>
-                </td>
-
                 <td className="p-3 text-right print:hidden space-x-1">
                   <button
+                    type="button"
+                    onClick={() => onSeleccionarDetalle(o)}
+                    className="p-1.5 border border-surface text-[10px] font-bold rounded-lg hover:bg-surface-hover"
+                    title="Ver documentos y garantías"
+                  >
+                    Ficha
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => onSeleccionarImprimir(o)}
                     className="p-1.5 bg-black text-white text-[10px] font-bold rounded-lg hover:bg-gray-800"
                     title="Imprimir Orden de Trabajo"
@@ -133,13 +127,6 @@ export const TablaOrdenesLaboratorio: React.FC<TablaOrdenesLaboratorioProps> = m
                       <FileText size={10} />
                       Orden
                     </span>
-                  </button>
-                  <button
-                    onClick={() => void onEliminar(o.id)}
-                    className="p-1.5 text-red-500 hover:text-red-700 font-semibold rounded-lg hover:bg-red-50"
-                    title="Eliminar trabajo"
-                  >
-                    <Trash2 size={12} />
                   </button>
                 </td>
               </tr>

@@ -4,6 +4,7 @@ import { Recetas } from './recetas/Recetas'
 import { Consentimientos } from './consentimientos/Consentimientos'
 import { AdjuntosSection } from './adjuntos/AdjuntosSection'
 import type { Paciente } from '../../schemas/pacienteSchema'
+import { useSesionStore } from '../../../../../app/stores/sesionStore'
 
 interface RecetasConsentimientosProps {
   paciente: Paciente
@@ -11,6 +12,7 @@ interface RecetasConsentimientosProps {
 
 export const RecetasConsentimientos: React.FC<RecetasConsentimientosProps> = ({ paciente }) => {
   const [subTab, setSubTab] = useState<'recetas' | 'consentimientos' | 'adjuntos'>('recetas')
+  const profesional = useSesionStore((state) => state.userProfile?.nombreCompleto || '')
 
   return (
     <div className="space-y-4" data-testid="recetas-consentimientos-modulo">
@@ -21,7 +23,7 @@ export const RecetasConsentimientos: React.FC<RecetasConsentimientosProps> = ({ 
           onClick={() => setSubTab('recetas')}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
             subTab === 'recetas'
-              ? 'bg-primary text-white shadow-xs'
+              ? 'bg-primary text-primary-foreground shadow-xs'
               : 'bg-surface text-graphite-600 dark:text-graphite-300 hover:bg-surface-hover'
           }`}
           data-testid="subtab-recetas"
@@ -35,7 +37,7 @@ export const RecetasConsentimientos: React.FC<RecetasConsentimientosProps> = ({ 
           onClick={() => setSubTab('consentimientos')}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
             subTab === 'consentimientos'
-              ? 'bg-primary text-white shadow-xs'
+              ? 'bg-primary text-primary-foreground shadow-xs'
               : 'bg-surface text-graphite-600 dark:text-graphite-300 hover:bg-surface-hover'
           }`}
           data-testid="subtab-consentimientos"
@@ -49,7 +51,7 @@ export const RecetasConsentimientos: React.FC<RecetasConsentimientosProps> = ({ 
           onClick={() => setSubTab('adjuntos')}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
             subTab === 'adjuntos'
-              ? 'bg-primary text-white shadow-xs'
+              ? 'bg-primary text-primary-foreground shadow-xs'
               : 'bg-surface text-graphite-600 dark:text-graphite-300 hover:bg-surface-hover'
           }`}
           data-testid="subtab-adjuntos"
@@ -60,7 +62,7 @@ export const RecetasConsentimientos: React.FC<RecetasConsentimientosProps> = ({ 
       </div>
 
       <div>
-        {subTab === 'recetas' && <Recetas paciente={paciente} />}
+        {subTab === 'recetas' && <Recetas paciente={paciente} profesional={profesional} />}
         {subTab === 'consentimientos' && <Consentimientos paciente={paciente} />}
         {subTab === 'adjuntos' && (
           <AdjuntosSection paciente={paciente} pacienteId={String(paciente.id)} />

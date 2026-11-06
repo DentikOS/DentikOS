@@ -93,6 +93,10 @@ enabled = true
 request_timeout = "300s"
 policy = "per_worker"
 
+[functions.r2-finanzas-documento-url]
+# El handler valida JWT con Auth, resuelve la clínica activa por RPC y verifica membresía admin.
+verify_jwt = false
+
 [analytics]
 enabled = false
 

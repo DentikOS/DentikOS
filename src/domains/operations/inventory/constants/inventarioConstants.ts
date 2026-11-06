@@ -22,7 +22,8 @@ export const CATEGORIAS_INSUMOS: readonly string[] = [
   'Protección e Higiene (EPP)',
   'Periodoncia y Profilaxis',
   'Impresión y Cementación',
-  'Instrumental'
+  'Instrumental',
+  'Esterilización'
 ]
 
 export const UNIDADES_MEDIDA: readonly string[] = [

@@ -17,13 +17,11 @@ import { AgendaDayView, type MovePayload } from './components/AgendaDayView'
 import { AgendaWeekView } from './components/AgendaWeekView'
 import { AgendaMonthView } from './components/AgendaMonthView'
 import { AgendaNavigation } from './components/AgendaNavigation'
-import { AgendaQuirurgica } from './components/AgendaQuirurgica'
 import { DoctorWaitingRoomBar } from './components/DoctorWaitingRoomBar'
 import { waitingRoomService } from './services/waitingRoomService'
 import { sonidoAgendaService } from './services/sonidoAgendaService'
 import { editarCitaRecurrencia, cancelarCitaRecurrencia } from './services/recurrenciaService'
 import { useAgendaStore } from '../../../app/stores/useAgendaStore'
-import { useThemeStore } from '../../../app/stores/useThemeStore'
 import { useSesionStore } from '../../../app/stores/sesionStore'
 import { usePermisosAgenda, puedeArrastrarCita } from './utils/permisosAgenda'
 import { FILTROS_DOCTOR } from './constants/doctorConstants'
@@ -82,7 +80,6 @@ export const AgendaModulo: React.FC<AgendaModuloProps> = memo(({ alSeleccionarPa
   const setStoreView = useAgendaStore((state) => state.setView)
   const storeCitas = useAgendaStore((state) => state.citas)
   const storeDateIso = useAgendaStore((state) => state.currentDateIso)
-  const theme = useThemeStore((state) => state.theme)
 
   const cargarDoctores = useCallback(async () => {
     setLoadingDoctores(true)
@@ -313,20 +310,6 @@ export const AgendaModulo: React.FC<AgendaModuloProps> = memo(({ alSeleccionarPa
     if (pac) (alSeleccionarPaciente || alVerFichaPaciente)?.(pac)
   }
 
-  if (theme === 'surgical') {
-    return (
-      <div 
-        className="animate-in fade-in duration-[350ms] ease-[cubic-bezier(0.16,1,0.3,1)]"
-        key="surgical-mode"
-      >
-        <AgendaQuirurgica 
-          citas={citasDelDia} 
-          onAbrirFicha={funcionVerFicha} 
-        />
-      </div>
-    )
-  }
-
   if (!loadingDoctores && doctores.length === 0) {
     return (
       <div className="p-8 text-center bg-surface border border-surface-border rounded-2xl shadow-xs">
@@ -349,7 +332,7 @@ export const AgendaModulo: React.FC<AgendaModuloProps> = memo(({ alSeleccionarPa
         title="Agenda multi-box y control de sillones"
         description="Gestión inteligente de citas, ocupación de Boxes y confirmación omnicanal."
         actions={
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-2.5 w-full sm:w-auto">
+          <div className="grid w-full grid-cols-2 items-stretch gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end xl:w-auto">
             {sucursalesActivas.length > 0 && (
               <select
                 value={sucursalFiltroEfectiva}

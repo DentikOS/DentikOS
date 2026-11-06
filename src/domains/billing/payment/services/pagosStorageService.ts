@@ -45,6 +45,7 @@ export interface Pago {
   monto?: number
   metodoPago?: string
   metodo_pago?: string
+  moneda?: string
   concepto?: string
   estado?: string
   prestacionesImputadas?: string[]
@@ -82,6 +83,7 @@ export interface AbonoRef {
 export interface ProcesarColaResult {
   procesados: number
   fallidos: number
+  borradoresEfectivo?: number
   razon?: string
   offline?: boolean
   [key: string]: unknown

@@ -25,16 +25,16 @@ export const WidgetBase: React.FC<WidgetBaseProps> = ({
 }) => {
   return (
     <div
-      className={`flex flex-col rounded-2xl bg-surface border border-surface-border shadow-xs overflow-hidden transition-all hover:shadow-md ${className}`}
-      style={borderColor ? { borderTop: `3px solid ${borderColor}` } : undefined}
+      className={`group flex h-full flex-col overflow-hidden rounded-2xl border border-surface-border/75 bg-surface shadow-sm transition-[border-color,box-shadow,transform] duration-200 ease-out hover:-translate-y-0.5 hover:border-gold-satin/30 hover:shadow-md motion-reduce:transition-none motion-reduce:hover:translate-y-0 ${className}`}
+      style={borderColor ? { borderTop: `2px solid ${borderColor}` } : undefined}
     >
-      <div className="flex items-center justify-between px-4 py-3 border-b border-surface-border bg-surface-muted/30">
+      <div className="flex items-center justify-between gap-3 border-b border-surface-border/80 bg-surface-muted/45 px-5 py-4">
         <div className="flex items-center gap-2 min-w-0">
           {dragHandle}
-          {icono && <div className="text-slate-600 dark:text-slate-300 shrink-0">{icono}</div>}
+          {icono && <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface text-champagne-700 shadow-xs ring-1 ring-inset ring-surface-border/70 dark:text-gold-satin">{icono}</div>}
           <h3
             onClick={onHeaderClick}
-            className={`text-xs font-bold text-[#0F172A] dark:text-white uppercase tracking-wider truncate ${
+            className={`truncate text-sm font-semibold tracking-tight text-graphite-900 dark:text-white ${
               onHeaderClick ? 'cursor-pointer hover:text-[#B88E3A] transition-colors' : ''
             }`}
           >
@@ -44,10 +44,10 @@ export const WidgetBase: React.FC<WidgetBaseProps> = ({
         {headerAction && <div className="shrink-0">{headerAction}</div>}
       </div>
 
-      <div className="flex-1 p-4">{children}</div>
+      <div className="flex-1 p-5">{children}</div>
 
       {footer && (
-        <div className="px-4 py-2.5 bg-surface-muted/20 border-t border-surface-border text-xs text-slate-500">
+        <div className="border-t border-surface-border px-5 py-3 text-xs text-slate-500">
           {footer}
         </div>
       )}

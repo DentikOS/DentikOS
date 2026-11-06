@@ -1,7 +1,7 @@
 /**
  * Design Tokens — DentikOS (Manual Maestro de Marca y Sistema de Diseño v1.0)
  * 
- * Identidad Oficial: Oro Corporativo, Superficies Clínicas de Precisión y Modo Quirúrgico
+ * Identidad Oficial: Oro Corporativo y Superficies Clínicas de Precisión
  * 
  * Modo CLARO:
  *   Canvas:     #F8FAFC
@@ -15,12 +15,6 @@
  *   Elevado:    #1E293B
  *   Bordes:     #24334A
  * 
- * Modo QUIRÚRGICO (.theme-surgical - Antirreflejo / Pabellón):
- *   Canvas:     #CBD5E1
- *   Superficie: #F1F5F9
- *   Elevado:    #E2E8F0
- *   Bordes:     #475569
- *   Texto:      #000000 (SemiBold 600)
  */
 
 @theme {
@@ -95,9 +89,11 @@
 
   /* === ALIASES DE MARCA === */
   --color-primary: #B88E3A;
+  --color-primary-foreground: #0F172A;
   --color-primary-light: #E5C378;
   --color-surface: #FFFFFF;
   --color-surface-muted: #F8FAFC;
+  --color-surface-border: #E2E8F0;
   --color-border: #E2E8F0;
 
   /* === TIPOGRAFÍA OFICIAL === */
@@ -176,10 +172,13 @@
   --border-focus: #E5C378;
 
   /* Tokens de Movimiento */
-  --motion-instant: 100ms cubic-bezier(0, 0, 0.2, 1);
-  --motion-fast: 180ms cubic-bezier(0.16, 1, 0.3, 1);
-  --motion-standard: 250ms cubic-bezier(0.16, 1, 0.3, 1);
-  --motion-fluid: 350ms cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-ui: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out-ui: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer-ui: cubic-bezier(0.32, 0.72, 0, 1);
+  --motion-instant: 110ms var(--ease-out-ui);
+  --motion-fast: 160ms var(--ease-out-ui);
+  --motion-standard: 220ms var(--ease-out-ui);
+  --motion-fluid: 280ms var(--ease-out-ui);
 
   /* Espaciado base 4px */
   --spacing-xs: 4px;
@@ -207,9 +206,11 @@
   --text-primary: #F8FAFC;
 
   --color-primary: #E5C378;
+  --color-primary-foreground: #0F172A;
   --color-primary-light: #FFF5DF;
   --color-surface: #0F172A;
   --color-surface-muted: #070B14;
+  --color-surface-border: var(--surface-border);
   --color-border: #24334A;
 
   /* Subpaleta clínica modo oscuro */
@@ -231,56 +232,6 @@
   --border-focus: #E5C378;
 }
 
-/* === MODO QUIRÚRGICO (.theme-surgical - Antirreflejo) === */
-.theme-surgical {
-  color-scheme: light;
-
-  --surface-canvas: #CBD5E1;
-  --surface-default: #F1F5F9;
-  --surface-elevated: #E2E8F0;
-  --surface-border: #475569;
-  --surface-text: #000000;
-
-  --bg-canvas: #CBD5E1;
-  --bg-surface: #F1F5F9;
-  --bg-elevated: #E2E8F0;
-  --border-surface: #475569;
-  --text-primary: #000000;
-
-  --color-primary: #B88E3A;
-  --color-primary-light: #E5C378;
-  --color-surface: #F1F5F9;
-  --color-surface-muted: #CBD5E1;
-  --color-border: #475569;
-
-  /* Subpaleta clínica modo quirúrgico (alta visibilidad / contraste) */
-  --clinical-healthy: #0284C7;
-  --clinical-caries: #DC2626;
-  --clinical-endo: #D97706;
-  --clinical-implant: #475569;
-  --clinical-missing: #1E293B;
-  --clinical-bleeding: #BE123C;
-
-  --chart-sound: #0284C7;
-  --chart-caries: #DC2626;
-  --chart-endo: #D97706;
-  --chart-implant: #475569;
-  --chart-missing: #1E293B;
-  --chart-bleeding: #BE123C;
-
-  --border-focus: #B88E3A;
-
-  font-weight: 600 !important;
-}
-
-/* Ergonomía táctil para modo quirúrgico: mínimo 48x48px en botones de cabecera y críticos */
-.theme-surgical header button,
-.theme-surgical header [role="button"],
-.theme-surgical [data-touch-target="critical"] {
-  min-width: 48px;
-  min-height: 48px;
-}
-
 /* === ESTILOS BASE Y TABULAR-NUMS GLOBAL === */
 html,
 body,
@@ -297,13 +248,6 @@ body,
 .dark,
 .dark body,
 .dark #root {
-  background-color: var(--surface-canvas);
-  color: var(--surface-text);
-}
-
-.theme-surgical,
-.theme-surgical body,
-.theme-surgical #root {
   background-color: var(--surface-canvas);
   color: var(--surface-text);
 }

@@ -5,6 +5,7 @@ import { finanzasStorageService } from '../services/finanzasStorageService'
 import { pagosStorageService } from '../../payment/services/pagosStorageService'
 import { obtenerAbonosPorPaciente, eliminarAbono } from '../../payment/services/pagosAbonosLegacyService'
 import { calcularBalanceFinanzas } from '../utils/finanzasCalculations'
+import { REALTIME_EVENTS } from '../../../../infrastructure/realtime/realtimeEvents'
 
 vi.mock('../services/finanzasStorageService', () => ({
   finanzasStorageService: {
@@ -17,7 +18,8 @@ vi.mock('../services/finanzasStorageService', () => ({
 
 vi.mock('../../payment/services/pagosStorageService', () => ({
   pagosStorageService: {
-    obtenerPagos: vi.fn()
+    obtenerPagos: vi.fn(),
+    sincronizarDesdeSupabase: vi.fn().mockResolvedValue([])
   }
 }))
 
@@ -73,6 +75,7 @@ describe('useFinanzas', () => {
     finanzasStorageService.guardarConvenios.mockImplementation(() => {})
     
     pagosStorageService.obtenerPagos.mockReturnValue(mockPagosGlobales)
+    pagosStorageService.sincronizarDesdeSupabase.mockResolvedValue([])
     obtenerAbonosPorPaciente.mockImplementation((pacienteId) => {
       if (pacienteId === 1) return mockAbonosPaciente1
       if (pacienteId === 2) return mockAbonosPaciente2
@@ -126,6 +129,28 @@ describe('useFinanzas', () => {
       expect(pagosGlobalesConsolidados).toHaveLength(2)
       expect(pagosGlobalesConsolidados[0].pacienteNombre).toBe('Juan Pérez')
       expect(pagosGlobalesConsolidados[0].monto).toBe(50000)
+    })
+
+    it('clasifica las ventas de inventario dentro de los ingresos de caja', () => {
+      pagosStorageService.obtenerPagos.mockReturnValue([{
+        id: 'venta-1', fecha: fechaHoy, monto: 1190, metodoPago: 'Tarjeta',
+        concepto: 'Venta de inventario VTA-001', pacienteNombre: ''
+      }])
+      const { result } = renderHook(() => useFinanzas(mockPacientes))
+      const venta = result.current.movimientos.find((movimiento) => movimiento.id === 'pago_global_venta-1')
+      expect(venta).toMatchObject({
+        tipo: 'Ingreso', categoria: 'Venta de Inventario', monto: 1190,
+        pacienteNombre: 'Venta de inventario', origen: 'Pagos'
+      })
+    })
+
+    it('refresca la caja al recibir un cambio Realtime de pagos', async () => {
+      renderHook(() => useFinanzas(mockPacientes))
+      await act(async () => {
+        window.dispatchEvent(new CustomEvent(REALTIME_EVENTS.PAGOS_CHANGED))
+        await new Promise((resolve) => setTimeout(resolve, 0))
+      })
+      expect(pagosStorageService.sincronizarDesdeSupabase).toHaveBeenCalledOnce()
     })
 
     it('incluye abonos de pacientes en movimientos con origen "Presupuestos"', () => {

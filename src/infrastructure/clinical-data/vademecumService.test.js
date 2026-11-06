@@ -308,6 +308,40 @@ describe('vademecumService', () => {
     })
   })
 
+  describe('sincronizarDesdeSupabase (Realtime)', () => {
+    it('emite el evento del vademécum cuando la caché remota queda actualizada', async () => {
+      globalThis.__mockUseSupabase = true
+      const respuestaPara = (tabla) => {
+        const resultado = {
+          data: tabla === 'vademecum'
+            ? [{ numero: 999, familia: 'aine', nombre_generico: 'Fármaco sincronizado', activo: true }]
+            : [],
+          error: null
+        }
+        const query = {
+          select: () => query,
+          eq: () => query,
+          limit: () => Promise.resolve(resultado),
+          then: (resolve, reject) => Promise.resolve(resultado).then(resolve, reject)
+        }
+        return query
+      }
+      globalThis.__mockSupabase = { from: vi.fn((tabla) => respuestaPara(tabla)) }
+
+      const evento = vi.fn()
+      window.addEventListener('realtime:vademecum_changed', evento)
+
+      try {
+        await vademecumService.sincronizarDesdeSupabase()
+
+        expect(evento).toHaveBeenCalledTimes(1)
+        expect(vademecumService.obtenerVademecum()[0].nombre_generico).toBe('Fármaco sincronizado')
+      } finally {
+        window.removeEventListener('realtime:vademecum_changed', evento)
+      }
+    })
+  })
+
   describe('limpiarCache', () => {
     it('debe limpiar la caché completamente', () => {
       // Primero cargar datos
