@@ -61,6 +61,7 @@ let cacheInicializado = false
 const SNAKE_TO_CAMEL_MAP: Record<string, string> = {
   metodo_pago: 'metodoPago',
   user_id: 'userId',
+  orden_laboratorio_id: 'ordenLaboratorioId',
   created_at: 'createdAt',
   updated_at: 'updatedAt'
 }
@@ -95,6 +96,9 @@ const transformarParaSupabase = (movimientoJs: MovimientoFinanciero | null): Rec
   }
   return resultado
 }
+
+const esMovimientoGestionadoPorLaboratorio = (movimiento: MovimientoFinanciero): boolean =>
+  Boolean(movimiento.ordenLaboratorioId) || movimiento.categoria === 'Laboratorio Dental'
 
 // ═══════════════════════════════════════════════════════════════════
 // INICIALIZACIÓN DE CACHÉ
@@ -196,9 +200,9 @@ const guardarMovimientos = async (movs: unknown): Promise<boolean> => {
 
     for (const movimiento of datos) {
       if (esUuidValido(movimiento.id)) {
-        aActualizar.push(movimiento)
         idsEnMemoria.add(movimiento.id)
-      } else {
+        if (!esMovimientoGestionadoPorLaboratorio(movimiento)) aActualizar.push(movimiento)
+      } else if (!esMovimientoGestionadoPorLaboratorio(movimiento)) {
         aInsertar.push(movimiento)
       }
     }
@@ -253,10 +257,14 @@ const guardarMovimientos = async (movs: unknown): Promise<boolean> => {
     // DELETE movimientos eliminados
     const { data: movimientosSupabase } = await supabase
       .from('movimientos_financieros')
-      .select('id')
+      .select('id,categoria,orden_laboratorio_id')
 
     if (Array.isArray(movimientosSupabase)) {
       const idsAEliminar = movimientosSupabase
+        .filter(m => {
+          const row = m as { categoria?: string | null; orden_laboratorio_id?: string | null }
+          return !row.orden_laboratorio_id && row.categoria !== 'Laboratorio Dental'
+        })
         .map(m => (m as { id: string }).id)
         .filter(id => !idsEnMemoria.has(id))
 

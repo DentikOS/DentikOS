@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, Suspense, lazy } from 'react'
-import { motion } from 'framer-motion'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { LoginScreen } from './shared/ui/LoginScreen'
 import { Sidebar } from './shared/ui/Sidebar'
 import { MobileHamburger } from './shared/ui/MobileHamburger'
@@ -17,7 +17,6 @@ import { useNotificationsRealtime } from './shared/hooks/useNotificationsRealtim
 import { useNotificationTriggers } from './shared/hooks/useNotificationTriggers'
 import { useSidebarStore } from './app/stores/useSidebarStore'
 import { useTopBarStore } from './app/stores/useTopBarStore'
-import { useAutoSurgicalMode } from './shared/hooks/useAutoSurgicalMode'
 import { ACCIONES_POR_MODULO } from './constants/topBarActionsConstants'
 import { CargandoModulo } from './shared/ui/CargandoModulo'
 import { ErrorBoundary } from './shared/ui/ErrorBoundary' // F6-01
@@ -50,6 +49,7 @@ import { notificationService } from './infrastructure/notification/notificationS
 import { Agenda as AgendaModulo } from './domains/operations/agenda'
 import { usePresupuestosStore } from './app/stores/usePresupuestosStore'
 import { usePacientesStore } from './app/stores/usePacientesStore'
+import type { PestanaFicha } from './app/stores/pacientesStore'
 import { useSessionGuard } from './shared/hooks/useSessionGuard'
 import { DashboardModulo } from './application/analytics/dashboard'
 import { createLogger } from './infrastructure/logging/logger'
@@ -64,7 +64,7 @@ const log = createLogger('App')
 // bundle inicial, solo cuando el usuario navega a esa sección por primera vez.
 const PacientesListado = lazy(() => import('./domains/clinical/patient').then(m => ({ default: m.PacientesListado })))
 const FichaClinica = lazy(() => import('./domains/clinical/patient').then(m => ({ default: m.FichaClinica })))
-const FinanzasModulo = lazy(() => import('./domains/billing/cash-register').then(m => ({ default: m.FinanzasModulo })))
+const FinanzasModulo = lazy(() => import('./domains/billing/treasury').then(m => ({ default: m.TreasuryModulo })))
 const InventarioModulo = lazy(() => import('./domains/operations/inventory').then(m => ({ default: m.InventarioModulo })))
 const UrgenciasGesModulo = lazy(() => import('./domains/clinical/emergency-ges').then(m => ({ default: m.UrgenciasGesModulo })))
 const EsterilizacionModulo = lazy(() => import('./domains/operations/sterilization').then(m => ({ default: m.EsterilizacionModulo })))
@@ -81,6 +81,7 @@ const AdministracionDentikOSModulo = lazy(() => import('./domains/organization/c
 
 interface SesionStoreState {
   userProfile: PerfilUsuario | null
+  clinicaActual: string | null
   login: (profile: PerfilUsuario) => void
   logout: () => void
 }
@@ -110,6 +111,7 @@ const Agenda = AgendaModulo as React.ComponentType<AgendaModuloProps>
 const Presupuestos = PresupuestosModulo as React.ComponentType<PresupuestosModuloProps>
 
 export const App: React.FC = () => {
+  const prefersReducedMotion = useReducedMotion()
   // F7-36 FASE 1 (Commit 1.5f): repo tenant-aware para paciente seleccionado (PHI).
   // La clave clinica_paciente_seleccionado_id ahora se almacena como
   // sd_<clinicaId>_clinica_paciente_seleccionado_id para aislamiento multi-tenant.
@@ -162,14 +164,15 @@ export const App: React.FC = () => {
   }, [])
 
   const userProfile = useSesionStore((state: unknown) => (state as SesionStoreState).userProfile)
+  const clinicaActual = useSesionStore((state: unknown) => (state as SesionStoreState).clinicaActual)
   const loginStore = useSesionStore((state: unknown) => (state as SesionStoreState).login)
   const pacienteActivo = usePacientesStore((s) => s.pacienteActivo)
   const bootstrapNecesario = useBootstrapDetection(userProfile) // F7-11b
   // F7-11: Detectar invitación pendiente en URL hash
   const invitacionPendiente = useInvitacionHash()
 
-  // F7-25: Dark mode y modo quirúrgico con persistencia
-  const { theme, darkMode, cycleTheme, toggleDarkMode } = useDarkMode()
+  // F7-25: tema claro/oscuro con persistencia
+  const { darkMode } = useDarkMode()
   useThemeClass()
   useKeyboardShortcuts()
   useSupabaseRealtime()
@@ -214,7 +217,19 @@ export const App: React.FC = () => {
     setPacienteSeleccionado
   )
 
-  // Blueprint 02 & 03: Modo Foco, Modo Presentación, Atajos y Modo Quirúrgico
+  const abrirFichaPacienteEnSeccion = useCallback((pacienteId: string | number, pestana: PestanaFicha) => {
+    if (!clinicaActual) return
+    const paciente = usePacientesStore.getState().pacientes.find((item) =>
+      String(item.id) === String(pacienteId) && item.clinicaId === clinicaActual
+    )
+    if (!paciente) return
+
+    setPacienteSeleccionado(paciente)
+    usePacientesStore.getState().abrirFicha(paciente.id, pestana)
+    setActiveSection('Pacientes')
+  }, [clinicaActual, setActiveSection, setPacienteSeleccionado])
+
+  // Blueprint 02 & 03: Modo Foco, Modo Presentación y Atajos
   const focusMode = useSidebarStore((s) => s.focusMode)
   const setFocusMode = useSidebarStore((s) => s.setFocusMode)
   const toggleFocusMode = useSidebarStore((s) => s.toggleFocusMode)
@@ -226,7 +241,6 @@ export const App: React.FC = () => {
   const [preferenciasModalOpen, setPreferenciasModalOpen] = useState(false)
   const [dispositivosModalOpen, setDispositivosModalOpen] = useState(false)
   const [citaSeleccionadaId, setCitaSeleccionadaId] = useState<string | number | null>(null)
-  useAutoSurgicalMode()
 
   const handleOpenCita = useCallback((citaId: string | number) => {
     setActiveSection('Agenda')
@@ -360,6 +374,12 @@ export const App: React.FC = () => {
   }, [activeSection, pacienteSeleccionado])
 
   useDataMigration(userProfile)
+
+  useEffect(() => {
+    if (!USE_SUPABASE) return
+    if (userProfile) void usePrestacionesStore.getState().sincronizarDesdeSupabase()
+    else usePrestacionesStore.setState({ prestacionesArancel: [], estadoRemoto: 'pendiente' })
+  }, [userProfile])
 
   // F5-02: activar sincronización en tiempo real
   useRealtimeSync()
@@ -536,7 +556,7 @@ export const App: React.FC = () => {
       <FocusMode />
       <KeyboardShortcutsModal />
 
-      <div className="min-h-screen flex flex-col bg-canvas text-primary-surface font-sans">
+      <div className="studio-app-shell min-h-screen min-h-[100svh] flex flex-col bg-canvas text-primary-surface font-sans">
         {focusMode ? (
           <FocusModeTopBar
             breadcrumbs={breadcrumbs}
@@ -549,7 +569,6 @@ export const App: React.FC = () => {
             pacienteSeleccionado={pacienteSeleccionado}
             onLogout={handleLogout}
             darkMode={darkMode}
-            theme={theme}
             breadcrumbs={breadcrumbs}
             accionPrimaria={accionPrimaria}
             accionesSecundarias={accionesSecundarias}
@@ -565,18 +584,19 @@ export const App: React.FC = () => {
           <Sidebar userProfile={userProfile} activeSection={activeSection} setActiveSection={setActiveSection} onLogout={handleLogout} counters={sidebarCounters} />
           <SidebarMobileOverlay userProfile={userProfile} activeSection={activeSection} setActiveSection={setActiveSection} onLogout={handleLogout} counters={sidebarCounters} />
 
-          <main className="flex-1 p-8 print:p-0 overflow-x-hidden">
-            <Suspense fallback={<CargandoModulo />}>
-              <motion.div
-                key={activeSection}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{
-                  duration: 0.35, // Token "Fluido"
-                  ease: [0.16, 1, 0.3, 1],
-                }}
-              >
+          <main className="min-w-0 flex-1 px-4 py-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:px-6 sm:py-6 xl:p-8 print:p-0 overflow-x-hidden">
+            <Suspense fallback={<CargandoModulo titulo={activeSection} />}>
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.div
+                  key={activeSection}
+                  initial={{ opacity: 0, y: prefersReducedMotion ? 0 : 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: prefersReducedMotion ? 0 : -6 }}
+                  transition={{
+                    duration: prefersReducedMotion ? 0.12 : 0.22,
+                    ease: [0.23, 1, 0.32, 1],
+                  }}
+                >
                 {activeSection === 'Dashboard' && (
                   <Dashboard
                     setPacienteSeleccionado={setPacienteSeleccionado}
@@ -597,7 +617,7 @@ export const App: React.FC = () => {
                 )}
 
                 {(activeSection === 'Urgencias y GES' || activeSection === 'Urgencias GES') && (
-                  <UrgenciasGesModulo />
+                  <UrgenciasGesModulo onAbrirFichaPaciente={abrirFichaPacienteEnSeccion} />
                 )}
 
                 {activeSection === 'Esterilización' && (
@@ -674,7 +694,8 @@ export const App: React.FC = () => {
                     )}
                   </ErrorBoundary>
                 )}
-              </motion.div>
+                </motion.div>
+              </AnimatePresence>
             </Suspense>
           </main>
         </div>

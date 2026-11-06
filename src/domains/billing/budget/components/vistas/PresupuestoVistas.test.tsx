@@ -16,31 +16,35 @@ const mockPresupuesto: Presupuesto = {
 }
 
 describe('PresupuestoComparativo & ModoPresentacion (BP07)', () => {
-  it('renderiza 3 opciones alternativas en PresupuestoComparativo', () => {
+  const opciones = [
+    { id: 'opcion-clinica', nombre: 'Alternativa registrada', descripcion: 'Descripción clínica', tiempoEstimado: 'Según evaluación', beneficios: [], total: 100000 },
+  ]
+
+  it('sin opciones registradas no inventa tratamientos', () => {
     render(<PresupuestoComparativo onAprobarOpcion={vi.fn()} />)
     expect(screen.getByTestId('presupuesto-comparativo-modulo')).toBeInTheDocument()
-    expect(screen.getByText(/Opción A: Rehabilitación sobre Implantes/i)).toBeInTheDocument()
-    expect(screen.getByText(/Opción B: Puente Fijo/i)).toBeInTheDocument()
-    expect(screen.getByText(/Opción C: Prótesis Parcial/i)).toBeInTheDocument()
+    expect(screen.getByText(/No hay alternativas clínicas registradas/i)).toBeInTheDocument()
+    expect(screen.getByTestId('btn-aprobar-opcion-comparativa')).toBeDisabled()
   })
 
   it('permite aprobar la opción seleccionada', () => {
     const onAprobar = vi.fn()
-    render(<PresupuestoComparativo onAprobarOpcion={onAprobar} />)
+    render(<PresupuestoComparativo opciones={opciones} onAprobarOpcion={onAprobar} />)
 
+    fireEvent.click(screen.getByText('Alternativa registrada'))
     fireEvent.click(screen.getByTestId('btn-aprobar-opcion-comparativa'))
     expect(onAprobar).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'opc-implante' })
+      expect.objectContaining({ id: 'opcion-clinica' })
     )
   })
 
-  it('renderiza ModoPresentacion con desglose de cuotas y permite aprobar', () => {
+  it('renderiza ModoPresentacion con total real y permite aprobar', () => {
     const onAprobar = vi.fn()
     render(<ModoPresentacion presupuesto={mockPresupuesto} onAprobar={onAprobar} onSalir={vi.fn()} />)
 
     expect(screen.getByTestId('modo-presentacion-presupuesto')).toBeInTheDocument()
     expect(screen.getByText('$600.000')).toBeInTheDocument()
-    expect(screen.getByText('$200.000')).toBeInTheDocument() // 600.000 / 3
+    expect(screen.queryByText('$200.000')).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByTestId('btn-aprobar-presentacion'))
     expect(onAprobar).toHaveBeenCalled()
@@ -71,11 +75,18 @@ describe('SimuladorCuotas & HistorialVersiones (BP07 §09, §15)', () => {
     )
   })
 
-  it('renderiza HistorialVersiones con SHA-256 y permite expandir diferencias', () => {
-    render(<HistorialVersiones folioPresupuesto="PRE-TEST" />)
+  it('historial vacío no inventa versiones; permite expandir diferencias reales', () => {
+    const { rerender } = render(<HistorialVersiones folioPresupuesto="PRE-TEST" />)
 
     expect(screen.getByTestId('historial-versiones')).toBeInTheDocument()
+    expect(screen.getByText(/No hay versiones registradas/i)).toBeInTheDocument()
+    rerender(<HistorialVersiones folioPresupuesto="PRE-TEST" versiones={[{
+      version: 3, fecha: '2026-10-30T12:00:00Z', usuario: 'Dentista',
+      tipoModificacion: 'Edición', motivo: 'Corrección', totalAnterior: 90000,
+      totalNuevo: 100000, hashSha256: 'sha256', cambios: ['Corrección de monto'],
+    }]} />)
     expect(screen.getByText('v3.0')).toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('btn-expandir-version-3'))
     expect(screen.getByTestId('diff-version-3')).toBeInTheDocument()
   })
 })

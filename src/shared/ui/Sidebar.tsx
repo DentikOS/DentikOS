@@ -1,5 +1,5 @@
 /**
- * Sidebar — Blueprint 02: 5 Categorías Core, Trazo de Cera Quirúrgico y Cascada Framer Motion
+ * Sidebar — Blueprint 02: 5 Categorías Core, Trazo de Cera y Cascada Framer Motion
  * Respetando arquitectura DDD y límite estricto de 250 líneas.
  */
 import React, { useMemo, useEffect } from 'react'
@@ -10,7 +10,6 @@ import { SidebarHeader } from './SidebarHeader'
 import { SidebarFooter } from './SidebarFooter'
 import { SidebarItemAnimated } from './SidebarItemAnimated'
 import { useSidebarStore, type SidebarMode } from '../../app/stores/useSidebarStore'
-import { useDarkMode } from '../hooks/useDarkMode'
 import { useNombreClinica } from '../hooks/useNombreClinica'
 import { useSedes } from '../../domains/organization/clinic/hooks/useSedes'
 import type { PerfilUsuario } from '../../infrastructure/auth/authService'
@@ -34,10 +33,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const storeMode = useSidebarStore((s) => s.mode)
   const setMode = useSidebarStore((s) => s.setMode)
-  const preSurgicalMode = useSidebarStore((s) => s.preSurgicalMode)
-  const setPreSurgicalMode = useSidebarStore((s) => s.setPreSurgicalMode)
   const focusMode = useSidebarStore((s) => s.focusMode)
-  const { theme } = useDarkMode()
   const { seccionesFiltradas: seccionesVisibles } = usePermissions()
   const { sedeActiva } = useSedes()
   const prefersReducedMotion = useReducedMotion()
@@ -51,30 +47,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   useEffect(() => {
     if (propMode) return
-
-    if (theme === 'surgical') {
-      if (storeMode !== 'collapsed') {
-        setPreSurgicalMode(storeMode)
-        setMode('collapsed')
-      }
-    } else if (preSurgicalMode) {
-      setMode(preSurgicalMode)
-      setPreSurgicalMode(null)
-    }
-  }, [theme, storeMode, preSurgicalMode, setMode, setPreSurgicalMode, propMode])
-
-  useEffect(() => {
-    if (propMode) return
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return
 
     const mqlMobile = window.matchMedia('(max-width: 767px)')
     const mqlTablet = window.matchMedia('(min-width: 768px) and (max-width: 1024px)')
 
     const handleMedia = () => {
-      if (mqlMobile.matches) {
-        setMode('hidden')
-      } else if (mqlTablet.matches) {
+      if (mqlMobile.matches) return
+
+      if (mqlTablet.matches) {
         setMode('collapsed')
+      } else if (storeMode === 'hidden') {
+        setMode('expanded')
       }
     }
 
@@ -87,15 +71,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
   }, [setMode, propMode])
 
-  if (focusMode || mode === 'hidden') return null
+  if (focusMode) return null
 
   return (
     <aside
-      className={`${isCollapsed ? 'w-16 px-2 py-3' : 'w-60 p-3'} bg-white dark:bg-graphite-950 surgical:bg-graphite-300 border-r border-surface ${propMode ? 'h-full' : 'min-h-screen'} flex flex-col justify-between transition-[width] duration-300 select-none print:hidden z-30`}
+      className={`${isCollapsed ? 'w-16 px-2 py-3' : 'w-60 p-3'} bg-white dark:bg-graphite-950  border-r border-surface ${propMode ? 'h-full flex' : 'sticky top-0 hidden h-dvh md:flex'} min-h-0 flex-col transition-[width] duration-300 select-none print:hidden z-30`}
       role="navigation"
       aria-label="Menú principal"
     >
-      <div>
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {/* Header: Logo DentikOS con fade-in 50ms */}
         <motion.div
           initial={shouldAnimate ? { opacity: 0 } : false}
@@ -114,7 +98,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </motion.div>
 
         {/* 5 Categorías Core en cascada Framer Motion */}
-        <nav aria-label="Navegacion principal" className="space-y-2 mt-2">
+        <nav aria-label="Navegacion principal" className="min-h-0 flex-1 overflow-y-auto overscroll-contain space-y-2 mt-2">
           {seccionesVisibles.map((seccion, categoriaIndex) => {
             const categoriaDelay = 0.1 + categoriaIndex * 0.03
 
@@ -190,7 +174,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       {/* Footer: SidebarFooter unificado */}
-      <div className="pt-3 border-t border-surface px-1 overflow-visible">
+      <div className="shrink-0 pt-3 border-t border-surface px-1 overflow-visible">
         <SidebarFooter compact={isCollapsed} />
       </div>
     </aside>

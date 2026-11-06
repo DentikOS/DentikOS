@@ -33,7 +33,7 @@ export const OdontogramaSlider: React.FC<OdontogramaSliderProps> = ({
           onClick={() => onCambiarModo('inicial')}
           className={`px-3 py-1.5 rounded-lg transition-colors font-medium ${
             modoVista === 'inicial'
-              ? 'bg-primary text-white shadow-xs'
+              ? 'bg-primary text-primary-foreground shadow-xs'
               : 'text-graphite-600 hover:text-graphite-900 dark:text-graphite-400'
           }`}
         >
@@ -44,7 +44,7 @@ export const OdontogramaSlider: React.FC<OdontogramaSliderProps> = ({
           onClick={() => onCambiarModo('evolucion')}
           className={`px-3 py-1.5 rounded-lg transition-colors font-medium ${
             modoVista === 'evolucion'
-              ? 'bg-primary text-white shadow-xs'
+              ? 'bg-primary text-primary-foreground shadow-xs'
               : 'text-graphite-600 hover:text-graphite-900 dark:text-graphite-400'
           }`}
         >
@@ -55,7 +55,7 @@ export const OdontogramaSlider: React.FC<OdontogramaSliderProps> = ({
           onClick={() => onCambiarModo('comparativo')}
           className={`px-3 py-1.5 rounded-lg transition-colors font-medium flex items-center gap-1 ${
             modoVista === 'comparativo'
-              ? 'bg-primary text-white shadow-xs'
+              ? 'bg-primary text-primary-foreground shadow-xs'
               : 'text-graphite-600 hover:text-graphite-900 dark:text-graphite-400'
           }`}
         >

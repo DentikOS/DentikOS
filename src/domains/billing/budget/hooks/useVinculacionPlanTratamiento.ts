@@ -1,5 +1,7 @@
 import { usePresupuestosStore } from '../../../../app/stores/presupuestosStore'
 import type { Presupuesto, ItemPresupuesto } from '../schemas/presupuestoSchema'
+import { clinicStorageService } from '../../../organization/clinic/services/clinicStorageService'
+import { resolverMonedaDocumento } from '../../../../shared/utils/formatoDocumento'
 
 export interface ProcedimientoVinculado {
   id: string
@@ -48,6 +50,7 @@ export const useVinculacionPlanTratamiento = () => {
       montoTotal: total,
       estado: 'borrador',
       planTratamientoId,
+      moneda: resolverMonedaDocumento(clinicStorageService.obtenerClinica()?.moneda),
     })
   }
 

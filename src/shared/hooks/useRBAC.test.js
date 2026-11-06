@@ -87,12 +87,14 @@ describe('useRBAC', () => {
       expect(result.current.puede(PERMISOS.VER_HISTORIA_CLINICA_COMPLETA)).toBe(true)
     })
 
-    it('RECEPCION no tiene permisos especiales', () => {
+    it('RECEPCION puede ver presupuestos sin acceso financiero general', () => {
       setStore({ email: 'recepcion@example.com', rol: ROLES.RECEPCION })
 
       const { result } = renderHook(() => useRBAC())
 
       expect(result.current.puede(PERMISOS.VER_FINANZAS)).toBe(false)
+      expect(result.current.puede(PERMISOS.VER_PRESUPUESTOS)).toBe(true)
+      expect(result.current.puede(PERMISOS.VER_PAGOS)).toBe(false)
       expect(result.current.puede(PERMISOS.VER_CONFIGURACION)).toBe(false)
       expect(result.current.puede(PERMISOS.VER_HISTORIA_CLINICA_COMPLETA)).toBe(false)
     })
@@ -178,12 +180,17 @@ describe('useRBAC', () => {
       expect(result.current.permisos).toContain(PERMISOS.GESTIONAR_USUARIOS)
     })
 
-    it('RECEPCION tiene lista vacía de permisos especiales', () => {
+    it('RECEPCION tiene acceso limitado a caja BP15, presupuesto, laboratorio y cola', () => {
       setStore({ email: 'recepcion@example.com', rol: ROLES.RECEPCION })
 
       const { result } = renderHook(() => useRBAC())
 
-      expect(result.current.permisos).toEqual([])
+      expect(result.current.permisos).toEqual([
+        PERMISOS.VER_CAJA_BP15,
+        PERMISOS.VER_PRESUPUESTOS,
+        PERMISOS.VER_LABORATORIO,
+        PERMISOS.VER_COLA_URGENCIA
+      ])
     })
   })
 

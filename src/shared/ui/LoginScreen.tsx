@@ -11,6 +11,7 @@ import { createLogger } from '../../infrastructure/logging/logger'
 import { Button } from './ui/Button'
 import { Input } from './ui/Input'
 import { LoginBrandBanner } from './LoginBrandBanner'
+import { DentikOSLogo } from './brand/DentikOSLogo'
 import { RecuperarContrasena } from './RecuperarContrasena'
 import { RegistroForm } from './RegistroForm'
 import { useLoginStates, type EstadoLogin } from '../hooks/useLoginStates'
@@ -134,21 +135,26 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
   }
 
   return (
-    <div className="min-h-screen bg-[#070B14] flex items-center justify-center p-3 sm:p-6 text-slate-100" role="main">
-      <div className="w-full max-w-5xl bg-[#0B132B]/95 rounded-3xl shadow-2xl border border-[#24334A] overflow-hidden flex flex-col lg:flex-row">
-        {/* Split Screen 55% Izquierda */}
-        <div className="w-full lg:w-[55%] flex">
+    <div className="min-h-[100svh] bg-[#070B14] flex items-center justify-center p-3 sm:p-6 text-slate-100" role="main">
+      <div className="w-full max-w-md lg:max-w-5xl bg-[#080E1E] lg:bg-[#0B132B]/95 rounded-2xl lg:rounded-3xl shadow-xl lg:shadow-2xl border border-[#24334A] overflow-hidden flex flex-col lg:flex-row">
+        <div className="hidden lg:flex lg:w-[55%]">
           <LoginBrandBanner />
         </div>
 
-        {/* Split Screen 45% Derecha */}
-        <div className="w-full lg:w-[45%] p-6 sm:p-10 flex flex-col justify-between bg-[#080E1E]">
+        <div className="w-full lg:w-[45%] p-5 sm:p-10 flex flex-col justify-between bg-[#080E1E] login-form-panel">
           <div>
+            <div className="mb-6 flex items-center justify-between lg:hidden">
+              <DentikOSLogo variant="horizontal" size="sm" opticalSize="standard" dark={true} />
+              <span className="text-[11px] text-slate-400 bg-slate-800/60 px-2 py-1 rounded-md border border-slate-700/50">
+                v1.0.0
+              </span>
+            </div>
+
             <div className="flex justify-between items-center mb-6">
               <span className="text-xs uppercase tracking-wider text-[#D4AF37] font-semibold flex items-center gap-1.5">
                 <Lock size={12} /> Acceso Quirúrgico
               </span>
-              <span className="text-[11px] text-slate-400 bg-slate-800/60 px-2 py-0.5 rounded-full border border-slate-700/50">
+              <span className="hidden lg:inline text-[11px] text-slate-400 bg-slate-800/60 px-2 py-0.5 rounded-full border border-slate-700/50">
                 v1.0.0
               </span>
             </div>
@@ -175,6 +181,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                 type="email"
                 required
                 disabled={estado === 'cargando' || estado === 'cuenta_bloqueada'}
+                size="lg"
                 value={email}
                 onChange={(e) => { setEmail(e.target.value); setErrorMsg('') }}
                 placeholder="dr.odontologo@clinica.cl"
@@ -188,6 +195,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                   type={mostrarPassword ? 'text' : 'password'}
                   required
                   disabled={estado === 'cargando' || estado === 'cuenta_bloqueada'}
+                  size="lg"
                   value={password}
                   onChange={(e) => { setPassword(e.target.value); setErrorMsg('') }}
                   placeholder="••••••••"
@@ -286,7 +294,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
               <div className="flex items-center gap-1.5">
                 <button type="button" onClick={() => setTheme('light')} className={`px-2 py-0.5 rounded text-[11px] ${theme === 'light' ? 'bg-[#D4AF37] text-black font-semibold' : 'hover:text-white'}`}>Claro</button>
                 <button type="button" onClick={() => setTheme('dark')} className={`px-2 py-0.5 rounded text-[11px] ${theme === 'dark' ? 'bg-[#D4AF37] text-black font-semibold' : 'hover:text-white'}`}>Oscuro</button>
-                <button type="button" onClick={() => setTheme('surgical')} className={`px-2 py-0.5 rounded text-[11px] ${theme === 'surgical' ? 'bg-cyan-400 text-black font-semibold' : 'hover:text-white'}`}>Quirúrgico</button>
               </div>
               <button type="button" onClick={() => setIdioma(idioma === 'ES' ? 'EN' : 'ES')} className="inline-flex items-center gap-1 text-[11px] hover:text-white">
                 <Globe size={12} /> {idioma}

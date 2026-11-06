@@ -9,30 +9,21 @@ describe('ThemeSwitcher (Blueprint 02)', () => {
   beforeEach(() => {
     useThemeStore.setState({ theme: 'light' })
     useSidebarStore.setState({ theme: 'light' })
-    document.documentElement.classList.remove('dark', 'theme-surgical')
+    document.documentElement.classList.remove('dark')
   })
 
-  it('renderiza slider físico con 3 botones de tema y accesibilidad slider', () => {
+  it('renderiza slider físico con 2 botones de tema y accesibilidad slider', () => {
     render(<ThemeSwitcher />)
     expect(screen.getByTestId('theme-switcher-slider')).toBeInTheDocument()
 
     const slider = screen.getByRole('slider', { name: /tema de interfaz/i })
     expect(slider).toBeInTheDocument()
     expect(slider).toHaveAttribute('aria-valuemin', '0')
-    expect(slider).toHaveAttribute('aria-valuemax', '2')
+    expect(slider).toHaveAttribute('aria-valuemax', '1')
     expect(slider).toHaveAttribute('aria-valuenow', '0')
 
     expect(screen.getByRole('button', { name: /activar modo claro/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /activar modo quirúrgico/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /activar modo oscuro/i })).toBeInTheDocument()
-  })
-
-  it('cambia de tema al presionar botón de modo quirúrgico', () => {
-    render(<ThemeSwitcher />)
-    const surgicalBtn = screen.getByRole('button', { name: /activar modo quirúrgico/i })
-    fireEvent.click(surgicalBtn)
-    expect(useSidebarStore.getState().theme).toBe('surgical')
-    expect(document.documentElement.classList.contains('theme-surgical')).toBe(true)
   })
 
   it('cambia de tema al presionar botón de modo oscuro', () => {
@@ -47,17 +38,13 @@ describe('ThemeSwitcher (Blueprint 02)', () => {
     render(<ThemeSwitcher />)
     const slider = screen.getByRole('slider')
 
-    // De light -> surgical con ArrowRight
-    fireEvent.keyDown(slider, { key: 'ArrowRight' })
-    expect(useSidebarStore.getState().theme).toBe('surgical')
-
-    // De surgical -> dark con ArrowRight
+    // De light -> dark con ArrowRight
     fireEvent.keyDown(slider, { key: 'ArrowRight' })
     expect(useSidebarStore.getState().theme).toBe('dark')
 
-    // De dark -> surgical con ArrowLeft
+    // De dark -> light con ArrowLeft
     fireEvent.keyDown(slider, { key: 'ArrowLeft' })
-    expect(useSidebarStore.getState().theme).toBe('surgical')
+    expect(useSidebarStore.getState().theme).toBe('light')
   })
 
   it('soporta interacción de drag con Pointer Events', () => {

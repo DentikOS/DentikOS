@@ -8,13 +8,8 @@ import {
 } from './finanzasConstants'
 
 describe('finanzasConstants', () => {
-  it('contiene convenios por defecto estructurados', () => {
-    expect(CONVENIOS_DEFAULT.length).toBe(4)
-    CONVENIOS_DEFAULT.forEach(c => {
-      expect(c.id).toBeDefined()
-      expect(c.nombre).toBeDefined()
-      expect(typeof c.descuentoDefecto).toBe('number')
-    })
+  it('no aplica porcentajes de convenio ilustrativos como configuración real', () => {
+    expect(CONVENIOS_DEFAULT).toEqual([])
   })
 
   it('contiene categorias de egreso e ingreso', () => {

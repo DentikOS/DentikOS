@@ -68,7 +68,7 @@ export const TopBarBreadcrumbs: React.FC<TopBarBreadcrumbsProps> = ({ items, pac
               <li key={`${item.label}-${idx}`} className="flex items-center gap-1.5">
                 {idx > 0 && (
                   <span
-                    className="text-[#CBD5E1] dark:text-[#CBD5E1] surgical:text-[#475569] font-normal select-none"
+                    className="text-[#CBD5E1] dark:text-[#CBD5E1]  font-normal select-none"
                     aria-hidden="true"
                   >
                     ·
@@ -76,7 +76,7 @@ export const TopBarBreadcrumbs: React.FC<TopBarBreadcrumbsProps> = ({ items, pac
                 )}
                 {isLast ? (
                   <span
-                    className="text-[13px] font-semibold text-[#B88E3A] dark:text-[#E5C378] surgical:text-[#B88E3A] truncate max-w-[180px] leading-tight"
+                    className="text-[13px] font-semibold text-[#B88E3A] dark:text-[#E5C378]  truncate max-w-[180px] leading-tight"
                     aria-current="page"
                     title={item.label}
                   >
@@ -89,7 +89,7 @@ export const TopBarBreadcrumbs: React.FC<TopBarBreadcrumbsProps> = ({ items, pac
                       playSound('breadcrumbClick')
                       item.onClick?.()
                     }}
-                    className="text-[13px] font-normal text-[#64748B] dark:text-[#94A3B8] surgical:text-[#334155] hover:text-[#0F172A] dark:hover:text-[#F8FAFC] surgical:hover:text-[#000000] transition-colors duration-100 truncate max-w-[140px] hover:underline cursor-pointer leading-tight"
+                    className="text-[13px] font-normal text-[#64748B] dark:text-[#94A3B8]  hover:text-[#0F172A] dark:hover:text-[#F8FAFC]  transition-colors duration-100 truncate max-w-[140px] hover:underline cursor-pointer leading-tight"
                     title={item.label}
                   >
                     {truncatedLabel}

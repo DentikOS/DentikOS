@@ -3,7 +3,6 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { DashboardModulo } from './DashboardModulo'
 import { useSesionStore } from '../../../app/stores/sesionStore'
-import { useThemeStore } from '../../../app/stores/useThemeStore'
 import { usePacientesStore } from '../../../app/stores/pacientesStore'
 import { useDashboardStore } from '../../../app/stores/useDashboardStore'
 
@@ -23,7 +22,6 @@ describe('DashboardModulo (BP04 Completeness)', () => {
         rol: 'admin'
       }
     })
-    useThemeStore.setState({ theme: 'light' })
     useDashboardStore.getState().initParaRol('admin')
   })
 
@@ -43,18 +41,6 @@ describe('DashboardModulo (BP04 Completeness)', () => {
 
   it('NO renderiza AccionesRapidas (eliminado por decisión CEO)', () => {
     render(<DashboardModulo />)
-    expect(screen.queryByText('Acciones Rápidas')).not.toBeInTheDocument()
-  })
-
-  it('renderiza Modo Quirúrgico cuando theme === "surgical"', () => {
-    useThemeStore.setState({ theme: 'surgical' })
-    render(<DashboardModulo />)
-
-    expect(screen.getByText(/MODO QUIRÚRGICO CLÍNICO/i)).toBeInTheDocument()
-    expect(screen.getByText(/Salir del Quirófano/i)).toBeInTheDocument()
-
-    // En modo quirúrgico se ocultan Morning Brief y Acciones Rápidas
-    expect(screen.queryByText(/Tu día en 30 segundos/i)).not.toBeInTheDocument()
     expect(screen.queryByText('Acciones Rápidas')).not.toBeInTheDocument()
   })
 

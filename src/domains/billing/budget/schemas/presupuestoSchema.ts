@@ -52,6 +52,7 @@ export const pagoSchema = z.object({
   metodoPago: z.enum(['efectivo', 'tarjeta_debito', 'tarjeta_credito', 'transferencia', 'cheque']).or(z.string()),
   fechaPago: z.string(),
   referencia: z.string().optional(),
+  moneda: z.enum(['CLP', 'ARS', 'MXN', 'COP', 'PEN', 'USD', 'EUR']).optional(),
   recibidoPor: z.string().optional(),
   numeroCuota: z.number().optional(),
   comprobanteUrl: z.string().optional(),
@@ -77,6 +78,7 @@ export const presupuestoSchema = z.object({
   fechaAprobacion: z.string().optional(),
   fechaVencimiento: z.string().optional(),
   convenio: z.string().optional(),
+  moneda: z.enum(['CLP', 'ARS', 'MXN', 'COP', 'PEN', 'USD', 'EUR']).optional(),
   montoTotal: z.number().optional(),
   total: z.number().optional(),
   totalBruto: z.number().optional(),
@@ -91,6 +93,11 @@ export const presupuestoSchema = z.object({
   presupuestoComparativo: z.any().optional(),
   planTratamientoId: z.string().optional(),
   version: z.number().optional(),
+  origenPlan: z.boolean().optional(),
+  planRevision: z.string().optional(),
+  versionGrupoId: z.string().optional(),
+  requiereRevision: z.boolean().optional(),
+  descuentoGlobalPct: z.number().optional(),
 }).passthrough()
 
 export type Presupuesto = z.infer<typeof presupuestoSchema>

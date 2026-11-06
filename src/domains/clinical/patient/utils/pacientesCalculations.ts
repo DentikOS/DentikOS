@@ -1,4 +1,10 @@
-import { finanzasStorageService } from '../../../../domains/billing/cash-register/services/finanzasStorageService'
+import { clinicStorageService } from '../../../../domains/organization/clinic/services/clinicStorageService'
+import {
+  resolverDescuentoConvenio,
+  resolverPrecioPrestacion,
+  type PrecioPrestacionCalculado,
+} from '../../../../domains/organization/clinic/schemas/configuracionConveniosSchema'
+import { sedesService } from '../../../../domains/organization/clinic/services/sedesService'
 import { vademecumService, type FarmacoVademecum, type AlergiaCruzadaItem } from '../../../../infrastructure/clinical-data/vademecumService'
 import {
   detectarFamiliaFarmaco,
@@ -28,19 +34,25 @@ export interface IncompatibilidadFarmacoResultado {
   alternativas?: AlternativaSegura[]
 }
 
-export const obtenerDescuentoConvenio = (nombreConvenio?: string | null): number => {
-  if (!nombreConvenio || typeof nombreConvenio !== 'string') return 0
-  try {
-    const convenios = finanzasStorageService.obtenerConvenios([])
-    if (!Array.isArray(convenios) || convenios.length === 0) return 0
-    
-    const encontrado = convenios.find((c) => 
-      c.nombre.toLowerCase().includes(nombreConvenio.toLowerCase()) ||
-      String(c.id).toLowerCase().includes(nombreConvenio.toLowerCase())
-    )
-    return encontrado ? (encontrado.descuentoDefecto || 0) : 0
-  } catch {
-    return 0
+export const obtenerDescuentoConvenio = (nombreConvenio?: string | null, especialidad?: string | null): number => {
+  const configuracion = clinicStorageService.obtenerClinica()?.configuracionConvenios
+  return resolverDescuentoConvenio(configuracion, nombreConvenio, especialidad)
+}
+
+export const obtenerPrecioPrestacionConvenio = (
+  input: {
+    prestacionId: string | number
+    especialidad?: string | null
+    categoria?: string | null
+    convenioIdentificador?: string | null
+    precioParticular: number
+  },
+): PrecioPrestacionCalculado & { sucursalId: string | null } => {
+  const configuracion = clinicStorageService.obtenerClinica()?.configuracionConvenios
+  const sucursalId = sedesService.obtenerSedeActiva()
+  return {
+    ...resolverPrecioPrestacion(configuracion, { ...input, sucursalId }),
+    sucursalId,
   }
 }
 

@@ -3,7 +3,6 @@ import { render, screen, waitFor } from '@testing-library/react'
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { AgendaModulo } from './AgendaModulo'
 import { useAgendaStore } from '../../../app/stores/useAgendaStore'
-import { useThemeStore } from '../../../app/stores/useThemeStore'
 import { agendaConfigService } from './services/agendaConfigService'
 
 vi.mock('./services/agendaConfigService', () => ({
@@ -29,7 +28,6 @@ describe('AgendaModulo (BP05 Integrador)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(agendaConfigService.obtenerDoctoresAgenda).mockResolvedValue([mockDoctorReal])
-    useThemeStore.setState({ theme: 'light' })
     useAgendaStore.setState({
       currentView: 'day',
       currentDateIso: '2026-10-10',
@@ -47,14 +45,6 @@ describe('AgendaModulo (BP05 Integrador)', () => {
       expect(screen.getByRole('button', { name: /nueva cita/i })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: /urgencia/i })).toBeInTheDocument()
     })
-  })
-
-  it('renderiza modo quirúrgico cuando theme es surgical', () => {
-    useThemeStore.setState({ theme: 'surgical' })
-    render(<AgendaModulo />)
-
-    expect(screen.getByText('AGENDA QUIRÚRGICA')).toBeInTheDocument()
-    expect(screen.getByText(/pantalla quirúrgica antirreflejo/i)).toBeInTheDocument()
   })
 
   it('permite alternar a la Vista Lista según vista del store', async () => {

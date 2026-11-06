@@ -9,7 +9,6 @@ export { AgendaMonthView, type AgendaMonthViewProps } from './components/AgendaM
 export { AgendaNavigation, type AgendaNavigationProps } from './components/AgendaNavigation'
 export { AgendaFilters, type AgendaFiltersProps } from './components/AgendaFilters'
 export { WaitingRoomPanel, type WaitingRoomPanelProps, type PacienteEsperaItem } from './components/WaitingRoomPanel'
-export { AgendaQuirurgica, type AgendaQuirurgicaProps } from './components/AgendaQuirurgica'
 export { TIPOS_BLOQUEO } from './constants/agendaConstants'
 export { registrarCambioEstado } from './utils/auditoriaCita'
 export { validarTransicion, TRANSICIONES_PERMITIDAS } from './utils/validarTransicionEstado'

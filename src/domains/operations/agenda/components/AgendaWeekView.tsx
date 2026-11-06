@@ -40,7 +40,7 @@ const DraggableWeekCard: React.FC<{ cita: Cita; onClick?: () => void }> = ({ cit
           {String(cita.horaInicio).slice(0, 5)}
         </span>
         <span className="truncate max-w-[60px] text-[10px] text-slate-400">
-          {cita.boxAsignado || 'Box 1'}
+          {!cita.sedeId ? 'Sin sucursal' : `${cita.sedeNombre || 'Sucursal'} · ${cita.boxAsignado || 'Box 1'}`}
         </span>
       </div>
       <p className="font-bold text-xs text-[#0F172A] dark:text-white truncate">

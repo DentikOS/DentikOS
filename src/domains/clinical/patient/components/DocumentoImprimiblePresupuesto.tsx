@@ -9,6 +9,8 @@ import { PERMANENTE_SUPERIOR, PERMANENTE_INFERIOR } from '../constants/pacientes
 import { TablaItemsPresupuesto, type UserProfilePresupuestoRef } from './TablaItemsPresupuesto'
 import type { ItemPresupuesto } from '../hooks/usePresupuesto'
 import type { Paciente } from '../schemas/pacienteSchema'
+import { MembreteClinica } from '../../../organization/clinic/components/MembreteClinica'
+import { useClinicaDocumento } from '../../../organization/clinic/hooks/useClinicaDocumento'
 
 export interface DocumentoImprimiblePresupuestoProps {
   paciente: Partial<Paciente> & { nombre: string; rut?: string; edad?: number | string | null; prevision?: string | null; [key: string]: unknown }
@@ -33,26 +35,25 @@ export const DocumentoImprimiblePresupuesto: React.FC<DocumentoImprimiblePresupu
   handleCambiarEstadoItem,
   handleEliminarItem
 }) => {
+  const clinicaDocumento = useClinicaDocumento()
+
   return (
     <div className="bg-white dark:bg-graphite-900 border border-gray-200 dark:border-graphite-700 rounded-2xl p-8 print:border-none print:p-0 print:bg-white print:text-black">
-      {/* Header del documento */}
-      <div className="border-b-2 border-black dark:border-graphite-100 pb-4 mb-6 flex justify-between items-start">
-        <div>
-          <h1 className="text-xl font-bold text-graphite-900 dark:text-graphite-100">
-            {userProfile?.nombreCompleto || 'Dr. Miguel Díaz Rodríguez'}
-          </h1>
-          <p className="text-xs text-graphite-600 dark:text-graphite-400">
-            {userProfile?.especialidad || 'Cirujano Dentista'} | RUT: <span className="tabular-nums">{userProfile?.rut || 'N/I'}</span>
-          </p>
-          <p className="text-xs text-graphite-500 dark:text-graphite-500">Consulta Odontológica DentikOS</p>
-        </div>
-        <div className="text-right">
-          <h2 className="text-lg font-bold text-graphite-800 dark:text-graphite-200 uppercase">
-            Presupuesto Clínico
-          </h2>
-          <p className="text-xs text-graphite-500 dark:text-graphite-500">
-            Fecha: {new Date().toLocaleDateString('es-CL')}
-          </p>
+      <div className="mb-6 space-y-3">
+        <MembreteClinica clinica={clinicaDocumento} />
+        <div className="flex justify-between items-start gap-4">
+          <div>
+            <p className="text-xs font-semibold text-graphite-700 dark:text-graphite-200">
+              {userProfile?.nombreCompleto || 'Profesional tratante'}
+            </p>
+            <p className="text-[10px] text-graphite-500 dark:text-graphite-400">
+              {userProfile?.especialidad || 'Cirujano Dentista'} | RUT: <span className="tabular-nums">{userProfile?.rut || 'N/I'}</span>
+            </p>
+          </div>
+          <div className="text-right">
+            <h2 className="text-lg font-bold text-graphite-800 dark:text-graphite-200 uppercase">Presupuesto Clínico</h2>
+            <p className="text-xs text-graphite-500 dark:text-graphite-500">Fecha: {new Date().toLocaleDateString('es-CL')}</p>
+          </div>
         </div>
       </div>
 

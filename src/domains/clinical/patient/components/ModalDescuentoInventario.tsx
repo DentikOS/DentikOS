@@ -1,7 +1,8 @@
-import React, { memo, useState } from 'react'
+import React, { memo, useEffect, useState } from 'react'
 import { AlertTriangle, Package, Lightbulb } from 'lucide-react'
 import { Modal } from '../../../../shared/ui/ui/Modal'
 import { Button } from '../../../../shared/ui/ui/Button'
+import type { UbicacionInventario } from '../../../operations/inventory/services/inventarioCloudService'
 
 export interface MaterialInventarioDisponible {
   itemId: string | number
@@ -9,6 +10,7 @@ export interface MaterialInventarioDisponible {
   unidad: string
   stockActual: number
   cantidad: number | string
+  stockPorUbicacion?: Record<string, number>
 }
 
 export interface MaterialSeleccionado {
@@ -22,6 +24,7 @@ export interface MaterialSeleccionado {
 
 export interface ItemTratamientoInventario {
   prestacion?: string
+  prestacionId?: string | number | null
   pieza?: string | number
   [key: string]: unknown
 }
@@ -30,8 +33,12 @@ export interface ModalDescuentoInventarioProps {
   item: ItemTratamientoInventario
   categoria: string
   materialesDisponibles: MaterialInventarioDisponible[]
-  alConfirmar: (materialesSeleccionados: MaterialSeleccionado[]) => void
+  alConfirmar: (materialesSeleccionados: MaterialSeleccionado[], ubicacionId?: string) => void | Promise<void>
   alCancelar: () => void
+  ubicaciones?: UbicacionInventario[]
+  modoSincronizado?: boolean
+  guardando?: boolean
+  error?: string
 }
 
 export const ModalDescuentoInventario: React.FC<ModalDescuentoInventarioProps> = memo(({
@@ -39,7 +46,11 @@ export const ModalDescuentoInventario: React.FC<ModalDescuentoInventarioProps> =
   categoria,
   materialesDisponibles,
   alConfirmar,
-  alCancelar
+  alCancelar,
+  ubicaciones = [],
+  modoSincronizado = false,
+  guardando = false,
+  error = ''
 }) => {
   // Estado local: cada material con checkbox de selección y cantidad editable
   const [seleccion, setSeleccion] = useState<MaterialSeleccionado[]>(() => 
@@ -49,6 +60,23 @@ export const ModalDescuentoInventario: React.FC<ModalDescuentoInventarioProps> =
       seleccionado: true,
     }))
   )
+  const [ubicacionId, setUbicacionId] = useState('')
+  const stockPorUbicacion = (material: MaterialInventarioDisponible): number =>
+    modoSincronizado ? Number(material.stockPorUbicacion?.[ubicacionId] || 0) : material.stockActual
+
+  useEffect(() => {
+    setSeleccion(materialesDisponibles.map((material) => ({
+      ...material,
+      cantidad: typeof material.cantidad === 'number' ? material.cantidad : (parseFloat(String(material.cantidad)) || 0),
+      seleccionado: true
+    })))
+  }, [materialesDisponibles])
+
+  useEffect(() => {
+    if (!ubicaciones.some((location) => location.id === ubicacionId)) {
+      setUbicacionId('')
+    }
+  }, [ubicaciones, ubicacionId])
 
   const handleToggleSeleccion = (index: number): void => {
     setSeleccion(prev => prev.map((s, i) => 
@@ -67,7 +95,7 @@ export const ModalDescuentoInventario: React.FC<ModalDescuentoInventarioProps> =
   const hayMaterialesSeleccionados = materialesSeleccionados.length > 0
 
   return (
-    <Modal isOpen={true} onClose={alCancelar} title="Marcar Tratamiento como Realizado" size="xl">
+    <Modal isOpen={true} onClose={() => { if (!guardando) alCancelar() }} title="Marcar Tratamiento como Realizado" size="xl">
       <div className="space-y-1 mb-4 text-xs">
         <p className="text-gray-700 dark:text-graphite-300">
           <strong>Tratamiento:</strong> {item.prestacion}
@@ -91,13 +119,21 @@ export const ModalDescuentoInventario: React.FC<ModalDescuentoInventarioProps> =
         </div>
       ) : (
         <div className="space-y-3">
+          {modoSincronizado && <label className="block text-xs font-semibold text-gray-700 dark:text-graphite-300">
+            Descontar desde
+            <select value={ubicacionId} onChange={(event) => setUbicacionId(event.target.value)} className="mt-1 w-full rounded-xl border border-gray-300 bg-white p-2.5 dark:border-graphite-600 dark:bg-graphite-800">
+              <option value="">Selecciona bodega o box</option>
+              {ubicaciones.map((location) => <option key={location.id} value={location.id}>{location.nombre}</option>)}
+            </select>
+          </label>}
           <span className="font-bold text-gray-800 dark:text-graphite-100 text-xs uppercase block">
-            <span className="inline-flex items-center gap-1"><Package size={14} />Selecciona los materiales utilizados en esta sesión:</span>
+            <span className="inline-flex items-center gap-1"><Package size={14} />{modoSincronizado ? 'Insumos configurados para este tratamiento:' : 'Selecciona los materiales utilizados en esta sesión:'}</span>
           </span>
 
           {seleccion.map((material, index) => {
-            const stockDespues = Math.max(0, material.stockActual - material.cantidad)
-            const descuentoExcedeStock = material.cantidad > material.stockActual
+            const stockDisponible = stockPorUbicacion(material)
+            const stockDespues = Math.max(0, stockDisponible - material.cantidad)
+            const descuentoExcedeStock = material.cantidad > stockDisponible
 
             return (
               <div
@@ -113,12 +149,13 @@ export const ModalDescuentoInventario: React.FC<ModalDescuentoInventarioProps> =
                     type="checkbox"
                     checked={material.seleccionado}
                     onChange={() => handleToggleSeleccion(index)}
+                    disabled={modoSincronizado}
                     className="mt-1 w-4 h-4 cursor-pointer"
                   />
                   <div className="flex-1">
                     <span className="font-bold text-gray-900 dark:text-graphite-50 block">{material.nombreInsumo}</span>
                     <span className="text-gray-600 dark:text-graphite-400 text-[10px]">
-                      Stock actual: {material.stockActual} {material.unidad} → Después: {stockDespues} {material.unidad}
+                      Stock {modoSincronizado ? 'en ubicación' : 'actual'}: {stockDisponible} {material.unidad} → Después: {stockDespues} {material.unidad}
                     </span>
                     
                     {descuentoExcedeStock && material.seleccionado && (
@@ -135,7 +172,7 @@ export const ModalDescuentoInventario: React.FC<ModalDescuentoInventarioProps> =
                         min="0"
                         value={material.cantidad}
                         onChange={(e) => handleCambiarCantidad(index, e.target.value)}
-                        disabled={!material.seleccionado}
+                        disabled={!material.seleccionado || modoSincronizado}
                         className={`p-1.5 border rounded-lg w-24 font-bold ${
                           material.seleccionado 
                             ? 'bg-white dark:bg-graphite-800 border-gray-300 dark:border-graphite-600' 
@@ -161,20 +198,23 @@ export const ModalDescuentoInventario: React.FC<ModalDescuentoInventarioProps> =
       <div className="flex gap-3 pt-3 border-t">
         <Button
           onClick={alCancelar}
+          disabled={guardando}
           variant="ghost"
           fullWidth
         >
           Cancelar Descuento (Marcar Realizado sin descontar)
         </Button>
         <Button
-          onClick={() => alConfirmar(materialesSeleccionados)}
-          disabled={!hayMaterialesSeleccionados}
+          onClick={() => void alConfirmar(materialesSeleccionados, ubicacionId)}
+          disabled={!hayMaterialesSeleccionados || guardando || (modoSincronizado && !ubicacionId)}
           variant="primary"
           fullWidth
         >
-          Confirmar y Descontar
+          {guardando ? 'Registrando…' : modoSincronizado ? 'Confirmar y descontar el kit' : 'Confirmar y Descontar'}
         </Button>
       </div>
+
+      {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-800">{error}</p>}
 
       <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-[11px] text-blue-900">
         <strong className="inline-flex items-center gap-1"><Lightbulb size={12} />Tip:</strong> "Cancelar Descuento" marca el tratamiento como Realizado pero no descuenta stock. 

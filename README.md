@@ -1,132 +1,112 @@
-# Studio Dental OS 🦷
+# Studio Dental 🦷
 
-Aplicación web de gestión clínica odontológica con 14 módulos especializados, desarrollada con React 19 + Vite + Zustand + Tailwind CSS.
+Aplicación web de gestión odontológica multi-clínica. Reúne agenda, pacientes y fichas clínicas, prestaciones, presupuestos, pagos, inventario y otras áreas de operación clínica.
 
-## 🏗️ Arquitectura
+## Tecnologías y funcionamiento
 
-- **Frontend:** React 19 + Vite 8
-- **Estado global:** Zustand 5 (3 stores: sesión, pacientes, prestaciones)
-- **Persistencia:** LocalStorage + IndexedDB (adjuntos clínicos)
-- **Validación:** Zod 4 (esquemas de datos)
-- **Estilos:** Tailwind CSS 4
-- **Testing:** Vitest 3 + @testing-library/react
-- **Linting:** oxlint
-- **CI/CD:** GitHub Actions (4 jobs: lint, test, build, architecture)
+- **Interfaz:** React 19, TypeScript, Vite 8, Tailwind CSS 4 y Framer Motion.
+- **Estado y validación:** Zustand y Zod.
+- **Backend:** Supabase Auth, PostgreSQL con políticas RLS, Realtime y Edge Functions.
+- **Archivos:** Supabase Storage y Cloudflare R2, según el flujo.
+- **Uso local:** LocalStorage, IndexedDB y PWA. Algunos servicios conservan una caché por clínica y colas de operaciones pendientes para sincronizar al recuperar la conexión.
+- **Pruebas y calidad:** Vitest, Testing Library, Playwright, oxlint y GitHub Actions.
 
-## 📚 Documentación
+`src/main.tsx` monta `src/App.tsx`. La aplicación restaura la sesión, comprueba si se necesita configurar una clínica y muestra la navegación una vez autenticado el usuario. Los módulos acceden a datos mediante hooks, stores y servicios. El aislamiento de datos entre clínicas depende de la autorización y las políticas del backend; la caché local también se separa por clínica.
 
-- 📖 **[Constitución de Arquitectura](docs/01-Constitucion_Arquitectura_Studio_Dental_v3.md)** — reglas técnicas detalladas (tamaño de archivos, exportaciones, barreras públicas, etc.)
-- 📋 **[MASTER_ROADMAP](docs/MASTER_ROADMAP.md)** — plan técnico ejecutable con todas las tareas, bitácoras y decisiones
-- 🤝 **[Guía de Contribución](CONTRIBUTING.md)** — convención de commits y flujo de trabajo con ramas
+## Inicio local
 
-## 🚀 Comandos disponibles
+Requiere Node.js y npm. Para conectarse a Supabase, configura las variables indicadas en `.env.example` en un archivo `.env` local. No incluyas claves secretas o `service_role` en variables `VITE_`, porque se exponen al navegador.
 
 ```bash
-# Desarrollo
-npm run dev                      # Servidor de desarrollo (http://localhost:5173)
-
-# Calidad (ejecutar todos antes de commit)
-npm run lint                     # oxlint (0 warnings, 0 errors)
-npm run test                     # Vitest (144 tests)
-npm run build                    # Build de producción
-npm run validate:architecture    # Validación arquitectónica
-
-# Otros
-npm run preview                  # Preview del build de producción
-npm run test:watch               # Tests en modo watch
-npm run test:coverage            # Tests con reporte de cobertura
+npm ci
+npm run dev
 ```
 
-## 📦 Módulos del sistema
+Vite muestra la dirección local al iniciar; normalmente es `http://localhost:5173/`. La interfaz requiere una cuenta y una clínica autorizada para usar los flujos conectados a Supabase.
 
-**Módulos eager (cargan al inicio):**
-- 📅 **Agenda** — gestión de citas y bloqueos horarios
-- 👥 **Pacientes** — fichas clínicas completas con 7 secciones
-- 📊 **Dashboard** — indicadores clave y métricas
+## Comandos
 
-**Módulos lazy (cargan bajo demanda):**
-- 💰 Finanzas, Pagos, Presupuestos, Prestaciones
-- 🦷 Odontograma, Periodontograma, Quirúrgico, Odontopediatría
-- ✨ DSD (Diseño de Sonrisa), Laboratorio, Esterilización
-- 📞 Comunicaciones, Reportes, Urgencias GES, Configuración
+| Comando | Uso |
+| --- | --- |
+| `npm run dev` | Servidor de desarrollo |
+| `npm run build` | Build de producción |
+| `npm run preview` | Vista local del build |
+| `npm run typecheck` | Comprobación de TypeScript |
+| `npm run lint` | Análisis con oxlint |
+| `npm run test` | Pruebas unitarias y de componentes con Vitest |
+| `npm run test:security` | Suite de regresión de seguridad |
+| `npm run test:coverage` | Pruebas con cobertura |
+| `npm run validate:architecture` | Reglas de arquitectura del proyecto |
+| `npm run test:e2e` | Pruebas Playwright; requieren entorno y credenciales de prueba |
 
-## 🛡️ Red de seguridad automatizada
+Los comandos de base de datos (`db:reset`, `db:push`, `db:pull`, `db:diff`, `db:seed`, `db:verify`) están en `package.json`. Revisa el entorno enlazado antes de ejecutar operaciones sobre la base de datos.
 
-Cada PR a `main` ejecuta 4 checks obligatorios vía GitHub Actions:
+El historial local y el del proyecto principal tienen migraciones anteriores sin correspondencia uno a uno (15 versiones solo locales y 4 solo remotas, comprobadas el 30 de octubre de 2026). No ejecutes `db:push` sobre el proyecto principal sin conciliar ese historial; esta tarea no modificó esas migraciones previas.
 
-1. ✅ **Lint** — oxlint sin warnings
-2. ✅ **Tests** — 144 tests pasando (Vitest)
-3. ✅ **Build** — build de producción exitoso
-4. ✅ **Architecture** — reglas de la Constitución cumplidas
+## BP06 y BP07: CORE de pacientes y presupuestos
 
-Los PRs con cualquier check fallido son bloqueados automáticamente por branch protection.
+La ficha clínica mantiene el odontograma y el plan por paciente y clínica activa. Un hallazgo del odontograma queda **sin precio y pendiente de revisión clínica** hasta que un profesional seleccione una prestación configurada y una fase. El presupuesto se crea como borrador con los ítems y totales revisados; el módulo global permite aprobar o rechazar manualmente estados permitidos, archivar sin eliminar el historial y registrar abonos manuales vinculados al presupuesto. El abono se confirma mediante una función de PostgreSQL antes de actualizar el saldo local. El timeline registra eventos reales vinculados al paciente.
 
-## 📊 Métricas del proyecto
+Las migraciones [de integridad clínica y presupuestos](supabase/migrations/20261030060804_bp06_bp07_core_integrity.sql) y [de abonos manuales](supabase/migrations/20261030060852_bp07_manual_payments.sql) se aplican **en ese orden**. Incluyen columnas aditivas, restricciones, políticas RLS por clínica autorizada y paciente, auditoría de ficha y la función de registro de abonos. Se aplicaron al proyecto principal DentikOS el 30 de octubre de 2026. Se verificaron consultas RLS con y sin sesión y pruebas de abono, idempotencia, rechazo y auditoría dentro de transacciones revertidas. La interfaz puede iniciarse con datos locales; el flujo E2E en navegador con una cuenta real todavía requiere revisión. Ninguna migración se aplica al iniciar Vite.
 
-- **Tests:** 144 tests en 10 archivos (`*.test.js`)
-- **Lint:** 0 warnings, 0 errors (235 archivos)
-- **Bundle inicial:** 594.74 kB (148.75 kB gzip)
-- **Módulos:** 14 (3 eager + 11 lazy-loaded)
-- **Líneas de código:** ~16,000 (src/)
+Las integraciones con SII, Mercado Pago, Transbank, WhatsApp y firma remota/biométrica quedan para una entrega posterior; este CORE no genera documentos fiscales ni confirmaciones externas. La sincronización offline de presupuestos conserva una cola local; el registro de abonos exige conexión para evitar saldos financieros ambiguos.
 
-## 📝 Convención de commits
+**Registro de abonos manuales:** en la ficha del paciente, abre «Presupuestos + Plan Tratamiento», selecciona un presupuesto aprobado o en curso con saldo y pulsa «Registrar pago». «Ver pagos» muestra fecha, importe, medio y referencia de los abonos de ese presupuesto. La acción de registro también aparece en el módulo «Presupuestos», accesible desde el menú. Recepción, dentista y administración pueden registrar el abono; el módulo general «Pagos» no imputa automáticamente un abono a un presupuesto. Un presupuesto pendiente de sincronización no admite abonos. El RPC confirma monto, clínica, paciente, estado e idempotencia antes de actualizar el saldo. Las migraciones [de acceso de recepción](supabase/migrations/20261030143914_bp07_reception_payments.sql) y [reintento idempotente](supabase/migrations/20261030144209_bp07_reception_idempotency.sql) se aplicaron al proyecto principal el 30 de octubre de 2026. Se probaron allí en transacciones revertidas: primer abono, reintento, sobrepago, entradas inválidas, rechazo del rol asistente y auditoría; las filas de prueba no persistieron.
 
-Este proyecto usa **Conventional Commits**. Ver [CONTRIBUTING.md](CONTRIBUTING.md) para detalles.
+El 4 de noviembre de 2026 se corrigieron las políticas RLS de lectura, inserción y actualización de pagos para cotejar explícitamente la clínica del paciente y la relación paciente-presupuesto con el pago. La migración [de referencias RLS](supabase/migrations/20261104180613_bp07_fix_pagos_rls_references.sql) conserva las políticas de recepción y eliminación existentes. La [prueba transaccional](supabase/verify-bp07-pagos-rls.sql) pasó en el proyecto principal con `ROLLBACK`: verificó inserción/lectura autorizada, rechazo de referencias de otra clínica, ocultamiento de registros inconsistentes y ausencia de efectos tras operaciones rechazadas; no quedaron filas de prueba.
 
-Formato: `tipo(alcance): descripción (ID-tarea)`
+Los abonos ahora se pueden asignar manualmente a prestaciones al registrarlos o desde «Ver pagos». El saldo por prestación se calcula en PostgreSQL, reparte de forma determinista el descuento global y no marca una prestación pagada hasta cubrir su saldo neto. La parte no asignada queda visible y puede imputarse más tarde; corregir una asignación agrega una reversión con motivo al libro inmutable, sin alterar el abono original. Recepción, dentistas y administración pueden realizar estas acciones con validación de clínica, paciente, pago, saldo e idempotencia. La migración [de imputaciones por prestación](supabase/migrations/20261104193000_bp07_payment_item_allocations.sql) se aplicó al proyecto principal el 4 de noviembre de 2026. Su [verificación transaccional](supabase/verify-bp07-payment-item-allocations.sql) pasó con `ROLLBACK`: comprobó prorrateo, pago parcial, reintento, recepción, reversión, aislamiento entre clínicas y rechazos sin efectos persistentes.
 
-Ejemplo: `feat(inventario): add modal for selecting materials (F2-12)`
+### Estado de implementación pendiente
 
-## 🗂️ Estructura del proyecto
+El CORE de ambos blueprints aún tiene pendientes. Con Supabase activo, el arancel de `public.prestaciones` se carga por clínica al iniciar sesión, se actualiza por eventos de la tabla y alimenta el Plan de Tratamiento y Presupuestos. Solo administración y dentistas pueden escribir, conforme a las RLS existentes. Si la clínica no tiene prestaciones remotas, la lista queda vacía: no se copian automáticamente los precios de ejemplo. Los aranceles anteriores guardados en `localStorage` permanecen intactos; administración y dentistas pueden revisar e importar sus prestaciones personalizadas una por una desde «Prestaciones», con precio visible antes de cada importación. Los ejemplos sin cambios se excluyen. Crear una prestación nueva también la registra en Supabase. Nombre, precio, descripción y ahorro de los packs promocionales se cargan y guardan en el arancel compartido. Los packs guardados antes de esta sincronización permanecen visibles desde sus datos locales; cada uno se puede compartir explícitamente con la clínica desde su tarjeta.
 
+La migración [de metadata compartida de packs](supabase/migrations/20261104230000_bp07_shared_promo_metadata.sql) agrega descripción y ahorro estimado a `public.prestaciones`; las mismas políticas RLS existentes protegen esos datos por clínica. Se aplicó al proyecto principal el 4 de noviembre de 2026. La [verificación transaccional](supabase/verify-bp07-pack-metadata.sql) pasó con `ROLLBACK`: comprobó alta, lectura y edición autorizada, acceso de solo lectura de recepción y ausencia de filas de prueba persistentes.
+
+Administración y dentistas pueden reajustar el arancel compartido desde «Prestaciones». La operación [reajusta particular y Fonasa en una transacción](supabase/migrations/20261104223000_arancel_reajuste_atomico.sql), comprueba que el arancel no haya cambiado desde que se abrió y registra auditoría por cada precio modificado; `precio` conserva el espejo del precio particular. La migración se aplicó al proyecto principal el 4 de noviembre de 2026. La [verificación transaccional](supabase/verify-arancel-reajuste-atomico.sql) pasó con `ROLLBACK`: comprobó cálculo, espejo, auditoría y rechazo de un snapshot obsoleto sin efectos adicionales.
+
+Las derivaciones se guardan como eventos clínicos del timeline, con motivo, especialista y prioridad, y se consultan desde el plan; se puede descargar un PDF informativo desde su historial.
+
+Al guardar cambios del plan, un profesional puede actualizar los borradores vinculados: se conservan ítems manuales y descuentos, se recalculan las prestaciones originadas en el plan y el presupuesto queda pendiente de revisión clínica. Si se pospone, «Actualizar borrador» permite retomarlo; PostgreSQL impide enviarlo o confirmarlo con una revisión anterior. Para un presupuesto enviado o aprobado, «Crear nueva versión» conserva la versión previa y genera un borrador revisable. La confirmación de revisión está disponible para administración y dentistas. Las migraciones [de vínculo y sincronización](supabase/migrations/20261030152509_bp07_plan_draft_sync.sql), [de identificadores por versión](supabase/migrations/20261030152814_bp07_plan_version_item_ids.sql) y [de bloqueo de revisiones obsoletas](supabase/migrations/20261030193818_bp07_block_stale_plan_budget.sql) se aplicaron al proyecto principal el 30 de octubre de 2026. La [verificación SQL](supabase/verify-bp07-plan-budget.sql) pasó allí dentro de una transacción revertida; no dejó presupuestos ni auditorías de prueba.
+
+La derivación clínica registra motivo, diagnóstico, destino, prioridad, emisor y referencias a radiografías, fotos, odontograma y evoluciones de la ficha actual. El historial permite abrir esas secciones de la ficha y descargar un PDF informativo con los datos emitidos y la lista de referencias disponibles; el PDF no incluye copias de los archivos ni firma digital. Los archivos se referencian por ID; su contenido sigue en el repositorio clínico y puede cambiar o dejar de estar disponible si se elimina. Solo dentistas y administración clínica pueden emitir: la interfaz oculta la acción a otros roles y un trigger verifica rol, actor, clínica, paciente y archivos referenciados. Las migraciones [de autorización y referencias](supabase/migrations/20261030195805_bp06_derivacion_autorizada_referencias.sql) y [de tipo de evento](supabase/migrations/20261030195913_bp06_derivacion_tipo_timeline.sql) se aplicaron al proyecto principal el 30 de octubre de 2026. La [verificación transaccional](supabase/verify-bp06-derivacion.sql) confirmó emisión autorizada y rechazos sin efectos, con `ROLLBACK`.
+
+El historial financiero BP07 conserva snapshots de creación y cambios de ítems, importes, descuentos o plan de pago desde la [migración de historial](supabase/migrations/20261030201257_bp07_historial_inmutable_presupuestos.sql). Incluye actor, clínica, paciente, motivo, valores antes/después y hash SHA-256 del snapshot; la app lo muestra en «Ver historial» dentro de los presupuestos del paciente. Las nuevas acciones de sincronización con el plan piden un motivo escrito; clientes anteriores reciben un motivo identificado como generado por el sistema. La app solo puede leer la tabla por RLS, y la función privada que la escribe no tiene ejecución directa. La [verificación SQL del historial](supabase/verify-bp07-historial.sql) y la [de sincronización del plan](supabase/verify-bp07-plan-budget.sql) pasaron en el proyecto principal en transacciones revertidas; comprobaron también que un abono no crea una versión financiera y que no quedan filas de prueba. No se reconstruyen versiones anteriores a esta migración ni se firma un PDF: el hash corresponde al snapshot financiero. La cola offline sincroniza la cabecera y sus ítems con la [RPC atómica](supabase/migrations/20261104233614_bp07_atomic_offline_budget_sync.sql); si falla una validación, la transacción revierte ambos y la cola local conserva el lote completo. Los IDs locales antiguos generan UUID remotos estables para que reintentar no duplique filas. El saldo abonado confirmado queda protegido frente al payload offline. La [verificación SQL](supabase/verify-bp07-atomic-offline-budget-sync.sql) pasó en el proyecto principal con `ROLLBACK`: comprobó idempotencia, rechazo entre clínicas, reversión sin efectos, auditoría y permisos; la migración se aplicó el 4 de noviembre de 2026.
+
+El estado visible del plan se calcula desde los procedimientos clínicos guardados y el saldo confirmado de la última versión de cada presupuesto vinculado. «Plan completado» requiere todos los procedimientos en «Realizado» y saldo cero; un cambio solo del estado clínico mantiene el vínculo si las prestaciones y sus precios siguen iguales. Las prestaciones vinculadas a un presupuesto aprobado muestran su folio y versión en el plan. El estado financiero de cada procedimiento se proyecta desde las imputaciones confirmadas en Supabase: una prestación solo figura «Pagada» cuando sus imputaciones cubren el saldo neto; la ficha no guarda una copia de ese estado. Una lectura fallida se presenta como no disponible y nunca como pagada. «Pago completado» describe solo el presupuesto.
+
+Si el precio unitario de un borrador vinculado difiere del plan, la ficha muestra los importes de ambos y solicita revisión por dentista o administración clínica. «Revisar y aplicar precios al plan» exige motivo; la [RPC de revisión inversa](supabase/migrations/20261031005506_bp07_revisar_precios_plan.sql) y su [validación aritmética](supabase/migrations/20261031005856_bp07_validar_importes_revision_plan.sql) comprueban clínica, paciente, rol, versión, revisión, ítems sincronizados, última versión, subtotal y total, y actualizan plan y borrador en una transacción. El borrador queda pendiente de revisión antes de enviarse. La [prueba transaccional](supabase/verify-bp07-revision-precios.sql) pasó en el proyecto principal con `ROLLBACK`: comprobó actualización, motivo, auditoría y rechazo sin efectos de reintentos obsoletos, recepción, paciente distinto, input ausente e importes incoherentes. No había un paciente de otra clínica en ese proyecto para probar un ID válido de tenant distinto; la validación de ese caso está en el código de la RPC, pero no se verificó con datos reales.
+
+## Estructura
+
+```text
+src/
+├── main.tsx                 Entrada de React
+├── App.tsx                  Sesión, navegación y composición de módulos
+├── app/stores/              Estado compartido con Zustand
+├── application/             Casos de uso y analítica de aplicación
+├── domains/                 Áreas clínicas, financieras y operativas
+├── infrastructure/          Auth, Supabase, almacenamiento y sincronización
+├── shared/                  Hooks, componentes, tipos y utilidades comunes
+├── design/                  Tokens y temas visuales
+└── test/                    Soporte y pruebas de seguridad
+supabase/
+├── migrations/              Cambios versionados de PostgreSQL, RLS y funciones
+├── functions/               Edge Functions
+└── seeds/                   Datos de prueba por entorno
+e2e/                        Pruebas de navegador con Playwright
+scripts/                    Validaciones y utilidades del proyecto
+docs/                       Arquitectura, decisiones y guías operativas
 ```
-Studio Dental/
-├── src/
-│   ├── App.jsx                          # Componente raíz (único export default)
-│   ├── main.jsx                         # Entry point
-│   ├── components/                      # Componentes compartidos
-│   ├── store/                           # Zustand stores (3)
-│   ├── services/                        # Servicios transversales
-│   ├── utils/                           # Utilidades globales
-│   └── modules/                         # 14 módulos de dominio
-│       ├── agenda/
-│       ├── pacientes/
-│       ├── inventario/
-│       └── ... (11 más)
-├── scripts/
-│   ├── validate-architecture.js         # Script de validación arquitectónica
-│   └── architecture-allowlist.json      # Allowlist de archivos excepcionales
-├── docs/
-│   ├── 01-Constitucion_Arquitectura_Studio_Dental_v3.md
-│   └── MASTER_ROADMAP.md
-├── CONTRIBUTING.md                      # Guía de contribución
-├── package.json
-└── README.md                            # Este archivo
-```
 
----
+Los módulos de `src/domains/` se agrupan en `clinical`, `operations`, `billing`, `organization`, `specialty` y `addons`. La navegación de `App.tsx` carga Agenda y Dashboard al inicio y varios módulos mediante `React.lazy` cuando se abren.
 
-*Última actualización: Agosto 2026 (Fase 3 — Calidad, Gobernanza y Equipo)*
+## Verificación y documentación
 
----
+El workflow de [CI](.github/workflows/ci.yml) ejecuta lint, tests, regresión de seguridad, comprobaciones de Edge Functions con Deno, build, validación de arquitectura y cobertura. El job E2E está deshabilitado mientras no exista un entorno de staging disponible. La configuración actual de cobertura mide archivos fuente JavaScript/JSX; no representa la cobertura del código TypeScript/TSX.
 
-## Información del template original de Vite (referencia)
-
-Este proyecto fue creado con el template React + Vite. Información original del template:
-
-### React + Vite
-
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
-
-Currently, two official plugins are available:
-
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-### React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-### Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+- [Reglas para agentes](AGENTS.md)
+- [Constitución de arquitectura](docs/01-Constitucion_Arquitectura_Studio_Dental_v3.md)
+- [Roadmap](docs/MASTER_ROADMAP.md)
+- [Guía de contribución](CONTRIBUTING.md)
+- [Migraciones de Supabase](supabase/README_MIGRATIONS.md)

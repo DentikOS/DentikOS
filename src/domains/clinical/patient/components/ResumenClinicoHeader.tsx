@@ -72,14 +72,14 @@ const TarjetaMetrica: React.FC<TarjetaMetricaProps> = ({
         <Icon icon={icono} size="sm" />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-[10px] uppercase tracking-wider font-semibold text-graphite-500 dark:text-graphite-400 surgical:text-black mb-0.5">
+        <p className="text-[10px] uppercase tracking-wider font-semibold text-graphite-500 dark:text-graphite-400  mb-0.5">
           {label}
         </p>
-        <p className="text-sm font-bold text-graphite-900 dark:text-graphite-50 surgical:text-black truncate tabular-nums">
+        <p className="text-sm font-bold text-graphite-900 dark:text-graphite-50  truncate tabular-nums">
           {valor}
         </p>
         {sublabel && (
-          <p className="text-[10px] text-graphite-500 dark:text-graphite-400 surgical:text-graphite-700 truncate mt-0.5 tabular-nums">
+          <p className="text-[10px] text-graphite-500 dark:text-graphite-400  truncate mt-0.5 tabular-nums">
             {sublabel}
           </p>
         )}

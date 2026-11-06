@@ -8,6 +8,7 @@ import type { Paciente } from '../schemas/pacienteSchema'
  * Mapeo de campos snake_case (Supabase) a camelCase (JS)
  */
 export const SNAKE_TO_CAMEL_MAP: Readonly<Record<string, string>> = {
+  clinica_id: 'clinicaId',
   contacto_emergencia: 'contactoEmergencia',
   examen_extraoral: 'examenExtraoral',
   examen_intraoral: 'examenIntraoral',

@@ -1,5 +1,6 @@
 import React, { memo } from 'react'
-import { formatearCLP, type BalanceFinanzas } from '../utils/finanzasCalculations'
+import { formatearImporteDocumento } from '../../../../shared/utils/formatoDocumento'
+import type { BalanceFinanzas } from '../utils/finanzasCalculations'
 import { TrendingUp, TrendingDown, Wallet } from 'lucide-react'
 
 export interface BalanceCajaCardsProps {
@@ -8,6 +9,10 @@ export interface BalanceCajaCardsProps {
 
 export const BalanceCajaCards = memo<BalanceCajaCardsProps>(({ balance }) => {
   const esPositivo = balance.saldoNeto >= 0
+  const monedas = Object.entries(balance.totalesPorMoneda || { CLP: balance })
+  const mostrarMontos = (campo: 'totalIngresos' | 'totalEgresos' | 'saldoNeto') => monedas.map(([moneda, totales]) => (
+    <span key={moneda} className="block">{formatearImporteDocumento(totales[campo], moneda)}</span>
+  ))
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -25,7 +30,7 @@ export const BalanceCajaCards = memo<BalanceCajaCardsProps>(({ balance }) => {
           </span>
         </div>
         <span className="text-2xl font-black text-primary block tabular-nums tracking-tight">
-          {formatearCLP(balance.totalIngresos)}
+          {mostrarMontos('totalIngresos')}
         </span>
       </div>
 
@@ -38,7 +43,7 @@ export const BalanceCajaCards = memo<BalanceCajaCardsProps>(({ balance }) => {
           </span>
         </div>
         <span className="text-2xl font-black text-rose-600 dark:text-rose-400 block tabular-nums tracking-tight">
-          {formatearCLP(balance.totalEgresos)}
+          {mostrarMontos('totalEgresos')}
         </span>
       </div>
 
@@ -55,7 +60,7 @@ export const BalanceCajaCards = memo<BalanceCajaCardsProps>(({ balance }) => {
             esPositivo ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
           }`}
         >
-          {formatearCLP(balance.saldoNeto)}
+          {mostrarMontos('saldoNeto')}
         </span>
       </div>
     </div>

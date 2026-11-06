@@ -1,6 +1,7 @@
 import React, { memo } from 'react'
 import { Receipt, Ban, Pencil, Trash2 } from 'lucide-react'
 import type { Pago } from '../services/pagosStorageService'
+import { formatearImporteDocumento, resolverMonedaDocumento } from '../../../../shared/utils/formatoDocumento'
 
 export interface TablaHistorialPagosProps {
   pagos: Pago[]
@@ -21,8 +22,16 @@ export const TablaHistorialPagos: React.FC<TablaHistorialPagosProps> = memo(({
 }) => {
   if (pagos.length === 0) {
     return (
-      <div className="p-10 text-center text-xs text-gray-400 dark:text-graphite-500 bg-white dark:bg-graphite-800 border border-gray-200 dark:border-graphite-700 rounded-2xl">
-        No se encontraron transacciones registradas para los criterios seleccionados.
+      <div role="status" className="flex min-h-48 flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-surface-border bg-surface px-6 py-10 text-center">
+        <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-champagne-50 text-champagne-700 dark:bg-gold-satin/10 dark:text-gold-satin">
+          <Receipt size={21} aria-hidden="true" />
+        </span>
+        <div className="max-w-md">
+          <h3 className="text-sm font-semibold tracking-tight text-graphite-900 dark:text-graphite-100">Sin transacciones que mostrar</h3>
+          <p className="mt-1 text-sm leading-relaxed text-graphite-500 dark:text-graphite-400">
+            No encontramos pagos para los criterios seleccionados.
+          </p>
+        </div>
       </div>
     )
   }
@@ -31,14 +40,14 @@ export const TablaHistorialPagos: React.FC<TablaHistorialPagosProps> = memo(({
     <div className="bg-surface border border-surface rounded-2xl overflow-hidden shadow-xs text-xs">
       <table className="w-full text-left border-collapse">
         <thead>
-          <tr className="bg-slate-50 dark:bg-graphite-950 surgical:bg-graphite-200 border-b border-surface text-graphite-600 dark:text-graphite-300 surgical:text-black font-bold uppercase text-[10px]">
+          <tr className="bg-slate-50 dark:bg-graphite-950  border-b border-surface text-graphite-600 dark:text-graphite-300  font-bold uppercase text-[10px]">
             <th className="p-3">Recibo / DTE SII</th>
             <th className="p-3">Paciente / RUT</th>
             <th className="p-3">Fecha / Hora</th>
             <th className="p-3">Concepto & Imputación</th>
             <th className="p-3">Medio de Pago</th>
             <th className="p-3 text-[10px] text-center">Estado</th>
-            <th className="p-3 text-right">Monto ($ CLP)</th>
+            <th className="p-3 text-right">Monto</th>
             <th className="p-3 text-right print:hidden">Acciones</th>
           </tr>
         </thead>
@@ -50,35 +59,35 @@ export const TablaHistorialPagos: React.FC<TablaHistorialPagosProps> = memo(({
             return (
               <tr
                 key={String(p.id)}
-                className={`hover:bg-slate-50 dark:hover:bg-graphite-800/50 surgical:hover:bg-graphite-200 transition-colors ${
+                className={`hover:bg-slate-50 dark:hover:bg-graphite-800/50  transition-colors ${
                   esPurgado
-                    ? 'bg-slate-100/60 dark:bg-graphite-950/60 surgical:bg-graphite-300/60'
+                    ? 'bg-slate-100/60 dark:bg-graphite-950/60 '
                     : esAnulado
                     ? 'bg-red-50/40 dark:bg-red-950/20'
                     : ''
                 }`}
               >
                 <td className="p-3">
-                  <span className="bg-slate-100 dark:bg-graphite-800 surgical:bg-graphite-200 px-2 py-0.5 rounded border border-surface font-mono text-[11px] font-bold block w-max tabular-nums text-graphite-800 dark:text-graphite-200 surgical:text-black">
+                  <span className="bg-slate-100 dark:bg-graphite-800  px-2 py-0.5 rounded border border-surface font-mono text-[11px] font-bold block w-max tabular-nums text-graphite-800 dark:text-graphite-200 ">
                     {p.folioComprobante}
                   </span>
                   {p.folioDTE && (
-                    <span className="text-[10px] font-bold text-champagne-700 dark:text-gold-satin surgical:text-black block mt-0.5 tabular-nums">
+                    <span className="text-[10px] font-bold text-champagne-700 dark:text-gold-satin  block mt-0.5 tabular-nums">
                       DTE: {p.folioDTE}
                     </span>
                   )}
                 </td>
 
                 <td className="p-3">
-                  <span className="font-extrabold text-graphite-900 dark:text-graphite-50 surgical:text-black block">
+                  <span className="font-extrabold text-graphite-900 dark:text-graphite-50  block">
                     {p.pacienteNombre}
                   </span>
-                  <span className="text-[10px] text-graphite-500 dark:text-graphite-400 surgical:text-black tabular-nums">
+                  <span className="text-[10px] text-graphite-500 dark:text-graphite-400  tabular-nums">
                     RUT: {p.pacienteRut}
                   </span>
                 </td>
 
-                <td className="p-3 font-semibold text-graphite-700 dark:text-graphite-300 surgical:text-black tabular-nums">
+                <td className="p-3 font-semibold text-graphite-700 dark:text-graphite-300  tabular-nums">
                   {p.fecha}{' '}
                   <span className="text-graphite-400 dark:text-graphite-500 font-normal block">
                     {p.hora} hrs
@@ -86,7 +95,7 @@ export const TablaHistorialPagos: React.FC<TablaHistorialPagosProps> = memo(({
                 </td>
 
                 <td className="p-3">
-                  <span className="font-bold text-graphite-800 dark:text-graphite-100 surgical:text-black block">
+                  <span className="font-bold text-graphite-800 dark:text-graphite-100  block">
                     {p.concepto}
                   </span>
                   {p.prestacionesImputadas && p.prestacionesImputadas.length > 0 && (
@@ -122,16 +131,16 @@ export const TablaHistorialPagos: React.FC<TablaHistorialPagosProps> = memo(({
                       ? 'line-through text-graphite-500 opacity-60'
                       : esAnulado
                       ? 'line-through text-graphite-400'
-                      : 'text-graphite-900 dark:text-graphite-50 surgical:text-black'
+                      : 'text-graphite-900 dark:text-graphite-50 '
                   }`}
                 >
-                  ${(parseFloat(String(p.monto ?? 0)) || 0).toLocaleString('es-CL')} CLP
+                  {formatearImporteDocumento(p.monto, resolverMonedaDocumento(p.moneda))}
                 </td>
 
                 <td className="p-3 text-right print:hidden space-x-1 whitespace-nowrap">
                   <button
                     onClick={() => onVerComprobante(p)}
-                    className="p-1.5 bg-primary hover:bg-champagne-600 dark:bg-gold-satin dark:hover:bg-primary text-white dark:text-graphite-950 surgical:bg-black surgical:text-white text-[10px] font-bold rounded-lg transition-micro cursor-pointer"
+                    className="p-1.5 bg-primary hover:bg-champagne-600 dark:bg-gold-satin dark:hover:bg-primary text-primary-foreground dark:text-graphite-950   text-[10px] font-bold rounded-lg transition-micro cursor-pointer"
                     title="Ver / Imprimir Comprobante Oficial"
                   >
                     <span className="inline-flex items-center gap-1">

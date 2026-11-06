@@ -2,7 +2,7 @@
  * @vitest-environment node
  *
  * Tests unitarios y de integración para la cola offline de presupuestos (P1-3)
- * Valida el patrón transaccional padre-hijo (presupuestos + presupuesto_items),
+ * Valida la sincronización atómica de presupuestos y presupuesto_items,
  * colas de pendientes y eliminaciones explícitas, y protección contra purga.
  */
 
@@ -19,20 +19,25 @@ global.localStorage = {
   key: (i) => Array.from(localStorageStore.keys())[i] ?? null
 }
 
-const { estadoMock, mockFrom } = vi.hoisted(() => ({
+const { estadoMock, mockFrom, mockRpc } = vi.hoisted(() => ({
   estadoMock: {
-    clinicaId: 'clinica-A',
+    clinicaId: 'aaaaaaaa-0000-4000-8000-000000000001',
     user: { id: 'user-dentista-presupuestos' },
     supabaseError: null,
     supabasePadreError: null,
+    supabaseItemError: null,
+    rpcLoseResponseAfterCommit: false,
     remotePresupuestos: [],
     remoteItems: [],
     presupuestosInsertados: [],
     itemsInsertados: [],
     deletedPresupuestosIds: [],
-    deletedItemsIds: []
+    deletedItemsIds: [],
+    legacyPresupuestoIds: new Map(),
+    legacyItemIds: new Map()
   },
-  mockFrom: vi.fn()
+  mockFrom: vi.fn(),
+  mockRpc: vi.fn()
 }))
 
 // Mock de authService
@@ -53,6 +58,7 @@ vi.mock('../../../../infrastructure/supabase/supabaseClient', () => ({
     auth: {
       getUser: vi.fn(async () => ({ data: { user: estadoMock.user }, error: null }))
     },
+    rpc: mockRpc,
     from: mockFrom
   }
 }))
@@ -67,10 +73,20 @@ import {
   procesarPendingDeletesPresupuestos,
   obtenerPendingPresupuestos,
   obtenerPendingPresupuestoItems,
+  guardarPendingPresupuestoItems,
   obtenerPendingDeletesPresupuestos,
   obtenerPendingDeletesPresupuestoItems,
   sincronizarDesdeSupabase
 } from './presupuestosStorageService'
+import { transformarItemParaSupabase, transformarPresupuestoParaSupabase } from './presupuestosOfflineQueueService'
+
+describe('moneda por presupuesto', () => {
+  it('sincroniza la moneda fijada y usa CLP para presupuestos legacy sin moneda', () => {
+    const base = { id: 'presupuesto-1', folio: 'P-1', pacienteNombre: 'Paciente', montoTotal: 1000 }
+    expect(transformarPresupuestoParaSupabase({ ...base, moneda: 'USD' }, 'usuario').moneda).toBe('USD')
+    expect(transformarPresupuestoParaSupabase(base, 'usuario').moneda).toBe('CLP')
+  })
+})
 
 const configurarClinica = (clinicaId) => {
   estadoMock.clinicaId = clinicaId
@@ -80,16 +96,73 @@ describe('P1-3: Cola de Presupuestos (pendingPresupuestos + items)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     localStorageStore.clear()
-    configurarClinica('clinica-A')
+    configurarClinica('aaaaaaaa-0000-4000-8000-000000000001')
     presupuestosStorageService.resetCache()
     estadoMock.supabaseError = null
     estadoMock.supabasePadreError = null
+    estadoMock.supabaseItemError = null
+    estadoMock.rpcLoseResponseAfterCommit = false
     estadoMock.remotePresupuestos = []
     estadoMock.remoteItems = []
     estadoMock.presupuestosInsertados = []
     estadoMock.itemsInsertados = []
     estadoMock.deletedPresupuestosIds = []
     estadoMock.deletedItemsIds = []
+    estadoMock.legacyPresupuestoIds = new Map()
+    estadoMock.legacyItemIds = new Map()
+
+    mockRpc.mockImplementation(async (functionName, args) => {
+      if (functionName === 'aprobar_presupuesto_bp09') {
+        return { data: { ok: true, estado: 'aprobado', version: 2 }, error: null }
+      }
+      if (functionName !== 'sincronizar_presupuesto_offline_bp12') return { data: null, error: null }
+      const fallo = estadoMock.supabaseError ||
+        (args.p_presupuesto && estadoMock.supabasePadreError) ||
+        (args.p_items.length > 0 && estadoMock.supabaseItemError)
+      if (fallo) return { data: null, error: fallo }
+
+      const presupuesto = args.p_presupuesto
+      let presupuestoId = args.p_presupuesto_id
+      if (presupuesto) {
+        const idEnviado = String(presupuesto.id)
+        if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idEnviado)) {
+          presupuestoId = idEnviado
+        } else {
+          const key = `${estadoMock.clinicaId}:${estadoMock.user.id}:${idEnviado}`
+          presupuestoId = estadoMock.legacyPresupuestoIds.get(key) || '11111111-2222-3333-4444-555555555555'
+          estadoMock.legacyPresupuestoIds.set(key, presupuestoId)
+        }
+        const fila = { ...presupuesto, id: presupuestoId }
+        const anterior = estadoMock.presupuestosInsertados.find((row) => row.id === presupuestoId)
+        if (anterior?.monto_abonado !== undefined) fila.monto_abonado = anterior.monto_abonado
+        if (anterior) {
+          estadoMock.presupuestosInsertados[estadoMock.presupuestosInsertados.indexOf(anterior)] = fila
+        } else {
+          estadoMock.presupuestosInsertados.push(fila)
+        }
+      }
+
+      for (const item of args.p_items) {
+        let idItem = String(item.id)
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idItem)) {
+          const key = `${presupuestoId}:${idItem}`
+          idItem = estadoMock.legacyItemIds.get(key) || '22222222-3333-4444-8555-666666666666'
+          estadoMock.legacyItemIds.set(key, idItem)
+        }
+        const fila = { ...item, id: idItem, presupuesto_id: presupuestoId }
+        const anterior = estadoMock.itemsInsertados.find((row) => row.id === idItem)
+        if (anterior) {
+          estadoMock.itemsInsertados[estadoMock.itemsInsertados.indexOf(anterior)] = fila
+        } else {
+          estadoMock.itemsInsertados.push(fila)
+        }
+      }
+      if (estadoMock.rpcLoseResponseAfterCommit) {
+        estadoMock.rpcLoseResponseAfterCommit = false
+        return { data: null, error: new Error('La respuesta se perdió después del commit') }
+      }
+      return { data: presupuestoId, error: null }
+    })
 
     mockFrom.mockImplementation((tabla) => {
       if (tabla === 'presupuestos') {
@@ -177,8 +250,8 @@ describe('P1-3: Cola de Presupuestos (pendingPresupuestos + items)', () => {
             return Promise.resolve({ data: payload, error: null })
           }),
           upsert: vi.fn((payload) => {
-            if (estadoMock.supabaseError) {
-              return Promise.resolve({ error: estadoMock.supabaseError })
+            if (estadoMock.supabaseError || estadoMock.supabaseItemError) {
+              return Promise.resolve({ error: estadoMock.supabaseError || estadoMock.supabaseItemError })
             }
             estadoMock.itemsInsertados.push(payload)
             return Promise.resolve({ error: null })
@@ -209,6 +282,153 @@ describe('P1-3: Cola de Presupuestos (pendingPresupuestos + items)', () => {
   // ──────────────────────────────────────────────────────────────────────────
   // TEST 1: Encolado offline de presupuesto nuevo
   // ──────────────────────────────────────────────────────────────────────────
+  it('una edición en cola no puede sobrescribir el saldo confirmado por pagos', async () => {
+    await guardarPresupuesto({
+      id: 'bbbbbbbb-2222-3333-4444-555555555555',
+      folio: 'PRES-SALDO',
+      pacienteId: 'aaaaaaaa-1111-2222-3333-444444444444',
+      pacienteNombre: 'Paciente',
+      montoTotal: 100000,
+      montoAbonado: 40000,
+      estado: 'Aprobado',
+      items: [],
+    })
+    expect(estadoMock.presupuestosInsertados).toHaveLength(1)
+    expect(estadoMock.presupuestosInsertados[0]).not.toHaveProperty('monto_abonado')
+  })
+
+  it('si falla un ítem, no persiste la cabecera y conserva el saldo remoto al reintentar', async () => {
+    estadoMock.supabaseItemError = new Error('Ítems temporalmente no disponibles')
+    const id = 'bbbbbbbb-1111-4222-8333-444444444444'
+    const presupuesto = await guardarPresupuesto({
+      id,
+      folio: 'PRES-PARCIAL',
+      pacienteId: 'aaaaaaaa-1111-2222-3333-444444444444',
+      pacienteNombre: 'Paciente',
+      montoTotal: 10000,
+      estado: 'Borrador',
+      items: [{ id: 'bbbbbbbb-1111-4222-8333-444444444444', prestacionNombre: 'Control', valor: 10000 }]
+    })
+
+    expect(presupuesto.sincronizado).toBe(false)
+    expect(estadoMock.presupuestosInsertados).toHaveLength(0)
+    expect(estadoMock.itemsInsertados).toHaveLength(0)
+    expect(obtenerPendingPresupuestos()).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: presupuesto.id, padreSubido: false })
+    ]))
+    expect(obtenerPendingPresupuestoItems()).toHaveLength(1)
+
+    estadoMock.remotePresupuestos = [{
+      id,
+      clinica_id: estadoMock.clinicaId,
+      paciente_id: 'aaaaaaaa-1111-2222-3333-444444444444',
+      folio: 'PRES-PARCIAL',
+      paciente_nombre: 'Paciente',
+      monto_total: 10000,
+      monto_abonado: 4000,
+      detalle_items: presupuesto.items
+    }]
+    const refrescados = await sincronizarDesdeSupabase()
+    expect(refrescados.find((p) => p.id === presupuesto.id)).toMatchObject({
+      sincronizado: false,
+      montoAbonado: 4000
+    })
+
+    estadoMock.supabaseItemError = null
+    const resultado = await procesarColaPresupuestos()
+    expect(resultado.fallidos).toBe(0)
+    expect(estadoMock.presupuestosInsertados).toHaveLength(1)
+    expect(estadoMock.itemsInsertados).toHaveLength(1)
+    expect(obtenerPendingPresupuestos()).toHaveLength(0)
+    expect(obtenerPendingPresupuestoItems()).toHaveLength(0)
+    expect(presupuestosStorageService.obtenerPresupuestos().find((p) => p.id === presupuesto.id)).toMatchObject({
+      sincronizado: true,
+      montoAbonado: 4000
+    })
+  })
+
+  it('revierte padre e ítems juntos cuando un ítem falla durante el drenaje de la cola', async () => {
+    estadoMock.supabasePadreError = new Error('Sin conexión')
+    await guardarPresupuesto({
+      id: 902,
+      folio: 'PRES-COLA-PARCIAL',
+      pacienteId: 'aaaaaaaa-1111-2222-3333-444444444444',
+      pacienteNombre: 'Paciente',
+      montoTotal: 10000,
+      estado: 'Borrador',
+      items: [{ id: 'cccccccc-1111-4222-8333-444444444444', prestacionNombre: 'Control', valor: 10000 }]
+    })
+    estadoMock.supabasePadreError = null
+    estadoMock.supabaseItemError = new Error('Fallo del ítem')
+
+    const parcial = await procesarColaPresupuestos()
+    expect(parcial.fallidos).toBe(1)
+    expect(estadoMock.presupuestosInsertados).toHaveLength(0)
+    expect(estadoMock.itemsInsertados).toHaveLength(0)
+    expect(obtenerPendingPresupuestos()[0]).toMatchObject({ padreSubido: false, id: 902 })
+    expect(presupuestosStorageService.obtenerPresupuestos().find((p) => p.folio === 'PRES-COLA-PARCIAL').sincronizado).toBe(false)
+
+    estadoMock.supabaseItemError = null
+    const reintento = await procesarColaPresupuestos()
+    expect(reintento.fallidos).toBe(0)
+    expect(estadoMock.presupuestosInsertados).toHaveLength(1)
+    expect(estadoMock.itemsInsertados).toHaveLength(1)
+    expect(obtenerPendingPresupuestos()).toHaveLength(0)
+    expect(obtenerPendingPresupuestoItems()).toHaveLength(0)
+  })
+
+  it('recupera ítems huérfanos de una cola antigua sin reenviar el presupuesto', async () => {
+    const id = 'dddddddd-1111-4222-8333-444444444444'
+    await guardarPresupuesto({
+      id,
+      folio: 'PRES-HUERFANO',
+      pacienteId: 'aaaaaaaa-1111-2222-3333-444444444444',
+      pacienteNombre: 'Paciente',
+      montoTotal: 10000,
+      estado: 'Borrador',
+      items: []
+    })
+    guardarPendingPresupuestoItems([{
+      id: 'eeeeeeee-1111-4222-8333-444444444444',
+      presupuestoId: id,
+      clinicaId: estadoMock.clinicaId,
+      prestacionNombre: 'Control',
+      valor: 10000
+    }])
+
+    const resultado = await procesarColaPresupuestos()
+    expect(resultado.procesados).toBe(1)
+    expect(estadoMock.presupuestosInsertados).toHaveLength(1)
+    expect(estadoMock.itemsInsertados).toHaveLength(1)
+    expect(obtenerPendingPresupuestoItems()).toHaveLength(0)
+  })
+
+  it('reintenta con los mismos IDs estables si la respuesta se pierde después del commit', async () => {
+    estadoMock.rpcLoseResponseAfterCommit = true
+    const presupuesto = await guardarPresupuesto({
+      id: 905,
+      folio: 'PRES-RESPUESTA-PERDIDA',
+      pacienteId: 'aaaaaaaa-1111-2222-3333-444444444444',
+      pacienteNombre: 'Paciente',
+      montoTotal: 12000,
+      estado: 'Borrador',
+      items: [{ id: 2005, prestacionNombre: 'Control', valor: 12000 }]
+    })
+
+    expect(presupuesto.sincronizado).toBe(false)
+    expect(estadoMock.presupuestosInsertados).toHaveLength(1)
+    expect(estadoMock.itemsInsertados).toHaveLength(1)
+    expect(obtenerPendingPresupuestos()).toHaveLength(1)
+    expect(obtenerPendingPresupuestoItems()).toHaveLength(1)
+
+    const resultado = await procesarColaPresupuestos()
+    expect(resultado).toMatchObject({ procesados: 1, fallidos: 0 })
+    expect(estadoMock.presupuestosInsertados).toHaveLength(1)
+    expect(estadoMock.itemsInsertados).toHaveLength(1)
+    expect(obtenerPendingPresupuestos()).toHaveLength(0)
+    expect(obtenerPendingPresupuestoItems()).toHaveLength(0)
+  })
+
   it('1. Encolado offline de presupuesto nuevo: guarda en localStorage con sincronizado: false y encola en pendingPresupuestos y pendingPresupuestoItems', async () => {
     estadoMock.supabaseError = new Error('Offline (red no disponible)')
 
@@ -292,7 +512,7 @@ describe('P1-3: Cola de Presupuestos (pendingPresupuestos + items)', () => {
   // ──────────────────────────────────────────────────────────────────────────
   // TEST 3: Procesamiento exitoso (padre + items en orden)
   // ──────────────────────────────────────────────────────────────────────────
-  it('3. Procesamiento exitoso: sube presupuesto padre primero, obtiene UUID de Supabase, sube items con ese UUID y drena colas', async () => {
+  it('3. Procesamiento exitoso: sincroniza cabecera e ítems en una RPC y drena colas', async () => {
     // 1. Crear presupuesto con items offline
     estadoMock.supabaseError = new Error('Offline')
 
@@ -568,7 +788,7 @@ describe('P1-3: Cola de Presupuestos (pendingPresupuestos + items)', () => {
   // TEST 10: Aislamiento multi-tenant
   // ──────────────────────────────────────────────────────────────────────────
   it('10. Aislamiento multi-tenant: pendingPresupuestos de Clínica A no se procesa cuando la sesión activa es Clínica B', async () => {
-    configurarClinica('clinica-A')
+    configurarClinica('aaaaaaaa-0000-4000-8000-000000000001')
     estadoMock.supabaseError = new Error('Offline')
 
     await guardarPresupuesto({
@@ -584,7 +804,7 @@ describe('P1-3: Cola de Presupuestos (pendingPresupuestos + items)', () => {
     expect(obtenerPendingPresupuestos().length).toBe(1)
 
     // Cambiar a Clínica B
-    configurarClinica('clinica-B')
+    configurarClinica('bbbbbbbb-0000-4000-8000-000000000002')
     presupuestosStorageService.resetCache()
     estadoMock.supabaseError = null
 
@@ -595,10 +815,62 @@ describe('P1-3: Cola de Presupuestos (pendingPresupuestos + items)', () => {
     expect(resB.procesados).toBe(0)
 
     // Regresar a Clínica A: su presupuesto pendiente sigue intacto
-    configurarClinica('clinica-A')
+    configurarClinica('aaaaaaaa-0000-4000-8000-000000000001')
     presupuestosStorageService.resetCache()
     const pendingA = obtenerPendingPresupuestos()
     expect(pendingA.length).toBe(1)
     expect(pendingA.some((item) => (typeof item === 'object' ? item.id === 510 : item === 510))).toBe(true)
+  })
+
+  it('sincroniza productos con sus datos de inventario y aprueba con ubicación obligatoria', async () => {
+    const item = transformarItemParaSupabase({
+      id: '22222222-3333-4444-8555-666666666666',
+      prestacionNombre: 'Cepillo dental',
+      inventarioId: '33333333-4444-4555-8666-777777777777',
+      cantidadInventario: 2,
+      precioUnitarioInventario: 1000,
+      ivaPorcentajeInventario: 19,
+      valor: 2380
+    }, '11111111-2222-4333-8444-555555555555', 'aaaaaaaa-1111-2222-3333-444444444444', estadoMock.clinicaId)
+
+    expect(item).toMatchObject({
+      inventario_id: '33333333-4444-4555-8666-777777777777',
+      cantidad_inventario: 2,
+      precio_unitario_inventario: 1000,
+      iva_porcentaje_inventario: 19,
+      valor: 2380
+    })
+
+    const presupuesto = await guardarPresupuesto({
+      id: '11111111-2222-4333-8444-555555555555',
+      folio: 'PRES-BP09-1',
+      pacienteId: 'aaaaaaaa-1111-2222-3333-444444444444',
+      pacienteNombre: 'Paciente de prueba',
+      montoTotal: 2380,
+      estado: 'enviado',
+      items: [{
+        id: '22222222-3333-4444-8555-666666666666',
+        prestacionNombre: 'Cepillo dental',
+        inventarioId: '33333333-4444-4555-8666-777777777777',
+        cantidadInventario: 2,
+        precioUnitarioInventario: 1000,
+        ivaPorcentajeInventario: 19,
+        valor: 2380
+      }]
+    })
+    expect(presupuesto?.sincronizado).toBe(true)
+    expect(mockRpc).toHaveBeenCalledWith('sincronizar_presupuesto_offline_bp12', expect.objectContaining({
+      p_items: expect.arrayContaining([expect.objectContaining({ inventario_id: '33333333-4444-4555-8666-777777777777' })])
+    }))
+
+    const aprobacion = await presupuestosStorageService.aprobarPresupuestoConInventario(
+      '11111111-2222-4333-8444-555555555555',
+      '44444444-5555-4666-8777-888888888888'
+    )
+    expect(mockRpc).toHaveBeenCalledWith('aprobar_presupuesto_bp09', {
+      p_presupuesto_id: '11111111-2222-4333-8444-555555555555',
+      p_ubicacion_id: '44444444-5555-4666-8777-888888888888'
+    })
+    expect(aprobacion.estado).toBe('aprobado')
   })
 })

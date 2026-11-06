@@ -4,6 +4,7 @@
 
 import { presupuestosStorageService } from '../../budget/services/presupuestosStorageService'
 import { createLogger } from '../../../../infrastructure/logging/logger'
+import { resolverMonedaDocumento } from '../../../../shared/utils/formatoDocumento'
 
 const log = createLogger('reportesCalculations')
 
@@ -29,9 +30,10 @@ export interface EstadisticasAvanzadasResultado {
 
 export const calcularEstadisticasAvanzadas = (
   pacientes: Array<{ id: string | number; [key: string]: unknown }> = [],
-  pagos: Array<{ estado?: string; monto?: number | string; metodoPago?: string; [key: string]: unknown }> = [],
-  presupuestos: Array<{ montoTotal?: number | string; estado?: string; [key: string]: unknown }> = [],
-  _citas: unknown[] = []
+  pagos: Array<{ estado?: string; monto?: number | string; metodoPago?: string; moneda?: string; [key: string]: unknown }> = [],
+  presupuestos: Array<{ id?: string | number; pacienteId?: string | number; items?: Array<Record<string, unknown>>; moneda?: string; montoTotal?: number | string; estado?: string; [key: string]: unknown }> = [],
+  _citas: unknown[] = [],
+  monedaSeleccionada: string = 'CLP'
 ): EstadisticasAvanzadasResultado => {
   let totalRecaudado = 0
   let totalPresupuestado = 0
@@ -39,7 +41,7 @@ export const calcularEstadisticasAvanzadas = (
 
   // 1. Cálculos de Pagos y Recaudación
   const recaudacionPorMetodo: Record<string, number> = {}
-  pagos.forEach((p) => {
+  pagos.filter((p) => resolverMonedaDocumento(p.moneda) === resolverMonedaDocumento(monedaSeleccionada)).forEach((p) => {
     if (p.estado === 'Anulado') return
     const monto = parseFloat(String(p.monto)) || 0
     totalRecaudado += monto
@@ -49,7 +51,8 @@ export const calcularEstadisticasAvanzadas = (
   })
 
   // 2. Cálculos de Presupuestos y Conversión
-  presupuestos.forEach((p) => {
+  const presupuestosFiltrados = presupuestos.filter((p) => resolverMonedaDocumento(p.moneda) === resolverMonedaDocumento(monedaSeleccionada))
+  presupuestosFiltrados.forEach((p) => {
     const total = parseFloat(String(p.montoTotal)) || 0
     totalPresupuestado += total
     if (p.estado === 'Aprobado' || p.estado === 'EnTratamiento') {
@@ -69,12 +72,20 @@ export const calcularEstadisticasAvanzadas = (
 
   pacientes.forEach((p) => {
     try {
-      const items = presupuestosStorageService.obtenerItemsPorPaciente(p.id)
+      const presupuestosPaciente = presupuestosFiltrados.filter((presupuesto) => String(presupuesto.pacienteId) === String(p.id))
+      const itemsAnidados = presupuestosPaciente.flatMap((presupuesto) => Array.isArray(presupuesto.items) ? presupuesto.items : [])
+      const itemsPaciente = presupuestosStorageService.obtenerItemsPorPaciente(p.id)
+      const idsPresupuestos = new Set(presupuestosPaciente.map((presupuesto) => String(presupuesto.id)))
+      const items = itemsAnidados.length > 0
+        ? itemsAnidados
+        : itemsPaciente.filter((item) => item.moneda
+          ? resolverMonedaDocumento(item.moneda) === resolverMonedaDocumento(monedaSeleccionada)
+          : resolverMonedaDocumento(monedaSeleccionada) === 'CLP' && (!item.presupuestoId || idsPresupuestos.has(String(item.presupuestoId))))
       if (Array.isArray(items) && items.length > 0) {
-        items.forEach((it: { prestacion?: string; valor?: number | string; especialidad?: string }) => {
+        items.forEach((it: { prestacion?: string; prestacionNombre?: string; nombrePrestacion?: string; nombre?: string; valor?: number | string; subtotal?: number | string; precioUnitario?: number | string; especialidad?: string }) => {
           totalProcedimientos++
-          const nombre = it.prestacion || 'Consulta General'
-          const valor = parseFloat(String(it.valor)) || 0
+          const nombre = it.nombrePrestacion || it.prestacionNombre || it.prestacion || it.nombre || 'Consulta General'
+          const valor = parseFloat(String(it.subtotal ?? it.valor ?? it.precioUnitario ?? 0)) || 0
           const especialidad = it.especialidad || 'General'
 
           if (!rankingPrestaciones[nombre]) {

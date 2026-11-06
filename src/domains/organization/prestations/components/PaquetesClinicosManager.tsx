@@ -1,18 +1,22 @@
 import React, { memo, useState } from 'react'
 import { Pencil, Plus, Gift, Trash2 } from 'lucide-react'
-import { formatearCLP } from '../../../../shared/utils/formatoMoneda'
+import { formatearImporteDocumento, type IdiomaDocumento, type MonedaDocumento } from '../../../../shared/utils/formatoDocumento'
 import { useAppDialog } from '../../../../shared/hooks/useAppDialog'
 import type { PaqueteClinico } from '../services/prestacionesStorageService'
 import type { PaqueteInput } from '../hooks/usePrestaciones'
 
 export interface PaquetesClinicosManagerProps {
   paquetes: PaqueteClinico[]
-  alGuardarPaquete: (paquete: PaqueteInput) => void
-  alEliminarPaquete: (id: string | number) => void
+  moneda?: MonedaDocumento
+  idioma?: IdiomaDocumento
+  alGuardarPaquete: (paquete: PaqueteInput) => Promise<void>
+  alEliminarPaquete: (id: string | number) => Promise<void>
 }
 
 export const PaquetesClinicosManager: React.FC<PaquetesClinicosManagerProps> = memo(({
   paquetes,
+  moneda = 'CLP',
+  idioma = 'es-CL',
   alGuardarPaquete,
   alEliminarPaquete
 }) => {
@@ -22,6 +26,8 @@ export const PaquetesClinicosManager: React.FC<PaquetesClinicosManagerProps> = m
   const [descripcion, setDescripcion] = useState<string>('')
   const [precioCombo, setPrecioCombo] = useState<string>('')
   const [ahorroEstimado, setAhorroEstimado] = useState<string>('15%')
+  const [error, setError] = useState('')
+  const [sincronizando, setSincronizando] = useState<string | null>(null)
 
   const handleAbrirEditar = (pk: PaqueteClinico): void => {
     setPackEditar(pk)
@@ -35,7 +41,7 @@ export const PaquetesClinicosManager: React.FC<PaquetesClinicosManagerProps> = m
         ? String(pk.precio)
         : ''
     )
-    setAhorroEstimado(pk.ahorroEstimado || '15%')
+    setAhorroEstimado(pk.ahorroEstimado ?? '')
   }
 
   const handleCancelarEdicion = (): void => {
@@ -53,13 +59,19 @@ export const PaquetesClinicosManager: React.FC<PaquetesClinicosManagerProps> = m
     // Limpieza de separadores de miles para evitar que 50.000 se convierta en 50
     const precioLimpio = parseFloat(String(precioCombo).replace(/[^0-9]/g, '')) || 0
 
-    alGuardarPaquete({
-      id: packEditar ? packEditar.id : undefined,
-      nombre: nombre.trim(),
-      descripcion,
-      precioCombo: precioLimpio,
-      ahorroEstimado
-    })
+    try {
+      setError('')
+      await alGuardarPaquete({
+        id: packEditar ? packEditar.id : undefined,
+        nombre: nombre.trim(),
+        descripcion,
+        precioCombo: precioLimpio,
+        ahorroEstimado
+      })
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'No se pudo guardar el paquete.')
+      return
+    }
 
     handleCancelarEdicion()
     await dialogAlert({
@@ -70,8 +82,37 @@ export const PaquetesClinicosManager: React.FC<PaquetesClinicosManagerProps> = m
     })
   }
 
+  const compartirMetadataLocal = async (pack: PaqueteClinico): Promise<void> => {
+    setSincronizando(String(pack.id))
+    setError('')
+    try {
+      await alGuardarPaquete({
+        id: pack.id,
+        nombre: pack.nombre,
+        descripcion: pack.descripcion,
+        precioCombo: pack.precioCombo ?? Number(pack.precio ?? 0),
+        ahorroEstimado: pack.ahorroEstimado,
+      })
+      try {
+        await dialogAlert({
+          title: 'Pack compartido',
+          description: 'La descripción y el ahorro ahora están disponibles para la clínica.',
+          variant: 'success',
+          confirmText: 'Entendido'
+        })
+      } catch {
+        // La escritura ya fue confirmada; el diálogo solo informa el resultado.
+      }
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'No se pudo compartir la metadata del pack.')
+    } finally {
+      setSincronizando(null)
+    }
+  }
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-xs">
+      {error && <p role="alert" className="col-span-full text-red-700">{error}</p>}
       <form
         onSubmit={handleSubmit}
         className="bg-white dark:bg-graphite-800 border border-gray-200 dark:border-graphite-700 rounded-2xl p-6 shadow-xs space-y-3"
@@ -131,7 +172,7 @@ export const PaquetesClinicosManager: React.FC<PaquetesClinicosManagerProps> = m
         <div className="grid grid-cols-2 gap-2">
           <div>
             <label htmlFor="pack-precio" className="block font-semibold text-gray-700 dark:text-graphite-300 mb-1">
-              Precio Combo ($)
+              Precio Combo ({moneda})
             </label>
             <input
               id="pack-precio"
@@ -192,7 +233,7 @@ export const PaquetesClinicosManager: React.FC<PaquetesClinicosManagerProps> = m
                         <Pencil size={12} />
                       </button>
                       <button
-                        onClick={() => pk.id && alEliminarPaquete(pk.id)}
+                        onClick={() => { if (pk.id) void alEliminarPaquete(pk.id).catch((cause) => setError(cause instanceof Error ? cause.message : 'No se pudo eliminar el paquete.')) }}
                         className="text-red-500 font-bold hover:text-red-700 p-1 hover:bg-red-50 rounded cursor-pointer"
                         title="Eliminar Pack"
                       >
@@ -203,15 +244,30 @@ export const PaquetesClinicosManager: React.FC<PaquetesClinicosManagerProps> = m
                   <p className="text-gray-600 dark:text-graphite-400 mt-2 text-[11px] leading-relaxed">
                     {pk.descripcion}
                   </p>
+                  {pk.pendienteCompartir && (
+                    <div className="mt-2 flex items-center justify-between gap-2 rounded-lg bg-amber-50 p-2 text-[10px] text-amber-900">
+                      <span>Este pack tiene datos locales pendientes de compartir.</span>
+                      <button
+                        type="button"
+                        disabled={sincronizando === String(pk.id)}
+                        onClick={() => { void compartirMetadataLocal(pk) }}
+                        className="shrink-0 font-bold underline disabled:opacity-50"
+                      >
+                        {sincronizando === String(pk.id) ? 'Compartiendo…' : 'Compartir con la clínica'}
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex justify-between items-center pt-3 border-t">
                   <span className="font-black text-emerald-900 text-sm">
-                    {formatearCLP(precioMostrar)}
+                    {formatearImporteDocumento(precioMostrar, moneda, idioma)}
                   </span>
-                  <span className="bg-emerald-100 text-emerald-900 px-2.5 py-1 rounded-lg font-extrabold text-[10px]">
-                    Ahorro {pk.ahorroEstimado}
-                  </span>
+                  {pk.ahorroEstimado && (
+                    <span className="bg-emerald-100 text-emerald-900 px-2.5 py-1 rounded-lg font-extrabold text-[10px]">
+                      Ahorro {pk.ahorroEstimado}
+                    </span>
+                  )}
                 </div>
               </div>
             )

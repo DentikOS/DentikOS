@@ -4,10 +4,11 @@ import { describe, it, expect, vi } from 'vitest'
 import { DescuentosPresupuesto } from './DescuentosPresupuesto'
 
 describe('DescuentosPresupuesto BP07', () => {
-  it('renderiza selector de convenios de salud por defecto', () => {
+  it('no muestra porcentajes de convenio de ejemplo ni calcula un descuento sin categoría', () => {
     render(<DescuentosPresupuesto totalBruto={100000} onAplicarDescuento={vi.fn()} />)
     expect(screen.getByTestId('descuentos-presupuesto-modulo')).toBeInTheDocument()
-    expect(screen.getByText(/ISAPRE Banmédica/i)).toBeInTheDocument()
+    expect(screen.getByText(/porcentaje depende de la categoría/i)).toBeInTheDocument()
+    expect(screen.queryByText(/ISAPRE Banmédica/i)).not.toBeInTheDocument()
   })
 
   it('exige motivo y autorización para aplicar el descuento', () => {

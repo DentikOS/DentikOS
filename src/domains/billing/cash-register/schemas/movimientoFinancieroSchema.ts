@@ -18,7 +18,10 @@ export const movimientoFinancieroSchema = z.object({
   origen: z.string().optional(),
 }).passthrough()
 
-export type MovimientoFinanciero = z.infer<typeof movimientoFinancieroSchema>
+export type MovimientoFinanciero = z.infer<typeof movimientoFinancieroSchema> & {
+  moneda?: string
+  ordenLaboratorioId?: string | null
+}
 
 export const listaMovimientosSchema = z.array(movimientoFinancieroSchema)
 

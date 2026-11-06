@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Modal } from '../../../../shared/ui/ui/Modal'
 import { Button } from '../../../../shared/ui/ui/Button'
-import { useSesionStore } from '../../../../app/stores/sesionStore'
+import { useSedes } from '../../../organization/clinic/hooks/useSedes'
 import { agendaConfigService, type DoctorAgenda } from '../services/agendaConfigService'
 import { DIAS_SEMANA, COLORES_DOCTOR } from '../constants/doctorConstants'
 
@@ -16,16 +16,25 @@ export const ModalConfiguracionHorarios: React.FC<ModalConfiguracionHorariosProp
   alCerrar,
   alGuardar,
 }) => {
+  const { sedeActiva, sedeActivaId, cargando: cargandoSedes } = useSedes()
   const [doctores, setDoctores] = useState<DoctorAgenda[]>([])
   const [loading, setLoading] = useState(true)
   const [guardando, setGuardando] = useState(false)
+  const [errorGuardar, setErrorGuardar] = useState<string | null>(null)
   const [doctorSeleccionadoId, setDoctorSeleccionadoId] = useState<string>('')
 
   useEffect(() => {
     if (!isOpen) return
     let activo = true
     setLoading(true)
-    agendaConfigService.obtenerDoctoresAgenda()
+    setErrorGuardar(null)
+    if (cargandoSedes) return () => { activo = false }
+    if (!sedeActivaId) {
+      setDoctores([])
+      setLoading(false)
+      return () => { activo = false }
+    }
+    agendaConfigService.obtenerDoctoresAgenda(sedeActivaId)
       .then((docs) => {
         if (!activo) return
         setDoctores(docs)
@@ -34,7 +43,7 @@ export const ModalConfiguracionHorarios: React.FC<ModalConfiguracionHorariosProp
       .catch(() => { if (activo) setDoctores([]) })
       .finally(() => { if (activo) setLoading(false) })
     return () => { activo = false }
-  }, [isOpen])
+  }, [isOpen, sedeActivaId, cargandoSedes])
 
   const doctorActual = doctores.find((d) => d.userId === doctorSeleccionadoId) || doctores[0]
 
@@ -44,24 +53,22 @@ export const ModalConfiguracionHorarios: React.FC<ModalConfiguracionHorariosProp
   }
 
   const handleGuardar = async () => {
+    if (!sedeActivaId || guardando) return
     setGuardando(true)
+    setErrorGuardar(null)
     try {
-      const userProfile = useSesionStore.getState().userProfile
-      const clinicaId = (userProfile as { clinicaId?: string })?.clinicaId || ''
-
       for (const doctor of doctores) {
         await agendaConfigService.actualizarConfigAgenda(doctor.userId, {
           permiteSobrecupos: doctor.permiteSobrecupos,
           maxSobrecupos: doctor.maxSobrecupos,
           colorIdentidad: doctor.colorIdentidad,
         })
-        if (doctor.horarios?.length && clinicaId) {
-          await agendaConfigService.actualizarHorariosUsuario(doctor.userId, clinicaId, doctor.horarios)
-        }
+        await agendaConfigService.actualizarHorariosUsuario(doctor.userId, sedeActivaId, doctor.horarios || [])
       }
       alGuardar(); alCerrar()
     } catch (err) {
       console.error('Error guardando configuración de horarios:', err)
+      setErrorGuardar('No se guardaron los horarios. Verifica la conexión e inténtalo nuevamente.')
     } finally {
       setGuardando(false)
     }
@@ -88,6 +95,17 @@ export const ModalConfiguracionHorarios: React.FC<ModalConfiguracionHorariosProp
     return (
       <Modal isOpen={isOpen} onClose={alCerrar} title="Configurar Horarios">
         <div className="p-8 text-center text-slate-500 font-semibold text-xs">Cargando doctores...</div>
+      </Modal>
+    )
+  }
+
+  if (!sedeActivaId) {
+    return (
+      <Modal isOpen={isOpen} onClose={alCerrar} title="Configurar Horarios">
+        <div className="p-6 text-center space-y-4 text-xs">
+          <p role="status" className="text-slate-600 dark:text-slate-300 font-medium">No hay una sucursal activa. Registra o activa una sucursal en Administración para configurar horarios.</p>
+          <Button variant="secondary" onClick={alCerrar} type="button">Cerrar</Button>
+        </div>
       </Modal>
     )
   }
@@ -137,6 +155,7 @@ export const ModalConfiguracionHorarios: React.FC<ModalConfiguracionHorariosProp
 
         {doctorActual && (
           <div className="md:col-span-2 space-y-4 border border-surface-border rounded-xl p-4 bg-surface">
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">Sucursal activa: <strong>{sedeActiva?.nombre || 'Sucursal seleccionada'}</strong></p>
             <div className="flex items-center justify-between border-b border-surface-border pb-3">
               <div>
                 <h4 className="font-bold text-sm text-[#0F172A] dark:text-white">{doctorActual.nombreCompleto}</h4>
@@ -236,10 +255,11 @@ export const ModalConfiguracionHorarios: React.FC<ModalConfiguracionHorariosProp
 
       <div className="flex justify-end gap-2 pt-4 border-t border-surface-border mt-4">
         <Button variant="ghost" onClick={alCerrar} type="button" disabled={guardando}>Cancelar</Button>
-        <Button variant="primary" onClick={handleGuardar} type="button" disabled={guardando || doctores.length === 0}>
+        <Button variant="primary" onClick={handleGuardar} type="button" disabled={guardando || doctores.length === 0 || !sedeActivaId}>
           {guardando ? 'Guardando...' : 'Guardar Cambios'}
         </Button>
       </div>
+      {errorGuardar && <p role="alert" className="pt-2 text-xs text-rose-700">{errorGuardar}</p>}
     </Modal>
   )
 }

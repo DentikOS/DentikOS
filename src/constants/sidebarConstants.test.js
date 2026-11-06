@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { SECCIONES_SIDEBAR } from './sidebarConstants'
+import { PERMISOS } from './rbacConstants'
 
 describe('sidebarConstants (Blueprint 02)', () => {
   it('contiene 5 secciones principales', () => {
@@ -33,5 +34,22 @@ describe('sidebarConstants (Blueprint 02)', () => {
     itemsConPermiso.forEach(item => {
       expect(typeof item.permisoRequerido).toBe('string')
     })
+  })
+
+  it('registra el acceso al laboratorio dentro de práctica sanitaria', () => {
+    const moduloLaboratorio = SECCIONES_SIDEBAR
+      .find(seccion => seccion.categoria === 'CLINICO')
+      ?.items.find(item => item.slug === 'laboratorio')
+
+    expect(moduloLaboratorio?.name).toBe('Laboratorio')
+    expect(moduloLaboratorio?.permisoRequerido).toBe(PERMISOS.VER_LABORATORIO)
+  })
+
+  it('expone Finanzas con un permiso de caja específico de BP15', () => {
+    const finanzas = SECCIONES_SIDEBAR.find((section) => section.categoria === 'FINANZAS')
+      ?.items.find((item) => item.slug === 'finanzas')
+
+    expect(finanzas?.name).toBe('Finanzas')
+    expect(finanzas?.permisoRequerido).toBe(PERMISOS.VER_CAJA_BP15)
   })
 })

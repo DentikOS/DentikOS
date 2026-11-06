@@ -18,16 +18,12 @@ export const suscribirRealtimeClinica = (
           table: 'clinicas',
           filter: `id=eq.${clinicaId}`,
         },
-        (payload) => {
-          const nuevoNombre = (payload.new as { nombre?: string })?.nombre
-          if (nuevoNombre) {
-            const actual = clinicStorageService.obtenerClinica() || {}
-            clinicStorageService.guardarClinica({ ...actual, nombreClinica: nuevoNombre })
-            if (typeof window !== 'undefined') {
-              window.dispatchEvent(new CustomEvent('clinica_actualizada', { detail: { nombre: nuevoNombre } }))
-            }
-            cb(nuevoNombre)
-          }
+        () => {
+          clinicStorageService.sincronizarClinicaDesdeSupabase(clinicaId)
+            .then((datos) => {
+              if (datos?.nombreClinica) cb(datos.nombreClinica)
+            })
+            .catch(() => {})
         }
       )
       .subscribe()

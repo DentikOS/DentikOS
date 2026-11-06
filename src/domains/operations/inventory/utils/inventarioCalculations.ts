@@ -3,7 +3,7 @@
  */
 
 export interface EstadoStockInfo {
-  id: 'agotado' | 'critico' | 'normal'
+  id: 'agotado' | 'critico' | 'bajo' | 'normal'
   texto: string
   colorBg: string
   colorText: string
@@ -11,7 +11,7 @@ export interface EstadoStockInfo {
 
 export interface EstadoVencimientoInfo {
   diasRestantes: number
-  estado: 'vencido' | 'por_vencer' | 'ok'
+  estado: 'vencido' | 'por_vencer' | 'por_vencer_90' | 'ok'
   texto: string
 }
 
@@ -49,8 +49,11 @@ export const evaluarEstadoStock = (item: ItemInventarioCalculo): EstadoStockInfo
   if (cantidad === 0) {
     return { id: 'agotado', texto: 'Agotado', colorBg: 'bg-red-100', colorText: 'text-red-900' }
   }
-  if (cantidad <= minimo) {
-    return { id: 'critico', texto: 'Stock Crítico', colorBg: 'bg-amber-100', colorText: 'text-amber-900' }
+  if (minimo > 0 && cantidad <= minimo * 0.25) {
+    return { id: 'critico', texto: 'Stock Crítico', colorBg: 'bg-red-100', colorText: 'text-red-900' }
+  }
+  if (minimo > 0 && cantidad <= minimo) {
+    return { id: 'bajo', texto: 'Bajo mínimo', colorBg: 'bg-amber-100', colorText: 'text-amber-900' }
   }
   return { id: 'normal', texto: 'Normal', colorBg: 'bg-emerald-100', colorText: 'text-emerald-900' }
 }
@@ -69,23 +72,28 @@ export const evaluarVencimiento = (fechaVencimiento?: string | null): EstadoVenc
   if (diasRestantes <= 30) {
     return { diasRestantes, estado: 'por_vencer', texto: `Vence en ${diasRestantes} días` }
   }
+  if (diasRestantes <= 90) {
+    return { diasRestantes, estado: 'por_vencer_90', texto: `Vence en ${diasRestantes} días` }
+  }
   return { diasRestantes, estado: 'ok', texto: 'Vigente' }
 }
 
 export const calcularResumenInventario = (items: ItemInventarioCalculo[] = []) => {
   const totalInsumos = items.length
   let stockCriticoCount = 0
+  let stockBajoCount = 0
+  let agotadosCount = 0
   let porVencerCount = 0
   let valorTotalInventario = 0
 
   items.forEach((item) => {
     const estadoStock = evaluarEstadoStock(item)
-    if (estadoStock.id === 'critico' || estadoStock.id === 'agotado') {
-      stockCriticoCount++
-    }
+    if (estadoStock.id === 'critico') stockCriticoCount++
+    if (estadoStock.id === 'bajo') stockBajoCount++
+    if (estadoStock.id === 'agotado') agotadosCount++
 
     const estadoVenc = evaluarVencimiento(item.fechaVencimiento)
-    if (estadoVenc.estado === 'por_vencer' || estadoVenc.estado === 'vencido') {
+    if (estadoVenc.estado === 'por_vencer' || estadoVenc.estado === 'por_vencer_90' || estadoVenc.estado === 'vencido') {
       porVencerCount++
     }
 
@@ -97,6 +105,8 @@ export const calcularResumenInventario = (items: ItemInventarioCalculo[] = []) =
   return {
     totalInsumos,
     stockCriticoCount,
+    stockBajoCount,
+    agotadosCount,
     porVencerCount,
     valorTotalInventario
   }

@@ -1,12 +1,33 @@
 import React from 'react'
 
-export const CargandoModulo: React.FC = () => (
-  <div className="flex items-center justify-center h-64 print:hidden">
-    <div className="flex flex-col items-center gap-3">
-      <div className="w-8 h-8 border-4 border-gray-200 dark:border-graphite-700 border-t-black rounded-full animate-spin"></div>
-      <span className="text-xs font-semibold text-gray-500 dark:text-graphite-400 uppercase tracking-wider">Cargando módulo...</span>
+export interface CargandoModuloProps {
+  titulo?: string
+}
+
+export const CargandoModulo: React.FC<CargandoModuloProps> = ({ titulo = 'módulo' }) => (
+  <section
+    className="loading-skeleton space-y-5 print:hidden"
+    role="status"
+    aria-label={'Cargando ' + titulo}
+    aria-busy="true"
+  >
+    <span className="sr-only">Cargando {titulo}…</span>
+    <div className="rounded-2xl border border-surface-border bg-surface/90 p-5 shadow-xs">
+      <div className="flex items-start gap-4">
+        <div data-skeleton className="h-12 w-12 shrink-0 rounded-2xl bg-graphite-200 dark:bg-graphite-800 animate-pulse" />
+        <div className="min-w-0 flex-1 space-y-3">
+          <div data-skeleton className="h-6 w-2/3 rounded-lg bg-graphite-200 dark:bg-graphite-800 animate-pulse" />
+          <div data-skeleton className="h-3 w-full max-w-xl rounded bg-graphite-100 dark:bg-graphite-800 animate-pulse" />
+        </div>
+      </div>
     </div>
-  </div>
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      {Array.from({ length: 4 }, (_, index) => (
+        <div key={index} data-skeleton className="h-24 rounded-2xl border border-surface-border bg-surface/80 animate-pulse" />
+      ))}
+    </div>
+    <div data-skeleton className="h-64 rounded-2xl border border-surface-border bg-surface/80 animate-pulse" />
+  </section>
 )
 
 CargandoModulo.displayName = 'CargandoModulo'

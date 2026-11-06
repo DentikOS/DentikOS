@@ -3,17 +3,6 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { SidebarFooter } from './SidebarFooter'
 
-vi.mock('../hooks/useDarkMode', () => ({
-  useDarkMode: () => ({
-    theme: 'light',
-    setTheme: vi.fn(),
-    darkMode: false,
-    isSurgical: false,
-    toggleDarkMode: vi.fn(),
-    cycleTheme: vi.fn(),
-  }),
-}))
-
 vi.mock('../hooks/useSessionDevices', () => ({
   useSessionDevices: () => ({
     devices: [],

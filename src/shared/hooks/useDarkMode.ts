@@ -1,7 +1,7 @@
 /**
  * useDarkMode — Wrapper reactivo sobre useThemeStore (DentikOS)
  *
- * Mantiene compatibilidad total con la API existente (theme, setTheme, darkMode, isSurgical, toggleDarkMode, cycleTheme).
+ * Expone el tema claro/oscuro usando el store compartido.
  * Estado unificado y compartido en toda la aplicación vía useThemeStore.
  */
 import { useCallback } from 'react'
@@ -13,7 +13,6 @@ export interface UseDarkModeReturn {
   theme: Theme
   setTheme: (nuevoTema: Theme) => void
   darkMode: boolean
-  isSurgical: boolean
   toggleDarkMode: () => void
   cycleTheme: () => void
 }
@@ -31,7 +30,6 @@ export const useDarkMode = (): UseDarkModeReturn => {
     theme,
     setTheme,
     darkMode: theme === 'dark',
-    isSurgical: theme === 'surgical',
     toggleDarkMode,
     cycleTheme,
   }

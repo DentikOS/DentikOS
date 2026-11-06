@@ -1,140 +1,107 @@
-import React, { memo, useState } from 'react'
-import { Icon } from '../../../../shared/ui/Icon'
-import { Wrench, PenSquare } from 'lucide-react'
-import {
-  EQUIPOS_AUTOCLAVE,
-  RESULTADOS_BOWIE_DICK,
-  type TestBowieDick
-} from '../constants/esterilizacionConstants'
-import { useAppDialog } from '../../../../shared/hooks/useAppDialog'
+import React, { memo, useRef, useState } from 'react'
+import { CheckCircle2, PenSquare, Wrench, XCircle } from 'lucide-react'
+import { Button } from '../../../../shared/ui/ui/Button'
+import { esterilizacionCloudService, type EsterilizacionCloudSnapshot } from '../services/esterilizacionCloudService'
 
-export interface TestDiariosSectionProps {
-  testDiarios: TestBowieDick[]
-  alAgregarTest: (nuevoTest: TestBowieDick) => void
+const uuidSeguro = (): string => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID()
+  throw new Error('No se pudo generar una llave segura para registrar Bowie-Dick.')
 }
 
-export const TestDiariosSection = memo<TestDiariosSectionProps>(({ testDiarios, alAgregarTest }) => {
-  const [equipo, setEquipo] = useState<string>(EQUIPOS_AUTOCLAVE[0])
-  const { alert: dialogAlert } = useAppDialog()
-  const [resultado, setResultado] = useState<string>(RESULTADOS_BOWIE_DICK[0].nombre)
-  const [operador, setOperador] = useState<string>('TENS Esterilización')
-  const [observacion, setObservacion] = useState<string>('')
+export interface TestDiariosSectionProps {
+  snapshot: EsterilizacionCloudSnapshot
+  onRefresh: () => Promise<void>
+}
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
-    e.preventDefault()
+export const TestDiariosSection = memo<TestDiariosSectionProps>(({ snapshot, onRefresh }) => {
+  const [equipoId, setEquipoId] = useState('')
+  const [resultado, setResultado] = useState<'aprobado' | 'rechazado'>('aprobado')
+  const [marca, setMarca] = useState('')
+  const [observacion, setObservacion] = useState('')
+  const [guardando, setGuardando] = useState(false)
+  const [error, setError] = useState('')
+  const registroKey = useRef<string | null>(null)
+  const equipos = snapshot.equipos.filter((equipo) => equipo.tipo_item === 'equipamiento')
+  const programaBowie = snapshot.programas.find((programa) => programa.codigo === 'bowie_dick')
+  const pruebas = snapshot.pruebas.filter((prueba) => prueba.tipo === 'bowie_dick')
+  const equipoPorId = new Map(equipos.map((equipo) => [equipo.id, equipo]))
 
-    const nuevoTest: TestBowieDick = {
-      id: Date.now(),
-      fecha: new Date().toLocaleDateString('es-CL'),
-      equipo,
-      resultado,
-      operador,
-      observacion: observacion || 'Prueba de penetración de vapor matutina.'
+  const registrar = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!equipoId || !marca.trim()) {
+      setError('Selecciona un equipo activo e indica la marca del indicador utilizado.')
+      return
     }
-
-    alAgregarTest(nuevoTest)
-    await dialogAlert({
-      title: 'Test registrado',
-      description: 'Test Diario de Bowie-Dick registrado correctamente.',
-      variant: 'success',
-      confirmText: 'Entendido'
-    })
-    setObservacion('')
+    setGuardando(true)
+    setError('')
+    try {
+      registroKey.current ||= uuidSeguro()
+      await esterilizacionCloudService.registrarBowieDick({
+        equipoId,
+        resultado,
+        marcaIndicador: marca.trim(),
+        observacion: observacion.trim(),
+        idempotencyKey: registroKey.current,
+      })
+      await onRefresh()
+      registroKey.current = null
+      setObservacion('')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo sincronizar el resultado Bowie-Dick.')
+      await onRefresh().catch(() => {})
+    } finally {
+      setGuardando(false)
+    }
   }
 
   return (
-    <div className="space-y-6 text-xs">
-      <form onSubmit={handleSubmit} className="bg-white dark:bg-graphite-800 border border-gray-200 dark:border-graphite-700 rounded-2xl p-6 shadow-xs space-y-4">
-        <div className="border-b pb-2">
-          <h3 className="font-bold text-sm text-gray-900 dark:text-graphite-50 uppercase tracking-wider">
-            <span className="flex items-center gap-2">
-              <Icon icon={Wrench} size="sm" />
-              Test Diarios de Penetración de Vapor (Bowie-Dick / Pre-Vacío)
-            </span>
-          </h3>
-          <p className="text-gray-500 dark:text-graphite-400 text-[11px]">
-            Verificación técnica matutina obligatoria por la SEREMI antes de procesar cargas de pacientes.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div>
-            <label className="block font-semibold text-gray-700 dark:text-graphite-300 mb-1">Equipo Autoclave *</label>
-            <select
-              value={equipo}
-              onChange={(e) => setEquipo(e.target.value)}
-              className="w-full p-2.5 rounded-xl border border-gray-300 dark:border-graphite-600 bg-white dark:bg-graphite-800 font-bold"
-            >
-              {EQUIPOS_AUTOCLAVE.map(eq => <option key={eq} value={eq}>{eq}</option>)}
-            </select>
-          </div>
-
-          <div>
-            <label className="block font-semibold text-gray-700 dark:text-graphite-300 mb-1">Resultado de Viraje Hoja Bowie-Dick</label>
-            <select
-              value={resultado}
-              onChange={(e) => setResultado(e.target.value)}
-              className="w-full p-2.5 rounded-xl border border-gray-300 dark:border-graphite-600 bg-white dark:bg-graphite-800 font-semibold"
-            >
-              {RESULTADOS_BOWIE_DICK.map(r => <option key={r.id} value={r.nombre}>{r.nombre}</option>)}
-            </select>
-          </div>
-
-          <div>
-            <label className="block font-semibold text-gray-700 dark:text-graphite-300 mb-1">Operador Responsable</label>
-            <input
-              type="text"
-              value={operador}
-              onChange={(e) => setOperador(e.target.value)}
-              className="w-full p-2.5 rounded-xl border border-gray-300 dark:border-graphite-600 font-semibold"
-            />
-          </div>
-        </div>
-
+    <div className="space-y-5 text-xs">
+      <form onSubmit={(event) => void registrar(event)} className="space-y-4 rounded-2xl border border-surface bg-surface p-5">
         <div>
-          <label className="block font-semibold text-gray-700 dark:text-graphite-300 mb-1">Observaciones Técnicas</label>
-          <input
-            type="text"
-            placeholder="Viraje uniforme de hoja de prueba, sin presencia de bolsas de aire..."
-            value={observacion}
-            onChange={(e) => setObservacion(e.target.value)}
-            className="w-full p-2.5 rounded-xl border border-gray-300 dark:border-graphite-600"
-          />
+          <h3 className="flex items-center gap-2 text-sm font-bold"><Wrench size={16} />Registrar resultado Bowie-Dick</h3>
+          <p className="mt-1 text-graphite-500">Cada resultado queda asociado al equipo y a la hora de registro en DentikOS. Un resultado no aprobado bloquea iniciar el autoclave, salvo excepción administrativa auditada.</p>
+          <p className="mt-1 text-graphite-500">Protocolo Bowie-Dick: {programaBowie?.temperatura_objetivo ?? '—'} °C · {programaBowie?.duracion_minutos ?? '—'} min · {programaBowie?.activo ? 'validado para esta clínica' : 'pendiente de validación administrativa'}.</p>
         </div>
-
-        <button
-          type="submit"
-          className="bg-black text-white font-bold px-4 py-2.5 rounded-xl hover:bg-gray-800 transition-colors shadow-xs"
-        >
-          <span className="inline-flex items-center gap-1"><PenSquare size={14} />Guardar Test de Bowie-Dick</span>
-        </button>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="font-semibold">Equipo
+            <select required value={equipoId} onChange={(event) => setEquipoId(event.target.value)} className="mt-1 w-full rounded-xl border border-surface bg-surface p-2.5">
+              <option value="">Selecciona un autoclave</option>
+              {equipos.map((equipo) => <option key={equipo.id} value={equipo.id}>{equipo.nombre} · {equipo.codigo}</option>)}
+            </select>
+          </label>
+          <label className="font-semibold">Marca / modelo del indicador
+            <input required maxLength={120} value={marca} onChange={(event) => setMarca(event.target.value)} className="mt-1 w-full rounded-xl border border-surface bg-surface p-2.5" />
+          </label>
+          <label className="font-semibold">Resultado
+            <select value={resultado} onChange={(event) => setResultado(event.target.value as 'aprobado' | 'rechazado')} className="mt-1 w-full rounded-xl border border-surface bg-surface p-2.5">
+              <option value="aprobado">Aprobado</option><option value="rechazado">Rechazado</option>
+            </select>
+          </label>
+          <label className="font-semibold">Observación técnica
+            <input maxLength={1000} value={observacion} onChange={(event) => setObservacion(event.target.value)} className="mt-1 w-full rounded-xl border border-surface bg-surface p-2.5" />
+          </label>
+        </div>
+        {equipos.length === 0 && <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-amber-950">No hay autoclaves activos en el inventario de esta clínica.</p>}
+        {!programaBowie?.activo && <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-amber-950">Admin debe configurar el programa Bowie-Dick con la referencia del fabricante antes de registrar resultados.</p>}
+        <Button type="submit" disabled={guardando || equipos.length === 0 || !equipoId || !marca.trim() || !programaBowie?.activo}><PenSquare size={14} />{guardando ? 'Sincronizando…' : 'Guardar resultado'}</Button>
       </form>
 
-      <div className="bg-white dark:bg-graphite-800 border border-gray-200 dark:border-graphite-700 rounded-2xl overflow-hidden shadow-xs">
-        <div className="p-4 bg-gray-50 dark:bg-graphite-800 border-b font-bold text-gray-800 dark:text-graphite-100 uppercase tracking-wider">
-          Historial de Test Diarios de Autoclave ({testDiarios.length})
-        </div>
+      {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</p>}
 
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-gray-100 dark:bg-graphite-800 border-b text-gray-700 dark:text-graphite-300 font-bold uppercase text-[10px]">
-              <th className="p-3">Fecha</th>
-              <th className="p-3">Equipo</th>
-              <th className="p-3">Operador</th>
-              <th className="p-3">Resultado Bowie-Dick</th>
-              <th className="p-3">Observación</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100 dark:divide-graphite-800">
-            {testDiarios.map(t => (
-              <tr key={t.id} className="hover:bg-gray-50 dark:hover:bg-graphite-700">
-                <td className="p-3 font-bold text-gray-900 dark:text-graphite-50">{t.fecha}</td>
-                <td className="p-3 font-semibold text-gray-800 dark:text-graphite-100">{t.equipo}</td>
-                <td className="p-3 text-gray-600 dark:text-graphite-400">{t.operador}</td>
-                <td className="p-3 font-bold text-gray-900 dark:text-graphite-50">{t.resultado}</td>
-                <td className="p-3 text-gray-500 dark:text-graphite-400 italic">{t.observacion}</td>
-              </tr>
-            ))}
+      <div className="overflow-x-auto rounded-2xl border border-surface bg-surface">
+        <table className="w-full min-w-[760px] text-left">
+          <thead><tr className="border-b border-surface bg-surface-muted text-[10px] uppercase"><th className="p-3">Fecha</th><th className="p-3">Equipo</th><th className="p-3">Indicador</th><th className="p-3">Resultado</th><th className="p-3">Observación</th></tr></thead>
+          <tbody className="divide-y divide-surface">
+            {pruebas.map((prueba) => <tr key={prueba.id}>
+              <td className="p-3">{new Date(prueba.observado_at).toLocaleString('es-CL')}</td>
+              <td className="p-3 font-semibold">{equipoPorId.get(prueba.equipo_id)?.nombre || prueba.equipo_id}</td>
+              <td className="p-3">{prueba.marca_indicador || '—'}</td>
+              <td className={`p-3 font-bold ${prueba.estado === 'aprobado' ? 'text-emerald-700' : 'text-red-700'}`}>
+                <span className="inline-flex items-center gap-1">{prueba.estado === 'aprobado' ? <CheckCircle2 size={14} /> : <XCircle size={14} />}{prueba.estado}</span>
+              </td>
+              <td className="p-3">{prueba.observacion || '—'}</td>
+            </tr>)}
+            {pruebas.length === 0 && <tr><td colSpan={5} className="p-8 text-center text-graphite-500">Todavía no hay resultados Bowie-Dick sincronizados.</td></tr>}
           </tbody>
         </table>
       </div>

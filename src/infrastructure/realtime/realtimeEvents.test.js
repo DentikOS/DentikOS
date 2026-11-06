@@ -16,4 +16,21 @@ describe('realtimeEvents', () => {
     expect(TABLAS_REALTIME.pagos).toBe(REALTIME_EVENTS.PAGOS_CHANGED)
     expect(TABLAS_REALTIME.vademecum).toBe(REALTIME_EVENTS.VADEMECUM_CHANGED)
   })
+
+  it('mapea todas las tablas de referencia del BP11 al evento del vademécum', () => {
+    const tablasDeReferencia = [
+      'vademecum',
+      'vademecum_urgencia',
+      'vademecum_antirresortivos',
+      'alergias_cruzadas',
+      'interacciones_farmacologicas',
+      'profilaxis_endocarditis',
+      'manejo_anticoagulantes',
+      'reference_data_meta',
+    ]
+
+    tablasDeReferencia.forEach((tabla) => {
+      expect(TABLAS_REALTIME[tabla]).toBe(REALTIME_EVENTS.VADEMECUM_CHANGED)
+    })
+  })
 })

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { EQUIPAMIENTO_CLINICO_IDS } from '../../../../shared/constants/equipamientoClinico'
 
 /**
  * Esquema de validación de prestación del arancel (F2-04d — MASTER_ROADMAP).
@@ -9,8 +10,10 @@ import { z } from 'zod'
  * - `id`: identificador único (number o string)
  * - `nombre`: nombre descriptivo de la prestación
  * - `especialidad`: especialidad odontológica a la que pertenece
- * - `precioParticular`: precio para paciente particular (number)
- * - `precioFonasa`: precio convenio Fonasa/Isapre (number)
+ * - `precioParticular`: precio base del catálogo (el nombre interno se conserva
+ *   por compatibilidad).
+ * - `precioFonasa`: campo legado nullable requerido por el contrato histórico;
+ *   las tarifas de convenio se guardan en su configuración, fuera del catálogo.
  * - `codigoFonasa`: código Fonasa oficial (string, formato XX-XX-XXX)
  *
  * Campos opcionales:
@@ -27,12 +30,18 @@ export const prestacionSchema = z.object({
   id: z.union([z.number(), z.string()]),
   nombre: z.string().trim().min(1, 'El nombre de la prestación es obligatorio'),
   especialidad: z.string().trim().min(1, 'La especialidad es obligatoria'),
-  precioParticular: z.number({ message: 'El precio particular es obligatorio' }),
-  precioFonasa: z.number({ message: 'El precio Fonasa es obligatorio' }),
-  codigoFonasa: z.string().trim().min(1, 'El código Fonasa es obligatorio'),
+  precioParticular: z.number({ message: 'El precio base es obligatorio' }),
+  precioFonasa: z.number({ message: 'El precio Fonasa debe ser un número' }).nullable(),
+  codigoFonasa: z.string().trim(),
+  codigoInterno: z.string().trim().max(80).nullable().optional(),
+  categoria: z.string().trim().max(80).nullable().optional(),
 
   // Campos opcionales
   precio: z.number().optional(),
+  equipamientoRequerido: z.array(z.enum(EQUIPAMIENTO_CLINICO_IDS))
+    .max(EQUIPAMIENTO_CLINICO_IDS.length)
+    .optional()
+    .refine((ids) => ids === undefined || new Set(ids).size === ids.length, 'No repitas un equipo requerido.'),
 }).passthrough()
 
 export type Prestacion = z.infer<typeof prestacionSchema>

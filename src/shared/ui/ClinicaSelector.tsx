@@ -144,7 +144,7 @@ export const ClinicaSelector: React.FC<ClinicaSelectorProps> = ({ onCambioClinic
   if (cargando) {
     return (
       <div className="px-2 py-3 mb-4 border-b border-surface">
-        <div className="text-xs text-graphite-500 dark:text-graphite-400 surgical:text-black animate-pulse">Cargando clínica...</div>
+        <div className="text-xs text-graphite-500 dark:text-graphite-400  animate-pulse">Cargando clínica...</div>
       </div>
     )
   }
@@ -169,9 +169,9 @@ export const ClinicaSelector: React.FC<ClinicaSelectorProps> = ({ onCambioClinic
   if (clinicas.length === 1) {
     return (
       <div className="px-2 py-3 mb-4 border-b border-surface" title="F7-10: Clínica activa">
-        <div className="text-xs font-semibold text-graphite-500 dark:text-graphite-400 surgical:text-black mb-1">Clínica</div>
+        <div className="text-xs font-semibold text-graphite-500 dark:text-graphite-400  mb-1">Clínica</div>
         <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold text-graphite-900 dark:text-graphite-100 surgical:text-black truncate">
+          <span className="text-sm font-semibold text-graphite-900 dark:text-graphite-100  truncate">
             {clinicas[0].nombre}
           </span>
         </div>
@@ -185,13 +185,13 @@ export const ClinicaSelector: React.FC<ClinicaSelectorProps> = ({ onCambioClinic
   // Múltiples clínicas: mostrar selector
   return (
     <div className="px-2 py-3 mb-4 border-b border-surface">
-      <label htmlFor="clinica-activa-select" className="text-xs font-semibold text-graphite-500 dark:text-graphite-400 surgical:text-black block mb-1">Clínica activa</label>
+      <label htmlFor="clinica-activa-select" className="text-xs font-semibold text-graphite-500 dark:text-graphite-400  block mb-1">Clínica activa</label>
       <select
         id="clinica-activa-select"
         value={clinicaActiva || ''}
         onChange={handleCambio}
         disabled={cambiando}
-        className="w-full px-2.5 py-1.5 text-xs font-medium border border-surface rounded-lg bg-surface text-graphite-900 dark:text-graphite-100 surgical:text-black focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary disabled:opacity-50 disabled:cursor-not-allowed transition-fast"
+        className="w-full px-2.5 py-1.5 text-xs font-medium border border-surface rounded-lg bg-surface text-graphite-900 dark:text-graphite-100  focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary disabled:opacity-50 disabled:cursor-not-allowed transition-fast"
       >
         {clinicas.map((c) => (
           <option key={c.clinica_id} value={c.clinica_id}>

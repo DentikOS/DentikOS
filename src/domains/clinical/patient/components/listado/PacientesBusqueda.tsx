@@ -143,7 +143,7 @@ export const PacientesBusqueda: React.FC<PacientesBusquedaProps> = ({
               onClick={() => setVista('lista')}
               className={`p-1.5 rounded-lg transition-colors ${
                 vistaActual === 'lista'
-                  ? 'bg-primary text-white shadow-xs'
+                  ? 'bg-primary text-primary-foreground shadow-xs'
                   : 'text-graphite-500 hover:text-graphite-900 dark:hover:text-white'
               }`}
               title="Vista Lista"
@@ -157,7 +157,7 @@ export const PacientesBusqueda: React.FC<PacientesBusquedaProps> = ({
               onClick={() => setVista('tabla')}
               className={`p-1.5 rounded-lg transition-colors ${
                 vistaActual === 'tabla'
-                  ? 'bg-primary text-white shadow-xs'
+                  ? 'bg-primary text-primary-foreground shadow-xs'
                   : 'text-graphite-500 hover:text-graphite-900 dark:hover:text-white'
               }`}
               title="Vista Tabla"
@@ -171,7 +171,7 @@ export const PacientesBusqueda: React.FC<PacientesBusquedaProps> = ({
               onClick={() => setVista('tarjetas')}
               className={`p-1.5 rounded-lg transition-colors ${
                 vistaActual === 'tarjetas'
-                  ? 'bg-primary text-white shadow-xs'
+                  ? 'bg-primary text-primary-foreground shadow-xs'
                   : 'text-graphite-500 hover:text-graphite-900 dark:hover:text-white'
               }`}
               title="Vista Tarjetas"
@@ -194,7 +194,7 @@ export const PacientesBusqueda: React.FC<PacientesBusquedaProps> = ({
               onClick={() => handleCambiarEstado(est)}
               className={`px-2.5 py-1 rounded-lg capitalize transition-colors ${
                 filtroEstadoActivo === est
-                  ? 'bg-primary text-white font-medium'
+                  ? 'bg-primary text-primary-foreground font-medium'
                   : 'bg-surface-hover text-graphite-600 dark:text-graphite-400 hover:text-graphite-900'
               }`}
             >

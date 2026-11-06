@@ -22,6 +22,14 @@ vi.mock('../../../../app/stores/sesionStore', () => ({
   },
 }))
 
+vi.mock('../../../organization/clinic/hooks/useSedes', () => ({
+  useSedes: () => ({
+    sedeActiva: { id: 'sede-activa-uuid', nombre: 'Sede Principal' },
+    sedeActivaId: 'sede-activa-uuid',
+    cargando: false,
+  }),
+}))
+
 const mockDoctores = [
   {
     userId: 'doc-1',
@@ -122,11 +130,23 @@ describe('ModalConfiguracionHorarios (UX & 7 Días)', () => {
     await waitFor(() => {
       expect(agendaConfigService.actualizarHorariosUsuario).toHaveBeenCalledWith(
         'doc-1',
-        'clinica-test-uuid',
+        'sede-activa-uuid',
         expect.arrayContaining([
           expect.objectContaining({ diaSemana: 6, horaInicio: '09:00', horaFin: '18:00' }),
         ])
       )
     })
+  })
+
+  it('muestra la sucursal seleccionada automáticamente', async () => {
+    render(
+      <ModalConfiguracionHorarios
+        isOpen={true}
+        alCerrar={vi.fn()}
+        alGuardar={vi.fn()}
+      />
+    )
+
+    expect(await screen.findByText('Sede Principal')).toBeInTheDocument()
   })
 })

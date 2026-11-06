@@ -47,11 +47,11 @@ export const GestionMiembrosModulo: React.FC = () => {
   return (
     <div className="p-8 max-w-6xl mx-auto">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-graphite-900 dark:text-graphite-50 surgical:text-black mb-2 inline-flex items-center gap-3">
+        <h1 className="text-3xl font-bold text-graphite-900 dark:text-graphite-50  mb-2 inline-flex items-center gap-3">
           <UsersRound size={28} className="text-primary" />
           Gestión de Miembros
         </h1>
-        <p className="text-graphite-600 dark:text-graphite-400 surgical:text-graphite-800">
+        <p className="text-graphite-600 dark:text-graphite-400 ">
           Administra el personal de tu clínica. Invita nuevos miembros y gestiona los roles.
         </p>
       </div>
@@ -69,7 +69,7 @@ export const GestionMiembrosModulo: React.FC = () => {
       )}
 
       <div className="bg-surface rounded-lg shadow-sm border border-surface p-6 mb-8">
-        <h2 className="text-xl font-semibold text-graphite-900 dark:text-graphite-50 surgical:text-black mb-4">
+        <h2 className="text-xl font-semibold text-graphite-900 dark:text-graphite-50  mb-4">
           Invitar Nuevo Miembro
         </h2>
         <form onSubmit={handleInvitar} className="space-y-4">
@@ -77,7 +77,7 @@ export const GestionMiembrosModulo: React.FC = () => {
             <div>
               <label
                 htmlFor="email"
-                className="block text-sm font-medium text-graphite-700 dark:text-graphite-300 surgical:text-graphite-900 mb-1"
+                className="block text-sm font-medium text-graphite-700 dark:text-graphite-300  mb-1"
               >
                 Email
               </label>
@@ -88,7 +88,7 @@ export const GestionMiembrosModulo: React.FC = () => {
                 onChange={(e) => setEmailInvitar(e.target.value)}
                 placeholder="ejemplo@clinica.com"
                 required
-                className="w-full px-3 py-2 border border-surface bg-white dark:bg-graphite-950 surgical:bg-graphite-200 text-graphite-900 dark:text-graphite-100 surgical:text-black rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary"
+                className="w-full px-3 py-2 border border-surface bg-white dark:bg-graphite-950  text-graphite-900 dark:text-graphite-100  rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary"
                 disabled={invitando}
               />
             </div>
@@ -96,7 +96,7 @@ export const GestionMiembrosModulo: React.FC = () => {
             <div>
               <label
                 htmlFor="rol"
-                className="block text-sm font-medium text-graphite-700 dark:text-graphite-300 surgical:text-graphite-900 mb-1"
+                className="block text-sm font-medium text-graphite-700 dark:text-graphite-300  mb-1"
               >
                 Rol
               </label>
@@ -104,7 +104,7 @@ export const GestionMiembrosModulo: React.FC = () => {
                 id="rol"
                 value={rolInvitar}
                 onChange={(e) => setRolInvitar(e.target.value)}
-                className="w-full px-3 py-2 border border-surface bg-white dark:bg-graphite-950 surgical:bg-graphite-200 text-graphite-900 dark:text-graphite-100 surgical:text-black rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary"
+                className="w-full px-3 py-2 border border-surface bg-white dark:bg-graphite-950  text-graphite-900 dark:text-graphite-100  rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary"
                 disabled={invitando}
               >
                 {rolesDisponibles.map((rol) => (
@@ -117,13 +117,13 @@ export const GestionMiembrosModulo: React.FC = () => {
           </div>
 
           <div className="flex items-center justify-between">
-            <div className="text-sm text-graphite-600 dark:text-graphite-400 surgical:text-graphite-800">
+            <div className="text-sm text-graphite-600 dark:text-graphite-400 ">
               {rolesDisponibles.find((r) => r.value === rolInvitar)?.descripcion}
             </div>
             <button
               type="submit"
               disabled={invitando || !emailInvitar}
-              className="px-6 py-2 bg-primary hover:bg-champagne-600 dark:bg-gold-satin dark:hover:bg-primary text-white dark:text-graphite-950 font-medium rounded-lg shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+              className="px-6 py-2 bg-primary hover:bg-champagne-600 dark:bg-gold-satin dark:hover:bg-primary text-primary-foreground dark:text-graphite-950 font-medium rounded-lg shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
             >
               {invitando ? 'Invitando...' : 'Enviar Invitación'}
             </button>
@@ -133,7 +133,7 @@ export const GestionMiembrosModulo: React.FC = () => {
 
       <div className="bg-surface rounded-lg shadow-sm border border-surface mb-8 overflow-hidden">
         <div className="p-6 border-b border-surface">
-          <h2 className="text-xl font-semibold text-graphite-900 dark:text-graphite-50 surgical:text-black">
+          <h2 className="text-xl font-semibold text-graphite-900 dark:text-graphite-50 ">
             Miembros Actuales (<span className="tabular-nums">{miembros.length}</span>)
           </h2>
         </div>
@@ -147,13 +147,13 @@ export const GestionMiembrosModulo: React.FC = () => {
             <table className="w-full">
               <thead className="bg-surface-elevated border-b border-surface">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-graphite-600 dark:text-graphite-300 surgical:text-graphite-900 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-graphite-600 dark:text-graphite-300  uppercase tracking-wider">
                     Email
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-graphite-600 dark:text-graphite-300 surgical:text-graphite-900 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-graphite-600 dark:text-graphite-300  uppercase tracking-wider">
                     Rol
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-graphite-600 dark:text-graphite-300 surgical:text-graphite-900 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-graphite-600 dark:text-graphite-300  uppercase tracking-wider">
                     Estado
                   </th>
                 </tr>
@@ -162,9 +162,9 @@ export const GestionMiembrosModulo: React.FC = () => {
                 {miembros.map((miembro: MiembroItem) => (
                   <tr
                     key={miembro.id || miembro.user_id}
-                    className="hover:bg-slate-50 dark:hover:bg-graphite-800/60 surgical:hover:bg-graphite-200"
+                    className="hover:bg-slate-50 dark:hover:bg-graphite-800/60 "
                   >
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-graphite-900 dark:text-graphite-50 surgical:text-black">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-graphite-900 dark:text-graphite-50 ">
                       {miembro.email || 'N/A'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -193,7 +193,7 @@ export const GestionMiembrosModulo: React.FC = () => {
 
       <div className="bg-surface rounded-lg shadow-sm border border-surface overflow-hidden">
         <div className="p-6 border-b border-surface">
-          <h2 className="text-xl font-semibold text-graphite-900 dark:text-graphite-50 surgical:text-black">
+          <h2 className="text-xl font-semibold text-graphite-900 dark:text-graphite-50 ">
             Invitaciones Pendientes (<span className="tabular-nums">{invitacionesPendientes.length}</span>)
           </h2>
         </div>
@@ -207,19 +207,19 @@ export const GestionMiembrosModulo: React.FC = () => {
             <table className="w-full">
               <thead className="bg-surface-elevated border-b border-surface">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-graphite-600 dark:text-graphite-300 surgical:text-graphite-900 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-graphite-600 dark:text-graphite-300  uppercase tracking-wider">
                     Email
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-graphite-600 dark:text-graphite-300 surgical:text-graphite-900 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-graphite-600 dark:text-graphite-300  uppercase tracking-wider">
                     Rol
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-graphite-600 dark:text-graphite-300 surgical:text-graphite-900 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-graphite-600 dark:text-graphite-300  uppercase tracking-wider">
                     Estado
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-graphite-600 dark:text-graphite-300 surgical:text-graphite-900 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-graphite-600 dark:text-graphite-300  uppercase tracking-wider">
                     Enviada
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-graphite-600 dark:text-graphite-300 surgical:text-graphite-900 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-graphite-600 dark:text-graphite-300  uppercase tracking-wider">
                     Acciones
                   </th>
                 </tr>
@@ -228,9 +228,9 @@ export const GestionMiembrosModulo: React.FC = () => {
                 {invitacionesPendientes.map((invitacion: InvitacionItem) => (
                   <tr
                     key={invitacion.id}
-                    className="hover:bg-slate-50 dark:hover:bg-graphite-800/60 surgical:hover:bg-graphite-200"
+                    className="hover:bg-slate-50 dark:hover:bg-graphite-800/60 "
                   >
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-graphite-900 dark:text-graphite-50 surgical:text-black">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-graphite-900 dark:text-graphite-50 ">
                       {invitacion.email}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -243,7 +243,7 @@ export const GestionMiembrosModulo: React.FC = () => {
                         Pendiente
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm tabular-nums text-graphite-600 dark:text-graphite-300 surgical:text-graphite-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm tabular-nums text-graphite-600 dark:text-graphite-300 ">
                       {invitacion.creada_en ? new Date(String(invitacion.creada_en)).toLocaleDateString('es-CL') : 'N/A'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-3">

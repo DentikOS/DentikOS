@@ -1,0 +1,1 @@
+export { BonosPanel } from './AdminPanels'

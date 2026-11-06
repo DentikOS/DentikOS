@@ -47,9 +47,9 @@ describe('WidgetPagosPendientes (BP04 §03)', () => {
     )
 
     // Debe mostrar valores reales
-    expect(screen.getByText(/\$250\.000/)).toBeInTheDocument()
-    expect(screen.getByText(/\$180\.000/)).toBeInTheDocument()
-    expect(screen.getByText(/\$420\.000/)).toBeInTheDocument()
+    expect(screen.getByText(/CLP\s250\.000/)).toBeInTheDocument()
+    expect(screen.getByText(/CLP\s180\.000/)).toBeInTheDocument()
+    expect(screen.getByText(/CLP\s420\.000/)).toBeInTheDocument()
 
     // NO debe mostrar valores hardcodeados antiguos
     expect(screen.queryByText(/\$350\.000/)).not.toBeInTheDocument()

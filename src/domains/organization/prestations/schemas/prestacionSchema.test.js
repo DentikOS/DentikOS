@@ -7,6 +7,13 @@ import {
 
 describe('prestacionSchema (F2-04d)', () => {
   describe('Prestación válida con campos mínimos', () => {
+    it('acepta código Fonasa vacío para prestaciones sin convenio', () => {
+      const result = prestacionSchema.safeParse({
+        id: 'prestacion-propia', nombre: 'Control particular', especialidad: 'Diagnóstico',
+        precioParticular: 15000, precioFonasa: 0, codigoFonasa: ''
+      })
+      expect(result.success).toBe(true)
+    })
     it('acepta prestación con todos los campos obligatorios', () => {
       const prestacion = {
         id: 1,
@@ -20,6 +27,16 @@ describe('prestacionSchema (F2-04d)', () => {
       expect(result.success).toBe(true)
     })
 
+    it('conserva Fonasa pendiente y los metadatos del catálogo', () => {
+      const result = prestacionSchema.safeParse({
+        id: 'plantilla', nombre: 'Limpieza dental', especialidad: 'Diagnóstico y Prevención',
+        precioParticular: 50000, precioFonasa: null, codigoFonasa: '',
+        codigoInterno: 'PRE-01', categoria: 'Preventivo',
+      })
+      expect(result.success).toBe(true)
+      expect(result.data).toMatchObject({ precioFonasa: null, codigoInterno: 'PRE-01', categoria: 'Preventivo' })
+    })
+
     it('acepta prestación con id string', () => {
       const prestacion = {
         id: 'prest_custom_001',
@@ -31,6 +48,26 @@ describe('prestacionSchema (F2-04d)', () => {
       }
       const result = prestacionSchema.safeParse(prestacion)
       expect(result.success).toBe(true)
+    })
+
+    it('valida y conserva los requisitos de equipamiento explícitos', () => {
+      const result = prestacionSchema.safeParse({
+        id: 3,
+        nombre: 'Endodoncia',
+        especialidad: 'Endodoncia',
+        precioParticular: 35000,
+        precioFonasa: 0,
+        codigoFonasa: '',
+        equipamientoRequerido: ['laser_dental', 'microscopio_dental'],
+      })
+      expect(result.success).toBe(true)
+      expect(result.data.equipamientoRequerido).toEqual(['laser_dental', 'microscopio_dental'])
+    })
+
+    it('rechaza equipos desconocidos y requisitos duplicados', () => {
+      const base = { id: 3, nombre: 'Endodoncia', especialidad: 'Endodoncia', precioParticular: 1, precioFonasa: 0, codigoFonasa: '' }
+      expect(prestacionSchema.safeParse({ ...base, equipamientoRequerido: ['equipo_desconocido'] }).success).toBe(false)
+      expect(prestacionSchema.safeParse({ ...base, equipamientoRequerido: ['laser_dental', 'laser_dental'] }).success).toBe(false)
     })
   })
 

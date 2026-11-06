@@ -19,6 +19,7 @@ import { esUuidValido } from '../../../../infrastructure/supabase/migrations/uui
 import { migrationStorageService } from '../../../../infrastructure/persistence/migrationStorageService'
 import { createLogger } from '../../../../infrastructure/logging/logger'
 import type { Presupuesto } from '../schemas/presupuestoSchema'
+import { resolverMonedaDocumento } from '../../../../shared/utils/formatoDocumento'
 
 const log = createLogger('presupuestosOfflineQueue')
 
@@ -32,11 +33,26 @@ export interface PresupuestoItemLocal {
   pacienteId?: string | number | null
   prestacionId?: string | number | null
   prestacionNombre?: string
+  nombrePrestacion?: string
+  precioUnitario?: number
+  subtotal?: number
   nombre?: string
   prestacion?: string
   valor?: number | string
   precio?: number | string
   convenio?: string
+  inventarioId?: string | null
+  cantidadInventario?: number | null
+  inventarioUnidad?: string
+  precioUnitarioInventario?: number | null
+  ivaPorcentajeInventario?: number | null
+  esLaboratorio?: boolean
+  laboratorioId?: string | null
+  tipoTrabajoLaboratorioId?: string | null
+  piezaDentaria?: string | null
+  colorGuia?: string | null
+  indicacionesTecnicas?: string | null
+  ordenLaboratorioId?: string | null
   estado?: string
   clinicaId?: string | null
   sincronizado?: boolean
@@ -52,6 +68,7 @@ export interface PresupuestoLocal extends Omit<Partial<Presupuesto>, 'pacienteId
   pacienteRut?: string | null
   fechaEmision?: string
   convenio?: string
+  moneda?: 'CLP' | 'ARS' | 'MXN' | 'COP' | 'PEN' | 'USD' | 'EUR'
   montoTotal?: number
   total?: number
   montoAbonado?: number
@@ -62,6 +79,12 @@ export interface PresupuestoLocal extends Omit<Partial<Presupuesto>, 'pacienteId
   sincronizado?: boolean
   clinicaId?: string | null
   items?: PresupuestoItemLocal[]
+  origenPlan?: boolean
+  planRevision?: string
+  versionGrupoId?: string
+  requiereRevision?: boolean
+  descuentoGlobalPct?: number
+  version?: number
   [key: string]: unknown
 }
 
@@ -69,6 +92,8 @@ export interface PendingPresupuestoEntry {
   id: string | number
   folio?: string
   clinicaId?: string | null
+  padreSubido?: boolean
+  idOriginal?: string | number
   timestamp?: number
   [key: string]: unknown
 }
@@ -94,10 +119,24 @@ export interface PresupuestoSupabaseRow {
   paciente_rut?: string | null
   fecha_emision: string
   convenio: string
+  moneda?: string
   monto_total: number
-  monto_abonado: number
+  monto_abonado?: number
   estado: string
   observacion: string
+  detalle_items?: PresupuestoItemLocal[]
+  total_bruto?: number
+  total_descuentos?: number
+  fecha_vencimiento?: string | null
+  descuentos?: unknown[]
+  plan_pago?: unknown
+  version?: number
+  origen_plan?: boolean
+  plan_revision?: string | null
+  version_grupo_id?: string | null
+  requiere_revision?: boolean
+  descuento_global_pct?: number | null
+  archivado_at?: string | null
   created_at?: string
   updated_at?: string
   [key: string]: unknown
@@ -113,6 +152,16 @@ export interface PresupuestoItemSupabaseRow {
   convenio: string
   estado: string
   clinica_id?: string | null
+  inventario_id?: string | null
+  cantidad_inventario?: number | null
+  precio_unitario_inventario?: number | null
+  iva_porcentaje_inventario?: number | null
+  es_laboratorio?: boolean
+  laboratorio_id?: string | null
+  tipo_trabajo_laboratorio_id?: string | null
+  pieza_dentaria?: string | null
+  color_guia?: string | null
+  indicaciones_tecnicas?: string | null
   [key: string]: unknown
 }
 
@@ -203,11 +252,24 @@ export const transformarPresupuestoParaSupabase = (
     paciente_nombre: p.pacienteNombre || 'Sin nombre',
     paciente_rut: p.pacienteRut || null,
     fecha_emision: p.fechaEmision || new Date().toISOString().split('T')[0],
-    convenio: p.convenio || 'Particular',
-    monto_total: p.montoTotal || p.total || 0,
-    monto_abonado: p.montoAbonado || 0,
+    convenio: p.convenio || String(p.prevision || 'Particular'),
+    moneda: p.moneda || 'CLP',
+    monto_total: Number(p.totalAPagar ?? p.total ?? p.montoTotal ?? 0),
     estado: p.estado || 'Emitido',
-    observacion: p.observacion || ''
+    observacion: p.observacion || '',
+    detalle_items: p.items || [],
+    total_bruto: Number(p.totalBruto ?? 0),
+    total_descuentos: Number(p.totalDescuentos ?? 0),
+    fecha_vencimiento: typeof p.fechaVencimiento === 'string' ? p.fechaVencimiento : null,
+    descuentos: Array.isArray(p.descuentos) ? p.descuentos : [],
+    plan_pago: p.planPago || p.planCuotas || null,
+    version: Number(p.version ?? 1),
+    origen_plan: p.origenPlan === true,
+    plan_revision: p.planRevision || null,
+    version_grupo_id: p.versionGrupoId || null,
+    requiere_revision: p.requiereRevision === true,
+    descuento_global_pct: p.descuentoGlobalPct ?? null,
+    archivado_at: typeof p.archivadoAt === 'string' ? p.archivadoAt : null,
   }
 
   if (p.pacienteId) {
@@ -236,15 +298,67 @@ export const transformarItemParaSupabase = (
   const itemOut: PresupuestoItemSupabaseRow = {
     presupuesto_id: presupuestoUuid || null,
     paciente_id: pacienteUuid || null,
-    prestacion_id: item.prestacionId || null,
-    prestacion_nombre: item.prestacionNombre || item.nombre || item.prestacion || 'Sin nombre',
-    valor: parseInt(String(item.valor || item.precio || 0), 10) || 0,
+    prestacion_id: esUuidValido(item.prestacionId) ? item.prestacionId! : null,
+    prestacion_nombre: item.prestacionNombre || item.nombrePrestacion || item.nombre || item.prestacion || 'Sin nombre',
+    valor: Number(item.subtotal ?? item.valor ?? item.precio ?? item.precioUnitario ?? 0),
     convenio: item.convenio || 'Particular',
     estado: item.estado || 'Pendiente'
   }
   if (clinicaId) itemOut.clinica_id = clinicaId
   if (esUuidValido(item.id)) itemOut.id = String(item.id)
+  if (item.inventarioId) {
+    itemOut.inventario_id = String(item.inventarioId)
+    itemOut.cantidad_inventario = Number(item.cantidadInventario)
+    itemOut.precio_unitario_inventario = Number(item.precioUnitarioInventario)
+    itemOut.iva_porcentaje_inventario = Number(item.ivaPorcentajeInventario)
+  }
+  itemOut.es_laboratorio = item.esLaboratorio === true
+  itemOut.laboratorio_id = item.esLaboratorio === true ? item.laboratorioId || null : null
+  itemOut.tipo_trabajo_laboratorio_id = item.esLaboratorio === true ? item.tipoTrabajoLaboratorioId || null : null
+  itemOut.pieza_dentaria = item.esLaboratorio === true ? item.piezaDentaria || null : null
+  itemOut.color_guia = item.esLaboratorio === true ? item.colorGuia || null : null
+  itemOut.indicaciones_tecnicas = item.esLaboratorio === true ? item.indicacionesTecnicas || null : null
   return itemOut
+}
+
+const sincronizarPresupuestoAtomico = async (
+  presupuesto: PresupuestoLocal | null,
+  presupuestoId: string | null,
+  items: PresupuestoItemLocal[],
+  userId: string,
+  clinicaId: string
+): Promise<string> => {
+  if (!supabase) throw new Error('Supabase no disponible')
+
+  const presupuestoPayload = presupuesto
+    ? transformarPresupuestoParaSupabase(presupuesto, userId, clinicaId)
+    : null
+  if (presupuestoPayload && presupuesto) presupuestoPayload.id = String(presupuesto.id)
+
+  const itemsPayload = items.map((item) => {
+    if (item.id === undefined || item.id === null) {
+      throw new Error('El ítem del presupuesto no tiene un ID estable')
+    }
+    const payload = transformarItemParaSupabase(
+      item,
+      presupuestoPayload?.id || presupuestoId,
+      presupuestoPayload?.paciente_id || null,
+      clinicaId
+    )
+    payload.id = String(item.id)
+    return payload
+  })
+
+  const { data, error } = await supabase.rpc('sincronizar_presupuesto_offline_bp12', {
+    p_presupuesto: presupuestoPayload,
+    p_items: itemsPayload,
+    p_presupuesto_id: presupuestoPayload ? null : presupuestoId
+  })
+  if (error) throw error
+  if (typeof data !== 'string' || !esUuidValido(data)) {
+    throw new Error('Supabase no devolvió el UUID del presupuesto sincronizado')
+  }
+  return data
 }
 
 // ──────────────────────────────────────────────────────────────────
@@ -254,11 +368,15 @@ export const transformarItemParaSupabase = (
 export const encolarPresupuesto = ({
   id,
   folio,
-  clinicaId
+  clinicaId,
+  padreSubido = false,
+  idOriginal
 }: {
   id: string | number
   folio?: string
   clinicaId?: string | null
+  padreSubido?: boolean
+  idOriginal?: string | number
 }): void => {
   try {
     const clinicaIdEfectivo = clinicaId || obtenerClinicaId()
@@ -266,11 +384,21 @@ export const encolarPresupuesto = ({
     const yaEncolado = pending.some((item) =>
       typeof item === 'object' && item !== null ? item.id === id : item === id
     )
-    if (!yaEncolado) {
+    if (yaEncolado) {
+      // Una nueva edición exige volver a subir la cabecera antes de los ítems.
+      const actualizado = pending.map((item) =>
+        typeof item === 'object' && item !== null && item.id === id
+          ? { ...item, padreSubido, idOriginal: idOriginal ?? item.idOriginal, folio: folio || item.folio }
+          : item
+      )
+      guardarPendingPresupuestos(actualizado)
+    } else {
       pending.push({
         id,
         folio,
         clinicaId: clinicaIdEfectivo,
+        padreSubido,
+        idOriginal,
         timestamp: Date.now()
       })
       guardarPendingPresupuestos(pending)
@@ -327,12 +455,19 @@ export const guardarPresupuestoHelper = async (
 
   const id = presupuesto.id || Date.now()
   const clinicaIdActual = obtenerClinicaId()
+  if (!clinicaIdActual || !esUuidValido(clinicaIdActual) || !presupuesto.pacienteId) return null
+  const pacienteUuid = esUuidValido(presupuesto.pacienteId)
+    ? String(presupuesto.pacienteId)
+    : migrationStorageService.obtenerSupabaseId(presupuesto.pacienteId)
+  if (!pacienteUuid || !esUuidValido(pacienteUuid)) return null
 
   const presupuestoLocal: PresupuestoLocal = {
     ...presupuesto,
     id,
     sincronizado: false,
-    items: Array.isArray(presupuesto.items) ? [...presupuesto.items] : []
+    items: Array.isArray(presupuesto.items)
+      ? presupuesto.items.map((item) => ({ ...item, id: item.id || crypto.randomUUID() }))
+      : []
   }
 
   // 1. Actualizar caché y localStorage de inmediato
@@ -355,7 +490,7 @@ export const guardarPresupuestoHelper = async (
   if (presupuestoLocal.items && presupuestoLocal.items.length > 0) {
     for (const item of presupuestoLocal.items) {
       encolarPresupuestoItem({
-        id: item.id || Date.now() + Math.random(),
+        id: item.id!,
         presupuestoId: id,
         clinicaId: clinicaIdActual,
         ...item
@@ -363,87 +498,42 @@ export const guardarPresupuestoHelper = async (
     }
   }
 
-  // 3. Si hay conexión y Supabase disponible, intentar sincronizar de forma transaccional
+  // 3. Si hay conexión, subir cabecera e ítems en una sola transacción remota.
   if (USE_SUPABASE && supabase) {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
-        let uuidPadre: string | null = null
-        let padreSubido = false
+        const itemsSincronizados = presupuestoLocal.items || []
+        const uuidPadre = await sincronizarPresupuestoAtomico(
+          presupuestoLocal,
+          null,
+          itemsSincronizados,
+          user.id,
+          clinicaIdActual
+        )
+        if (!esUuidValido(id)) migrationStorageService.registrarMapeo(id, uuidPadre)
 
-        const paraSupabase = transformarPresupuestoParaSupabase(presupuestoLocal, user.id, clinicaIdActual)
+        presupuestoLocal.id = uuidPadre
+        const idsItemsSincronizados = new Set(itemsSincronizados.map((item) => String(item.id)))
+        const idsPresupuesto = new Set([String(id), uuidPadre])
+        const pendingP = obtenerPendingPresupuestos().filter((entry) => {
+          const pendingId = typeof entry === 'object' && entry !== null ? entry.id : entry
+          return !idsPresupuesto.has(String(pendingId))
+        })
+        const pendingI = obtenerPendingPresupuestoItems().filter((entry) => {
+          if (typeof entry !== 'object' || entry === null) return true
+          return !(idsPresupuesto.has(String(entry.presupuestoId)) && idsItemsSincronizados.has(String(entry.id)))
+        })
+        guardarPendingPresupuestos(pendingP)
+        guardarPendingPresupuestoItems(pendingI)
 
-        if (esUuidValido(presupuestoLocal.id)) {
-          const { error: upsertErr } = await supabase
-            .from('presupuestos')
-            .upsert(paraSupabase, { onConflict: 'id' })
-          if (!upsertErr) {
-            uuidPadre = String(presupuestoLocal.id)
-            padreSubido = true
-          }
-        } else {
-          delete paraSupabase.id
-          const { data: insertado, error: insertErr } = await supabase
-            .from('presupuestos')
-            .insert(paraSupabase)
-            .select('id')
-            .single()
-
-          if (!insertErr && insertado?.id) {
-            const nuevoUuid = String(insertado.id)
-            uuidPadre = nuevoUuid
-            padreSubido = true
-            const oldId = presupuestoLocal.id
-            presupuestoLocal.id = nuevoUuid
-            migrationStorageService.registrarMapeo(oldId, nuevoUuid)
-          }
-        }
-
-        // Si el padre subió con éxito, subir los items y drenar de colas
-        if (padreSubido && uuidPadre) {
-          presupuestoLocal.sincronizado = true
-
-          // Subir items si existen
-          let itemsOk = true
-          if (presupuestoLocal.items && presupuestoLocal.items.length > 0) {
-            for (const item of presupuestoLocal.items) {
-              const itemParaSupabase = transformarItemParaSupabase(item, uuidPadre, paraSupabase.paciente_id, clinicaIdActual)
-              if (!esUuidValido(item.id)) delete itemParaSupabase.id
-
-              const { error: itemErr } = await supabase
-                .from('presupuesto_items')
-                .upsert(itemParaSupabase, { onConflict: 'id' })
-
-              if (itemErr) {
-                itemsOk = false
-                log.warn(`Error al subir item de presupuesto ${item.id}:`, itemErr.message)
-              }
-            }
-          }
-
-          // Drenar de colas
-          const pendingP = obtenerPendingPresupuestos().filter((p) => {
-            const pid = typeof p === 'object' && p !== null ? p.id : p
-            return pid !== id && pid !== uuidPadre
-          })
-          guardarPendingPresupuestos(pendingP)
-
-          if (itemsOk) {
-            const pendingI = obtenerPendingPresupuestoItems().filter((i) => {
-              if (typeof i === 'object' && i !== null) {
-                return i.presupuestoId !== id && i.presupuestoId !== uuidPadre
-              }
-              return true
-            })
-            guardarPendingPresupuestoItems(pendingI)
-          }
-
-          // Actualizar caché con datos sincronizados
-          const idxFinal = listado.findIndex((p) => p.id === id || p.id === uuidPadre)
-          if (idxFinal >= 0) {
-            listado[idxFinal] = presupuestoLocal
-            actualizarPresupuestosLocal(listado)
-          }
+        presupuestoLocal.sincronizado = !pendingI.some((entry) =>
+          typeof entry === 'object' && entry !== null && idsPresupuesto.has(String(entry.presupuestoId))
+        )
+        const idxFinal = listado.findIndex((p) => p.id === id || String(p.id) === uuidPadre)
+        if (idxFinal >= 0) {
+          listado[idxFinal] = presupuestoLocal
+          actualizarPresupuestosLocal(listado)
         }
       }
     } catch (errSync: unknown) {
@@ -463,10 +553,16 @@ export const guardarItemPresupuestoHelper = async (
   { obtenerPresupuestos, actualizarPresupuestosLocal }: PresupuestoHelpersContext
 ): Promise<PresupuestoItemLocal | null> => {
   if (!item || !item.presupuestoId) return null
+  const presupuestoIdLocal = item.presupuestoId
+  const itemIdLocal = item.id ?? crypto.randomUUID()
+  item = { ...item, id: itemIdLocal, presupuestoId: presupuestoIdLocal }
 
   const clinicaIdActual = obtenerClinicaId()
   const listado = Array.isArray(obtenerPresupuestos()) ? [...obtenerPresupuestos()] : []
-  const pIndex = listado.findIndex((p) => p.id === item.presupuestoId)
+  const pIndex = listado.findIndex((p) => p.id === presupuestoIdLocal)
+  const padreYaSubido = (pIndex >= 0 && listado[pIndex].sincronizado === true) || obtenerPendingPresupuestos().some((pending) =>
+    typeof pending === 'object' && pending !== null && pending.id === item.presupuestoId && pending.padreSubido === true
+  )
 
   if (pIndex >= 0) {
     const padre = { ...listado[pIndex], sincronizado: false }
@@ -486,30 +582,64 @@ export const guardarItemPresupuestoHelper = async (
   // Encolar item y marcar padre como pendiente
   encolarPresupuestoItem({
     ...item,
-    id: item.id || Date.now(),
+    id: itemIdLocal,
     clinicaId: clinicaIdActual
   })
   encolarPresupuesto({
-    id: item.presupuestoId,
-    clinicaId: clinicaIdActual
+    id: presupuestoIdLocal,
+    clinicaId: clinicaIdActual,
+    padreSubido: esUuidValido(presupuestoIdLocal) && padreYaSubido
   })
 
-  // Intentar sincronizar si online
-  if (USE_SUPABASE && supabase && esUuidValido(item.presupuestoId)) {
+  // Si el padre aún no existe en Supabase, subirlo junto con sus ítems.
+  // Si ya existe, el ítem se envía solo, pero la RPC mantiene su escritura atómica.
+  if (USE_SUPABASE && supabase && clinicaIdActual && esUuidValido(clinicaIdActual)) {
     try {
-      const itemParaSupabase = transformarItemParaSupabase(item, String(item.presupuestoId), null, clinicaIdActual)
-      if (!esUuidValido(item.id)) delete itemParaSupabase.id
+      const { data: { user } } = await supabase.auth.getUser()
+      const presupuestoLocalActual = pIndex >= 0 ? listado[pIndex] : null
+      const incluirPadre = Boolean(presupuestoLocalActual && !padreYaSubido)
+      const presupuestoUuid = esUuidValido(presupuestoIdLocal)
+        ? String(presupuestoIdLocal)
+        : migrationStorageService.obtenerSupabaseId(presupuestoIdLocal)
 
-      const { error } = await supabase
-        .from('presupuesto_items')
-        .upsert(itemParaSupabase, { onConflict: 'id' })
+      if (user && (incluirPadre || (presupuestoUuid && esUuidValido(presupuestoUuid)))) {
+        const itemsAEnviar = incluirPadre && presupuestoLocalActual
+          ? presupuestoLocalActual.items || []
+          : [item]
+        const uuidPadre = await sincronizarPresupuestoAtomico(
+          incluirPadre ? presupuestoLocalActual : null,
+          incluirPadre ? null : presupuestoUuid,
+          itemsAEnviar,
+          user.id,
+          clinicaIdActual
+        )
 
-      if (!error) {
-        const pendingI = obtenerPendingPresupuestoItems().filter((i) => {
-          const iid = typeof i === 'object' && i !== null ? i.id : i
-          return iid !== item.id
+        if (incluirPadre && presupuestoLocalActual && !esUuidValido(presupuestoLocalActual.id)) {
+          migrationStorageService.registrarMapeo(presupuestoLocalActual.id, uuidPadre)
+          presupuestoLocalActual.id = uuidPadre
+        }
+
+        const idsPresupuesto = new Set([String(presupuestoIdLocal), uuidPadre])
+        const idsItemsSincronizados = new Set(itemsAEnviar.map((sincronizado) => String(sincronizado.id)))
+        const pendingI = obtenerPendingPresupuestoItems().filter((entry) => {
+          if (typeof entry !== 'object' || entry === null) return true
+          return !(idsPresupuesto.has(String(entry.presupuestoId)) && idsItemsSincronizados.has(String(entry.id)))
         })
         guardarPendingPresupuestoItems(pendingI)
+
+        const quedanItemsPendientes = pendingI.some((entry) =>
+          typeof entry === 'object' && entry !== null && idsPresupuesto.has(String(entry.presupuestoId))
+        )
+        if (pIndex >= 0) {
+          listado[pIndex] = { ...listado[pIndex], sincronizado: !quedanItemsPendientes }
+          actualizarPresupuestosLocal(listado)
+        }
+        if (!quedanItemsPendientes) {
+          guardarPendingPresupuestos(obtenerPendingPresupuestos().filter((entry) => {
+            const pendingId = typeof entry === 'object' && entry !== null ? entry.id : entry
+            return !idsPresupuesto.has(String(pendingId))
+          }))
+        }
       }
     } catch (e: unknown) {
       log.warn('Error al sincronizar item individual, queda en cola:', e)
@@ -665,8 +795,7 @@ export const procesarPendingDeletesPresupuestosHelper = async (): Promise<void> 
 }
 
 /**
- * Procesa la cola de presupuestos e items pendientes con orden transaccional:
- * Padre primero -> items hijos después.
+ * Procesa cada presupuesto y sus ítems pendientes en una sola transacción remota.
  */
 export const procesarColaPresupuestosHelper = async ({
   obtenerPresupuestos,
@@ -680,6 +809,31 @@ export const procesarColaPresupuestosHelper = async ({
   const clinicaIdActual = obtenerClinicaId()
   if (!clinicaIdActual) {
     return { procesados: 0, fallidos: 0, razon: 'sin-clinica' }
+  }
+
+  // Recuperar ítems huérfanos de versiones anteriores que drenaron la cabecera
+  // aunque un hijo hubiese fallado. Esa cabecera ya existe en Supabase.
+  const locales = obtenerPresupuestos() || []
+  for (const child of obtenerPendingPresupuestoItems()) {
+    if (typeof child !== 'object' || child === null || !child.presupuestoId) continue
+    if (child.clinicaId && child.clinicaId !== clinicaIdActual) continue
+    const padreUuid = esUuidValido(child.presupuestoId)
+      ? String(child.presupuestoId)
+      : migrationStorageService.obtenerSupabaseId(child.presupuestoId)
+    if (!padreUuid || !esUuidValido(padreUuid)) continue
+    const padreLocal = locales.find((p) => p.id === padreUuid)
+    if (!padreLocal) continue
+    if (obtenerPendingPresupuestos().some((entry) => {
+      const id = typeof entry === 'object' && entry !== null ? entry.id : entry
+      return id === padreUuid || id === child.presupuestoId
+    })) continue
+    encolarPresupuesto({
+      id: padreUuid,
+      idOriginal: child.presupuestoId,
+      folio: padreLocal.folio,
+      clinicaId: clinicaIdActual,
+      padreSubido: true
+    })
   }
 
   const pending = obtenerPendingPresupuestos()
@@ -713,9 +867,10 @@ export const procesarColaPresupuestosHelper = async ({
         continue
       }
 
+      let idx = -1
       try {
         const itemFolio = typeof item === 'object' && item !== null ? item.folio : undefined
-        const idx = listado.findIndex((p) => p.id === id || (itemFolio && p.folio === itemFolio))
+        idx = listado.findIndex((p) => p.id === id || (itemFolio && p.folio === itemFolio))
         if (idx < 0) {
           // Ya no existe localmente, retirar de la cola
           procesadosExitososIds.push(id)
@@ -723,96 +878,65 @@ export const procesarColaPresupuestosHelper = async ({
         }
 
         const pLocal = listado[idx]
-        const paraSupabase = transformarPresupuestoParaSupabase(pLocal, user.id, clinicaIdActual)
-
-        let uuidPadre: string | null = null
-
-        // 1. Subir presupuesto padre primero
-        if (esUuidValido(pLocal.id)) {
-          const { error: upsertErr } = await supabase
-            .from('presupuestos')
-            .upsert(paraSupabase, { onConflict: 'id' })
-
-          if (upsertErr) throw upsertErr
-          uuidPadre = String(pLocal.id)
-        } else {
-          delete paraSupabase.id
-          const { data: insertado, error: insertErr } = await supabase
-            .from('presupuestos')
-            .insert(paraSupabase)
-            .select('id')
-            .single()
-
-          if (insertErr) throw insertErr
-          if (!insertado?.id) throw new Error('No se obtuvo UUID del presupuesto padre insertado')
-
-          const nuevoUuid = String(insertado.id)
-          uuidPadre = nuevoUuid
-          const oldId = pLocal.id
-          pLocal.id = nuevoUuid
-          migrationStorageService.registrarMapeo(oldId, nuevoUuid)
-        }
-
-        // Si el padre fue exitoso, marcar como sincronizado
-        pLocal.sincronizado = true
-        listado[idx] = pLocal
-        procesadosExitososIds.push(id)
-        procesados++
-
-        // 2. Transaccional: Buscar items asociados en pendingPresupuestoItems y subirlos
+        const padreYaSubido = typeof item === 'object' && item !== null && item.padreSubido === true
+        const idOriginal = typeof item === 'object' && item !== null ? item.idOriginal : undefined
+        const uuidLocal = esUuidValido(pLocal.id)
+          ? String(pLocal.id)
+          : migrationStorageService.obtenerSupabaseId(pLocal.id)
+        const padreEstaRemoto = padreYaSubido && uuidLocal && esUuidValido(uuidLocal)
         const itemsDeEstePadre = pendingItems.filter((i) => {
           if (typeof i === 'object' && i !== null) {
-            return i.presupuestoId === id || i.presupuestoId === uuidPadre
+            return [id, idOriginal, uuidLocal].some((idRelacionado) =>
+              idRelacionado !== undefined && String(i.presupuestoId) === String(idRelacionado)
+            ) && (!i.clinicaId || i.clinicaId === clinicaIdActual)
           }
           return false
         }) as PendingPresupuestoItemEntry[]
-        const itemsExitososIds: (string | number)[] = []
+        const uuidPadre = await sincronizarPresupuestoAtomico(
+          padreEstaRemoto ? null : pLocal,
+          padreEstaRemoto ? uuidLocal : null,
+          itemsDeEstePadre,
+          user.id,
+          clinicaIdActual
+        )
+        if (!esUuidValido(pLocal.id)) migrationStorageService.registrarMapeo(pLocal.id, uuidPadre)
+        pLocal.id = uuidPadre
 
-        if (itemsDeEstePadre.length > 0) {
-          for (const itemPending of itemsDeEstePadre) {
-            try {
-              const itemParaSupabase = transformarItemParaSupabase(itemPending, uuidPadre, paraSupabase.paciente_id, clinicaIdActual)
-              if (!esUuidValido(itemPending.id)) delete itemParaSupabase.id
-
-              const { error: itemErr } = await supabase
-                .from('presupuesto_items')
-                .upsert(itemParaSupabase, { onConflict: 'id' })
-
-              if (!itemErr) {
-                itemsExitososIds.push(itemPending.id)
-              } else {
-                log.warn(`Error al subir item ${itemPending.id}:`, itemErr.message)
-              }
-            } catch (errItem: unknown) {
-              log.warn(`Excepción al subir item ${itemPending.id}:`, errItem)
-            }
-          }
-
-          if (itemsExitososIds.length > 0) {
-            const restantes = pendingItems.filter((i) => {
-              const iid = typeof i === 'object' && i !== null ? i.id : i
-              return !itemsExitososIds.includes(iid)
-            })
-            guardarPendingPresupuestoItems(restantes)
-          }
-        }
+        const idsPresupuesto = new Set([String(id), String(idOriginal), uuidPadre])
+        const idsItemsSincronizados = new Set(itemsDeEstePadre.map((child) => String(child.id)))
+        const pendingRestantes = obtenerPendingPresupuestoItems().filter((child) => {
+          if (typeof child !== 'object' || child === null) return true
+          return !(idsPresupuesto.has(String(child.presupuestoId)) && idsItemsSincronizados.has(String(child.id)))
+        })
+        guardarPendingPresupuestoItems(pendingRestantes)
+        pLocal.sincronizado = !pendingRestantes.some((child) =>
+          typeof child === 'object' && child !== null && idsPresupuesto.has(String(child.presupuestoId))
+        )
+        listado[idx] = pLocal
+        procesadosExitososIds.push(id)
+        if (idOriginal !== undefined) procesadosExitososIds.push(idOriginal)
+        procesadosExitososIds.push(uuidPadre)
+        procesados++
       } catch (errPadre: unknown) {
         const msg = errPadre instanceof Error ? errPadre.message : String(errPadre)
-        log.warn(`Fallo al procesar presupuesto padre ${id} (items no se subirán):`, msg)
+        log.warn(`Fallo al sincronizar presupuesto ${id}; cabecera e ítems quedan en cola:`, msg)
+        if (idx >= 0) {
+          listado[idx] = { ...listado[idx], sincronizado: false }
+          actualizarPresupuestosLocal(listado)
+        }
         fallidos++
       }
     }
 
-    if (procesados > 0) {
+    if (procesados > 0 || fallidos > 0) {
       actualizarPresupuestosLocal(listado)
     }
 
     // Drenaje atómico: retirar solo exitosos
     if (procesadosExitososIds.length > 0) {
-      const colaRestante = pending.filter((item) => {
-        const id = typeof item === 'object' && item !== null ? item.id : item
-        return !procesadosExitososIds.includes(id)
-      })
+      const colaRestante = obtenerPendingPresupuestos().filter((item) =>
+        !procesadosExitososIds.includes(typeof item === 'object' && item !== null ? item.id : item)
+      )
       guardarPendingPresupuestos(colaRestante)
     }
 
@@ -844,6 +968,9 @@ export const sincronizarPresupuestosDesdeSupabaseHelper = async ({
     const clinicaIdActual = obtenerClinicaId()
     const localesActuales = obtenerPresupuestos() || []
     const pending = obtenerPendingPresupuestos()
+    const pendingItems = obtenerPendingPresupuestoItems().filter((item) =>
+      typeof item === 'object' && item !== null && (!item.clinicaId || item.clinicaId === clinicaIdActual)
+    ) as PendingPresupuestoItemEntry[]
     const pendingDelTenant = pending.filter((p) => {
       if (typeof p === 'object' && p !== null) {
         return !p.clinicaId || p.clinicaId === clinicaIdActual
@@ -885,13 +1012,31 @@ export const sincronizarPresupuestosDesdeSupabaseHelper = async ({
       pacienteRut: p.paciente_rut as string | null,
       fechaEmision: String(p.fecha_emision || ''),
       convenio: String(p.convenio || ''),
+      moneda: resolverMonedaDocumento(p.moneda),
       montoTotal: Number(p.monto_total || 0),
+      totalAPagar: Number(p.monto_total || 0),
+      totalBruto: Number(p.total_bruto || 0),
+      totalDescuentos: Number(p.total_descuentos || 0),
       montoAbonado: Number(p.monto_abonado || 0),
+      fechaVencimiento: typeof p.fecha_vencimiento === 'string' ? p.fecha_vencimiento : undefined,
+      items: Array.isArray(p.detalle_items) ? p.detalle_items as PresupuestoItemLocal[] : [],
+      descuentos: Array.isArray(p.descuentos) ? p.descuentos as Presupuesto['descuentos'] : [],
+      planPago: p.plan_pago as Presupuesto['planPago'],
+      version: Number(p.version || 1),
+      origenPlan: p.origen_plan === true,
+      planRevision: typeof p.plan_revision === 'string' ? p.plan_revision : undefined,
+      versionGrupoId: typeof p.version_grupo_id === 'string' ? p.version_grupo_id : undefined,
+      requiereRevision: p.requiere_revision === true,
+      descuentoGlobalPct: typeof p.descuento_global_pct === 'number' ? p.descuento_global_pct : undefined,
+      archivadoAt: typeof p.archivado_at === 'string' ? p.archivado_at : undefined,
       estado: String(p.estado || ''),
       observacion: String(p.observacion || ''),
       createdAt: p.created_at as string | undefined,
       updatedAt: p.updated_at as string | undefined,
-      sincronizado: true
+      sincronizado: !pendingDelTenant.some((entry) => {
+        if (typeof entry !== 'object' || entry === null) return entry === p.id
+        return entry.id === p.id || (entry.folio && entry.folio === p.folio)
+      }) && !pendingItems.some((item) => item.presupuestoId === p.id)
     }))
 
     // Preservar presupuestos locales que aún no están en Supabase

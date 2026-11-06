@@ -1,14 +1,16 @@
 import React, { memo } from 'react'
-import { formatearCLP } from '../../../../shared/utils/formatoMoneda'
+import { formatearImporteDocumento, type IdiomaDocumento, type MonedaDocumento } from '../../../../shared/utils/formatoDocumento'
 import type { ResumenArancel } from '../utils/prestacionesCalculations'
 
 export interface PrestacionesSummaryCardsProps {
   resumen: ResumenArancel
+  moneda?: MonedaDocumento
+  idioma?: IdiomaDocumento
 }
 
-export const PrestacionesSummaryCards: React.FC<PrestacionesSummaryCardsProps> = memo(({ resumen }) => {
+export const PrestacionesSummaryCards: React.FC<PrestacionesSummaryCardsProps> = memo(({ resumen, moneda = 'CLP', idioma = 'es-CL' }) => {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 text-xs">
+    <div className="metric-grid text-xs">
       <div className="p-4 bg-white dark:bg-graphite-800 border border-gray-200 dark:border-graphite-700 rounded-2xl shadow-xs">
         <span className="text-[10px] font-bold text-gray-500 dark:text-graphite-400 uppercase tracking-wider block">
           Total Procedimientos
@@ -23,7 +25,7 @@ export const PrestacionesSummaryCards: React.FC<PrestacionesSummaryCardsProps> =
           Valor Promedio Particular
         </span>
         <span className="text-2xl font-black text-blue-900 mt-1 block">
-          {formatearCLP(resumen.precioPromedio)}
+          {formatearImporteDocumento(resumen.precioPromedio, moneda, idioma)}
         </span>
       </div>
 
@@ -44,7 +46,7 @@ export const PrestacionesSummaryCards: React.FC<PrestacionesSummaryCardsProps> =
           Arancel Máximo
         </span>
         <span className="text-2xl font-black text-emerald-900 mt-1 block">
-          {formatearCLP(resumen.precioMaximo)}
+          {formatearImporteDocumento(resumen.precioMaximo, moneda, idioma)}
         </span>
       </div>
     </div>

@@ -5,25 +5,23 @@ import { ArqueoCajaDiario } from './components/ArqueoCajaDiario'
 import { TablaMovimientos } from './components/TablaMovimientos'
 import { ModalNuevoMovimiento } from './components/ModalNuevoMovimiento'
 import { CuentasPendientes } from './components/CuentasPendientes'
-import { ConveniosManager } from './components/ConveniosManager'
 import { CalculadoraBoletas } from './components/CalculadoraBoletas'
 import { usePacientesStore } from '../../../app/stores/pacientesStore'
 import { useSesionStore } from '../../../app/stores/sesionStore'
 import { DollarSign } from 'lucide-react'
 import type { Paciente } from '../../../domains/clinical/patient/schemas/pacienteSchema'
+import { PageHeader } from '../../../shared/ui/ui/PageHeader'
 
 type TabFinanzas =
   | 'Arqueo de Caja'
   | 'Historial Global de Movimientos'
   | 'Cuentas Pendientes'
-  | 'Convenios'
   | 'Calculadora de Boletas'
 
 const TABS: readonly TabFinanzas[] = [
   'Arqueo de Caja',
   'Historial Global de Movimientos',
   'Cuentas Pendientes',
-  'Convenios',
   'Calculadora de Boletas'
 ]
 
@@ -42,28 +40,25 @@ export const FinanzasModulo: React.FC = memo(() => {
     setFechaArqueo,
     balanceGlobal,
     agregarMovimiento,
-    eliminarMovimiento,
-    convenios,
-    actualizarDescuentoConvenio
+    eliminarMovimiento
   } = useFinanzas(pacientes)
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center flex-wrap gap-3 print:hidden">
-        <div>
-          <h2 className="text-xl font-bold text-gray-900 dark:text-graphite-50 uppercase tracking-wider inline-flex items-center gap-2">
-            <DollarSign size={20} />Control Financiero & Arqueo de Caja
-          </h2>
-          <p className="text-xs text-gray-500 dark:text-graphite-400">Gestión de ingresos, egresos, arqueos diarios y balances contables de la clínica.</p>
-        </div>
-
-        <button
-          onClick={() => setModalAbierto(true)}
-          className="bg-black text-white text-xs font-bold px-4 py-2.5 rounded-xl hover:bg-gray-800 transition-colors shadow-xs cursor-pointer"
-        >
-          + Registrar Ingreso / Egreso Manual
-        </button>
-      </div>
+      <PageHeader
+        icon={DollarSign}
+        title="Control financiero y arqueo de caja"
+        description="Gestión de ingresos, egresos, arqueos diarios y balances contables de la clínica."
+        className="print:hidden"
+        actions={
+          <button
+            onClick={() => setModalAbierto(true)}
+            className="bg-primary hover:bg-champagne-400 dark:bg-champagne-300 dark:hover:bg-champagne-200 text-primary-foreground text-xs font-bold px-4 py-2.5 rounded-xl transition-micro shadow-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+          >
+            + Registrar Ingreso / Egreso Manual
+          </button>
+        }
+      />
 
       <div className="print:hidden">
         <BalanceCajaCards balance={balanceGlobal} />
@@ -103,15 +98,6 @@ export const FinanzasModulo: React.FC = memo(() => {
       {tabActiva === 'Cuentas Pendientes' && (
         <div className="print:hidden">
           <CuentasPendientes pacientes={pacientes} />
-        </div>
-      )}
-
-      {tabActiva === 'Convenios' && (
-        <div className="print:hidden">
-          <ConveniosManager
-            convenios={convenios}
-            onActualizarDescuento={actualizarDescuentoConvenio}
-          />
         </div>
       )}
 

@@ -1,0 +1,1 @@
+export { CarteraPanel } from './AdminPanels'

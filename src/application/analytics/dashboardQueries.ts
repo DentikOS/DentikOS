@@ -190,24 +190,33 @@ export const obtenerMetricasPagosDashboard = (pacientes: Paciente[] = []) => {
 
     // Pagos de hoy
     const pagosHoy = todosLosPagos.filter((p) => p.fecha === hoy)
-    const recaudadoHoy = pagosHoy
-      .filter((p) => p.estado === 'pagado' || p.estado === 'completado')
-      .reduce((sum, p) => sum + (Number(p.monto) || 0), 0)
+    const sumarPorMoneda = (pagos: Pago[]) => pagos.reduce<Record<string, number>>((montos, pago) => {
+      const moneda = pago.moneda || 'CLP'
+      montos[moneda] = (montos[moneda] || 0) + (Number(pago.monto) || 0)
+      return montos
+    }, {})
+    const pagosRecaudadosHoy = pagosHoy.filter((p) => p.estado === 'pagado' || p.estado === 'completado')
+    const pagosVencidosLista = todosLosPagos
+      .filter((p) => Boolean(p.fecha && p.fecha < hoy) && p.estado !== 'pagado' && p.estado !== 'completado')
+    const porCobrarHoyLista = pagosHoy.filter((p) => p.estado !== 'pagado' && p.estado !== 'completado')
+    const recaudadoHoyPorMoneda = sumarPorMoneda(pagosRecaudadosHoy)
+    const pagosVencidosPorMoneda = sumarPorMoneda(pagosVencidosLista)
+    const porCobrarHoyPorMoneda = sumarPorMoneda(porCobrarHoyLista)
+    const recaudadoHoy = Object.values(recaudadoHoyPorMoneda).reduce((sum, monto) => sum + monto, 0)
 
     // Pagos vencidos (fecha < hoy y estado != pagado)
-    const pagosVencidos = todosLosPagos
-      .filter((p) => Boolean(p.fecha && p.fecha < hoy) && p.estado !== 'pagado' && p.estado !== 'completado')
-      .reduce((sum, p) => sum + (Number(p.monto) || 0), 0)
+    const pagosVencidos = Object.values(pagosVencidosPorMoneda).reduce((sum, monto) => sum + monto, 0)
 
     // Por cobrar hoy (pagos de hoy pendientes)
-    const porCobrarHoy = pagosHoy
-      .filter((p) => p.estado !== 'pagado' && p.estado !== 'completado')
-      .reduce((sum, p) => sum + (Number(p.monto) || 0), 0)
+    const porCobrarHoy = Object.values(porCobrarHoyPorMoneda).reduce((sum, monto) => sum + monto, 0)
 
     return {
       porCobrarHoy,
       pagosVencidos,
       recaudadoHoy,
+      porCobrarHoyPorMoneda,
+      pagosVencidosPorMoneda,
+      recaudadoHoyPorMoneda,
     }
   } catch (e) {
     console.error('Error obteniendo métricas de pagos:', e)
@@ -215,6 +224,9 @@ export const obtenerMetricasPagosDashboard = (pacientes: Paciente[] = []) => {
       porCobrarHoy: 0,
       pagosVencidos: 0,
       recaudadoHoy: 0,
+      porCobrarHoyPorMoneda: {},
+      pagosVencidosPorMoneda: {},
+      recaudadoHoyPorMoneda: {},
     }
   }
 }

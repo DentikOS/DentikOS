@@ -11,7 +11,6 @@ import {
   FileSpreadsheet,
   Moon,
   Sun,
-  Activity,
   Sliders,
 } from 'lucide-react'
 import type { Paciente } from '../domains/clinical/patient/schemas/pacienteSchema'
@@ -77,7 +76,6 @@ export const ACCIONES_BASE = [
 
 export const CONFIG_BASE = [
   { id: 'tema-oscuro', label: 'Tema Oscuro', descripcion: 'Modo noche optimizado', icono: Moon, tema: 'dark' as const },
-  { id: 'tema-quirurgico', label: 'Tema Quirúrgico', descripcion: 'Alto contraste clínico', icono: Activity, tema: 'surgical' as const },
   { id: 'tema-claro', label: 'Tema Claro', descripcion: 'Modo día luminoso', icono: Sun, tema: 'light' as const },
   { id: 'preferencias', label: 'Preferencias', descripcion: 'Ajustes del sistema', icono: Sliders },
 ]
@@ -185,7 +183,7 @@ export const buildAccionResults = (
 
 export const buildConfigResults = (
   items: typeof CONFIG_BASE,
-  setTheme: (t: 'dark' | 'surgical' | 'light') => void,
+  setTheme: (t: 'dark' | 'light') => void,
   onOpenPreferencias?: () => void
 ): PaletteResult[] =>
   items.map((c) => ({

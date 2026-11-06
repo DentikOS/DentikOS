@@ -4,8 +4,6 @@ import { pacientesStorageService } from '../services/pacientesStorageService'
 import { evolucionesStorageService, type EvolucionClinicaLocal } from '../services/evolucionesStorageService'
 import { certificadosStorageService } from '../services/certificadosStorageService'
 import type { CertificadoPapelera } from '../services/papeleraCertificadosService'
-// F6-D-4: usar recetasStorageService para recetas
-import { recetasStorageService, type RecetaLocal } from '../services/recetasStorageService'
 import { odontogramaStorageService, type OdontogramaDatos } from '../../../../domains/clinical/odontogram/services/odontogramaStorageService'
 import { useFichaClinicaSync } from './useFichaClinicaSync'
 import type { ItemPresupuesto, AbonoItem } from './usePresupuestoForm'
@@ -40,8 +38,6 @@ export interface UseFichaPacienteReturn {
   setItemsPresupuesto: React.Dispatch<React.SetStateAction<ItemPresupuesto[]>>
   abonos: AbonoItem[]
   setAbonos: React.Dispatch<React.SetStateAction<AbonoItem[]>>
-  recetas: RecetaLocal[]
-  setRecetas: React.Dispatch<React.SetStateAction<RecetaLocal[]>>
   evolucionesNotas: EvolucionClinicaLocal[]
   setEvolucionesNotas: React.Dispatch<React.SetStateAction<EvolucionClinicaLocal[]>>
   certificados: CertificadoPapelera[]
@@ -67,10 +63,6 @@ export const useFichaPaciente = (
   )
   const [abonos, setAbonos] = useState<AbonoItem[]>(() => 
     pacientesStorageService.obtenerItem<AbonoItem[]>(`abonos_${paciente.id}`, [])
-  )
-  // F6-D-4: cargar recetas desde Supabase (vía recetasStorageService)
-  const [recetas, setRecetas] = useState<RecetaLocal[]>(() => 
-    recetasStorageService.obtenerRecetas(paciente.id, [])
   )
   // F6-D-5: cargar evoluciones desde Supabase (vía evolucionesStorageService)
   const [evolucionesNotas, setEvolucionesNotas] = useState<EvolucionClinicaLocal[]>(() => 
@@ -147,8 +139,6 @@ export const useFichaPaciente = (
     setItemsPresupuesto,
     abonos,
     setAbonos,
-    recetas,
-    setRecetas,
     evolucionesNotas,
     setEvolucionesNotas,
     certificados,

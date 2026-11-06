@@ -100,7 +100,7 @@ export const Evoluciones: React.FC<EvolucionesProps> = ({
         onSubmit={handleAgregarEvolucion}
         className="p-5 bg-surface/90 border border-surface rounded-2xl space-y-4 shadow-xs"
       >
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h3 className="text-sm font-bold text-graphite-900 dark:text-graphite-50 flex items-center gap-2">
             <Plus className="w-4 h-4 text-primary" /> Registrar Nueva Evolución Clínica
           </h3>
@@ -122,7 +122,7 @@ export const Evoluciones: React.FC<EvolucionesProps> = ({
           <span className="text-[11px] font-semibold text-graphite-500 block mb-1.5">
             Plantillas Clínicas Rápidas:
           </span>
-          <div className="flex gap-1.5 overflow-x-auto pb-1">
+          <div className="scrollable-tab-strip flex gap-1.5 overflow-x-auto pb-1">
             {PLANTILLAS_INTELIGENTES.map((p) => (
               <button
                 key={p.id}
@@ -137,36 +137,48 @@ export const Evoluciones: React.FC<EvolucionesProps> = ({
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-          <input
-            type="text"
-            placeholder="Motivo de consulta / procedimiento..."
-            value={motivo}
-            onChange={(e) => setMotivo(e.target.value)}
-            className="p-2.5 bg-surface border border-surface rounded-xl text-xs"
-          />
-          <input
-            type="text"
-            placeholder="Pieza dental (ej: 1.6, 2.4)..."
-            value={pieza}
-            onChange={(e) => setPieza(e.target.value)}
-            className="p-2.5 bg-surface border border-surface rounded-xl text-xs"
-          />
+          <label htmlFor="evolucion-motivo" className="block space-y-1.5 font-semibold text-graphite-700 dark:text-graphite-300">
+            Motivo o procedimiento
+            <input
+              id="evolucion-motivo"
+              type="text"
+              placeholder="Motivo de consulta / procedimiento..."
+              value={motivo}
+              onChange={(e) => setMotivo(e.target.value)}
+              className="w-full p-2.5 bg-surface border border-surface rounded-xl text-sm font-normal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+            />
+          </label>
+          <label htmlFor="evolucion-pieza" className="block space-y-1.5 font-semibold text-graphite-700 dark:text-graphite-300">
+            Pieza dental
+            <input
+              id="evolucion-pieza"
+              type="text"
+              placeholder="Ej.: 1.6, 2.4"
+              value={pieza}
+              onChange={(e) => setPieza(e.target.value)}
+              className="w-full p-2.5 bg-surface border border-surface rounded-xl text-sm font-normal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+            />
+          </label>
         </div>
 
-        <textarea
-          rows={3}
-          value={nuevaNota}
-          onChange={(e) => setNuevaNota(e.target.value)}
-          placeholder="Descripción detallada de la sesión clínica, materiales, anestesia..."
-          className="w-full p-3 bg-surface border border-surface rounded-xl text-xs focus:ring-1 focus:ring-primary resize-none"
-          required
-        />
+        <label htmlFor="evolucion-descripcion" className="block space-y-1.5 text-xs font-semibold text-graphite-700 dark:text-graphite-300">
+          Descripción de la sesión
+          <textarea
+            id="evolucion-descripcion"
+            rows={4}
+            value={nuevaNota}
+            onChange={(e) => setNuevaNota(e.target.value)}
+            placeholder="Detalle la sesión clínica, materiales y anestesia..."
+            className="w-full p-3 bg-surface border border-surface rounded-xl text-sm font-normal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 resize-y"
+            required
+          />
+        </label>
 
-        <div className="flex items-center justify-between pt-1">
-          <span className="text-[11px] text-graphite-400 flex items-center gap-1 font-mono">
+        <div className="flex flex-col gap-3 border-t border-surface-border pt-4 sm:flex-row sm:items-center sm:justify-between">
+          <span className="text-xs text-graphite-500 dark:text-graphite-400 flex items-center gap-2 font-mono">
             <Key className="w-3 h-3" /> Firma digital SHA-256 se genera al guardar
           </span>
-          <Button type="submit" variant="primary" icon={CheckCircle2}>
+          <Button type="submit" variant="primary" icon={CheckCircle2} className="w-full sm:w-auto">
             Firmar & Guardar
           </Button>
         </div>

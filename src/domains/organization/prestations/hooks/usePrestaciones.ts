@@ -13,6 +13,9 @@ import {
   type ResumenArancel
 } from '../utils/prestacionesCalculations'
 import { useEliminarPrestaciones } from './useEliminarPrestaciones'
+import { USE_SUPABASE } from '../../../../infrastructure/supabase/supabaseClient'
+import { getClinicaActivaSync } from '../../../../infrastructure/auth/authService'
+import { prestacionesSupabaseService } from '../services/prestacionesSupabaseService'
 
 export interface PrestacionInput {
   id?: number | string
@@ -20,7 +23,7 @@ export interface PrestacionInput {
   especialidad?: string
   precio?: number | string
   precioParticular?: number | string
-  precioFonasa?: number | string
+  precioFonasa?: number | string | null
   codigoFonasa?: string
   [key: string]: unknown
 }
@@ -42,10 +45,10 @@ export interface UsePrestacionesReturn {
   setBusqueda: React.Dispatch<React.SetStateAction<string>>
   especialidadFiltro: string
   setEspecialidadFiltro: React.Dispatch<React.SetStateAction<string>>
-  agregarOActualizarPrestacion: (prestacionData: PrestacionInput) => void
+  agregarOActualizarPrestacion: (prestacionData: PrestacionInput) => Promise<void>
   eliminarPrestacion: (id: number | string) => Promise<void>
-  aplicarReajusteMasivo: (porcentaje: number | string) => void
-  agregarPaquete: (nuevoPack: PaqueteInput) => void
+  aplicarReajusteMasivo: (porcentaje: number | string) => Promise<void>
+  agregarPaquete: (nuevoPack: PaqueteInput) => Promise<void>
   eliminarPaquete: (id: number | string) => Promise<void>
 }
 
@@ -53,7 +56,9 @@ export const usePrestaciones = (
   prestacionesProp?: Prestacion[] | null,
   setPrestacionesProp?: ((prestaciones: Prestacion[]) => void) | null
 ): UsePrestacionesReturn => {
+  const clinicaActiva = USE_SUPABASE ? getClinicaActivaSync() : null
   const [prestaciones, setPrestaciones] = useState<Prestacion[]>(() => {
+    if (USE_SUPABASE) return []
     const guardadas = prestacionesStorageService.obtenerPrestaciones(
       ARANCEL_DEFAULT as unknown as Prestacion[]
     )
@@ -67,12 +72,13 @@ export const usePrestaciones = (
 
   const [paquetes, setPaquetes] = useState<PaqueteClinico[]>(() => {
     const guardados = prestacionesStorageService.obtenerPaquetes(
-      [...PAQUETES_CLINICOS_DEFAULT] as unknown as PaqueteClinico[]
+      USE_SUPABASE ? [] : [...PAQUETES_CLINICOS_DEFAULT] as unknown as PaqueteClinico[]
     )
     return guardados && guardados.length > 0
       ? guardados
-      : ([...PAQUETES_CLINICOS_DEFAULT] as unknown as PaqueteClinico[])
+      : (USE_SUPABASE ? [] : [...PAQUETES_CLINICOS_DEFAULT] as unknown as PaqueteClinico[])
   })
+  const [paquetesClinicaCache, setPaquetesClinicaCache] = useState(clinicaActiva)
 
   const [busqueda, setBusqueda] = useState<string>('')
   const [especialidadFiltro, setEspecialidadFiltro] = useState<string>('Todas')
@@ -87,22 +93,22 @@ export const usePrestaciones = (
       }))
 
       setPrestaciones(normalizadas)
-      prestacionesStorageService.guardarPrestaciones(normalizadas)
+      if (!USE_SUPABASE) prestacionesStorageService.guardarPrestaciones(normalizadas)
 
       if (setPrestacionesProp) {
         setPrestacionesProp(normalizadas)
       }
 
-      window.dispatchEvent(new Event('storage'))
-      window.dispatchEvent(
-        new CustomEvent('arancel_actualizado', { detail: normalizadas })
-      )
+      if (!USE_SUPABASE) {
+        window.dispatchEvent(new Event('storage'))
+        window.dispatchEvent(new CustomEvent('arancel_actualizado', { detail: normalizadas }))
+      }
     },
     [setPrestacionesProp]
   )
 
   useEffect(() => {
-    if (prestacionesProp && prestacionesProp.length > 0) {
+    if (prestacionesProp) {
       setPrestaciones(
         prestacionesProp.map(p => ({
           ...p,
@@ -112,6 +118,12 @@ export const usePrestaciones = (
       )
     }
   }, [prestacionesProp])
+
+  useEffect(() => {
+    if (!USE_SUPABASE || paquetesClinicaCache === clinicaActiva) return
+    setPaquetes(prestacionesStorageService.obtenerPaquetes(undefined) ?? [])
+    setPaquetesClinicaCache(clinicaActiva)
+  }, [clinicaActiva, paquetesClinicaCache])
 
   const resumen = useMemo(
     () => calcularResumenArancel(prestaciones),
@@ -125,30 +137,70 @@ export const usePrestaciones = (
       const coincideBusqueda =
         !busqueda.trim() ||
         (p.nombre && p.nombre.toLowerCase().includes(busqueda.toLowerCase())) ||
+        (p.codigoInterno && p.codigoInterno.toLowerCase().includes(busqueda.toLowerCase())) ||
+        (p.categoria && p.categoria.toLowerCase().includes(busqueda.toLowerCase())) ||
         (p.codigoFonasa &&
           p.codigoFonasa.toLowerCase().includes(busqueda.toLowerCase()))
       return coincideEsp && coincideBusqueda
     })
   }, [prestaciones, busqueda, especialidadFiltro])
 
-  const agregarOActualizarPrestacion = useCallback(
-    (prestacionData: PrestacionInput) => {
-      let actualizadas: Prestacion[] = []
-      const existe = prestaciones.some(
-        p => String(p.id) === String(prestacionData.id)
+  const paquetesVisibles = useMemo(() => {
+    if (!USE_SUPABASE) return paquetes
+    const locales = paquetesClinicaCache === clinicaActiva ? paquetes : []
+    const remotos = prestaciones.filter(p => p.especialidad === 'Pack Promocional')
+    const mismoPack = (local: PaqueteClinico, remoto: Prestacion): boolean =>
+      String(local.id) === String(remoto.id) || (
+        local.nombre.trim().toLowerCase() === remoto.nombre.trim().toLowerCase() &&
+        Number(local.precioCombo ?? local.precio ?? local.precioParticular ?? 0) === remoto.precioParticular
       )
+    const visibles = remotos.map((remoto) => {
+      const local = locales.find(p => mismoPack(p, remoto))
+      const descripcionRemota = typeof remoto.descripcion === 'string' ? remoto.descripcion.trim() : ''
+      const ahorroRemoto = typeof remoto.ahorroEstimado === 'string' ? remoto.ahorroEstimado.trim() : ''
+      const descripcionLocal = local?.descripcion?.trim() ?? ''
+      const ahorroLocal = local?.ahorroEstimado?.trim() ?? ''
+      const metadataPendiente = (!descripcionRemota && Boolean(descripcionLocal)) ||
+        (!ahorroRemoto && Boolean(ahorroLocal))
+      return {
+        ...remoto,
+        descripcion: descripcionRemota || descripcionLocal || undefined,
+        ahorroEstimado: ahorroRemoto || ahorroLocal || undefined,
+        ...(metadataPendiente ? { pendienteCompartir: true } : {}),
+      }
+    })
+    const localesNoCompartidos = locales
+      .filter(local => !remotos.some(remoto => mismoPack(local, remoto)))
+      .map(local => ({ ...local, pendienteCompartir: true }))
+    return [...visibles, ...localesNoCompartidos] as PaqueteClinico[]
+  }, [prestaciones, paquetes, paquetesClinicaCache, clinicaActiva])
+
+  const agregarOActualizarPrestacion = useCallback(
+    async (prestacionData: PrestacionInput) => {
+      let actualizadas: Prestacion[] = []
+      const existente = prestaciones.find(p => String(p.id) === String(prestacionData.id))
+      const existe = Boolean(existente)
 
       const valPrecio =
         parseFloat(String(prestacionData.precioParticular ?? prestacionData.precio)) || 0
 
       const prestacionNormalizada: Prestacion = {
+        ...(existente ?? {}),
         id: prestacionData.id || Date.now(),
         nombre: prestacionData.nombre,
         especialidad: prestacionData.especialidad || 'General',
         precio: valPrecio,
         precioParticular: valPrecio,
-        precioFonasa: parseFloat(String(prestacionData.precioFonasa)) || 0,
-        codigoFonasa: prestacionData.codigoFonasa || ''
+        precioFonasa: prestacionData.precioFonasa == null || prestacionData.precioFonasa === ''
+          ? null
+          : parseFloat(String(prestacionData.precioFonasa)) || 0,
+        codigoFonasa: prestacionData.codigoFonasa || '',
+        codigoInterno: typeof prestacionData.codigoInterno === 'string' ? prestacionData.codigoInterno.trim() || null : existente?.codigoInterno ?? null,
+        categoria: typeof prestacionData.categoria === 'string' ? prestacionData.categoria.trim() || null : existente?.categoria ?? null,
+        equipamientoRequerido: Array.isArray(prestacionData.equipamientoRequerido)
+          ? prestacionData.equipamientoRequerido as Prestacion['equipamientoRequerido']
+          : existente?.equipamientoRequerido ?? [],
+        ...(existente?.especialidad === 'Pack Promocional' ? { precioCombo: valPrecio } : {}),
       }
 
       if (existe) {
@@ -159,14 +211,38 @@ export const usePrestaciones = (
         actualizadas = [prestacionNormalizada, ...prestaciones]
       }
 
+      if (USE_SUPABASE) {
+        const guardada = await prestacionesSupabaseService.guardar(prestacionNormalizada)
+        actualizadas = existe
+          ? prestaciones.map(p => String(p.id) === String(prestacionData.id) ? guardada : p)
+          : [guardada, ...prestaciones]
+      }
+      if (!USE_SUPABASE && existente?.especialidad === 'Pack Promocional') {
+        setPaquetes(prev => {
+          const actualizados = prev.map(p => String(p.id) === String(existente.id)
+            ? { ...p, ...prestacionNormalizada, precioCombo: valPrecio } : p)
+          if (!USE_SUPABASE) prestacionesStorageService.guardarPaquetes(actualizados)
+          return actualizados
+        })
+      }
       guardarYSincronizarGlobal(actualizadas)
     },
     [prestaciones, guardarYSincronizarGlobal]
   )
 
   const aplicarReajusteMasivo = useCallback(
-    (porcentaje: number | string) => {
-      const factor = 1 + (parseFloat(String(porcentaje)) || 0) / 100
+    async (porcentaje: number | string) => {
+      const pct = typeof porcentaje === 'string' && !porcentaje.trim() ? NaN : Number(porcentaje)
+      if (!Number.isFinite(pct) || pct < -100 || pct > 10000) {
+        throw new Error('El porcentaje debe estar entre -100% y 10000%.')
+      }
+      if (USE_SUPABASE) {
+        const confirmadas = await prestacionesSupabaseService.reajustarMasivo(pct, prestaciones)
+        guardarYSincronizarGlobal(confirmadas)
+        return
+      }
+
+      const factor = 1 + pct / 100
       const actualizadas: Prestacion[] = prestaciones.map(p => {
         const pParticular = Math.round(
           (parseFloat(String(p.precioParticular ?? p.precio)) || 0) * factor
@@ -175,7 +251,9 @@ export const usePrestaciones = (
           ...p,
           precio: pParticular,
           precioParticular: pParticular,
-          precioFonasa: Math.round((parseFloat(String(p.precioFonasa)) || 0) * factor)
+          precioFonasa: p.precioFonasa == null
+            ? null
+            : Math.round((parseFloat(String(p.precioFonasa)) || 0) * factor)
         }
       })
       guardarYSincronizarGlobal(actualizadas)
@@ -185,7 +263,7 @@ export const usePrestaciones = (
 
   // Crear o Editar Paquetes Promocionales
   const agregarOEditarPaquete = useCallback(
-    (nuevoPack: PaqueteInput) => {
+    async (nuevoPack: PaqueteInput) => {
       const valPrecio =
         typeof nuevoPack.precioCombo === 'number'
           ? nuevoPack.precioCombo
@@ -194,7 +272,7 @@ export const usePrestaciones = (
       const packId = nuevoPack.id || Date.now()
       const nombreLimpio = nuevoPack.nombre
 
-      const packNormalizado: Prestacion & PaqueteClinico = {
+      let packNormalizado: Prestacion & PaqueteClinico = {
         id: packId,
         nombre: nombreLimpio,
         especialidad: 'Pack Promocional',
@@ -202,9 +280,15 @@ export const usePrestaciones = (
         precioParticular: valPrecio,
         precioFonasa: valPrecio,
         codigoFonasa: '',
+        equipamientoRequerido: [],
         precioCombo: valPrecio,
         descripcion: nuevoPack.descripcion,
         ahorroEstimado: nuevoPack.ahorroEstimado
+      }
+
+      if (USE_SUPABASE) {
+        const guardada = await prestacionesSupabaseService.guardar(packNormalizado)
+        packNormalizado = { ...packNormalizado, ...guardada }
       }
 
       setPaquetes(prev => {
@@ -212,7 +296,7 @@ export const usePrestaciones = (
         const actualizados = existe
           ? prev.map(p => (String(p.id) === String(packId) ? packNormalizado : p))
           : [packNormalizado, ...prev]
-        prestacionesStorageService.guardarPaquetes(actualizados)
+        if (!USE_SUPABASE) prestacionesStorageService.guardarPaquetes(actualizados)
         return actualizados
       })
 
@@ -237,7 +321,7 @@ export const usePrestaciones = (
 
   return {
     prestaciones: prestacionesFiltradas,
-    paquetes,
+    paquetes: paquetesVisibles,
     resumen,
     busqueda,
     setBusqueda,

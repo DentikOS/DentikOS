@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   ESTADOS_PRESUPUESTO,
   OPCIONES_CUOTAS,
-  PRESUPUESTOS_DEFAULT
+  TRANSICIONES_MANUALES_PRESUPUESTO
 } from './presupuestosConstants'
 
 describe('presupuestosConstants', () => {
@@ -16,9 +16,9 @@ describe('presupuestosConstants', () => {
     expect(OPCIONES_CUOTAS[0].cuotas).toBe(1)
   })
 
-  it('define presupuestos por defecto con folio e items', () => {
-    expect(PRESUPUESTOS_DEFAULT.length).toBeGreaterThan(0)
-    expect(PRESUPUESTOS_DEFAULT[0].folio).toBeDefined()
-    expect(PRESUPUESTOS_DEFAULT[0].items.length).toBeGreaterThan(0)
+  it('no permite marcar enviado ni completado sin sus flujos reales', () => {
+    expect(TRANSICIONES_MANUALES_PRESUPUESTO.borrador).toContain('aprobado')
+    expect(TRANSICIONES_MANUALES_PRESUPUESTO.borrador).not.toContain('enviado')
+    expect(TRANSICIONES_MANUALES_PRESUPUESTO.aprobado).toBeUndefined()
   })
 })

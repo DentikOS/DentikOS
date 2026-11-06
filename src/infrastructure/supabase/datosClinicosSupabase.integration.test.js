@@ -51,21 +51,6 @@ describe('F6-D-7: Integración E2E de datos clínicos', () => {
   })
 
   describe('Flujo completo: Supabase → cache → lectura', () => {
-    it('sincroniza recetas correctamente', async () => {
-      const pacienteId = 'paciente-123'
-      const recetasMock = [
-        { id: 'rec-1', fecha: '2026-08-20', medicamentos: ['Amoxicilina'], indicaciones: 'Cada 8h' }
-      ]
-
-      supabase.from.mockImplementation(crearMockCompleto({ recetas: recetasMock }))
-
-      await sincronizarPaciente(pacienteId)
-
-      const resultado = obtenerDatoClinico(pacienteId, 'recetas', null)
-      expect(resultado).toHaveLength(1)
-      expect(resultado[0].medicamentos).toEqual(['Amoxicilina'])
-    })
-
     it('sincroniza evoluciones clínicas correctamente', async () => {
       const pacienteId = 'paciente-456'
       const evolucionesMock = [
@@ -115,7 +100,6 @@ describe('F6-D-7: Integración E2E de datos clínicos', () => {
       const pacienteId = 'paciente-completo'
 
       supabase.from.mockImplementation(crearMockCompleto({
-        recetas: [{ id: 'rec-1', medicamentos: ['Ibuprofeno'] }],
         evoluciones_clinicas: [{ id: 'evo-1', texto: 'Control' }],
         certificados: [{ id: 'cert-1', datos: { tipo: 'reposo' } }],
         odontogramas: { id: 'odont-1', datos: { '1.1': 'sano' } }
@@ -123,37 +107,19 @@ describe('F6-D-7: Integración E2E de datos clínicos', () => {
 
       await sincronizarPaciente(pacienteId)
 
-      expect(obtenerDatoClinico(pacienteId, 'recetas', null)).toHaveLength(1)
       expect(obtenerDatoClinico(pacienteId, 'evoluciones_notas', null)).toHaveLength(1)
       expect(obtenerDatoClinico(pacienteId, 'certificados', null)).toHaveLength(1)
       expect(obtenerDatoClinico(pacienteId, 'odonto_inicial', null)).toEqual({ '1.1': 'sano' })
     })
   })
 
-  describe('Fallback offline', () => {
-    it('retorna fallback cuando Supabase no tiene datos', async () => {
-      const pacienteId = 'paciente-vacio'
+  it('no duplica recetas en la caché genérica de sincronización clínica', async () => {
+    const pacienteId = 'paciente-con-recetas'
+    supabase.from.mockImplementation(crearMockCompleto({ recetas: [{ id: 'rx-1' }] }))
 
-      supabase.from.mockImplementation(crearMockCompleto())
+    await sincronizarPaciente(pacienteId)
 
-      await sincronizarPaciente(pacienteId)
-
-      const resultado = obtenerDatoClinico(pacienteId, 'recetas', [])
-      expect(resultado).toEqual([])
-    })
-
-    it('retorna fallback cuando Supabase falla', async () => {
-      const pacienteId = 'paciente-error'
-
-      supabase.from.mockImplementation(() => crearAwaitableMock({
-        data: null,
-        error: new Error('Network error')
-      }))
-
-      await sincronizarPaciente(pacienteId)
-
-      const resultado = obtenerDatoClinico(pacienteId, 'recetas', ['fallback'])
-      expect(resultado).toEqual(['fallback'])
-    })
+    expect(supabase.from).not.toHaveBeenCalledWith('recetas')
+    expect(obtenerDatoClinico(pacienteId, 'recetas', null)).toBeNull()
   })
 })

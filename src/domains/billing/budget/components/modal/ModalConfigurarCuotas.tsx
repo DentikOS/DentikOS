@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react'
 import { Calendar, CreditCard, X, Check } from 'lucide-react'
 import { Button } from '../../../../../shared/ui/ui/Button'
+import { formatearImporteDocumento } from '../../../../../shared/utils/formatoDocumento'
 
 export interface PlanCuotasConfig {
   modalidad: 'unico' | 'cuotas'
@@ -12,18 +13,29 @@ export interface PlanCuotasConfig {
 
 interface ModalConfigurarCuotasProps {
   montoTotal: number
+  moneda?: string
+  maximoCuotasSinInteres?: number
+  frecuenciaInicial?: 'mensual' | 'quincenal'
   onConfirmar: (plan: PlanCuotasConfig) => void
   onCerrar: () => void
 }
 
 export const ModalConfigurarCuotas: React.FC<ModalConfigurarCuotasProps> = ({
   montoTotal,
+  moneda = 'CLP',
+  maximoCuotasSinInteres = 6,
+  frecuenciaInicial = 'mensual',
   onConfirmar,
   onCerrar,
 }) => {
-  const [modalidad, setModalidad] = useState<'unico' | 'cuotas'>('cuotas')
-  const [cuotas, setCuotas] = useState<number>(3)
-  const [frecuencia, setFrecuencia] = useState<'mensual' | 'quincenal'>('mensual')
+  const maxCuotas = Math.min(12, Math.max(1, Math.trunc(maximoCuotasSinInteres)))
+  const cuotasDisponibles = useMemo(() => {
+    if (maxCuotas <= 1) return []
+    return [...new Set([3, 6, 12, maxCuotas].filter((cantidad) => cantidad >= 2 && cantidad <= maxCuotas))].sort((a, b) => a - b)
+  }, [maxCuotas])
+  const [modalidad, setModalidad] = useState<'unico' | 'cuotas'>(maxCuotas <= 1 ? 'unico' : 'cuotas')
+  const [cuotas, setCuotas] = useState<number>(Math.min(3, maxCuotas))
+  const [frecuencia, setFrecuencia] = useState<'mensual' | 'quincenal'>(frecuenciaInicial)
   const [fechaPrimerPago, setFechaPrimerPago] = useState<string>(() => {
     return new Date().toISOString().split('T')[0]
   })
@@ -78,6 +90,7 @@ export const ModalConfigurarCuotas: React.FC<ModalConfigurarCuotasProps> = ({
             <button
               type="button"
               onClick={() => setModalidad('cuotas')}
+              disabled={maxCuotas <= 1}
               className={`p-2.5 rounded-xl border text-left font-semibold ${modalidad === 'cuotas' ? 'bg-primary/10 border-primary text-primary' : 'bg-surface border-surface text-graphite-600'}`}
             >
               Cuotas sin interés
@@ -96,12 +109,12 @@ export const ModalConfigurarCuotas: React.FC<ModalConfigurarCuotasProps> = ({
               <div>
                 <label className="block font-semibold mb-1 text-graphite-700 dark:text-graphite-300">N° de Cuotas</label>
                 <div className="grid grid-cols-3 gap-1">
-                  {[3, 6, 12].map((n) => (
+                  {cuotasDisponibles.map((n) => (
                     <button
                       key={n}
                       type="button"
                       onClick={() => setCuotas(n)}
-                      className={`p-2 rounded-lg border text-center font-bold font-mono ${cuotas === n ? 'bg-primary text-white border-primary' : 'bg-surface border-surface'}`}
+                      className={`p-2 rounded-lg border text-center font-bold font-mono ${cuotas === n ? 'bg-primary text-primary-foreground border-primary' : 'bg-surface border-surface'}`}
                     >
                       {n}x
                     </button>
@@ -126,13 +139,13 @@ export const ModalConfigurarCuotas: React.FC<ModalConfigurarCuotasProps> = ({
           <div className="p-3 bg-surface-hover/70 rounded-xl border border-surface space-y-2">
             <div className="flex items-center justify-between font-semibold">
               <span className="flex items-center gap-1.5"><Calendar className="w-4 h-4 text-primary" /> Calendario Proyectado</span>
-              <span className="font-mono text-primary font-bold">${valorCuota.toLocaleString('es-CL')} / cuota</span>
+              <span className="font-mono text-primary font-bold">{formatearImporteDocumento(valorCuota, moneda)} / cuota</span>
             </div>
             <div className="max-h-32 overflow-y-auto space-y-1 pr-1">
               {calendario.map((item) => (
                 <div key={item.cuota} className="flex justify-between text-[11px] p-1.5 rounded-lg bg-surface border border-surface">
                   <span className="text-graphite-600 dark:text-graphite-300">Cuota {item.cuota} ({item.fecha})</span>
-                  <span className="font-mono font-bold text-graphite-900 dark:text-graphite-100">${item.monto.toLocaleString('es-CL')}</span>
+                  <span className="font-mono font-bold text-graphite-900 dark:text-graphite-100">{formatearImporteDocumento(item.monto, moneda)}</span>
                 </div>
               ))}
             </div>

@@ -1,7 +1,7 @@
 import { create } from 'zustand'
-import { useSidebarStore, type AppTheme } from './useSidebarStore'
+import { useSidebarStore } from './useSidebarStore'
 
-export type Theme = 'light' | 'dark' | 'surgical'
+export type Theme = 'light' | 'dark'
 
 export interface ThemeState {
   theme: Theme
@@ -13,11 +13,9 @@ export interface ThemeState {
 export const aplicarClasesDocumento = (theme: Theme): void => {
   if (typeof document === 'undefined') return
   const root = document.documentElement
-  root.classList.remove('light', 'surgical', 'theme-surgical', 'dark')
+  root.classList.remove('light', 'dark')
   if (theme === 'dark') {
     root.classList.add('dark')
-  } else if (theme === 'surgical') {
-    root.classList.add('surgical', 'theme-surgical')
   } else {
     root.classList.add('light')
   }
@@ -34,22 +32,22 @@ export const useThemeStore = create<ThemeState>((set) => ({
   theme: useSidebarStore.getState().theme,
 
   setTheme: (theme: Theme) => {
-    useSidebarStore.getState().setTheme(theme as AppTheme)
+    useSidebarStore.getState().setTheme(theme)
     set({ theme })
   },
 
   toggleTheme: () => {
     const current = useSidebarStore.getState().theme
     const next: Theme = current === 'dark' ? 'light' : 'dark'
-    useSidebarStore.getState().setTheme(next as AppTheme)
+    useSidebarStore.getState().setTheme(next)
     set({ theme: next })
   },
 
   cycleTheme: () => {
-    const themes: Theme[] = ['light', 'dark', 'surgical']
+    const themes: Theme[] = ['light', 'dark']
     const current = useSidebarStore.getState().theme
     const next = themes[(themes.indexOf(current) + 1) % themes.length]
-    useSidebarStore.getState().setTheme(next as AppTheme)
+    useSidebarStore.getState().setTheme(next)
     set({ theme: next })
   },
 }))
@@ -65,6 +63,6 @@ useSidebarStore.subscribe((state) => {
 useThemeStore.subscribe((state) => {
   aplicarClasesDocumento(state.theme)
   if (useSidebarStore.getState().theme !== state.theme) {
-    useSidebarStore.getState().setTheme(state.theme as AppTheme)
+    useSidebarStore.getState().setTheme(state.theme)
   }
 })

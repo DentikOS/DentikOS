@@ -42,10 +42,10 @@ describe('Componentes Clínicos BP06', () => {
     expect(screen.getByDisplayValue(/Bajo aislamiento absoluto/i)).toBeInTheDocument()
   })
 
-  it('detecta alerta crítica de interacción farmacológica en Recetas si hay alergia a penicilina', () => {
+  it('no bloquea una receta solo por la alergia antes de identificar un fármaco', () => {
     render(<Recetas paciente={mockPaciente} />)
     expect(screen.getByTestId('recetas-bp06')).toBeInTheDocument()
-    expect(screen.getByRole('alert')).toHaveTextContent(/ALERTA CRÍTICA DE INTERACCIÓN/i)
+    expect(screen.queryByText(/contraindicado por alergia a penicilinas/i)).not.toBeInTheDocument()
   })
 
   it('asigna automáticamente tutor legal en Consentimientos si el paciente tiene tutor', () => {

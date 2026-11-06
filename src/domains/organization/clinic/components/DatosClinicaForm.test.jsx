@@ -1,9 +1,10 @@
 import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { DatosClinicaForm } from './DatosClinicaForm'
 import { clinicStorageService } from '../services/clinicStorageService'
 import { useSesionStore } from '../../../../app/stores/sesionStore'
+import { supabase, USE_SUPABASE } from '../../../../infrastructure/supabase/supabaseClient'
 
 vi.mock('../services/clinicStorageService', () => ({
   clinicStorageService: {
@@ -38,7 +39,7 @@ describe('DatosClinicaForm', () => {
     })
   })
 
-  it('guarda llama guardarClinicaCompleta y muestra confirmación de nube', async () => {
+  it('guarda llama guardarClinicaCompleta y muestra el estado de sincronización real', async () => {
     vi.mocked(clinicStorageService.obtenerClinica).mockReturnValue({
       nombreClinica: 'Clínica Central',
     })
@@ -56,6 +57,10 @@ describe('DatosClinicaForm', () => {
 
     const inputNombre = screen.getByDisplayValue('Clínica Central')
     fireEvent.change(inputNombre, { target: { value: 'Clínica Dental Renombrada' } })
+    fireEvent.change(screen.getByLabelText('Comuna'), { target: { value: 'Providencia' } })
+    fireEvent.change(screen.getByPlaceholderText('https://clinica.cl'), { target: { value: 'https://clinica.example' } })
+    fireEvent.click(screen.getByRole('button', { name: /Moderno/ }))
+    fireEvent.change(screen.getByLabelText('Títulos'), { target: { value: '#123456' } })
 
     const botonGuardar = screen.getByRole('button', { name: /Guardar Configuración/i })
     fireEvent.click(botonGuardar)
@@ -63,9 +68,17 @@ describe('DatosClinicaForm', () => {
     await waitFor(() => {
       expect(clinicStorageService.guardarClinicaCompleta).toHaveBeenCalledWith(
         'clinica-123',
-        expect.objectContaining({ nombreClinica: 'Clínica Dental Renombrada' })
+        expect.objectContaining({
+          nombreClinica: 'Clínica Dental Renombrada',
+          comuna: 'Providencia',
+          sitioWeb: 'https://clinica.example',
+          configuracionMembrete: expect.objectContaining({ diseno: 'moderno', colorTitulos: '#123456' }),
+        })
       )
-      expect(screen.getByText(/Guardado en la nube/i)).toBeInTheDocument()
+      const estadoEsperado = USE_SUPABASE && supabase
+        ? 'Guardado en la nube'
+        : 'Guardado en este dispositivo; no se sincronizó con la nube.'
+      expect(screen.getByText(estadoEsperado)).toBeInTheDocument()
       expect(onGuardarMock).toHaveBeenCalled()
     })
   })
@@ -77,10 +90,87 @@ describe('DatosClinicaForm', () => {
 
     render(<DatosClinicaForm userProfile={{ rol: 'recepcionista' }} />)
 
-    expect(screen.getByText(/Solo lectura/i)).toBeInTheDocument()
+    expect(screen.getByText('Solo lectura - Contacta al administrador para cambios')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Guardar Configuración/i })).not.toBeInTheDocument()
 
     const inputNombre = screen.getByDisplayValue('Clínica Solo Lectura')
     expect(inputNombre).toBeDisabled()
+  })
+
+  it('rechaza una zona horaria inválida antes de guardar', async () => {
+    vi.mocked(clinicStorageService.obtenerClinica).mockReturnValue({
+      nombreClinica: 'Clínica Central',
+      zonaHoraria: 'zona-invalida',
+    })
+    vi.mocked(clinicStorageService.sincronizarClinicaDesdeSupabase).mockResolvedValue(null)
+
+    render(<DatosClinicaForm userProfile={{ rol: 'admin', clinicaId: 'clinica-123' }} />)
+    fireEvent.click(screen.getByRole('button', { name: /Guardar Configuración/i }))
+
+    expect(await screen.findByText(/zona horaria IANA válida/i)).toBeInTheDocument()
+    expect(clinicStorageService.guardarClinicaCompleta).not.toHaveBeenCalled()
+  })
+
+  it('ofrece zonas horarias, idiomas, monedas y un selector visible de archivo para el logo', () => {
+    vi.mocked(clinicStorageService.obtenerClinica).mockReturnValue({
+      nombreClinica: 'Clínica Central',
+      zonaHoraria: 'America/Santiago',
+      idiomaDocumentos: 'es-CL',
+      moneda: 'CLP',
+    })
+    vi.mocked(clinicStorageService.sincronizarClinicaDesdeSupabase).mockResolvedValue(null)
+
+    render(<DatosClinicaForm userProfile={{ rol: 'admin', clinicaId: 'clinica-123' }} />)
+
+    expect(screen.getByRole('combobox', { name: 'Zona horaria *' }).querySelectorAll('option').length).toBeGreaterThan(6)
+    expect(screen.getByRole('combobox', { name: 'Idioma de documentos' }).querySelectorAll('option')).toHaveLength(5)
+    expect(screen.getByRole('combobox', { name: 'Moneda de la clínica' }).querySelectorAll('option')).toHaveLength(7)
+    expect(screen.getByLabelText('Logo para documentos')).toHaveAttribute('type', 'file')
+    expect(screen.getByText('Seleccionar archivo')).toBeInTheDocument()
+  })
+
+  it('sincroniza todos los datos de la clínica activa y descarta eventos de otro tenant', async () => {
+    vi.mocked(clinicStorageService.obtenerClinica).mockReturnValue({
+      nombreClinica: 'Clínica A',
+      ciudad: 'Ciudad inicial',
+      comuna: 'Providencia',
+      region: 'Región Metropolitana',
+      eslogan: 'Frase inicial',
+    })
+    vi.mocked(clinicStorageService.sincronizarClinicaDesdeSupabase).mockResolvedValue(null)
+
+    render(<DatosClinicaForm userProfile={{ rol: 'admin', clinicaId: 'clinica-123' }} />)
+
+    act(() => {
+      window.dispatchEvent(new CustomEvent('clinica_actualizada', {
+        detail: {
+          clinicaId: 'clinica-456',
+          datos: { nombreClinica: 'Clínica ajena', ciudad: 'No debe aparecer', comuna: 'Ajena' },
+        },
+      }))
+    })
+    expect(screen.getByDisplayValue('Clínica A')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('Ciudad inicial')).toBeInTheDocument()
+
+    act(() => {
+      window.dispatchEvent(new CustomEvent('clinica_actualizada', {
+        detail: {
+          clinicaId: 'clinica-123',
+          datos: {
+            nombreClinica: 'Clínica A actualizada',
+            ciudad: 'Valparaíso',
+            comuna: 'Viña del Mar',
+            region: 'Valparaíso',
+            eslogan: 'Nueva frase',
+          },
+        },
+      }))
+    })
+
+    expect(screen.getByDisplayValue('Clínica A actualizada')).toBeInTheDocument()
+    expect(screen.getByLabelText('Ciudad')).toHaveValue('Valparaíso')
+    expect(screen.getByDisplayValue('Viña del Mar')).toBeInTheDocument()
+    expect(screen.getByLabelText('Región')).toHaveValue('Valparaíso')
+    expect(screen.getByDisplayValue('Nueva frase')).toBeInTheDocument()
   })
 })

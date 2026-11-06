@@ -3,6 +3,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { useInventario } from './useInventario'
 import { inventarioStorageService } from '../services/inventarioStorageService'
 
+vi.mock('../../../../infrastructure/supabase/supabaseClient', () => ({ USE_SUPABASE: false }))
+
 vi.mock('../services/inventarioStorageService', () => ({
   inventarioStorageService: {
     obtenerItems: vi.fn(),

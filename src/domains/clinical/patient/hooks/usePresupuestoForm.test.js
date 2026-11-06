@@ -2,13 +2,28 @@ import { renderHook, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const mockHandleEliminarAbono = vi.fn()
-
-vi.mock('../utils/pacientesCalculations', () => ({
-  obtenerDescuentoConvenio: vi.fn((conv) => {
+const { mockObtenerDescuentoConvenio, mockObtenerPrecioPrestacionConvenio } = vi.hoisted(() => {
+  const mockObtenerDescuentoConvenio = vi.fn((conv) => {
     if (conv === 'Fonasa') return 20
     if (conv === 'Isapre') return 10
     return 0
   })
+  const mockObtenerPrecioPrestacionConvenio = vi.fn((input) => {
+    const descuentoPct = mockObtenerDescuentoConvenio(input.convenioIdentificador, input.especialidad)
+    return {
+      precioBase: input.precioParticular,
+      precio: Math.round(input.precioParticular * (1 - descuentoPct / 100)),
+      descuentoPct,
+      origen: descuentoPct > 0 ? 'convenio-categoria' : 'catalogo',
+      sucursalId: null,
+    }
+  })
+  return { mockObtenerDescuentoConvenio, mockObtenerPrecioPrestacionConvenio }
+})
+
+vi.mock('../utils/pacientesCalculations', () => ({
+  obtenerDescuentoConvenio: mockObtenerDescuentoConvenio,
+  obtenerPrecioPrestacionConvenio: mockObtenerPrecioPrestacionConvenio,
 }))
 
 vi.mock('../../../../domains/organization/prestations/services/prestacionesStorageService', () => ({
@@ -34,7 +49,7 @@ vi.mock('./useEliminarAbono', () => ({
 import { usePresupuestoForm } from './usePresupuestoForm'
 import { pacientesStorageService } from '../services/pacientesStorageService'
 import { prestacionesStorageService } from '../../../../domains/organization/prestations/services/prestacionesStorageService'
-import { obtenerDescuentoConvenio } from '../utils/pacientesCalculations'
+import { obtenerDescuentoConvenio, obtenerPrecioPrestacionConvenio } from '../utils/pacientesCalculations'
 
 describe('usePresupuestoForm (Commit G3)', () => {
   const paciente = { id: 42, nombre: 'Ana', prevision: 'Particular' }
@@ -42,8 +57,8 @@ describe('usePresupuestoForm (Commit G3)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     prestacionesStorageService.obtenerPrestaciones.mockReturnValue([
-      { id: 1, nombre: 'Corona', precio: 100000 },
-      { id: 2, nombre: 'Limpieza', precio: 30000 }
+      { id: 1, nombre: 'Corona', especialidad: 'Endodoncia', precio: 100000 },
+      { id: 2, nombre: 'Limpieza', especialidad: 'Preventivo', precio: 30000 }
     ])
   })
 
@@ -75,7 +90,10 @@ describe('usePresupuestoForm (Commit G3)', () => {
         result.current.handleSeleccionarPrestacion(1, 'Fonasa')
       })
 
-      expect(obtenerDescuentoConvenio).toHaveBeenCalledWith('Fonasa')
+      expect(obtenerPrecioPrestacionConvenio).toHaveBeenCalledWith(expect.objectContaining({
+        convenioIdentificador: 'Fonasa', especialidad: 'Endodoncia', precioParticular: 100000,
+      }))
+      expect(obtenerDescuentoConvenio).toHaveBeenCalledWith('Fonasa', 'Endodoncia')
       // 100000 - 20% = 80000
       expect(result.current.valorPrestacion).toBe(80000)
       expect(result.current.precioBaseOriginal).toBe(100000)
@@ -152,10 +170,35 @@ describe('usePresupuestoForm (Commit G3)', () => {
       expect(nuevos).toHaveLength(1)
       expect(nuevos[0].prestacion).toBe('Corona')
       expect(nuevos[0].valor).toBe(100000)
+      expect(nuevos[0].precioBase).toBe(100000)
+      expect(nuevos[0].precioOrigen).toBe('catalogo')
       expect(nuevos[0].estado).toBe('Pendiente')
       expect(pacientesStorageService.guardarItem).toHaveBeenCalledWith(
         'presupuesto_items_42', nuevos
       )
+    })
+
+    it('conserva el origen y la sucursal del precio aplicado en el ítem', () => {
+      mockObtenerPrecioPrestacionConvenio.mockReturnValueOnce({
+        precioBase: 70000,
+        precio: 70000,
+        descuentoPct: 0,
+        origen: 'convenio-precio-fijo',
+        sucursalId: 'sede-1',
+      })
+      const setItems = vi.fn()
+      const { result } = renderHook(() => usePresupuestoForm({ paciente, itemsPresupuesto: [], setItemsPresupuesto: setItems }))
+
+      act(() => result.current.handleSeleccionarPrestacion(1, 'Seguro'))
+      act(() => result.current.handleAgregarItemPresupuesto({ preventDefault: vi.fn() }))
+
+      const item = setItems.mock.calls[0][0][0]
+      expect(item).toMatchObject({
+        precioBase: 70000,
+        valor: 70000,
+        precioOrigen: 'convenio-precio-fijo',
+        sucursalIdPrecio: 'sede-1',
+      })
     })
 
     it('sin nombre de prestación no agrega nada', () => {

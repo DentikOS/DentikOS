@@ -1,7 +1,15 @@
 import React from 'react'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 import { Odontograma } from './Odontograma'
+import { fichasClinicasStorageService } from '../../../services/fichasClinicasStorageService'
+
+vi.mock('../../../services/fichasClinicasStorageService', () => ({
+  fichasClinicasStorageService: {
+    obtenerFichaClinica: vi.fn().mockResolvedValue(null),
+    guardarSeccionFicha: vi.fn().mockResolvedValue(true),
+  },
+}))
 
 describe('Odontograma BP06', () => {
   it('renderiza arcadas superior e inferior con 32 piezas', () => {
@@ -37,14 +45,19 @@ describe('Odontograma BP06', () => {
     expect(screen.getByLabelText(/Deslizador temporal antes\/después/i)).toBeInTheDocument()
   })
 
-  it('llama a onGuardar con los datos modificados', () => {
+  it('llama a onGuardar solo después de persistir los datos del paciente', async () => {
+    vi.mocked(fichasClinicasStorageService.obtenerFichaClinica).mockResolvedValue(null)
+    vi.mocked(fichasClinicasStorageService.guardarSeccionFicha).mockResolvedValue(true)
     const onGuardar = vi.fn()
-    render(<Odontograma onGuardar={onGuardar} />)
+    render(<Odontograma pacienteId="paciente-1" onGuardar={onGuardar} />)
 
     const btnGuardar = screen.getByText('Guardar Odontograma')
     fireEvent.click(btnGuardar)
 
-    expect(onGuardar).toHaveBeenCalled()
+    await waitFor(() => expect(onGuardar).toHaveBeenCalled())
+    expect(fichasClinicasStorageService.guardarSeccionFicha).toHaveBeenCalledWith(
+      'paciente-1', 'odontograma', expect.objectContaining({ piezasData: expect.any(Object) })
+    )
   })
 
   it('abre el panel lateral al hacer click en una pieza dental con sus 5 caras', () => {

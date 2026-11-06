@@ -1,10 +1,13 @@
 import React, { memo } from 'react'
 import type { PresupuestoItemLocal } from '../../budget/services/presupuestosStorageService'
+import { formatearImporteDocumento, resolverIdiomaDocumento, resolverMonedaDocumento } from '../../../../shared/utils/formatoDocumento'
 
 export interface SelectorPrestacionesImputadasProps {
   prestaciones?: PresupuestoItemLocal[]
   seleccionadas: string[]
   onToggle: (labelItem: string) => void
+  moneda?: string
+  idioma?: string
 }
 
 /**
@@ -16,9 +19,13 @@ export interface SelectorPrestacionesImputadasProps {
 export const SelectorPrestacionesImputadas: React.FC<SelectorPrestacionesImputadasProps> = memo(({
   prestaciones,
   seleccionadas,
-  onToggle
+  onToggle,
+  moneda: monedaProp,
+  idioma: idiomaProp,
 }) => {
   if (!prestaciones || prestaciones.length === 0) return null
+  const moneda = resolverMonedaDocumento(monedaProp)
+  const idioma = resolverIdiomaDocumento(idiomaProp)
 
   return (
     <div className="bg-gray-50 dark:bg-graphite-800 p-3 rounded-xl border space-y-1.5">
@@ -27,9 +34,7 @@ export const SelectorPrestacionesImputadas: React.FC<SelectorPrestacionesImputad
       </label>
       <div className="space-y-1 max-h-28 overflow-y-auto">
         {prestaciones.map((p) => {
-          const labelItem = `${p.prestacion || 'Tratamiento'} (${p.pieza || 'General'}) - $${(
-            parseFloat(String(p.valor ?? 0)) || 0
-          ).toLocaleString('es-CL')}`
+          const labelItem = `${p.prestacion || p.nombrePrestacion || p.prestacionNombre || 'Tratamiento'} (${p.pieza || p.piezaDental || 'General'}) - ${formatearImporteDocumento(p.subtotal ?? p.valor ?? p.precio ?? p.precioUnitario, moneda, idioma)}`
           const estaCheck = seleccionadas.includes(labelItem)
 
           return (

@@ -127,7 +127,7 @@ describe('useKeyboardShortcuts (Blueprint 02 §07)', () => {
         shiftKey: true,
       })
     )
-    expect(useSidebarStore.getState().theme).toBe('surgical')
+    expect(useSidebarStore.getState().theme).toBe('dark')
   })
 
   it('sale de Modo Foco al pulsar Escape', () => {

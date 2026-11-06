@@ -121,8 +121,17 @@ const sincronizarDesdeSupabase = async (): Promise<Cita[] | null> => {
 const COLUMNAS_DB_CITAS = new Set([
   'id', 'user_id', 'clinica_id', 'paciente_id', 'paciente_nombre',
   'fecha', 'hora_inicio', 'hora_fin', 'estado', 'motivo', 'notas',
-  'deleted_at'
+  'deleted_at', 'sede_id', 'box_id'
 ])
+
+const esErrorColumnaAgendaBp08 = (error: { code?: string } | null): boolean =>
+  error?.code === '42703' || error?.code === 'PGRST204'
+
+const sinVinculosBp08 = (filas: Record<string, unknown>[]): boolean =>
+  filas.every((fila) => fila.sede_id == null && fila.box_id == null)
+
+const quitarVinculosBp08 = (filas: Record<string, unknown>[]): Record<string, unknown>[] =>
+  filas.map(({ sede_id: _sedeId, box_id: _boxId, ...fila }) => fila)
 
 const sanitizarParaSupabase = (fila: Record<string, unknown>): Record<string, unknown> => {
   const limpio: Record<string, unknown> = {}
@@ -202,10 +211,16 @@ const guardarCitas = async (citas: unknown): Promise<boolean> => {
         return limpio
       })
 
-      const { error: insertError, data: insertData } = await supabase
+      let { error: insertError, data: insertData } = await supabase
         .from('citas')
         .insert(paraInsert)
         .select()
+
+      if (esErrorColumnaAgendaBp08(insertError) && sinVinculosBp08(paraInsert)) {
+        const legado = await supabase.from('citas').insert(quitarVinculosBp08(paraInsert)).select()
+        insertError = legado.error
+        insertData = legado.data
+      }
 
       if (insertError) {
         log.error('Error insertando citas en Supabase:', insertError)
@@ -240,9 +255,14 @@ const guardarCitas = async (citas: unknown): Promise<boolean> => {
         })
       })
 
-      const { error: updateError } = await supabase
+      let { error: updateError } = await supabase
         .from('citas')
         .upsert(paraUpdate, { onConflict: 'id' })
+
+      if (esErrorColumnaAgendaBp08(updateError) && sinVinculosBp08(paraUpdate)) {
+        const legado = await supabase.from('citas').upsert(quitarVinculosBp08(paraUpdate), { onConflict: 'id' })
+        updateError = legado.error
+      }
 
       if (updateError) {
         log.error('Error actualizando citas en Supabase:', updateError)

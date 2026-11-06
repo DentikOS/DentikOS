@@ -1,4 +1,4 @@
-import React, { useState, memo } from 'react'
+import React, { useState, memo, useMemo } from 'react'
 import { CalendarPlus, X, CheckCircle2, TriangleAlert, Calendar } from 'lucide-react'
 import { Modal } from '../../../../../shared/ui/ui/Modal'
 import { Button } from '../../../../../shared/ui/ui/Button'
@@ -9,6 +9,10 @@ import { useAgendaStore } from '../../../../../app/stores/useAgendaStore'
 import { agendaStorageService } from '../../../../operations/agenda/services/agendaStorageService'
 import { timelineService } from '../../services/timelineService'
 import { BOXES_CITA_RAPIDA, PRESTACIONES_DEFAULT_RAPIDAS, obtenerFechaMananaISO, sumarMinutosHora } from './agendarCitaRapida.helpers'
+import { useSedes } from '../../../../organization/clinic/hooks/useSedes'
+import { useBoxesClinicos } from '../../../../organization/clinic/hooks/useBoxesClinicos'
+import { filtrarBoxesCompatibles } from '../../../../operations/agenda/utils/boxesCompatibles'
+import { citasCompartenBoxAgenda } from '../../../../../shared/utils/boxAgenda'
 import type { Paciente } from '../../schemas/pacienteSchema'
 import type { Cita } from '../../../../operations/agenda/schemas/citaSchema'
 
@@ -24,27 +28,76 @@ export const ModalAgendarCitaRapida: React.FC<ModalAgendarCitaRapidaProps> = mem
   paciente, doctorTratante, isOpen, onClose, onCitaCreada,
 }) => {
   const { doctores } = useDoctoresClinica(), prestaciones = usePrestacionesStore((s) => s.prestacionesArancel), citasExistentes = useAgendaStore((s) => s.citas)
+  const { sedes, sedeActivaId } = useSedes()
+  const [sedeId, setSedeId] = useState(() => sedeActivaId || '')
+  const { boxes, cargando: cargandoBoxes, error: errorBoxes } = useBoxesClinicos(sedeId || null)
   const [fecha, setFecha] = useState(obtenerFechaMananaISO), [hora, setHora] = useState('09:00')
   const [duracion, setDuracion] = useState(30), [box, setBox] = useState(BOXES_CITA_RAPIDA[0])
+  const [boxId, setBoxId] = useState('')
   const [doctorId, setDoctorId] = useState(() => paciente.doctorTratanteId || doctores[0]?.id || '')
   const [motivo, setMotivo] = useState(''), [notas, setNotas] = useState(''), [citaCreada, setCitaCreada] = useState<Cita | null>(null)
 
-  if (!isOpen) return null
   const doc = doctores.find((d) => d.id === doctorId)
   const nombreDoctor: string = doc?.nombre || (typeof doctorTratante === 'string' ? doctorTratante : '') || (typeof paciente.doctorTratante === 'string' ? paciente.doctorTratante : '') || 'Doctor de Turno'
   const listaMotivos = prestaciones.length > 0 ? prestaciones.map((p) => p.nombre) : PRESTACIONES_DEFAULT_RAPIDAS
   const motivoFinal = motivo || listaMotivos[0]
-  const conflicto = citasExistentes.some((c) => c.fecha === fecha && c.horaInicio === hora && (c.doctor === nombreDoctor || c.boxAsignado === box))
+  const prestacionSeleccionada = prestaciones.find((prestacion) => prestacion.nombre === motivoFinal)
+  const equipamientoRequerido = useMemo(
+    () => prestacionSeleccionada?.equipamientoRequerido ?? [],
+    [prestacionSeleccionada]
+  )
+  const sucursalesActivas = useMemo(
+    () => sedes.filter((sede) => sede.estado === 'activa' || (!sede.estado && sede.activa)),
+    [sedes]
+  )
+  const boxesCompatibles = useMemo(
+    () => filtrarBoxesCompatibles(boxes, equipamientoRequerido),
+    [boxes, equipamientoRequerido]
+  )
+  const usaCatalogoDeBoxes = Boolean(sedeId)
+  const opcionesBoxes = usaCatalogoDeBoxes
+    ? boxesCompatibles.map((item) => ({ value: item.id || '', label: item.nombre }))
+    : BOXES_CITA_RAPIDA.map((nombre) => ({ value: nombre, label: nombre }))
+  const sucursalValida = sucursalesActivas.length === 0 || sucursalesActivas.some((sede) => sede.id === sedeId)
+  const boxAgendaValido = sucursalValida && (
+    usaCatalogoDeBoxes
+      ? !cargandoBoxes && !errorBoxes && boxesCompatibles.length > 0 && boxesCompatibles.some((item) => item.id === boxId)
+      : equipamientoRequerido.length === 0
+  )
+  const mensajeBoxes = !sucursalValida
+    ? 'Selecciona una sucursal activa.'
+    : equipamientoRequerido.length > 0 && !sedeId
+      ? 'Esta prestación requiere un box configurado con su equipamiento. Selecciona una sucursal.'
+      : usaCatalogoDeBoxes && cargandoBoxes
+        ? 'Sincronizando boxes…'
+        : usaCatalogoDeBoxes && errorBoxes
+          ? 'No se pudo verificar el catálogo de boxes. Revisa la conexión.'
+          : usaCatalogoDeBoxes && boxesCompatibles.length === 0
+            ? 'No hay boxes activos compatibles con esta prestación.'
+            : usaCatalogoDeBoxes && !boxesCompatibles.some((item) => item.id === boxId)
+              ? 'Selecciona un box disponible.'
+              : ''
+  const citaTentativa = { sedeId, boxId, boxAsignado: box }
+  const conflicto = citasExistentes.some((c) => c.fecha === fecha && c.horaInicio === hora && (
+    c.doctor === nombreDoctor || citasCompartenBoxAgenda(c, citaTentativa)
+  ))
+
+  if (!isOpen) return null
 
   const handleGuardar = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!boxAgendaValido) {
+      notificationService.mostrar(mensajeBoxes || 'Selecciona un box compatible antes de agendar.', { tipo: 'error' })
+      return
+    }
     try {
       const fechaISO = fecha.split('T')[0]
       const nuevaCita: Cita = {
         id: `cita-${Date.now()}`, fecha: fechaISO, horaInicio: hora, horaFin: sumarMinutosHora(hora, duracion),
         estado: 'Pendiente', pacienteId: paciente.id, pacienteNombre: paciente.nombre || paciente.nombreCompleto,
         pacienteRut: paciente.rut, pacienteTelefono: paciente.telefono ? String(paciente.telefono) : undefined, doctor: nombreDoctor,
-        boxAsignado: box, motivo: motivoFinal, trataMiento: motivoFinal, duracionMinutos: duracion, observaciones: notas.trim() || undefined,
+        boxAsignado: box, sedeId: sedeId || null, boxId: boxId || null,
+        motivo: motivoFinal, trataMiento: motivoFinal, duracionMinutos: duracion, observaciones: notas.trim() || undefined,
       }
       const actuales = useAgendaStore.getState().citas
       await agendaStorageService.guardarCitas([...actuales, nuevaCita])
@@ -103,11 +156,40 @@ export const ModalAgendarCitaRapida: React.FC<ModalAgendarCitaRapidaProps> = mem
             </div>
             <div>
               <label className="block text-[11px] font-semibold text-graphite-700 dark:text-graphite-300 mb-0.5">Box / Sillón</label>
-              <select value={box} onChange={(e) => setBox(e.target.value)} className="w-full p-2 bg-surface border border-surface rounded-xl text-xs">
-                {BOXES_CITA_RAPIDA.map((b) => (<option key={b} value={b}>{b}</option>))}
+              <select
+                value={usaCatalogoDeBoxes ? boxId : box}
+                onChange={(e) => {
+                  const value = e.target.value
+                  const selected = boxesCompatibles.find((item) => item.id === value)
+                  if (usaCatalogoDeBoxes && selected) {
+                    setBoxId(selected.id || '')
+                    setBox(selected.nombre)
+                  } else {
+                    setBoxId('')
+                    setBox(value)
+                  }
+                }}
+                className="w-full p-2 bg-surface border border-surface rounded-xl text-xs"
+              >
+                {usaCatalogoDeBoxes && <option value="">Selecciona un box</option>}
+                {opcionesBoxes.map((opcion) => (<option key={opcion.value} value={opcion.value}>{opcion.label}</option>))}
               </select>
             </div>
           </div>
+          {sucursalesActivas.length > 0 && (
+            <div>
+              <label className="block text-[11px] font-semibold text-graphite-700 dark:text-graphite-300 mb-0.5">Sucursal</label>
+              <select
+                value={sedeId}
+                onChange={(e) => { setSedeId(e.target.value); setBoxId(''); setBox('') }}
+                required
+                className="w-full p-2 bg-surface border border-surface rounded-xl text-xs"
+              >
+                <option value="">Selecciona una sucursal</option>
+                {sucursalesActivas.map((sede) => <option key={sede.id} value={sede.id}>{sede.nombre}</option>)}
+              </select>
+            </div>
+          )}
           <div className="grid grid-cols-3 gap-2">
             <div>
               <label className="block text-[11px] font-semibold text-graphite-700 dark:text-graphite-300 mb-0.5">Fecha</label>
@@ -139,7 +221,8 @@ export const ModalAgendarCitaRapida: React.FC<ModalAgendarCitaRapidaProps> = mem
               <TriangleAlert className="w-3.5 h-3.5 shrink-0" /><span>Atención: Posible sobrecupo o cruce en este bloque.</span>
             </div>
           )}
-          <div className="flex justify-end gap-2 pt-2 border-t border-surface"><Button type="button" variant="ghost" size="sm" onClick={onClose}>Cancelar</Button><Button type="submit" variant="primary" size="sm">Agendar Cita</Button></div>
+          {mensajeBoxes && <p role="status" className="rounded-lg border border-amber-200 bg-amber-50 p-2 text-[11px] text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300">{mensajeBoxes}</p>}
+          <div className="flex justify-end gap-2 pt-2 border-t border-surface"><Button type="button" variant="ghost" size="sm" onClick={onClose}>Cancelar</Button><Button type="submit" variant="primary" size="sm" disabled={!boxAgendaValido}>Agendar Cita</Button></div>
         </form>
       )}
     </Modal>

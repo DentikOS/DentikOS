@@ -15,6 +15,24 @@ vi.mock('./services/fichasClinicasStorageService', () => ({
     suscribirCambiosFicha: vi.fn(() => () => {}),
   },
 }))
+vi.mock('../../organization/clinic/hooks/useConfiguracionFinanciera', () => ({
+  useConfiguracionFinanciera: () => ({
+    configuracion: {
+      validezPresupuestoDias: 15,
+      maximoCuotasSinInteres: 6,
+      frecuenciaCuotas: 'mensual',
+      descuentoMaximoPermitidoPct: 50,
+      requiereMotivoDescuento: true,
+    },
+    cargando: false,
+    cargada: true,
+    guardando: false,
+    error: null,
+    clinicaId: 'clinica-1',
+    esAdmin: true,
+    guardar: vi.fn(),
+  }),
+}))
 
 describe('Flujo Clínico E2E de Persistencia BP06 + BP07', () => {
   beforeEach(() => {
@@ -94,29 +112,25 @@ describe('Flujo Clínico E2E de Persistencia BP06 + BP07', () => {
     })
   })
 
-  it('emite presupuesto con convenio ISAPRE y luego registra pago manual con boleta SII', () => {
+  it('crea un borrador con una prestación revisada y registra pago manual', async () => {
     const onGuardarPresupuesto = vi.fn()
     render(
       <ModalNuevoPresupuesto
         pacienteId="pac-e2e"
         pacienteNombre="Francisca Lagos"
+        itemsIniciales={[{ id: 'item-e2e', nombrePrestacion: 'Prestación revisada', cantidad: 1, precioUnitario: 300000, descuento: 0, subtotal: 300000, faseClinica: 'estabilizacion' }]}
         onGuardar={onGuardarPresupuesto}
         onCerrar={vi.fn()}
       />
     )
 
-    // Seleccionar previsión Banmédica (20% convenio)
-    const selectPrevision = screen.getByRole('combobox')
-    fireEvent.change(selectPrevision, { target: { value: 'banmedica' } })
-    expect(screen.getAllByText(/20%/i).length).toBeGreaterThan(0)
-
     fireEvent.click(screen.getByTestId('btn-guardar-presupuesto'))
-    expect(onGuardarPresupuesto).toHaveBeenCalledWith(
+    await waitFor(() => expect(onGuardarPresupuesto).toHaveBeenCalledWith(
       expect.objectContaining({
         estado: 'borrador',
-        prevision: 'banmedica',
+        totalAPagar: 300000,
       })
-    )
+    ))
 
     // Registrar pago para liquidar presupuesto
     const onRegistrarPago = vi.fn()
@@ -135,7 +149,6 @@ describe('Flujo Clínico E2E de Persistencia BP06 + BP07', () => {
       expect.objectContaining({
         monto: 300000,
         nuevoEstado: 'completado',
-        boletaSii: expect.objectContaining({ emitida: true }),
       })
     )
   })

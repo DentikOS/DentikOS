@@ -10,11 +10,13 @@ describe('pacientesTransformations', () => {
   it('mapea correctamente campos snake_case a camelCase', () => {
     const pacienteDb = {
       id: 'uuid-1',
+      clinica_id: 'aaaaaaaa-0000-4000-8000-000000000014',
       contacto_emergencia: 'Mamá',
       examen_intraoral: 'Sin hallazgos',
       otra_columna: 'valor'
     }
     const js = transformarDesdeSupabase(pacienteDb)
+    expect(js.clinicaId).toBe('aaaaaaaa-0000-4000-8000-000000000014')
     expect(js.contactoEmergencia).toBe('Mamá')
     expect(js.examenIntraoral).toBe('Sin hallazgos')
     expect(js.otra_columna).toBe('valor')
@@ -52,6 +54,7 @@ describe('pacientesTransformations', () => {
   it('mapea correctamente columnas BP06 bidireccionalmente', () => {
     const pacienteJs = {
       id: 'uuid-1',
+      clinicaId: 'aaaaaaaa-0000-4000-8000-000000000014',
       doctorTratanteId: 'doc-uuid-123',
       motivoBloqueo: 'Mora prolongada',
       fechaUltimaVisita: '2026-05-10T10:00:00Z',
@@ -62,6 +65,7 @@ describe('pacientesTransformations', () => {
     }
 
     const db = transformarParaSupabase(pacienteJs)
+    expect(db.clinica_id).toBe('aaaaaaaa-0000-4000-8000-000000000014')
     expect(db.doctor_tratante_id).toBe('doc-uuid-123')
     expect(db.motivo_bloqueo).toBe('Mora prolongada')
     expect(db.fecha_ultima_visita).toBe('2026-05-10T10:00:00Z')
@@ -71,6 +75,7 @@ describe('pacientesTransformations', () => {
     expect(db.etiquetas).toEqual(['vip', 'ortodoncia'])
 
     const transformadoDeVuelta = transformarDesdeSupabase(db)
+    expect(transformadoDeVuelta.clinicaId).toBe('aaaaaaaa-0000-4000-8000-000000000014')
     expect(transformadoDeVuelta.doctorTratanteId).toBe('doc-uuid-123')
     expect(transformadoDeVuelta.motivoBloqueo).toBe('Mora prolongada')
     expect(transformadoDeVuelta.fechaUltimaVisita).toBe('2026-05-10T10:00:00Z')

@@ -2,10 +2,12 @@ import React from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import { Button } from '../../../../../shared/ui/ui/Button'
 import type { ItemPresupuesto } from '../../schemas/presupuestoSchema'
+import { formatearImporteDocumento } from '../../../../../shared/utils/formatoDocumento'
 
 interface ModalPresupuestoItemsViewProps {
   vista: 'simplificada' | 'detallada'
   items: ItemPresupuesto[]
+  moneda?: string
   onAgregarItem: (fase?: ItemPresupuesto['faseClinica']) => void
   onEliminarItem: (id: string | number) => void
   onUpdateItem: (id: string | number, campo: keyof ItemPresupuesto, valor: unknown) => void
@@ -14,6 +16,7 @@ interface ModalPresupuestoItemsViewProps {
 export const ModalPresupuestoItemsView: React.FC<ModalPresupuestoItemsViewProps> = ({
   vista,
   items,
+  moneda = 'CLP',
   onAgregarItem,
   onEliminarItem,
   onUpdateItem,
@@ -31,14 +34,14 @@ export const ModalPresupuestoItemsView: React.FC<ModalPresupuestoItemsViewProps>
                   Fase {fase} ({itemsFase.length} prestaciones)
                 </span>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-mono font-bold text-primary">${subtotalFase.toLocaleString('es-CL')}</span>
+                  <span className="text-xs font-mono font-bold text-primary">{formatearImporteDocumento(subtotalFase, moneda)}</span>
                   <button type="button" onClick={() => onAgregarItem(fase)} className="text-xs text-primary hover:underline font-semibold">+ Agregar</button>
                 </div>
               </div>
               {itemsFase.map((it) => (
                 <div key={it.id} className="flex items-center justify-between text-xs py-1 text-graphite-600 dark:text-graphite-400">
                   <span>{it.nombrePrestacion}</span>
-                  <span>${it.subtotal.toLocaleString('es-CL')}</span>
+                  <span>{formatearImporteDocumento(it.subtotal, moneda)}</span>
                 </div>
               ))}
             </div>
@@ -61,7 +64,7 @@ export const ModalPresupuestoItemsView: React.FC<ModalPresupuestoItemsViewProps>
           <div className="col-span-2">
             <input type="number" value={it.cantidad} onChange={(e) => onUpdateItem(it.id, 'cantidad', Number(e.target.value))} className="w-full p-1.5 bg-surface border border-surface rounded-lg text-xs font-mono" />
           </div>
-          <div className="col-span-2 text-right font-mono font-bold text-primary">${it.subtotal.toLocaleString('es-CL')}</div>
+          <div className="col-span-2 text-right font-mono font-bold text-primary">{formatearImporteDocumento(it.subtotal, moneda)}</div>
           <div className="col-span-1 text-center">
             <button type="button" onClick={() => onEliminarItem(it.id)} className="text-graphite-400 hover:text-rose-500" aria-label="Eliminar item">
               <Trash2 className="w-3.5 h-3.5" />

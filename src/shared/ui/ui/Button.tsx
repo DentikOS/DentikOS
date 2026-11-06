@@ -13,7 +13,7 @@ export type ButtonSize = 'sm' | 'md' | 'lg'
 export type ButtonIconPosition = 'left' | 'right'
 
 const VARIANT_STYLES: Record<ButtonVariant, string> = {
-  primary: 'bg-primary hover:bg-champagne-600 dark:bg-champagne-500 dark:hover:bg-champagne-600 text-white shadow-sm',
+  primary: 'bg-primary hover:bg-champagne-400 dark:bg-champagne-300 dark:hover:bg-champagne-200 text-primary-foreground shadow-sm',
   secondary: 'bg-graphite-100 hover:bg-graphite-200 dark:bg-graphite-800 dark:hover:bg-graphite-700 text-graphite-800 dark:text-graphite-100',
   danger: 'bg-clinical-error hover:bg-red-700 text-white shadow-sm',
   ghost: 'bg-transparent hover:bg-graphite-100 dark:hover:bg-graphite-800 text-graphite-700 dark:text-graphite-300',
@@ -21,9 +21,9 @@ const VARIANT_STYLES: Record<ButtonVariant, string> = {
 }
 
 const SIZE_STYLES: Record<ButtonSize, string> = {
-  sm: 'px-3 py-1.5 text-xs rounded-lg gap-1.5',
-  md: 'px-4 py-2 text-sm rounded-lg gap-2',
-  lg: 'px-5 py-2.5 text-base rounded-lg gap-2.5',
+  sm: 'min-h-10 sm:min-h-9 px-3 py-1.5 text-xs rounded-lg gap-1.5',
+  md: 'min-h-11 sm:min-h-10 px-4 py-2 text-sm rounded-lg gap-2',
+  lg: 'min-h-12 sm:min-h-11 px-5 py-2.5 text-base rounded-lg gap-2.5',
 }
 
 const ICON_SIZES: Record<ButtonSize, IconSize> = {
@@ -93,10 +93,11 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
       aria-disabled={isDisabled}
       className={`
         inline-flex items-center justify-center font-semibold
-        transition-all duration-200 ease-out active:scale-[0.97]
-        focus:outline-none focus:ring-2 focus:ring-primary focus:border-focus focus:ring-offset-2 dark:focus:ring-offset-graphite-900
+        transition-[background-color,border-color,color,box-shadow,transform] duration-150 ease-out active:scale-[0.98]
+        focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-focus focus-visible:ring-offset-2 dark:focus-visible:ring-offset-graphite-900
+        motion-reduce:transition-none motion-reduce:active:scale-100
         disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none
-        surgical:min-h-[48px] surgical:min-w-[48px]
+
         ${fullWidth ? 'w-full' : ''}
         ${variantStyle}
         ${sizeStyle}

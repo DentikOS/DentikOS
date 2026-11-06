@@ -1,45 +1,59 @@
 import { usePresupuestosStore } from '../../../../app/stores/presupuestosStore'
+import { supabase, USE_SUPABASE } from '../../../../infrastructure/supabase/supabaseClient'
+import { getClinicaActivaSync } from '../../../../infrastructure/auth/authService'
+import { esUuidValido } from '../../../../infrastructure/supabase/migrations/uuidUtils'
+import { presupuestosStorageService } from './presupuestosStorageService'
+import { notificarImputacionesPagoActualizadas } from './imputacionesPagoService'
 
 export interface RegistrarPagoInput {
+  pagoId?: string
   presupuestoId: string | number
   pacienteId?: string | number
   monto: number
   medioPago: 'efectivo' | 'transferencia' | 'tarjeta' | 'cheque'
   referencia?: string
-  recibidoPor: string
-  generarBoletaSII?: boolean
+  imputaciones?: Array<{ itemId: string; monto: number }>
 }
 
 export const pagosService = {
-  registrarPagoManual: (input: RegistrarPagoInput) => {
-    const store = usePresupuestosStore.getState()
-    const presupuesto = store.presupuestos.find((p) => String(p.id) === String(input.presupuestoId))
-    if (!presupuesto) throw new Error('Presupuesto no encontrado')
-
-    const total = presupuesto.totalAPagar || presupuesto.total || presupuesto.montoTotal || 0
-    const saldoPendiente = total - (presupuesto.montoAbonado || 0)
-    if (input.monto <= 0) throw new Error('El monto debe ser mayor a 0')
-    if (input.monto > saldoPendiente) throw new Error('El monto excede el saldo pendiente')
-
-    const randomHash = Array.from(crypto.getRandomValues(new Uint8Array(8)))
-      .map((b) => b.toString(16).padStart(2, '0')).join('').toUpperCase()
-
-    const boletaSii = input.generarBoletaSII ? {
-      folio: `DTE-${Date.now().toString().slice(-6)}`,
-      hash: `SII-SHA256-${randomHash}`,
-      emitida: true,
-    } : undefined
-
-    store.registrarPago(input.presupuestoId, {
-      monto: input.monto,
-      fecha: new Date().toISOString(),
-      metodoPago: input.medioPago as any,
-      medioPago: input.medioPago,
-      referencia: input.referencia || `Pago ${input.medioPago}`,
-      recibidoPor: input.recibidoPor,
-      boletaSii,
-    } as any)
-
-    return { exito: true, boletaSii }
+  registrarPagoManual: async (input: RegistrarPagoInput) => {
+    if (!USE_SUPABASE || !supabase || !esUuidValido(input.presupuestoId) || !esUuidValido(getClinicaActivaSync())) {
+      throw new Error('Se necesita una sesión clínica activa para registrar el pago.')
+    }
+    if (!Number.isSafeInteger(input.monto) || input.monto <= 0) {
+      throw new Error('El monto debe ser un entero mayor a 0.')
+    }
+    if (input.pagoId && !esUuidValido(input.pagoId)) throw new Error('Identificador de pago inválido.')
+    const imputaciones = input.imputaciones || []
+    const itemIds = new Set<string>()
+    const montoImputado = imputaciones.reduce((total, item) => {
+      if (!esUuidValido(item.itemId) || !Number.isSafeInteger(item.monto) || item.monto <= 0 || itemIds.has(item.itemId)) {
+        throw new Error('Revisa las prestaciones y montos seleccionados para imputar.')
+      }
+      itemIds.add(item.itemId)
+      return total + item.monto
+    }, 0)
+    if (!Number.isSafeInteger(montoImputado) || montoImputado > input.monto) {
+      throw new Error('La suma imputada no puede superar el monto del abono.')
+    }
+    const pagoId = input.pagoId || crypto.randomUUID()
+    const { data, error } = await supabase.rpc('registrar_abono_presupuesto_con_imputaciones', {
+      p_pago_id: pagoId,
+      p_presupuesto_id: String(input.presupuestoId),
+      p_monto: input.monto,
+      p_metodo_pago: input.medioPago,
+      p_referencia: input.referencia?.trim() || null,
+      p_imputaciones: imputaciones.map((item) => ({ item_id: item.itemId, monto: item.monto })),
+    })
+    const confirmado = Array.isArray(data) ? data[0] : data
+    if (error || !confirmado || confirmado.pago_id !== pagoId) {
+      throw new Error('No se pudo registrar el pago. Comprueba el estado y saldo del presupuesto.')
+    }
+    const montoAbonado = Number(confirmado.monto_abonado)
+    const estado = String(confirmado.estado_presupuesto)
+    presupuestosStorageService.aplicarAbonoConfirmado(input.presupuestoId, montoAbonado, estado)
+    usePresupuestosStore.getState().actualizarPresupuesto(input.presupuestoId, { montoAbonado, estado })
+    notificarImputacionesPagoActualizadas()
+    return { exito: true, pagoId, montoAbonado, estado }
   },
 }

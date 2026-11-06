@@ -4,6 +4,8 @@
  * F4-03f-2 (refactorización)
  */
 import React from 'react'
+import { Plus } from 'lucide-react'
+import { Button } from '../../../../shared/ui/ui/Button'
 
 export interface FiltrosVademecumProps {
   familiasDisponibles: string[]
@@ -28,17 +30,18 @@ export const FiltrosVademecum: React.FC<FiltrosVademecumProps> = ({
 }) => {
   return (
     <div className="px-6 py-4 border-b border-gray-200 dark:border-graphite-700 bg-gray-50 dark:bg-graphite-800 space-y-3">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h3 className="text-lg font-bold text-gray-900 dark:text-graphite-50">
           Vademécum Odontológico Regular
         </h3>
         {onCrearNuevo && (
-          <button
+          <Button
             onClick={onCrearNuevo}
-            className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors duration-150"
+            icon={Plus}
+            size="sm"
           >
-            + Nuevo fármaco
-          </button>
+            Nuevo fármaco
+          </Button>
         )}
       </div>
 
@@ -52,7 +55,7 @@ export const FiltrosVademecum: React.FC<FiltrosVademecumProps> = ({
               setTextoBusqueda(e.target.value)
             }}
             placeholder="Buscar por nombre genérico, comercial o presentación..."
-            className="w-full px-3 py-2 border border-gray-300 dark:border-graphite-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 dark:border-graphite-600 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-primary"
           />
         </div>
 
@@ -60,7 +63,7 @@ export const FiltrosVademecum: React.FC<FiltrosVademecumProps> = ({
         <select
           value={familiaSeleccionada}
           onChange={(e) => setFamiliaSeleccionada(e.target.value)}
-          className="px-3 py-2 border border-gray-300 dark:border-graphite-600 rounded-lg text-sm bg-white dark:bg-graphite-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          className="px-3 py-2 border border-gray-300 dark:border-graphite-600 rounded-lg text-sm bg-white dark:bg-graphite-800 focus:ring-2 focus:ring-primary focus:border-primary"
         >
           <option value="">Todas las familias</option>
           {familiasDisponibles.map((familia) => (
@@ -76,7 +79,7 @@ export const FiltrosVademecum: React.FC<FiltrosVademecumProps> = ({
             type="checkbox"
             checked={soloActivos}
             onChange={() => setSoloActivos(!soloActivos)}
-            className="rounded border-gray-300 dark:border-graphite-600 text-blue-600 focus:ring-blue-500"
+            className="rounded border-gray-300 dark:border-graphite-600 text-primary focus:ring-primary"
           />
           <span>Solo activos</span>
         </label>

@@ -39,6 +39,27 @@ export interface FilaVademecumProps {
   onReactivar?: (farmaco: Farmaco | FarmacoVademecum) => void
 }
 
+const PosologiaCelda: React.FC<{ texto?: string }> = ({ texto }) => {
+  if (!texto) return <span>-</span>
+  if (texto.length <= 110) {
+    return <p className="max-w-[18rem] whitespace-normal leading-relaxed">{texto}</p>
+  }
+
+  return (
+    <div className="max-w-[18rem]">
+      <p className="line-clamp-3 whitespace-normal leading-relaxed">{texto}</p>
+      <details className="mt-1.5">
+        <summary className="cursor-pointer rounded text-xs font-semibold text-primary-foreground underline decoration-primary/50 underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 dark:text-gold-satin">
+          Leer posología completa
+        </summary>
+        <p className="mt-2 whitespace-normal break-words text-xs leading-relaxed text-graphite-700 dark:text-graphite-200">
+          {texto}
+        </p>
+      </details>
+    </div>
+  )
+}
+
 export const FilaVademecum: React.FC<FilaVademecumProps> = ({ farmaco, onEditar, onDesactivar, onReactivar }) => {
   return (
     <tr className={`hover:bg-gray-50 dark:hover:bg-graphite-700 ${farmaco.activo === false ? 'opacity-50' : ''}`}>
@@ -56,11 +77,11 @@ export const FilaVademecum: React.FC<FilaVademecumProps> = ({ farmaco, onEditar,
       <td className="px-3 py-3 text-sm text-gray-700 dark:text-graphite-300 max-w-[150px] truncate" title={farmaco.presentacion}>
         {farmaco.presentacion}
       </td>
-      <td className="px-3 py-3 text-sm text-gray-700 dark:text-graphite-300 max-w-[180px] truncate" title={farmaco.posologia_adulto}>
-        {farmaco.posologia_adulto || '-'}
+      <td className="px-3 py-3 align-top text-sm text-gray-700 dark:text-graphite-300">
+        <PosologiaCelda texto={farmaco.posologia_adulto} />
       </td>
-      <td className="px-3 py-3 text-sm text-gray-700 dark:text-graphite-300 max-w-[180px] truncate" title={farmaco.posologia_pediatrica || undefined}>
-        {farmaco.posologia_pediatrica || '-'}
+      <td className="px-3 py-3 align-top text-sm text-gray-700 dark:text-graphite-300">
+        <PosologiaCelda texto={farmaco.posologia_pediatrica} />
       </td>
       <td className="px-3 py-3 text-sm">
         {farmaco.activo === false ? (
@@ -78,7 +99,7 @@ export const FilaVademecum: React.FC<FilaVademecumProps> = ({ farmaco, onEditar,
           {onEditar && (
             <button
               onClick={() => onEditar(farmaco)}
-              className="px-2 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded text-xs font-medium hover:bg-blue-100 transition-colors duration-150"
+              className="min-h-8 rounded-lg border border-graphite-300 bg-white px-2 py-1 text-xs font-medium text-graphite-700 transition-colors duration-150 hover:border-primary hover:bg-gold-light/20 hover:text-graphite-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:border-graphite-600 dark:bg-graphite-800 dark:text-graphite-200 dark:hover:text-graphite-50"
             >
               Editar
             </button>

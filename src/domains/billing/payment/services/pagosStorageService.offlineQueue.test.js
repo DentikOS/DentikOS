@@ -24,6 +24,8 @@ const { estadoMock, mockFrom } = vi.hoisted(() => ({
     user: { id: 'user-cajero-123' },
     supabaseError: null,
     remotePagos: [],
+    cashPayment: null,
+    cashInsertions: 0,
     softDeletedIds: []
   },
   mockFrom: vi.fn()
@@ -56,10 +58,12 @@ import {
   registrarPago,
   procesarColaPagos,
   obtenerPendingPagos,
+  guardarPendingPagos,
   obtenerPendingDeletesPagos,
   sincronizarDesdeSupabase,
   eliminarPago
 } from './pagosStorageService'
+import { procesarColaPagosHelper } from './pagosOfflineQueueService'
 
 const configurarClinica = (clinicaId) => {
   estadoMock.clinicaId = clinicaId
@@ -73,13 +77,28 @@ describe('P1-3: Cola de Pagos (pendingPagos)', () => {
     pagosStorageService.resetCache()
     estadoMock.supabaseError = null
     estadoMock.remotePagos = []
+    estadoMock.cashPayment = null
+    estadoMock.cashInsertions = 0
     estadoMock.softDeletedIds = []
 
     mockFrom.mockImplementation((tabla) => {
       if (tabla !== 'pagos') return {}
 
       return {
-        select: vi.fn(() => ({
+        select: vi.fn((columns) => {
+          if (String(columns).includes('caja_sesion_id')) {
+            const filters = {}
+            const query = {
+              eq: vi.fn((column, value) => { filters[column] = value; return query }),
+              maybeSingle: vi.fn(async () => {
+                const row = estadoMock.cashPayment
+                const matches = row && Object.entries(filters).every(([column, value]) => row[column] === value)
+                return { data: matches ? row : null, error: null }
+              })
+            }
+            return query
+          }
+          return {
           order: vi.fn(async () => {
             if (estadoMock.supabaseError) {
               return { data: null, error: estadoMock.supabaseError }
@@ -93,15 +112,21 @@ describe('P1-3: Cola de Pagos (pendingPagos)', () => {
               resolve({ data: estadoMock.remotePagos, error: null })
             }
           }
-        })),
-        insert: vi.fn(() => ({
+          }
+        }),
+        insert: vi.fn((payload) => ({
           select: vi.fn(() => ({
             single: vi.fn(async () => {
               if (estadoMock.supabaseError) {
                 return { data: null, error: estadoMock.supabaseError }
               }
+              const id = payload.id || 'a1b2c3d4-1111-2222-3333-444455556666'
+              if (['efectivo', 'cash'].includes(String(payload.metodo_pago).toLowerCase())) {
+                estadoMock.cashInsertions += 1
+                estadoMock.cashPayment = { ...payload, id, caja_sesion_id: 'session-caja-confirmada' }
+              }
               return {
-                data: { id: 'a1b2c3d4-1111-2222-3333-444455556666' },
+                data: { id },
                 error: null
               }
             })
@@ -182,7 +207,7 @@ describe('P1-3: Cola de Pagos (pendingPagos)', () => {
       pacienteId: 'uuid-paciente-2',
       pacienteNombre: 'Felipe Ramos',
       monto: 80000,
-      metodoPago: 'Efectivo',
+      metodoPago: 'Transferencia',
       concepto: 'Endodoncia sesión 1'
     })
 
@@ -204,6 +229,80 @@ describe('P1-3: Cola de Pagos (pendingPagos)', () => {
     const pagoSincronizado = locales.find((p) => p.folioComprobante === 'REC-2026-992')
     expect(pagoSincronizado).toBeDefined()
     expect(pagoSincronizado.sincronizado).toBe(true)
+  })
+
+  it('rechaza el efectivo sin confirmación remota y no persiste ni en caché ni en cola offline', async () => {
+    estadoMock.supabaseError = new Error('no-session: abre la caja')
+    const pago = {
+      id: 996,
+      folioComprobante: 'REC-2026-996',
+      pacienteNombre: 'Paciente de prueba',
+      monto: 25000,
+      metodoPago: 'Efectivo'
+    }
+
+    const resultado = await registrarPago(pago)
+
+    expect(resultado).toBeNull()
+    expect(pagosStorageService.obtenerPagos()).toEqual([])
+    expect(obtenerPendingPagos()).toEqual([])
+  })
+
+  it('publica efectivo en caché solo después de que Supabase devuelve el ID confirmado', async () => {
+    const resultado = await registrarPago({
+      id: 997,
+      folioComprobante: 'REC-2026-997',
+      pacienteNombre: 'Paciente de prueba',
+      monto: 25000,
+      metodoPago: 'Cash'
+    })
+
+    expect(resultado).toMatchObject({ id: 'a1b2c3d4-1111-2222-3333-444455556666', sincronizado: true })
+    expect(pagosStorageService.obtenerPagos()).toEqual([resultado])
+    expect(obtenerPendingPagos()).toEqual([])
+  })
+
+  it('reintentar el mismo ID de efectivo confirma el registro existente sin duplicarlo', async () => {
+    const pago = {
+      id: '77777777-7777-4777-8777-777777777777',
+      folioComprobante: 'REC-2026-IDEMP',
+      pacienteId: '66666666-6666-4666-8666-666666666666',
+      pacienteNombre: 'Paciente de prueba',
+      fecha: '06/11/2026',
+      monto: 25000,
+      moneda: 'CLP',
+      metodoPago: 'Efectivo',
+      concepto: 'Tratamiento'
+    }
+
+    const primera = await registrarPago(pago)
+    const segunda = await registrarPago(pago)
+
+    expect(primera?.sincronizado).toBe(true)
+    expect(segunda?.sincronizado).toBe(true)
+    expect(estadoMock.cashInsertions).toBe(1)
+    expect(obtenerPendingPagos()).toEqual([])
+
+    const datosDistintos = await registrarPago({ ...pago, monto: 30000 })
+    expect(datosDistintos).toBeNull()
+    expect(estadoMock.cashInsertions).toBe(1)
+  })
+
+  it('convierte efectivo offline legado en borrador y nunca lo confirma al volver la red', async () => {
+    const pago = { id: 998, folioComprobante: 'REC-2026-998', monto: 50000, metodoPago: 'Efectivo',
+      estado: 'Emitido', sincronizado: false }
+    guardarPendingPagos([{ id: pago.id, folio: pago.folioComprobante, clinicaId: 'clinica-A' }])
+    let locales = [pago]
+    const resultado = await procesarColaPagosHelper({
+      obtenerPagos: () => locales,
+      actualizarPagosLocal: (next) => { locales = next }
+    })
+
+    expect(resultado.borradoresEfectivo).toBe(1)
+    expect(resultado.procesados).toBe(0)
+    expect(locales[0]).toMatchObject({ estado: 'Borrador sin confirmar', sincronizado: false })
+    expect(obtenerPendingPagos()).toEqual([])
+    expect(mockFrom).not.toHaveBeenCalled()
   })
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -301,7 +400,7 @@ describe('P1-3: Cola de Pagos (pendingPagos)', () => {
       pacienteId: 'uuid-paciente-5',
       pacienteNombre: 'Paciente Clinica A',
       monto: 120000,
-      metodoPago: 'Efectivo'
+      metodoPago: 'Transferencia'
     })
 
     expect(obtenerPendingPagos().length).toBe(1)

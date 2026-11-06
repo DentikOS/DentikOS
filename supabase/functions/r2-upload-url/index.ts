@@ -11,10 +11,11 @@
 // Input (JSON body):
 // {
 //   "paciente_id": "uuid",
-//   "categoria": "radiografia" | "foto_intraoral" | "foto_clinica" | "pdf" | "documento" | "otro",
+//   "categoria": "radiografia" | "foto_intraoral" | "foto_clinica" | "pdf" | "documento" | "otro" | "laboratorio",
 //   "nombre_archivo": "radiografia_panoramica.jpg",
 //   "mime_type": "image/jpeg",
-//   "tamano_bytes": 5242880
+//   "tamano_bytes": 5242880,
+//   "orden_laboratorio_id": "uuid", "tipo_documento": "foto_diseno"
 // }
 //
 // Output (JSON):
@@ -134,7 +135,15 @@ export async function handler(req: Request): Promise<Response> {
 
     // 2. Parsear body
     const body = await req.json();
-    const { paciente_id, categoria, nombre_archivo, mime_type, tamano_bytes } = body;
+    const {
+      paciente_id,
+      categoria,
+      nombre_archivo,
+      mime_type,
+      tamano_bytes,
+      orden_laboratorio_id,
+      tipo_documento,
+    } = body;
 
     // 3. Validar inputs
     if (!paciente_id || !categoria || !nombre_archivo || !mime_type || !tamano_bytes) {
@@ -144,9 +153,27 @@ export async function handler(req: Request): Promise<Response> {
       );
     }
 
-    const validCategorias = ["radiografia", "foto_intraoral", "foto_clinica", "pdf", "documento", "otro"];
+    const validCategorias = ["radiografia", "foto_intraoral", "foto_clinica", "pdf", "documento", "otro", "laboratorio"];
     if (!validCategorias.includes(categoria)) {
       return jsonResponse({ error: `Invalid categoria. Must be one of: ${validCategorias.join(", ")}` }, 400);
+    }
+
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (typeof paciente_id !== "string" || !uuidPattern.test(paciente_id)) {
+      return jsonResponse({ error: "Invalid patient reference" }, 400);
+    }
+    if (categoria === "laboratorio") {
+      const tiposDocumento = [
+        "orden_trabajo", "receta_protesica", "diseno_cad", "foto_diseno",
+        "radiografia_control", "certificado_materiales", "garantia_trabajo",
+        "evidencia_garantia", "otro",
+      ];
+      if (typeof orden_laboratorio_id !== "string" || !uuidPattern.test(orden_laboratorio_id)
+          || typeof tipo_documento !== "string" || !tiposDocumento.includes(tipo_documento)) {
+        return jsonResponse({ error: "A laboratory file requires a valid order and document type" }, 400);
+      }
+    } else if (orden_laboratorio_id !== undefined || tipo_documento !== undefined) {
+      return jsonResponse({ error: "Order links are only supported for laboratory files" }, 400);
     }
 
     if (tamano_bytes < 0 || tamano_bytes > 50 * 1024 * 1024) {
@@ -177,29 +204,40 @@ export async function handler(req: Request): Promise<Response> {
       );
     }
 
-    // 4. Obtener clínica del usuario (miembros_clinica)
-    const clinicaResult = await fetch(
-      `${supabaseUrl}/rest/v1/miembros_clinica?user_id=eq.${userId}&select=clinica_id`,
-      {
-        headers: {
-          Authorization: `Bearer ${supabaseServiceKey}`,
-          apikey: supabaseServiceKey,
-        },
-      }
-    ).then((res) => res.json());
-
-    if (!clinicaResult || clinicaResult.length === 0) {
-      return jsonResponse({ error: "User not associated with any clínica" }, 403);
-    }
-
-    // F7-34: Obtener clinica activa del user_metadata del JWT (establecida por setClinicaActiva)
+    // 4. Confirmar la clínica seleccionada y la membresía activa antes de
+    // consultar referencias clínicas usando la clave de servicio.
     const clinicaId = userData.user_metadata?.clinica_id;
-    
-    if (!clinicaId) {
+    if (typeof clinicaId !== "string" || !uuidPattern.test(clinicaId)) {
       return jsonResponse({ error: "No hay clinica activa. Seleccione una clinica." }, 403);
     }
 
-    // 5. Validar que paciente pertenece a la clínica
+    const membershipUrl = new URL(`${supabaseUrl}/rest/v1/miembros_clinica`);
+    membershipUrl.searchParams.set("user_id", `eq.${userId}`);
+    membershipUrl.searchParams.set("clinica_id", `eq.${clinicaId}`);
+    membershipUrl.searchParams.set("activo", "eq.true");
+    membershipUrl.searchParams.set("select", "rol");
+    const membershipResponse = await fetch(membershipUrl, {
+      headers: {
+        Authorization: `Bearer ${supabaseServiceKey}`,
+        apikey: supabaseServiceKey,
+      },
+    });
+    const membershipResult = membershipResponse.ok ? await membershipResponse.json() : null;
+    if (!Array.isArray(membershipResult) || membershipResult.length !== 1) {
+      return jsonResponse({ error: "Sin membresia activa en la clinica seleccionada" }, 403);
+    }
+
+    // 5. Validar el rol antes de consultar datos del paciente o la orden.
+    const userRol = membershipResult[0]?.rol;
+    const allowedRoles = ["admin", "dentista"];
+    if (!allowedRoles.includes(userRol)) {
+      return jsonResponse(
+        { error: `Insufficient permissions. Required: ${allowedRoles.join(" or ")}. Current: ${userRol}` },
+        403
+      );
+    }
+
+    // 6. Validar que paciente pertenece a la clínica
     const pacienteResult = await fetch(
       `${supabaseUrl}/rest/v1/pacientes?id=eq.${paciente_id}&clinica_id=eq.${clinicaId}&select=id`,
       {
@@ -214,28 +252,22 @@ export async function handler(req: Request): Promise<Response> {
       return jsonResponse({ error: "Paciente not found or does not belong to your clínica" }, 403);
     }
 
-    // 6. Validar rol del usuario (admin/dentista pueden subir)
-    const rolResult = await fetch(
-      `${supabaseUrl}/rest/v1/miembros_clinica?user_id=eq.${userId}&clinica_id=eq.${clinicaId}&activo=eq.true&select=rol`,
-      {
+    if (categoria === "laboratorio") {
+      const orderUrl = new URL(`${supabaseUrl}/rest/v1/ordenes_laboratorio`);
+      orderUrl.searchParams.set("id", `eq.${orden_laboratorio_id}`);
+      orderUrl.searchParams.set("clinica_id", `eq.${clinicaId}`);
+      orderUrl.searchParams.set("paciente_id", `eq.${paciente_id}`);
+      orderUrl.searchParams.set("select", "id");
+      const orderResponse = await fetch(orderUrl, {
         headers: {
           Authorization: `Bearer ${supabaseServiceKey}`,
           apikey: supabaseServiceKey,
         },
+      });
+      const orderResult = orderResponse.ok ? await orderResponse.json() : [];
+      if (!Array.isArray(orderResult) || orderResult.length !== 1) {
+        return jsonResponse({ error: "Order not found for this patient and clinic" }, 403);
       }
-    ).then((res) => res.json());
-
-    if (!rolResult || rolResult.length === 0) {
-      return jsonResponse({ error: "Sin membresia activa en la clinica seleccionada" }, 403);
-    }
-
-    const userRol = rolResult[0].rol;
-    const allowedRoles = ["admin", "dentista"];
-    if (!allowedRoles.includes(userRol)) {
-      return jsonResponse(
-        { error: `Insufficient permissions. Required: ${allowedRoles.join(" or ")}. Current: ${userRol}` },
-        403
-      );
     }
 
     // 7. Generar r2_object_key único
@@ -265,9 +297,10 @@ export async function handler(req: Request): Promise<Response> {
         mime_type,
         tamano_bytes,
         categoria,
+        orden_laboratorio_id: categoria === "laboratorio" ? orden_laboratorio_id : null,
         uploaded_by: userId,
         estado: "activo",
-        metadata: {},
+        metadata: categoria === "laboratorio" ? { tipo_documento } : {},
       }),
     });
 

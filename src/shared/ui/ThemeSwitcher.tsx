@@ -8,22 +8,18 @@
  */
 import React, { useState } from 'react'
 import { motion, type PanInfo } from 'framer-motion'
-import { Sun, Microscope, Moon } from 'lucide-react'
+import { Sun, Moon } from 'lucide-react'
 import { useSidebarStore, type AppTheme } from '../../app/stores/useSidebarStore'
 import { soundEffects } from '../utils/soundEffects'
 
-const THEMES: AppTheme[] = ['light', 'surgical', 'dark']
-const ICONS = [Sun, Microscope, Moon]
+const THEMES: AppTheme[] = ['light', 'dark']
+const ICONS = [Sun, Moon]
 const TRACK_WIDTH = 160
 const THUMB_SIZE = 26
 const PADDING = 3
 
-// Posiciones X del centro del círculo para cada tema (centros en justify-around)
-const POSITIONS = [
-  TRACK_WIDTH * 0.1666, // 26.66px
-  TRACK_WIDTH * 0.5,    // 80px
-  TRACK_WIDTH * 0.8333, // 133.33px
-]
+// Posiciones X del centro del círculo para los dos temas.
+const POSITIONS = [TRACK_WIDTH * 0.25, TRACK_WIDTH * 0.75]
 
 // Convertir a posición del borde izquierdo del círculo
 const THUMB_POSITIONS = POSITIONS.map((x) => x - THUMB_SIZE / 2 + PADDING)
@@ -84,7 +80,7 @@ export const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ compact = false, c
 
   const constraints = {
     left: THUMB_POSITIONS[0],
-    right: THUMB_POSITIONS[2],
+    right: THUMB_POSITIONS[1],
   }
 
   if (compact) {
@@ -100,7 +96,6 @@ export const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ compact = false, c
         className={`w-9 h-9 mx-auto rounded-xl flex items-center justify-center bg-graphite-100 dark:bg-graphite-800 text-graphite-700 dark:text-graphite-200 transition-colors cursor-pointer shrink-0 ${className}`}
       >
         {theme === 'light' && <Sun size={16} className="text-amber-500" />}
-        {theme === 'surgical' && <Microscope size={16} className="text-primary" />}
         {theme === 'dark' && <Moon size={16} className="text-blue-400" />}
       </button>
     )
@@ -113,7 +108,6 @@ export const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ compact = false, c
     >
       <div className="text-[11px] font-medium text-[#94A3B8] dark:text-[#64748B] uppercase tracking-wide">
         {theme === 'light' && 'Modo Claro'}
-        {theme === 'surgical' && 'Modo Quirúrgico'}
         {theme === 'dark' && 'Modo Oscuro'}
       </div>
 
@@ -123,13 +117,13 @@ export const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ compact = false, c
         tabIndex={0}
         aria-label="Tema de interfaz"
         aria-valuemin={0}
-        aria-valuemax={2}
+        aria-valuemax={1}
         aria-valuenow={currentIndex}
         onKeyDown={handleKeyDown}
         onClick={(e) => {
           const rect = e.currentTarget.getBoundingClientRect()
           const ratio = (e.clientX - rect.left) / rect.width
-          const idx = ratio > 0.66 ? 2 : ratio > 0.33 ? 1 : 0
+          const idx = ratio > 0.5 ? 1 : 0
           if (idx !== currentIndex) switchTo(THEMES[idx])
         }}
         onPointerUp={(e) => {
@@ -139,7 +133,7 @@ export const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ compact = false, c
           const cx = e.clientX ?? raw?.clientX ?? raw?.screenX
           if (typeof cx !== 'number') return
           const ratio = (cx - rect.left) / rect.width
-          const idx = ratio > 0.66 ? 2 : ratio > 0.33 ? 1 : 0
+          const idx = ratio > 0.5 ? 1 : 0
           if (idx !== currentIndex) switchTo(THEMES[idx])
         }}
         className="relative bg-[#E2E8F0] dark:bg-[#1E293B] rounded-full cursor-pointer focus:outline-none focus:ring-1 focus:ring-amber-500/50"
@@ -185,9 +179,9 @@ export const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ compact = false, c
               key={`accessible-${t}`}
               type="button"
               onClick={() => switchTo(t)}
-              aria-label={`Activar modo ${t === 'light' ? 'claro' : t === 'surgical' ? 'quirúrgico' : 'oscuro'}`}
+              aria-label={`Activar modo ${t === 'light' ? 'claro' : 'oscuro'}`}
             >
-              Activar modo {t === 'light' ? 'claro' : t === 'surgical' ? 'quirúrgico' : 'oscuro'}
+              Activar modo {t === 'light' ? 'claro' : 'oscuro'}
             </button>
           ))}
         </div>

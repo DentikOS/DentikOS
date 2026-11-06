@@ -5,7 +5,7 @@
 import type { LucideIcon } from 'lucide-react'
 import {
   Calendar, LayoutDashboard, Users, Siren, Mail,
-  FlaskConical, Package, BarChart3,
+  FlaskConical, Package, BarChart3, FileText, CreditCard, DollarSign,
   Pill, Settings
 } from 'lucide-react'
 import { PERMISOS } from './rbacConstants'
@@ -18,6 +18,7 @@ export interface SidebarItem {
   icon: LucideIcon
   slug: string
   permisoRequerido?: Permiso
+  permisosAlternativos?: Permiso[]
   counterKey?: string
   counterVariant?: CounterVariant
 }
@@ -43,7 +44,12 @@ export const SECCIONES_SIDEBAR: SidebarSeccion[] = [
     categoria: 'CLINICO',
     items: [
       { name: 'Esterilización', icon: FlaskConical, slug: 'esterilizacion', permisoRequerido: PERMISOS.VER_ESTERILIZACION, counterKey: 'esterilizacionPendiente', counterVariant: 'warning' },
-      { name: 'Urgencias GES', icon: Siren, slug: 'urgencias-ges', permisoRequerido: PERMISOS.VER_URGENCIAS_GES },
+      {
+        name: 'Urgencias GES', icon: Siren, slug: 'urgencias-ges',
+        permisoRequerido: PERMISOS.VER_COLA_URGENCIA,
+        permisosAlternativos: [PERMISOS.VER_URGENCIAS_GES]
+      },
+      { name: 'Laboratorio', icon: FlaskConical, slug: 'laboratorio', permisoRequerido: PERMISOS.VER_LABORATORIO },
       { name: 'Vademécum', icon: Pill, slug: 'vademecum', permisoRequerido: PERMISOS.VER_VADEMECUM },
     ],
   },
@@ -51,6 +57,9 @@ export const SECCIONES_SIDEBAR: SidebarSeccion[] = [
     label: 'GESTIÓN FINANCIERA', // Categoría 03
     categoria: 'FINANZAS',
     items: [
+      { name: 'Finanzas', icon: DollarSign, slug: 'finanzas', permisoRequerido: PERMISOS.VER_CAJA_BP15 },
+      { name: 'Presupuestos', icon: FileText, slug: 'presupuestos', permisoRequerido: PERMISOS.VER_PRESUPUESTOS },
+      { name: 'Pagos', icon: CreditCard, slug: 'pagos', permisoRequerido: PERMISOS.VER_PAGOS },
       { name: 'Reportes', icon: BarChart3, slug: 'reportes', permisoRequerido: PERMISOS.VER_REPORTES },
     ],
   },

@@ -13,8 +13,8 @@ import { ModalAsignarEtiqueta } from '../modales/ModalAsignarEtiqueta'
 import { ModalCambiarDoctorTratante } from '../modales/ModalCambiarDoctorTratante'
 import { ModalAgendarCitaRapida } from '../modales/ModalAgendarCitaRapida'
 import { FichaDerivacionModal } from '../ficha/plan-tratamiento/FichaDerivacionModal'
+import { derivacionesService } from '../ficha/plan-tratamiento/derivacionesService'
 import { fichaResumenPDFService } from '../../services/fichaResumenPDFService'
-import { timelineService } from '../../services/timelineService'
 import type { Paciente } from '../../schemas/pacienteSchema'
 
 export interface AccionesFilaPacienteProps {
@@ -143,16 +143,9 @@ export const AccionesFilaPaciente: React.FC<AccionesFilaPacienteProps> = ({
         <FichaDerivacionModal
           nombrePaciente={paciente.nombre || paciente.nombreCompleto || 'Paciente'}
           onCerrar={() => setModalDerivacionAbierto(false)}
-          onDerivar={(d) => {
-            timelineService.agregarEvento(paciente.id, {
-              id: `tl-deriv-${Date.now()}`,
-              fecha: new Date().toISOString(),
-              tipo: 'admin',
-              titulo: `Derivación emitida a ${d.especialidad}`,
-              detalles: `Especialista: ${d.especialista || 'No especificado'} · Motivo: ${d.motivo}`,
-            })
+          onDerivar={async (d) => {
+            await derivacionesService.emitir(String(paciente.id), d)
             notificationService.mostrar('Ficha de derivación emitida con éxito', { tipo: 'success' })
-            setModalDerivacionAbierto(false)
           }}
         />,
         document.body

@@ -111,7 +111,7 @@ export const TopBarActions: React.FC<TopBarActionsProps> = ({
                   duration: 0.18, // Token "Rápido" 180ms
                   ease: [0.16, 1, 0.3, 1],
                 }}
-                className="absolute right-0 mt-1.5 w-[220px] bg-[#F1F5F9] dark:bg-[#1E293B] surgical:bg-[#E2E8F0] border border-[#E2E8F0] dark:border-[#24334A] surgical:border-[#475569] rounded-xl shadow-xl py-1 z-50 overflow-hidden"
+                className="absolute right-0 mt-1.5 w-[220px] bg-[#F1F5F9] dark:bg-[#1E293B]  border border-[#E2E8F0] dark:border-[#24334A]  rounded-xl shadow-xl py-1 z-50 overflow-hidden"
               >
                 {secundariasVisibles.map((sec) => (
                   <button

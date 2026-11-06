@@ -1,0 +1,1 @@
+export { ReportesPanel } from './AdminPanels'

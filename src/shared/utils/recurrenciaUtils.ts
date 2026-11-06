@@ -1,3 +1,5 @@
+import { citasCompartenBoxAgenda } from './boxAgenda'
+
 /**
  * Recurrencia Utils — F7-27
  *
@@ -144,7 +146,7 @@ export const validarConflictosRecurrencia = <T extends CitaRecurrencia>(
 ): ResultadoConflictosRecurrencia<T> => {
   const conflictos = citasExistentes.filter((cita) => {
     if (cita.fecha !== nuevaCita.fecha) return false
-    if (cita.boxAsignado !== nuevaCita.boxAsignado) return false
+    if (!citasCompartenBoxAgenda(cita, nuevaCita)) return false
     if (cita.id === nuevaCita.id) return false // misma cita, no es conflicto
 
     // Verificar solapamiento de horarios (asumiendo duración de 30 min si no hay horaFin)

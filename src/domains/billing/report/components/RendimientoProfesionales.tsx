@@ -1,13 +1,16 @@
 import React, { memo } from 'react'
 import { exportService } from '../services/exportService'
 import { CreditCard, FileSpreadsheet } from 'lucide-react'
+import { formatearImporteDocumento } from '../../../../shared/utils/formatoDocumento'
 
 export interface RendimientoProfesionalesProps {
   recaudacionPorMetodo?: Record<string, number>
+  moneda?: string
 }
 
 export const RendimientoProfesionales: React.FC<RendimientoProfesionalesProps> = memo(({
-  recaudacionPorMetodo = {}
+  recaudacionPorMetodo = {},
+  moneda = 'CLP',
 }) => {
   const entradasMetodos = Object.entries(recaudacionPorMetodo)
 
@@ -25,7 +28,7 @@ export const RendimientoProfesionales: React.FC<RendimientoProfesionalesProps> =
             Caja & Canales
           </span>
           <button
-            onClick={() => exportService.exportarRendimientoExcel(recaudacionPorMetodo)}
+            onClick={() => exportService.exportarRendimientoExcel(recaudacionPorMetodo, moneda)}
             className="text-[10px] bg-emerald-600 text-white px-2 py-1 rounded font-bold hover:bg-emerald-700 transition-colors"
             aria-label="Exportar rendimiento por método de pago a Excel"
             title="Descargar Excel con desglose por método de pago"
@@ -51,7 +54,7 @@ export const RendimientoProfesionales: React.FC<RendimientoProfesionalesProps> =
             >
               <span className="font-bold text-gray-800 dark:text-graphite-100">{metodo}:</span>
               <span className="font-black text-emerald-900">
-                ${monto.toLocaleString('es-CL')} CLP
+                {formatearImporteDocumento(monto, moneda)}
               </span>
             </div>
           ))}

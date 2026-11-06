@@ -6,16 +6,19 @@
  */
 import { useState } from 'react'
 import type React from 'react'
-import { obtenerDescuentoConvenio } from '../utils/pacientesCalculations'
+import { obtenerPrecioPrestacionConvenio } from '../utils/pacientesCalculations'
 import { pacientesStorageService } from '../services/pacientesStorageService'
 
 export interface ItemPresupuesto {
   id: string | number
+  prestacionId?: string | number | null
   pieza: string
   prestacion: string
   convenio?: string
   precioBase: number
   descuentoPct: number
+  precioOrigen?: string
+  sucursalIdPrecio?: string | null
   valor: number
   estado: string
   [key: string]: unknown
@@ -24,6 +27,8 @@ export interface ItemPresupuesto {
 export interface PrestacionArancel {
   id: string | number
   nombre: string
+  especialidad?: string
+  categoria?: string | null
   precio?: number | string
   precioParticular?: number | string
   [key: string]: unknown
@@ -48,8 +53,11 @@ export interface UsePresupuestoItemsReturn {
   prestacionSeleccionadaId: string | number
   nombrePrestacion: string
   valorPrestacion: number | string
+  precioPendiente: boolean
   precioBaseOriginal: number
   porcentajeDescuentoAplicado: number
+  origenPrecioAplicado: string | null
+  sucursalPrecioAplicada: string | null
   handleSeleccionarPrestacion: (id: string | number, convenioNombre?: string) => void
   handleCambiarConvenioSelect: (nuevoConvenio: string) => void
   handleAgregarItemPresupuesto: (e: React.FormEvent) => void
@@ -70,22 +78,33 @@ export const usePresupuestoItems = ({
   const [prestacionSeleccionadaId, setPrestacionSeleccionadaId] = useState<string | number>('')
   const [nombrePrestacion, setNombrePrestacion] = useState<string>('')
   const [valorPrestacion, setValorPrestacion] = useState<number | string>('')
+  const [precioPendiente, setPrecioPendiente] = useState(false)
   const [precioBaseOriginal, setPrecioBaseOriginal] = useState<number>(0)
   const [porcentajeDescuentoAplicado, setPorcentajeDescuentoAplicado] = useState<number>(0)
+  const [origenPrecioAplicado, setOrigenPrecioAplicado] = useState<string | null>(null)
+  const [sucursalPrecioAplicada, setSucursalPrecioAplicada] = useState<string | null>(null)
 
   const handleSeleccionarPrestacion = (id: string | number, convenioNombre: string = convenioAplicado): void => {
     setPrestacionSeleccionadaId(id)
     if (!id) return
     const prest = arancelActualizado.find(p => String(p.id) === String(id))
     if (prest) {
-      const precioBase = parseFloat(String(prest.precio ?? prest.precioParticular ?? 0)) || 0
+      const precioParticularRaw = Number(prest.precioParticular ?? prest.precio ?? 0)
+      const precioParticular = Number.isFinite(precioParticularRaw) && precioParticularRaw >= 0 ? Math.round(precioParticularRaw) : 0
       setNombrePrestacion(prest.nombre)
-      setPrecioBaseOriginal(precioBase)
-      
-      const pctDesc = Number(obtenerDescuentoConvenio(convenioNombre)) || 0
-      setPorcentajeDescuentoAplicado(pctDesc)
-      const precioConDescuento = Math.round(precioBase * (1 - pctDesc / 100))
-      setValorPrestacion(precioConDescuento)
+      const calculo = obtenerPrecioPrestacionConvenio({
+        prestacionId: prest.id,
+        especialidad: typeof prest.especialidad === 'string' ? prest.especialidad : null,
+        categoria: typeof prest.categoria === 'string' ? prest.categoria : null,
+        convenioIdentificador: convenioNombre,
+        precioParticular,
+      })
+      setPrecioBaseOriginal(calculo.precioBase ?? 0)
+      setPorcentajeDescuentoAplicado(calculo.descuentoPct)
+      setOrigenPrecioAplicado(calculo.origen)
+      setSucursalPrecioAplicada(calculo.sucursalId)
+      setPrecioPendiente(calculo.precio === null)
+      setValorPrestacion(calculo.precio ?? '')
     }
   }
 
@@ -97,15 +116,18 @@ export const usePresupuestoItems = ({
 
   const handleAgregarItemPresupuesto = (e: React.FormEvent): void => {
     e.preventDefault()
-    if (!nombrePrestacion || !valorPrestacion) return
+    if (!nombrePrestacion || valorPrestacion === '' || !Number.isFinite(Number(valorPrestacion)) || Number(valorPrestacion) < 0) return
     const valorNum = parseInt(String(valorPrestacion), 10) || 0
     const nuevoItem: ItemPresupuesto = {
       id: Date.now(),
+      prestacionId: prestacionSeleccionadaId || null,
       pieza: piezaPresupuesto || 'General',
       prestacion: nombrePrestacion,
       convenio: convenioAplicado,
-      precioBase: precioBaseOriginal || valorNum,
+      precioBase: precioBaseOriginal,
       descuentoPct: porcentajeDescuentoAplicado,
+      precioOrigen: origenPrecioAplicado || undefined,
+      sucursalIdPrecio: sucursalPrecioAplicada,
       valor: valorNum,
       estado: 'Pendiente'
     }
@@ -116,8 +138,11 @@ export const usePresupuestoItems = ({
     setPrestacionSeleccionadaId('')
     setNombrePrestacion('')
     setValorPrestacion('')
+    setPrecioPendiente(false)
     setPrecioBaseOriginal(0)
     setPorcentajeDescuentoAplicado(0)
+    setOrigenPrecioAplicado(null)
+    setSucursalPrecioAplicada(null)
   }
 
   const handleEliminarItem = (id: string | number): void => {
@@ -131,14 +156,20 @@ export const usePresupuestoItems = ({
     prestacionSeleccionadaId,
     nombrePrestacion,
     valorPrestacion,
+    precioPendiente,
     precioBaseOriginal,
     porcentajeDescuentoAplicado,
+    origenPrecioAplicado,
+    sucursalPrecioAplicada,
     handleSeleccionarPrestacion,
     handleCambiarConvenioSelect,
     handleAgregarItemPresupuesto,
     handleEliminarItem,
     setPiezaPresupuesto,
     setNombrePrestacion,
-    setValorPrestacion
+    setValorPrestacion: (valor: string | number) => {
+      setValorPrestacion(valor)
+      if (valor !== '') setPrecioPendiente(false)
+    },
   }
 }

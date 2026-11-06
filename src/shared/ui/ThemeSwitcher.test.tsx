@@ -9,24 +9,13 @@ describe('ThemeSwitcher (Blueprint 02 §04)', () => {
     useSidebarStore.setState({ theme: 'light' })
   })
 
-  it('renderiza las 3 posiciones y label en modo expandido', () => {
+  it('renderiza las 2 posiciones y label en modo expandido', () => {
     render(<ThemeSwitcher compact={false} />)
 
     expect(screen.getByTestId('theme-switcher')).toBeInTheDocument()
     expect(screen.getByText('Modo Claro')).toBeInTheDocument()
     expect(screen.getByLabelText('Cambiar a modo light')).toBeInTheDocument()
-    expect(screen.getByLabelText('Cambiar a modo surgical')).toBeInTheDocument()
     expect(screen.getByLabelText('Cambiar a modo dark')).toBeInTheDocument()
-  })
-
-  it('permite cambiar a modo quirúrgico mediante click', () => {
-    render(<ThemeSwitcher compact={false} />)
-
-    const surgicalBtn = screen.getByLabelText('Cambiar a modo surgical')
-    fireEvent.click(surgicalBtn)
-
-    expect(useSidebarStore.getState().theme).toBe('surgical')
-    expect(screen.getByText('Modo Quirúrgico')).toBeInTheDocument()
   })
 
   it('permite cambiar a modo oscuro mediante click', () => {
@@ -47,7 +36,7 @@ describe('ThemeSwitcher (Blueprint 02 §04)', () => {
 
     // Click cicla el tema
     fireEvent.click(compactBtn)
-    expect(useSidebarStore.getState().theme).toBe('surgical')
+    expect(useSidebarStore.getState().theme).toBe('dark')
   })
 
   it('permite cambiar directamente de light a dark en un solo drag', () => {
@@ -66,11 +55,11 @@ describe('ThemeSwitcher (Blueprint 02 §04)', () => {
       toJSON: () => {},
     })
 
-    // Drag directo hacia posición dark (> 66% del track)
+    // Drag directo hacia posición dark (> 50% del track)
     fireEvent.pointerUp(slider, { clientX: 140 })
     expect(useSidebarStore.getState().theme).toBe('dark')
 
-    // Drag directo desde dark de regreso a light (< 33% del track)
+    // Drag directo desde dark de regreso a light (< 50% del track)
     fireEvent.pointerUp(slider, { clientX: 20 })
     expect(useSidebarStore.getState().theme).toBe('light')
   })
@@ -80,12 +69,9 @@ describe('ThemeSwitcher (Blueprint 02 §04)', () => {
     const slider = screen.getByTestId('theme-switcher-slider')
 
     fireEvent.keyDown(slider, { key: 'ArrowRight' })
-    expect(useSidebarStore.getState().theme).toBe('surgical')
-
-    fireEvent.keyDown(slider, { key: 'ArrowRight' })
     expect(useSidebarStore.getState().theme).toBe('dark')
 
     fireEvent.keyDown(slider, { key: 'ArrowLeft' })
-    expect(useSidebarStore.getState().theme).toBe('surgical')
+    expect(useSidebarStore.getState().theme).toBe('light')
   })
 })

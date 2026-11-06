@@ -29,6 +29,7 @@ export interface PagoAuditoriaItem {
   pacienteNombre?: string
   pacienteRut?: string
   monto?: number | string
+  moneda?: string
   metodoPago?: string
   concepto?: string
   estado?: string
@@ -56,7 +57,8 @@ export const COLUMNAS: readonly ColumnaAuditoriaPago[] = [
   { header: 'Hora', key: 'hora', width: 10 },
   { header: 'Paciente', key: 'pacienteNombre', width: 28 },
   { header: 'RUT', key: 'pacienteRut', width: 15 },
-  { header: 'Monto (CLP)', key: 'monto', width: 14 },
+  { header: 'Monto', key: 'monto', width: 14 },
+  { header: 'Moneda', key: 'moneda', width: 10 },
   { header: 'Método de Pago', key: 'metodoPago', width: 18 },
   { header: 'Concepto', key: 'concepto', width: 25 },
   { header: 'Estado', key: 'estado', width: 12 },

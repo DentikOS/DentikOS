@@ -1,7 +1,6 @@
 import React, { useState } from 'react'
-import { Sparkles, Check, CheckCircle2, DollarSign, Clock } from 'lucide-react'
+import { Sparkles, Check, CheckCircle2, Clock } from 'lucide-react'
 import { Button } from '../../../../../shared/ui/ui/Button'
-import { Badge } from '../../../../../shared/ui/ui/Badge'
 
 export interface OpcionComparativa {
   id: string
@@ -13,61 +12,21 @@ export interface OpcionComparativa {
   esRecomendada?: boolean
 }
 
-const OPCIONES_DEFAULT: OpcionComparativa[] = [
-  {
-    id: 'opc-implante',
-    nombre: 'Opción A: Rehabilitación sobre Implantes (Gold Standard)',
-    descripcion: 'Implante de titanio oseointegrado con corona de zirconio monolítico libre de metal.',
-    tiempoEstimado: '3 a 4 meses',
-    beneficios: [
-      'Preservación total del hueso alveolar',
-      'No desgasta dientes vecinos sanos',
-      'Máxima estética y longevidad biomecánica',
-    ],
-    total: 890000,
-    esRecomendada: true,
-  },
-  {
-    id: 'opc-puente',
-    nombre: 'Opción B: Puente Fijo Cerámico Convencional',
-    descripcion: 'Estructura fija cementada apoyada en dientes pilares adyacentes tallados.',
-    tiempoEstimado: '2 a 3 semanas',
-    beneficios: [
-      'Tratamiento fijo no removible',
-      'Excelente estética inmediata',
-      'Tiempo de ejecución rápido',
-    ],
-    total: 580000,
-    esRecomendada: false,
-  },
-  {
-    id: 'opc-removible',
-    nombre: 'Opción C: Prótesis Parcial Removible Esquelética',
-    descripcion: 'Aparato mucosoportado y dentosoportado con retenedores colados.',
-    tiempoEstimado: '2 semanas',
-    beneficios: [
-      'Solución económica y conservadora',
-      'No requiere cirugía ni tallado extenso',
-      'Fácil higienización externa',
-    ],
-    total: 260000,
-    esRecomendada: false,
-  },
-]
-
 interface PresupuestoComparativoProps {
+  opciones?: OpcionComparativa[]
   onAprobarOpcion: (opcion: OpcionComparativa) => void
   onCerrar?: () => void
 }
 
 export const PresupuestoComparativo: React.FC<PresupuestoComparativoProps> = ({
+  opciones = [],
   onAprobarOpcion,
   onCerrar,
 }) => {
-  const [opcionSeleccionada, setOpcionSeleccionada] = useState<string>('opc-implante')
+  const [opcionSeleccionada, setOpcionSeleccionada] = useState<string>('')
 
   const handleConfirmar = () => {
-    const elegida = OPCIONES_DEFAULT.find((o) => o.id === opcionSeleccionada)
+    const elegida = opciones.find((o) => o.id === opcionSeleccionada)
     if (elegida) {
       onAprobarOpcion(elegida)
     }
@@ -100,7 +59,8 @@ export const PresupuestoComparativo: React.FC<PresupuestoComparativoProps> = ({
 
       {/* Grid de 3 Opciones Comparativas */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {OPCIONES_DEFAULT.map((opc) => {
+        {opciones.length === 0 && <p className="text-xs text-graphite-500">No hay alternativas clínicas registradas para comparar.</p>}
+        {opciones.map((opc) => {
           const isSelected = opcionSeleccionada === opc.id
 
           return (
@@ -115,7 +75,7 @@ export const PresupuestoComparativo: React.FC<PresupuestoComparativoProps> = ({
             >
               {opc.esRecomendada && (
                 <div className="absolute -top-3 right-4">
-                  <span className="px-2.5 py-0.5 rounded-full bg-primary text-white text-[10px] font-extrabold uppercase tracking-wider shadow-sm flex items-center gap-1">
+                  <span className="px-2.5 py-0.5 rounded-full bg-primary text-primary-foreground text-[10px] font-extrabold uppercase tracking-wider shadow-sm flex items-center gap-1">
                     <Sparkles className="w-3 h-3" /> Recomendada
                   </span>
                 </div>
@@ -160,7 +120,7 @@ export const PresupuestoComparativo: React.FC<PresupuestoComparativoProps> = ({
 
                 <div
                   className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                    isSelected ? 'border-primary bg-primary text-white' : 'border-graphite-300'
+                    isSelected ? 'border-primary bg-primary text-primary-foreground' : 'border-graphite-300'
                   }`}
                 >
                   {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
@@ -174,13 +134,14 @@ export const PresupuestoComparativo: React.FC<PresupuestoComparativoProps> = ({
       {/* Botón de Confirmación */}
       <div className="flex items-center justify-between pt-2 border-t border-surface">
         <span className="text-xs text-graphite-500">
-          Al aprobar una opción, se generará el presupuesto formal y calendario de pagos correspondiente.
+          Selecciona una alternativa clínica registrada para continuar.
         </span>
         <Button
           type="button"
           variant="primary"
           icon={CheckCircle2}
           onClick={handleConfirmar}
+          disabled={!opciones.some((o) => o.id === opcionSeleccionada)}
           data-testid="btn-aprobar-opcion-comparativa"
         >
           Aprobar Opción Seleccionada

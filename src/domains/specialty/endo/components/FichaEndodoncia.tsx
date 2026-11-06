@@ -52,41 +52,41 @@ export const FichaEndodoncia: React.FC<FichaEndodonciaProps> = ({
   return (
     <div className="space-y-6 text-xs">
       <div className="relative overflow-hidden bg-surface/90 backdrop-blur-md border border-surface rounded-2xl p-6 shadow-sm before:absolute before:inset-x-0 before:top-0 before:h-[2px] before:bg-gradient-to-r before:from-transparent before:via-[#B88E3A]/40 before:to-transparent">
-        <h3 className="font-extrabold text-sm text-gray-900 dark:text-graphite-50 surgical:text-black mb-4 border-b border-surface pb-3 uppercase tracking-wider">
+        <h3 className="font-extrabold text-sm text-gray-900 dark:text-graphite-50  mb-4 border-b border-surface pb-3 uppercase tracking-wider">
           <span className="flex items-center gap-1.5"><Icon icon={FlaskConical} size="sm" />Ficha de Endodoncia y Mapa de Conductometría</span>
         </h3>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label className="block text-gray-600 dark:text-graphite-400 surgical:text-black font-bold mb-1 uppercase">Pieza Tratada *</label>
+              <label className="block text-gray-600 dark:text-graphite-400  font-bold mb-1 uppercase">Pieza Tratada *</label>
               <input
                 type="text"
                 required
                 value={pieza}
                 onChange={(e) => setPieza(e.target.value)}
                 placeholder="Ej: 1.6 / 2.1"
-                className="w-full px-3 py-2 border border-surface rounded-lg bg-white dark:bg-graphite-800 surgical:bg-graphite-200 text-graphite-900 dark:text-graphite-50 surgical:text-black font-bold focus:ring-2 focus:ring-primary/40"
+                className="w-full px-3 py-2 border border-surface rounded-lg bg-white dark:bg-graphite-800  text-graphite-900 dark:text-graphite-50  font-bold focus:ring-2 focus:ring-primary/40"
               />
             </div>
 
             <div>
-              <label className="block text-gray-600 dark:text-graphite-400 surgical:text-black font-bold mb-1 uppercase">Técnica de Obturación</label>
+              <label className="block text-gray-600 dark:text-graphite-400  font-bold mb-1 uppercase">Técnica de Obturación</label>
               <select
                 value={tecnicaObturacion}
                 onChange={(e) => setTecnicaObturacion(e.target.value)}
-                className="w-full px-3 py-2 border border-surface rounded-lg bg-white dark:bg-graphite-800 surgical:bg-graphite-200 text-graphite-900 dark:text-graphite-50 surgical:text-black focus:ring-2 focus:ring-primary/40"
+                className="w-full px-3 py-2 border border-surface rounded-lg bg-white dark:bg-graphite-800  text-graphite-900 dark:text-graphite-50  focus:ring-2 focus:ring-primary/40"
               >
                 {TECNICAS_OBTURACION.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
 
             <div>
-              <label className="block text-gray-600 dark:text-graphite-400 surgical:text-black font-bold mb-1 uppercase">Cementador / Sellador</label>
+              <label className="block text-gray-600 dark:text-graphite-400  font-bold mb-1 uppercase">Cementador / Sellador</label>
               <select
                 value={sellador}
                 onChange={(e) => setSellador(e.target.value)}
-                className="w-full px-3 py-2 border border-surface rounded-lg bg-white dark:bg-graphite-800 surgical:bg-graphite-200 text-graphite-900 dark:text-graphite-50 surgical:text-black focus:ring-2 focus:ring-primary/40"
+                className="w-full px-3 py-2 border border-surface rounded-lg bg-white dark:bg-graphite-800  text-graphite-900 dark:text-graphite-50  focus:ring-2 focus:ring-primary/40"
               >
                 {SELLADORES_ENDODONTICOS.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
@@ -94,9 +94,9 @@ export const FichaEndodoncia: React.FC<FichaEndodonciaProps> = ({
           </div>
 
           {/* Tabla de Conductometría */}
-          <div className="border border-surface rounded-xl overflow-x-auto bg-slate-50 dark:bg-graphite-950 surgical:bg-graphite-200 p-3">
+          <div className="border border-surface rounded-xl overflow-x-auto bg-slate-50 dark:bg-graphite-950  p-3">
             <div className="flex justify-between items-center mb-2">
-              <span className="font-bold text-xs text-gray-800 dark:text-graphite-100 surgical:text-black uppercase">Tabla de Conductos y Mediciones (CAD / CRD / LTP)</span>
+              <span className="font-bold text-xs text-gray-800 dark:text-graphite-100  uppercase">Tabla de Conductos y Mediciones (CAD / CRD / LTP)</span>
               <button type="button" onClick={handleAgregarConducto} className="bg-graphite-900 dark:bg-graphite-800 text-white px-2.5 py-1 rounded-lg text-[10px] font-bold transition-micro cursor-pointer">
                 + Agregar Conducto
               </button>
@@ -104,7 +104,7 @@ export const FichaEndodoncia: React.FC<FichaEndodonciaProps> = ({
 
             <table className="w-full text-left text-[11px] border-collapse">
               <thead>
-                <tr className="border-b border-surface text-gray-600 dark:text-graphite-400 surgical:text-black font-bold uppercase">
+                <tr className="border-b border-surface text-gray-600 dark:text-graphite-400  font-bold uppercase">
                   <th className="p-2">Conducto</th>
                   <th className="p-2">CAD (Rx)</th>
                   <th className="p-2">CRD (Localizador)</th>
@@ -123,7 +123,7 @@ export const FichaEndodoncia: React.FC<FichaEndodonciaProps> = ({
                         type="text"
                         value={c.nombre || ''}
                         onChange={(e) => handleCambiarConducto(idx, 'nombre', e.target.value)}
-                        className="w-16 px-1.5 py-1 border border-surface rounded bg-white dark:bg-graphite-800 font-bold text-graphite-900 dark:text-graphite-100 surgical:text-black"
+                        className="w-16 px-1.5 py-1 border border-surface rounded bg-white dark:bg-graphite-800 font-bold text-graphite-900 dark:text-graphite-100 "
                       />
                     </td>
                     <td className="p-1">
@@ -131,7 +131,7 @@ export const FichaEndodoncia: React.FC<FichaEndodonciaProps> = ({
                         type="text"
                         value={c.cad || ''}
                         onChange={(e) => handleCambiarConducto(idx, 'cad', e.target.value)}
-                        className="w-16 px-1.5 py-1 border border-surface rounded bg-white dark:bg-graphite-800 tabular-nums text-graphite-900 dark:text-graphite-100 surgical:text-black"
+                        className="w-16 px-1.5 py-1 border border-surface rounded bg-white dark:bg-graphite-800 tabular-nums text-graphite-900 dark:text-graphite-100 "
                       />
                     </td>
                     <td className="p-1">
@@ -139,7 +139,7 @@ export const FichaEndodoncia: React.FC<FichaEndodonciaProps> = ({
                         type="text"
                         value={c.crd || ''}
                         onChange={(e) => handleCambiarConducto(idx, 'crd', e.target.value)}
-                        className="w-16 px-1.5 py-1 border border-surface rounded bg-white dark:bg-graphite-800 tabular-nums text-graphite-900 dark:text-graphite-100 surgical:text-black"
+                        className="w-16 px-1.5 py-1 border border-surface rounded bg-white dark:bg-graphite-800 tabular-nums text-graphite-900 dark:text-graphite-100 "
                       />
                     </td>
                     <td className="p-1">
@@ -147,7 +147,7 @@ export const FichaEndodoncia: React.FC<FichaEndodonciaProps> = ({
                         type="text"
                         value={c.ltp || ''}
                         onChange={(e) => handleCambiarConducto(idx, 'ltp', e.target.value)}
-                        className="w-16 px-1.5 py-1 border border-surface rounded bg-white dark:bg-graphite-800 font-bold tabular-nums text-blue-900 dark:text-sky-300 surgical:text-black"
+                        className="w-16 px-1.5 py-1 border border-surface rounded bg-white dark:bg-graphite-800 font-bold tabular-nums text-blue-900 dark:text-sky-300 "
                       />
                     </td>
                     <td className="p-1">
@@ -155,7 +155,7 @@ export const FichaEndodoncia: React.FC<FichaEndodonciaProps> = ({
                         type="text"
                         value={c.referencia || ''}
                         onChange={(e) => handleCambiarConducto(idx, 'referencia', e.target.value)}
-                        className="w-24 px-1.5 py-1 border border-surface rounded bg-white dark:bg-graphite-800 text-graphite-900 dark:text-graphite-100 surgical:text-black"
+                        className="w-24 px-1.5 py-1 border border-surface rounded bg-white dark:bg-graphite-800 text-graphite-900 dark:text-graphite-100 "
                       />
                     </td>
                     <td className="p-1">
@@ -163,7 +163,7 @@ export const FichaEndodoncia: React.FC<FichaEndodonciaProps> = ({
                         type="text"
                         value={c.limaApical || ''}
                         onChange={(e) => handleCambiarConducto(idx, 'limaApical', e.target.value)}
-                        className="w-20 px-1.5 py-1 border border-surface rounded bg-white dark:bg-graphite-800 font-bold tabular-nums text-emerald-800 dark:text-emerald-400 surgical:text-black"
+                        className="w-20 px-1.5 py-1 border border-surface rounded bg-white dark:bg-graphite-800 font-bold tabular-nums text-emerald-800 dark:text-emerald-400 "
                       />
                     </td>
                     <td className="p-1">
@@ -171,7 +171,7 @@ export const FichaEndodoncia: React.FC<FichaEndodonciaProps> = ({
                         type="text"
                         value={c.irrigacion || ''}
                         onChange={(e) => handleCambiarConducto(idx, 'irrigacion', e.target.value)}
-                        className="w-24 px-1.5 py-1 border border-surface rounded bg-white dark:bg-graphite-800 text-graphite-900 dark:text-graphite-100 surgical:text-black"
+                        className="w-24 px-1.5 py-1 border border-surface rounded bg-white dark:bg-graphite-800 text-graphite-900 dark:text-graphite-100 "
                       />
                     </td>
                     <td className="p-1 text-right">
@@ -183,7 +183,7 @@ export const FichaEndodoncia: React.FC<FichaEndodonciaProps> = ({
             </table>
           </div>
 
-          <button type="submit" className="bg-primary hover:bg-champagne-600 dark:bg-gold-satin dark:hover:bg-primary text-white dark:text-graphite-950 font-bold px-4 py-2.5 rounded-lg transition-micro shadow-xs cursor-pointer">
+          <button type="submit" className="bg-primary hover:bg-champagne-600 dark:bg-gold-satin dark:hover:bg-primary text-primary-foreground dark:text-graphite-950 font-bold px-4 py-2.5 rounded-lg transition-micro shadow-xs cursor-pointer">
             + Guardar Registro de Endodoncia
           </button>
         </form>
@@ -191,7 +191,7 @@ export const FichaEndodoncia: React.FC<FichaEndodonciaProps> = ({
 
       {/* Historial Endodóntico */}
       <div className="relative overflow-hidden bg-surface/90 backdrop-blur-md border border-surface rounded-2xl p-6 shadow-sm before:absolute before:inset-x-0 before:top-0 before:h-[2px] before:bg-gradient-to-r before:from-transparent before:via-[#0EA5E9]/40 before:to-transparent">
-        <h4 className="font-extrabold text-sm text-gray-900 dark:text-graphite-50 surgical:text-black mb-4 border-b border-surface pb-3 tracking-tight">Tratamientos de Endodoncia Realizados</h4>
+        <h4 className="font-extrabold text-sm text-gray-900 dark:text-graphite-50  mb-4 border-b border-surface pb-3 tracking-tight">Tratamientos de Endodoncia Realizados</h4>
         <div className="space-y-3">
           {endodoncias.map(endo => {
             const conductosLista: ConductoItem[] = Array.isArray(endo.conductos) ? endo.conductos : []
@@ -199,10 +199,10 @@ export const FichaEndodoncia: React.FC<FichaEndodonciaProps> = ({
             const selladorStr = typeof endo.sellador === 'string' ? endo.sellador : ''
 
             return (
-              <div key={endo.id} className="p-4 bg-slate-50 dark:bg-graphite-950 surgical:bg-graphite-200 border border-surface rounded-xl flex justify-between items-start">
+              <div key={endo.id} className="p-4 bg-slate-50 dark:bg-graphite-950  border border-surface rounded-xl flex justify-between items-start">
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="font-extrabold text-indigo-900 dark:text-indigo-300 surgical:text-black text-sm">Pieza {endo.pieza}</span>
+                    <span className="font-extrabold text-indigo-900 dark:text-indigo-300  text-sm">Pieza {endo.pieza}</span>
                     {tecnica && <span className="bg-graphite-950 dark:bg-graphite-800 text-white text-[10px] font-bold px-2 py-0.5 rounded">{tecnica}</span>}
                     {selladorStr && <span className="bg-indigo-100 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-300 text-[10px] font-bold px-2 py-0.5 rounded">{selladorStr}</span>}
                   </div>

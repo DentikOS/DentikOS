@@ -9,6 +9,7 @@ describe('inventarioConstants', () => {
   it('contiene categorias de insumos y unidades de medida', () => {
     expect(CATEGORIAS_INSUMOS).toContain('Anestésicos y Agujas')
     expect(CATEGORIAS_INSUMOS).toContain('Instrumental')
+    expect(CATEGORIAS_INSUMOS).toContain('Esterilización')
     expect(UNIDADES_MEDIDA).toContain('Cajas')
   })
 

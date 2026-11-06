@@ -42,7 +42,7 @@ export interface DashboardWidgetsGridProps {
   onReorderWidgets?: (nuevoOrden: string[]) => void
 }
 
-const SortableItem: React.FC<{ id: string; children: (dragHandle: React.ReactNode) => React.ReactNode }> = ({ id, children }) => {
+const SortableItem: React.FC<{ id: string; className?: string; children: (dragHandle: React.ReactNode) => React.ReactNode }> = ({ id, className = '', children }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -65,7 +65,7 @@ const SortableItem: React.FC<{ id: string; children: (dragHandle: React.ReactNod
   )
 
   return (
-    <div ref={setNodeRef} style={style} className="h-full">
+    <div ref={setNodeRef} style={style} className={`h-full ${className}`.trim()}>
       {children(dragHandle)}
     </div>
   )
@@ -153,6 +153,9 @@ export const DashboardWidgetsGrid: React.FC<DashboardWidgetsGridProps> = ({
             porCobrarHoy={metricasPagos.porCobrarHoy}
             pagosVencidos={metricasPagos.pagosVencidos}
             recaudadoHoy={metricasPagos.recaudadoHoy}
+            porCobrarHoyPorMoneda={metricasPagos.porCobrarHoyPorMoneda}
+            pagosVencidosPorMoneda={metricasPagos.pagosVencidosPorMoneda}
+            recaudadoHoyPorMoneda={metricasPagos.recaudadoHoyPorMoneda}
             onIrPagos={() => onNavegarSeccion?.('Pagos')}
             dragHandle={dragHandle}
           />
@@ -179,9 +182,9 @@ export const DashboardWidgetsGrid: React.FC<DashboardWidgetsGridProps> = ({
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
       <SortableContext items={widgetsVisibles.map((w) => w.id)} strategy={rectSortingStrategy}>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 gap-x-5 gap-y-4 md:grid-cols-2 lg:grid-cols-3">
           {widgetsVisibles.map((widget) => (
-            <SortableItem key={widget.id} id={widget.id}>
+            <SortableItem key={widget.id} id={widget.id} className={widget.tipo === 'agenda' ? 'lg:col-span-2' : ''}>
               {(dragHandle) => renderWidget(widget.tipo, dragHandle)}
             </SortableItem>
           ))}

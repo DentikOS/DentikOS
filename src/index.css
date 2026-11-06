@@ -2,13 +2,22 @@
 @import "./design/tokens.css";
 @import "./design/theme.css";
 
-/* F7-25: forzar dark: y surgical: a depender de clase .dark y .theme-surgical / .surgical con especificidad real */
+.login-form-panel label[for="login-email"],
+.login-form-panel label[for="login-password"] {
+  color: #cbd5e1;
+}
+
+.login-form-panel input::placeholder {
+  color: #64748b;
+  opacity: 1;
+}
+
+/* F7-25: forzar dark: a depender de clase .dark con especificidad real */
 @custom-variant dark (&:is(.dark, .dark *));
-@custom-variant surgical (&:is(.theme-surgical, .surgical, .theme-surgical *, .surgical *));
 
 /* Utilidades de Superficie y Canvas Adaptativas DentikOS
    @layer utilities: integración con cascade de Tailwind v4 para que
-   variants (dark:, surgical:, focus:, hover:) puedan sobreescribirlas. */
+   variants (dark:, focus:, hover:) puedan sobreescribirlas. */
 @layer utilities {
   .bg-canvas {
     background-color: var(--surface-canvas);
@@ -24,6 +33,78 @@
   }
   .text-primary-surface {
     color: var(--surface-text);
+  }
+}
+
+/* Canvas atmosférico: da profundidad al área de trabajo sin cubrir las superficies. */
+.studio-app-shell {
+  background-image:
+    radial-gradient(ellipse 900px 520px at 100% 0%, rgba(229, 195, 120, 0.13), transparent 68%),
+    radial-gradient(ellipse 760px 520px at 0% 82%, rgba(125, 211, 252, 0.075), transparent 70%);
+}
+
+.dark .studio-app-shell {
+  background-image:
+    radial-gradient(ellipse 900px 520px at 100% 0%, rgba(229, 195, 120, 0.055), transparent 68%),
+    radial-gradient(ellipse 760px 520px at 0% 82%, rgba(56, 189, 248, 0.035), transparent 70%);
+}
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.metric-grid > * {
+  min-width: 0;
+  padding: 0.875rem;
+}
+
+.metric-grid > :not(button):not(a):hover {
+  transform: none;
+}
+
+.scrollable-tab-strip {
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--surface-border) transparent;
+  -webkit-overflow-scrolling: touch;
+}
+
+.scrollable-tab-strip::-webkit-scrollbar {
+  height: 5px;
+}
+
+.scrollable-tab-strip::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: var(--surface-border);
+}
+
+.scrollable-data-table {
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--surface-border) transparent;
+  -webkit-overflow-scrolling: touch;
+}
+
+.scrollable-data-table::-webkit-scrollbar {
+  height: 6px;
+}
+
+.scrollable-data-table::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: var(--surface-border);
+}
+
+@media (min-width: 640px) {
+  .metric-grid {
+    gap: 1rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .metric-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 
@@ -73,22 +154,22 @@
 }
 
 @keyframes fade-in {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes ds-zoom-in-95 {
-  from { opacity: 0; transform: scale(0.95); }
+  from { opacity: 0; transform: scale(0.97); }
   to   { opacity: 1; transform: scale(1); }
 }
 
 @keyframes ds-slide-in-right {
-  from { opacity: 0; transform: translateX(24px); }
+  from { opacity: 0; transform: translateX(16px); }
   to   { opacity: 1; transform: translateX(0); }
 }
 
 .animate-in {
-  animation: fade-in 350ms cubic-bezier(0.16, 1, 0.3, 1);
+  animation: fade-in 220ms var(--ease-out-ui);
   animation-fill-mode: both;
 }
 
@@ -96,28 +177,52 @@
 .zoom-in-95 { animation-name: ds-zoom-in-95; }
 
 .animate-slide-in {
-  animation: ds-slide-in-right 250ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: ds-slide-in-right 200ms var(--ease-out-ui) both;
 }
 
 /* Clases de Motion Normativo DentikOS */
 .transition-micro {
-  transition: all var(--motion-instant);
+  transition-property: color, background-color, border-color, opacity, box-shadow, transform;
+  transition-duration: 110ms;
+  transition-timing-function: var(--ease-out-ui);
 }
 .transition-fast {
-  transition: all var(--motion-fast);
+  transition-property: color, background-color, border-color, opacity, box-shadow, transform;
+  transition-duration: 160ms;
+  transition-timing-function: var(--ease-out-ui);
 }
 .transition-standard {
-  transition: all var(--motion-standard);
+  transition-property: color, background-color, border-color, opacity, box-shadow, transform;
+  transition-duration: 220ms;
+  transition-timing-function: var(--ease-out-ui);
 }
 
 /* Accesibilidad (C5): respetar prefers-reduced-motion.
    Desactiva animaciones y transiciones para usuarios con
    trastornos vestibulares o sensibilidad al movimiento. */
 @media (prefers-reduced-motion: reduce) {
+  .animate-in,
+  .animate-slide-in {
+    animation-duration: 120ms !important;
+  }
+
+  .animate-pulse,
+  .animate-pulse-slow,
+  .animate-ping,
+  .animate-bounce,
+  .animate-spin {
+    animation: none !important;
+  }
+
+  [data-skeleton] {
+    animation: none !important;
+  }
+
   *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+    transition-duration: 100ms !important;
+  }
+
+  html:focus-within {
     scroll-behavior: auto !important;
   }
 }
@@ -133,6 +238,7 @@
   left: 0 !important;
   width: 100vw !important;
   height: 100vh !important;
+  height: 100dvh !important;
   z-index: 9999 !important;
   background: #0F172A !important;
 }

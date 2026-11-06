@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   presupuestosStorageService,
-  type PresupuestoLocal,
-  type PresupuestoItemLocal
+  type PresupuestoLocal
 } from '../services/presupuestosStorageService'
 import {
   calcularResumenPresupuestos,
@@ -10,6 +9,7 @@ import {
 } from '../utils/presupuestosCalculations'
 import { useAppDialog } from '../../../../shared/hooks/useAppDialog'
 import type { Paciente } from '../../../../domains/clinical/patient/schemas/pacienteSchema'
+import { REALTIME_EVENTS } from '../../../../infrastructure/realtime/realtimeEvents'
 
 export interface UsePresupuestosReturn {
   presupuestos: PresupuestoLocal[]
@@ -24,16 +24,12 @@ export interface UsePresupuestosReturn {
   setEstadoFiltro: React.Dispatch<React.SetStateAction<string>>
   busqueda: string
   setBusqueda: React.Dispatch<React.SetStateAction<string>>
-  agregarPresupuesto: (nuevoPresupuesto: PresupuestoLocal) => void
+  agregarPresupuesto: (nuevoPresupuesto: PresupuestoLocal) => Promise<boolean>
   cambiarEstadoPresupuesto: (
     presupuestoId: string | number,
     nuevoEstado: string
-  ) => void
-  eliminarPresupuesto: (
-    presupuestoId: string | number,
-    pacienteId: string | number,
-    items?: PresupuestoItemLocal[]
-  ) => Promise<void>
+  ) => Promise<boolean>
+  archivarPresupuesto: (presupuestoId: string | number) => Promise<void>
 }
 
 export const usePresupuestos = (
@@ -61,58 +57,49 @@ export const usePresupuestos = (
     cargarPresupuestos()
     window.addEventListener('storage', cargarPresupuestos)
     window.addEventListener('presupuestos_actualizados', cargarPresupuestos)
+    const actualizarDesdeSupabase = (): void => {
+      void presupuestosStorageService.sincronizarDesdeSupabase().then(cargarPresupuestos).catch(cargarPresupuestos)
+    }
+    window.addEventListener(REALTIME_EVENTS.PRESUPUESTOS_CHANGED, actualizarDesdeSupabase)
     return () => {
       window.removeEventListener('storage', cargarPresupuestos)
       window.removeEventListener('presupuestos_actualizados', cargarPresupuestos)
+      window.removeEventListener(REALTIME_EVENTS.PRESUPUESTOS_CHANGED, actualizarDesdeSupabase)
     }
   }, [cargarPresupuestos])
 
   const agregarPresupuesto = useCallback(
-    (nuevoPresupuesto: PresupuestoLocal) => {
-      const directos = presupuestosStorageService.obtenerPresupuestos([])
-      const actualizados = [nuevoPresupuesto, ...directos]
-      presupuestosStorageService.guardarPresupuestos(actualizados)
-      if (typeof presupuestosStorageService.guardarPresupuesto === 'function') {
-        presupuestosStorageService
-          .guardarPresupuesto(nuevoPresupuesto)
-          .catch(() => {})
-      }
+    async (nuevoPresupuesto: PresupuestoLocal) => {
+      const guardado = await presupuestosStorageService.guardarPresupuesto(nuevoPresupuesto)
+      if (!guardado) return false
       cargarPresupuestos()
+      return true
     },
     [cargarPresupuestos]
   )
 
   const cambiarEstadoPresupuesto = useCallback(
-    (presupuestoId: string | number, nuevoEstado: string) => {
-      presupuestosStorageService.actualizarEstadoPresupuesto(
+    async (presupuestoId: string | number, nuevoEstado: string) => {
+      const actualizado = await presupuestosStorageService.actualizarEstadoPresupuesto(
         presupuestoId,
         nuevoEstado
       )
-      cargarPresupuestos()
+      if (actualizado) cargarPresupuestos()
+      return actualizado
     },
     [cargarPresupuestos]
   )
 
-  const eliminarPresupuesto = useCallback(
-    async (
-      presupuestoId: string | number,
-      pacienteId: string | number,
-      items: PresupuestoItemLocal[] = []
-    ) => {
+  const archivarPresupuesto = useCallback(
+    async (presupuestoId: string | number) => {
       const ok = await confirm({
-        title: 'Eliminar presupuesto',
-        description:
-          '¿Estás seguro de eliminar este presupuesto? Se eliminará también del plan de tratamiento del paciente.',
-        variant: 'danger',
-        confirmText: 'Eliminar'
+        title: 'Archivar presupuesto',
+        description: 'El presupuesto permanecerá en el historial de la clínica.',
+        variant: 'warning',
+        confirmText: 'Archivar'
       })
       if (ok) {
-        presupuestosStorageService.eliminarPresupuestoYFicha(
-          presupuestoId,
-          pacienteId,
-          items
-        )
-        cargarPresupuestos()
+        if (await presupuestosStorageService.archivarPresupuesto(presupuestoId)) cargarPresupuestos()
       }
     },
     [cargarPresupuestos, confirm]
@@ -126,7 +113,8 @@ export const usePresupuestos = (
   const presupuestosFiltrados = useMemo(() => {
     return presupuestos.filter(p => {
       const coincideEstado =
-        estadoFiltro === 'Todos' || p.estado === estadoFiltro
+        estadoFiltro === 'Todos' ? p.estado !== 'archivado' :
+        estadoFiltro === 'Archivados' ? p.estado === 'archivado' : p.estado === estadoFiltro
       const texto = busqueda.trim().toLowerCase()
       const coincideBusqueda =
         !texto ||
@@ -150,6 +138,6 @@ export const usePresupuestos = (
     setBusqueda,
     agregarPresupuesto,
     cambiarEstadoPresupuesto,
-    eliminarPresupuesto
+    archivarPresupuesto
   }
 }

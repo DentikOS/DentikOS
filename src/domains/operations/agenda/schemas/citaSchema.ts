@@ -41,6 +41,9 @@ export const citaSchema = z.object({
   trataMiento: z.string().optional(),
   motivo: z.string().optional(),
   boxAsignado: z.string().optional(),
+  sedeId: z.string().uuid().nullable().optional(),
+  sedeNombre: z.string().optional(),
+  boxId: z.string().uuid().nullable().optional(),
   horaInicioAtencion: z.string().optional(),
   horaFin: z.string().optional(),
   duracionMinutos: z.union([

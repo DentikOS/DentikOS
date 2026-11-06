@@ -1,0 +1,223 @@
+import { getClinicaActivaSync } from '../../../../infrastructure/auth/authService'
+import { supabase, USE_SUPABASE } from '../../../../infrastructure/supabase/supabaseClient'
+import type { Prestacion } from '../schemas/prestacionSchema'
+import type { PlantillaCatalogoId } from '../constants/prestacionesPlantillas'
+import { EQUIPAMIENTO_CLINICO_IDS, type EquipamientoClinicoId } from '../../../../shared/constants/equipamientoClinico'
+
+const uuid = (value: unknown): value is string =>
+  typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
+
+const contexto = () => {
+  const clinicaId = getClinicaActivaSync()
+  if (!USE_SUPABASE || !supabase || !uuid(clinicaId)) {
+    throw new Error('No hay una clínica activa conectada para sincronizar el arancel.')
+  }
+  return { client: supabase, clinicaId }
+}
+
+const desdeFila = (fila: Record<string, unknown>): Prestacion => ({
+  id: String(fila.id),
+  nombre: String(fila.nombre),
+  especialidad: String(fila.especialidad),
+  precioParticular: Number(fila.precio_particular),
+  precioFonasa: fila.precio_fonasa == null ? null : Number(fila.precio_fonasa),
+  codigoFonasa: String(fila.codigo_fonasa ?? ''),
+  ...(typeof fila.codigo_interno === 'string' ? { codigoInterno: fila.codigo_interno } : {}),
+  ...(typeof fila.categoria === 'string' ? { categoria: fila.categoria } : {}),
+  precio: Number(fila.precio_particular),
+  ...(fila.especialidad === 'Pack Promocional' ? { precioCombo: Number(fila.precio_particular) } : {}),
+  ...(typeof fila.descripcion === 'string' ? { descripcion: fila.descripcion } : {}),
+  ...(typeof fila.ahorro_estimado === 'string' ? { ahorroEstimado: fila.ahorro_estimado } : {}),
+  equipamientoRequerido: Array.isArray(fila.equipamiento_requerido)
+    ? fila.equipamiento_requerido.filter((id): id is EquipamientoClinicoId =>
+        typeof id === 'string' && EQUIPAMIENTO_CLINICO_IDS.includes(id as EquipamientoClinicoId))
+    : [],
+})
+
+const columnasPrestacionLegacy = 'id,nombre,especialidad,precio_particular,precio_fonasa,codigo_fonasa,descripcion,ahorro_estimado'
+const columnasPrestacionConCatalogo = `${columnasPrestacionLegacy},codigo_interno,categoria`
+const columnasPrestacionCompat = `${columnasPrestacionLegacy},equipamiento_requerido`
+const columnasPrestacion = `${columnasPrestacionConCatalogo},equipamiento_requerido`
+const errorRequiereMigracion = (error: { code?: string } | null): boolean =>
+  error?.code === '42703' || error?.code === 'PGRST204'
+
+const obtenerEquipamientoValido = (prestacion: Prestacion): EquipamientoClinicoId[] => {
+  const valor = prestacion.equipamientoRequerido
+  if (valor === undefined) return []
+  if (!Array.isArray(valor) || valor.some((id) =>
+    typeof id !== 'string' || !EQUIPAMIENTO_CLINICO_IDS.includes(id as EquipamientoClinicoId))) {
+    throw new Error('La lista de equipamiento requerido contiene valores inválidos.')
+  }
+  return [...new Set(valor as EquipamientoClinicoId[])]
+}
+
+export interface PrestacionImportarPlantilla {
+  codigoInterno: string
+  categoria: string
+  nombre: string
+  especialidad: string
+  precioParticular: number
+  precioFonasa: number | null
+}
+
+export const prestacionesSupabaseService = {
+  async listar(): Promise<Prestacion[]> {
+    const { client, clinicaId } = contexto()
+    const { data, error } = await client.from('prestaciones')
+      .select(columnasPrestacion)
+      .eq('clinica_id', clinicaId).order('nombre')
+    if (!error) return (data ?? []).map((fila) => desdeFila(fila))
+    if (errorRequiereMigracion(error)) {
+      const compatible = await client.from('prestaciones')
+        .select(columnasPrestacionCompat)
+        .eq('clinica_id', clinicaId).order('nombre')
+      if (!compatible.error) return (compatible.data ?? []).map((fila) => desdeFila(fila))
+      const legado = await client.from('prestaciones')
+        .select(columnasPrestacionLegacy)
+        .eq('clinica_id', clinicaId).order('nombre')
+      if (!legado.error) return (legado.data ?? []).map((fila) => desdeFila(fila))
+    }
+    throw new Error('No se pudo cargar el arancel compartido de la clínica.')
+  },
+
+  async guardar(prestacion: Prestacion): Promise<Prestacion> {
+    const { client, clinicaId } = contexto()
+    const nombre = prestacion.nombre.trim()
+    const especialidad = prestacion.especialidad.trim()
+    const particular = Number(prestacion.precioParticular)
+    const fonasa = prestacion.precioFonasa == null
+      ? null
+      : Number(prestacion.precioFonasa)
+    if (!nombre || !especialidad || !Number.isSafeInteger(particular) || particular < 0 ||
+        (fonasa !== null && (!Number.isSafeInteger(fonasa) || fonasa < 0))) {
+      throw new Error('Revisa el nombre, la especialidad y que los precios sean enteros no negativos.')
+    }
+    const valores = {
+      nombre, especialidad, precio_particular: particular,
+      precio_fonasa: fonasa, codigo_fonasa: prestacion.codigoFonasa || null,
+      codigo_interno: prestacion.codigoInterno?.trim() || null,
+      categoria: prestacion.categoria?.trim() || null,
+      precio: particular,
+      ...(typeof prestacion.descripcion === 'string'
+        ? { descripcion: prestacion.descripcion.trim() || null }
+        : {}),
+      ...(typeof prestacion.ahorroEstimado === 'string'
+        ? { ahorro_estimado: prestacion.ahorroEstimado.trim() || null }
+        : {}),
+      equipamiento_requerido: obtenerEquipamientoValido(prestacion),
+    }
+    const { data, error } = uuid(prestacion.id)
+      ? await client.from('prestaciones').update(valores).eq('id', prestacion.id)
+          .eq('clinica_id', clinicaId).select(columnasPrestacion).maybeSingle()
+      : await (async () => {
+          const { data: auth, error: authError } = await client.auth.getUser()
+          if (authError || !auth.user?.id) throw new Error('Inicia sesión para guardar la prestación.')
+          return client.from('prestaciones').insert({ ...valores, clinica_id: clinicaId, user_id: auth.user.id })
+            .select(columnasPrestacion).single()
+        })()
+    if (errorRequiereMigracion(error)) {
+      throw new Error('El catálogo BP08 aún no está habilitado en la base de datos. Aplique la migración BP08 antes de guardar este cambio.')
+    }
+    if (error || !data) throw new Error('No se pudo guardar la prestación. Revisa tus permisos y vuelve a intentar.')
+    return desdeFila(data)
+  },
+
+  async importarPlantilla(
+    plantilla: PlantillaCatalogoId,
+    prestaciones: PrestacionImportarPlantilla[],
+  ): Promise<Prestacion[]> {
+    const { client } = contexto()
+    if (!prestaciones.length || prestaciones.length > 35) {
+      throw new Error('La plantilla debe contener entre 1 y 35 prestaciones revisadas.')
+    }
+    const payload = prestaciones.map((prestacion) => {
+      const particular = Number(prestacion.precioParticular)
+      const fonasa = prestacion.precioFonasa
+      if (!prestacion.codigoInterno.trim() || !prestacion.categoria.trim() || !prestacion.nombre.trim() ||
+          !prestacion.especialidad.trim() || !Number.isSafeInteger(particular) || particular < 0 ||
+          (fonasa !== null && (!Number.isSafeInteger(fonasa) || fonasa < 0))) {
+        throw new Error('Revisa los códigos, categorías y precios de la plantilla antes de importar.')
+      }
+      return {
+        codigo_interno: prestacion.codigoInterno.trim().toUpperCase(),
+        categoria: prestacion.categoria.trim(),
+        nombre: prestacion.nombre.trim(),
+        especialidad: prestacion.especialidad.trim(),
+        precio_particular: particular,
+        precio_fonasa: fonasa,
+      }
+    })
+
+    const { data, error } = await client.rpc('importar_plantilla_prestaciones', {
+      p_plantilla: plantilla,
+      p_prestaciones: payload,
+    })
+    if (error?.code === '42501') {
+      throw new Error('Solo una persona administradora de la clínica puede importar la plantilla.')
+    }
+    if (error?.message?.includes('CATALOGO_NO_VACIO')) {
+      throw new Error('El catálogo cambió y ya contiene prestaciones. Actualiza la lista antes de importar.')
+    }
+    if (error?.code === '42703' || error?.code === 'PGRST202' || error?.code === 'PGRST204') {
+      throw new Error('La importación BP08 aún no está disponible. Aplica la migración del catálogo y vuelve a intentar.')
+    }
+    if (error || !Array.isArray(data) || data.length !== payload.length) {
+      throw new Error('La nube no confirmó el resultado completo. Actualiza el catálogo antes de intentar otra importación.')
+    }
+    return data.map((fila) => desdeFila(fila as Record<string, unknown>))
+  },
+
+  async reajustarMasivo(porcentaje: number | string, prestaciones: Prestacion[]): Promise<Prestacion[]> {
+    const { client } = contexto()
+    const pct = typeof porcentaje === 'string' && !porcentaje.trim() ? NaN : Number(porcentaje)
+    if (!Number.isFinite(pct) || pct < -100 || pct > 10000) {
+      throw new Error('El porcentaje debe estar entre -100% y 10000%.')
+    }
+    if (!prestaciones.length) throw new Error('No hay prestaciones sincronizadas para reajustar.')
+
+    const esperadas = prestaciones.map((prestacion) => {
+      const particular = Number(prestacion.precioParticular)
+      const fonasa = prestacion.precioFonasa == null ? null : Number(prestacion.precioFonasa)
+      if (!uuid(prestacion.id) || !Number.isSafeInteger(particular) || particular < 0 ||
+        (fonasa !== null && (!Number.isSafeInteger(fonasa) || fonasa < 0))) {
+        throw new Error('El arancel contiene datos pendientes de sincronización o precios inválidos.')
+      }
+      return { id: prestacion.id, precio_particular: particular, precio_fonasa: fonasa }
+    })
+
+    const { data, error } = await client.rpc('reajustar_arancel_clinica', {
+      p_porcentaje: pct,
+      p_prestaciones_esperadas: esperadas,
+    })
+    if (error?.code === '40001') {
+      throw new Error('El arancel cambió desde que se cargó. Actualízalo antes de reajustar.')
+    }
+    if (error?.code === '42501') throw new Error('No tienes permisos para reajustar el arancel de esta clínica.')
+    if (error?.code === '22003') throw new Error('El porcentaje generaría un precio fuera del rango permitido.')
+    if (error || !Array.isArray(data) || data.length !== esperadas.length) {
+      throw new Error('No se pudo reajustar el arancel completo. No se confirmó ningún cambio.')
+    }
+    const metadataPorId = new Map(prestaciones.map((prestacion) => [String(prestacion.id), prestacion]))
+    return data.map((fila) => {
+      const metadata = metadataPorId.get(String(fila.id))
+      const confirmada = desdeFila(fila as Record<string, unknown>)
+      return {
+        ...metadata,
+        ...confirmada,
+        equipamientoRequerido: Array.isArray(fila.equipamiento_requerido)
+          ? confirmada.equipamientoRequerido
+          : metadata?.equipamientoRequerido ?? [],
+      }
+    })
+  },
+
+  async eliminar(id: string | number): Promise<void> {
+    const { client, clinicaId } = contexto()
+    if (!uuid(id)) throw new Error('La prestación aún no está sincronizada.')
+    const { data, error } = await client.from('prestaciones').delete()
+      .eq('id', id).eq('clinica_id', clinicaId).select('id')
+    if (error || data?.length !== 1) {
+      throw new Error('No se pudo eliminar la prestación. Puede estar en uso o faltan permisos.')
+    }
+  },
+}

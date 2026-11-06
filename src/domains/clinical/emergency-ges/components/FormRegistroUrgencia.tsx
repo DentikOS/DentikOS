@@ -1,210 +1,86 @@
 import React, { memo, useState } from 'react'
-import { FileText } from 'lucide-react'
+import { UserRoundPlus } from 'lucide-react'
 import { Button } from '../../../../shared/ui/ui/Button'
-import {
-  PATOLOGIAS_GES_ODONTO,
-  DIAGNOSTICOS_URGENCIA_COMMON,
-  CATEGORIAS_TRIAGE_URGENCIA
-} from '../constants/urgenciasGesConstants'
-import { useAppDialog } from '../../../../shared/hooks/useAppDialog'
-import type { AtencionGes } from '../services/urgenciasGesStorageService'
 
 export interface PacienteUrgenciaMinimo {
   id: string | number
   nombre?: string
   rut?: string
-  prevision?: string | null
-  [key: string]: unknown
+  clinicaId?: string | null
 }
 
 export interface FormRegistroGesProps {
   pacientes?: PacienteUrgenciaMinimo[]
-  alRegistrar: (registro: Partial<AtencionGes>) => void
+  alRegistrar: (pacienteId: string, requestId: string) => Promise<{ estado: 'sincronizado' | 'pendiente' }>
+  error?: string | null
 }
 
-export const FormRegistroGes: React.FC<FormRegistroGesProps> = memo(({
-  pacientes = [],
-  alRegistrar
-}) => {
-  const [pacienteId, setPacienteId] = useState<string>('')
-  const { alert: dialogAlert } = useAppDialog()
-  const [triage, setTriage] = useState<string>(CATEGORIAS_TRIAGE_URGENCIA[1].id)
-  const [patologiaGes, setPatologiaGes] = useState<string>(PATOLOGIAS_GES_ODONTO[0].id)
-  const [diagnostico, setDiagnostico] = useState<string>(DIAGNOSTICOS_URGENCIA_COMMON[0])
-  const [indicacionesTratamiento, setIndicacionesTratamiento] = useState<string>('')
-  const [enviando, setEnviando] = useState<boolean>(false)
-  const [aceptaAtencion, setAceptaAtencion] = useState<boolean>(true)
+const nuevoId = (): string => globalThis.crypto?.randomUUID?.() || ''
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
-    e.preventDefault()
-    setEnviando(true)
+export const FormRegistroGes: React.FC<FormRegistroGesProps> = memo(({ pacientes = [], alRegistrar, error }) => {
+  const [pacienteId, setPacienteId] = useState('')
+  const [requestId, setRequestId] = useState(nuevoId)
+  const [guardando, setGuardando] = useState(false)
+  const [estadoLocal, setEstadoLocal] = useState<'sincronizado' | 'pendiente' | null>(null)
+  const [errorLocal, setErrorLocal] = useState<string | null>(null)
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>): Promise<void> => {
+    event.preventDefault()
+    if (!pacienteId || !requestId || guardando) return
+    setGuardando(true)
+    setEstadoLocal(null)
+    setErrorLocal(null)
     try {
-      if (!pacienteId) {
-        await dialogAlert({
-          title: 'Paciente requerido',
-          description: 'Por favor selecciona un paciente de la lista.',
-          variant: 'warning',
-          confirmText: 'Entendido'
-        })
-        return
-      }
-
-      const pac = pacientes.find(p => String(p.id) === String(pacienteId))
-      const patObj = PATOLOGIAS_GES_ODONTO.find(p => p.id === patologiaGes)
-      const triageObj = CATEGORIAS_TRIAGE_URGENCIA.find(t => t.id === triage)
-
-      const registro: Partial<AtencionGes> = {
-        pacienteId: pac?.id,
-        pacienteNombre: pac?.nombre || 'Paciente',
-        pacienteRut: pac?.rut || 'N/I',
-        pacientePrevision: pac?.prevision || 'Fonasa',
-        triageId: triageObj?.id,
-        triageNombre: triageObj?.nombre,
-        patologiaGesId: patObj?.id,
-        patologiaNombre: patObj?.nombre,
-        patologiaCodigo: patObj?.codigo,
-        diagnostico,
-        indicacionesTratamiento,
-        aceptaAtencion
-      }
-
-      alRegistrar(registro)
-      await dialogAlert({
-        title: 'Registro GES generado',
-        description: 'Registro de Urgencia y Constancia GES generado exitosamente.',
-        variant: 'success',
-        confirmText: 'Entendido'
-      })
+      const resultado = await alRegistrar(pacienteId, requestId)
+      setEstadoLocal(resultado.estado)
+      setPacienteId('')
+      setRequestId(nuevoId())
+    } catch (cause) {
+      setErrorLocal(cause instanceof Error ? cause.message : 'No se pudo registrar la llegada')
     } finally {
-      setEnviando(false)
+      setGuardando(false)
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="bg-surface border border-surface rounded-2xl p-6 shadow-xs space-y-4 text-xs">
-      <div className="border-b border-surface pb-2">
-        <h3 className="font-bold text-sm text-gray-900 dark:text-graphite-50 uppercase tracking-wider inline-flex items-center gap-2">
-          <FileText size={16} />Registro de Atención de Urgencia & Constancia GES / AUGE
-        </h3>
-        <p className="text-gray-500 dark:text-graphite-400 text-[11px]">
-          Categorización Triage y notificación obligatoria de confirmación diagnóstica (Ley 19.966).
+    <form onSubmit={handleSubmit} className="rounded-2xl border border-surface bg-surface p-5 shadow-xs">
+      <div className="mb-4">
+        <h2 className="flex items-center gap-2 text-sm font-bold text-graphite-900 dark:text-graphite-50">
+          <UserRoundPlus size={17} aria-hidden="true" /> Registrar llegada
+        </h2>
+        <p className="mt-1 text-xs text-graphite-500 dark:text-graphite-400">
+          La hora oficial la asigna el servidor al confirmar. Una llegada capturada sin conexión queda marcada como pendiente.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div>
-          <label className="block font-semibold text-gray-700 dark:text-graphite-300 mb-1">
-            Seleccionar Paciente *
-          </label>
-          <select
-            value={pacienteId}
-            onChange={(e) => setPacienteId(e.target.value)}
-            className="w-full p-2.5 rounded-lg border border-surface bg-white dark:bg-graphite-800 surgical:bg-graphite-200 text-graphite-900 dark:text-graphite-50 surgical:text-black font-bold focus:outline-none focus:ring-2 focus:ring-primary/40"
-          >
-            <option value="">-- Seleccionar paciente --</option>
-            {pacientes.map(p => (
-              <option key={p.id} value={p.id}>{p.nombre} ({p.rut})</option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="block font-semibold text-gray-700 dark:text-graphite-300 mb-1">
-            Categorización Triage Urgencia
-          </label>
-          <select
-            value={triage}
-            onChange={(e) => setTriage(e.target.value)}
-            className="w-full p-2.5 rounded-lg border border-surface bg-white dark:bg-graphite-800 surgical:bg-graphite-200 font-bold text-gray-800 dark:text-graphite-100 surgical:text-black focus:outline-none focus:ring-2 focus:ring-primary/40"
-          >
-            {CATEGORIAS_TRIAGE_URGENCIA.map(t => (
-              <option key={t.id} value={t.id}>{t.nombre}</option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="block font-semibold text-gray-700 dark:text-graphite-300 mb-1">
-            Problema de Salud GES / AUGE *
-          </label>
-          <select
-            value={patologiaGes}
-            onChange={(e) => setPatologiaGes(e.target.value)}
-            className="w-full p-2.5 rounded-lg border border-surface bg-white dark:bg-graphite-800 surgical:bg-graphite-200 font-bold text-sky-800 dark:text-sky-300 surgical:text-black focus:outline-none focus:ring-2 focus:ring-primary/40"
-          >
-            {PATOLOGIAS_GES_ODONTO.map(p => (
-              <option key={p.id} value={p.id}>[{p.codigo}] {p.nombre}</option>
-            ))}
-          </select>
-        </div>
+      <label className="mb-1 block text-xs font-semibold text-graphite-700 dark:text-graphite-200" htmlFor="urgencia-paciente">
+        Paciente
+      </label>
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <select
+          id="urgencia-paciente"
+          required
+          value={pacienteId}
+          onChange={(event) => setPacienteId(event.target.value)}
+          className="min-h-10 w-full rounded-lg border border-surface bg-white px-3 text-sm text-graphite-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 dark:bg-graphite-900 dark:text-graphite-50"
+        >
+          <option value="">Selecciona un paciente</option>
+          {pacientes.map((paciente) => (
+            <option key={paciente.id} value={paciente.id}>
+              {paciente.nombre || 'Paciente'}{paciente.rut ? ` (${paciente.rut})` : ''}
+            </option>
+          ))}
+        </select>
+        <Button type="submit" variant="primary" loading={guardando} disabled={!requestId || guardando} icon={UserRoundPlus}>
+          Registrar llegada
+        </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block font-semibold text-gray-700 dark:text-graphite-300 mb-1">
-            Diagnóstico Clínico (CIE-10)
-          </label>
-          <select
-            value={diagnostico}
-            onChange={(e) => setDiagnostico(e.target.value)}
-            className="w-full p-2.5 rounded-lg border border-surface bg-white dark:bg-graphite-800 surgical:bg-graphite-200 text-graphite-900 dark:text-graphite-50 surgical:text-black focus:outline-none focus:ring-2 focus:ring-primary/40"
-          >
-            {DIAGNOSTICOS_URGENCIA_COMMON.map(d => (
-              <option key={d} value={d}>{d}</option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="block font-semibold text-gray-700 dark:text-graphite-300 mb-1">
-            Decisión del Paciente
-          </label>
-          <div className="flex gap-4 pt-2">
-            <label className="flex items-center gap-2 font-bold text-emerald-700 dark:text-emerald-400 surgical:text-black cursor-pointer">
-              <input
-                type="radio"
-                name="acepta"
-                checked={aceptaAtencion}
-                onChange={() => setAceptaAtencion(true)}
-              />
-              Acepta atención prestador
-            </label>
-            <label className="flex items-center gap-2 font-bold text-red-700 dark:text-red-400 surgical:text-black cursor-pointer">
-              <input
-                type="radio"
-                name="acepta"
-                checked={!aceptaAtencion}
-                onChange={() => setAceptaAtencion(false)}
-              />
-              Rechaza / Derivación
-            </label>
-          </div>
-        </div>
-      </div>
-
-      <div>
-        <label className="block font-semibold text-gray-700 dark:text-graphite-300 mb-1">
-          Indicaciones Clínicas / Conducta Inmediata
-        </label>
-        <textarea
-          rows={2}
-          placeholder="Ej: Se realiza trepanación y alivio de oclusión en pieza 1.6, indicación de farmacoterapia analgésica/antibiótica..."
-          value={indicacionesTratamiento}
-          onChange={(e) => setIndicacionesTratamiento(e.target.value)}
-          className="w-full p-2.5 rounded-lg border border-surface bg-white dark:bg-graphite-800 surgical:bg-graphite-200 text-graphite-900 dark:text-graphite-50 surgical:text-black focus:outline-none focus:ring-2 focus:ring-primary/40"
-        />
-      </div>
-
-      <Button
-        type="submit"
-        variant="primary"
-        fullWidth
-        icon={FileText}
-        loading={enviando}
-        disabled={enviando}
-      >
-        {enviando ? 'Emitiendo Constancia...' : 'Generar y Emitir Constancia GES'}
-      </Button>
+      <p aria-live="polite" className="mt-3 min-h-4 text-xs">
+        {estadoLocal === 'sincronizado' && <span className="text-emerald-700 dark:text-emerald-300">Llegada sincronizada.</span>}
+        {estadoLocal === 'pendiente' && <span className="text-amber-800 dark:text-amber-200">Pendiente de sincronización; visible solo en este dispositivo.</span>}
+        {(errorLocal || error) && <span className="text-red-700 dark:text-red-300">{errorLocal || error}</span>}
+      </p>
     </form>
   )
 })

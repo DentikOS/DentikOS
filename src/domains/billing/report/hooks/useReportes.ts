@@ -5,6 +5,8 @@ import {
 } from '../services/reportesStorageService'
 import { calcularEstadisticasAvanzadas } from '../utils/reportesCalculations'
 import type { Paciente } from '../../../../domains/clinical/patient/schemas/pacienteSchema'
+import { clinicStorageService } from '../../../organization/clinic/services/clinicStorageService'
+import { resolverMonedaDocumento, type MonedaDocumento } from '../../../../shared/utils/formatoDocumento'
 
 export interface MetricasReportes {
   totalPacientes: number
@@ -23,6 +25,9 @@ export interface UseReportesReturn {
   periodoSeleccionado: string
   setPeriodoSeleccionado: React.Dispatch<React.SetStateAction<string>>
   metricas: MetricasReportes
+  monedaSeleccionada: MonedaDocumento
+  setMonedaSeleccionada: React.Dispatch<React.SetStateAction<MonedaDocumento>>
+  monedasDisponibles: MonedaDocumento[]
 }
 
 export const useReportes = (
@@ -30,6 +35,9 @@ export const useReportes = (
 ): UseReportesReturn => {
   const [periodoSeleccionado, setPeriodoSeleccionado] =
     useState<string>('este_mes')
+  const [monedaSeleccionada, setMonedaSeleccionada] = useState<MonedaDocumento>(() =>
+    resolverMonedaDocumento(clinicStorageService.obtenerClinica()?.moneda)
+  )
 
   const datosConsolidados = useMemo<DatosConsolidadosBI>(() => {
     const loc = reportesStorageService.obtenerDatosConsolidados()
@@ -49,13 +57,26 @@ export const useReportes = (
       datosConsolidados.pacientes,
       datosConsolidados.pagos,
       datosConsolidados.presupuestos,
-      datosConsolidados.citas
+      datosConsolidados.citas,
+      monedaSeleccionada
     ) as MetricasReportes
+  }, [datosConsolidados, monedaSeleccionada])
+
+  const monedasDisponibles = useMemo(() => {
+    const monedas = new Set<MonedaDocumento>([
+      resolverMonedaDocumento(clinicStorageService.obtenerClinica()?.moneda),
+      ...datosConsolidados.pagos.map((pago) => resolverMonedaDocumento(pago.moneda)),
+      ...datosConsolidados.presupuestos.map((presupuesto) => resolverMonedaDocumento(presupuesto.moneda)),
+    ])
+    return [...monedas]
   }, [datosConsolidados])
 
   return {
     periodoSeleccionado,
     setPeriodoSeleccionado,
-    metricas
+    metricas,
+    monedaSeleccionada,
+    setMonedaSeleccionada,
+    monedasDisponibles,
   }
 }

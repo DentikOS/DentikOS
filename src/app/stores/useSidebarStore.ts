@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
 export type SidebarMode = 'expanded' | 'collapsed' | 'hidden'
-export type AppTheme = 'light' | 'surgical' | 'dark'
+export type AppTheme = 'light' | 'dark'
 export type ConnectivityStatus = 'connected' | 'pending' | 'error'
 
 export interface SidebarState {
@@ -22,8 +22,6 @@ export interface SidebarState {
   lastSyncAt: number | null
   activeDevices: number
 
-  // Compatibilidad hacia atrás (UI existente)
-  preSurgicalMode: SidebarMode | null
   focusMode: boolean
   mobileOpen: boolean
 
@@ -40,8 +38,6 @@ export interface SidebarState {
   setLastSyncAt: (timestamp: number) => void
   setActiveDevices: (count: number) => void
 
-  // Acciones de compatibilidad hacia atrás
-  setPreSurgicalMode: (mode: SidebarMode | null) => void
   setFocusMode: (focus: boolean) => void
   toggleFocusMode: () => void
   setMobileOpen: (open: boolean) => void
@@ -60,8 +56,6 @@ export const useSidebarStore = create<SidebarState>()(
       lastSyncAt: null,
       activeDevices: 1,
 
-      // Compatibilidad
-      preSurgicalMode: null,
       focusMode: false,
       mobileOpen: false,
 
@@ -101,9 +95,6 @@ export const useSidebarStore = create<SidebarState>()(
 
       setActiveDevices: (count) => set({ activeDevices: count }),
 
-      // Compatibilidad
-      setPreSurgicalMode: (preSurgicalMode) => set({ preSurgicalMode }),
-
       setFocusMode: (focusMode) => set({ focusMode }),
 
       toggleFocusMode: () =>
@@ -118,6 +109,15 @@ export const useSidebarStore = create<SidebarState>()(
         theme: state.theme,
         activeModule: state.activeModule,
       }),
+      merge: (persistedState, currentState) => {
+        const persisted = (persistedState ?? {}) as Partial<SidebarState>
+        return {
+          ...currentState,
+          ...persisted,
+          // Las instalaciones existentes pueden tener guardado el tema eliminado.
+          theme: persisted.theme === 'dark' ? 'dark' : 'light',
+        }
+      },
     }
   )
 )

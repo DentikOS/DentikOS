@@ -1,6 +1,7 @@
 import React, { memo } from 'react'
 import { Printer } from 'lucide-react'
 import type { MetricasReportes } from '../hooks/useReportes'
+import { formatearImporteDocumento } from '../../../../shared/utils/formatoDocumento'
 
 export interface UserProfileLetter {
   nombreCompleto?: string
@@ -9,12 +10,14 @@ export interface UserProfileLetter {
 
 export interface ReporteImprimibleLetterProps {
   metricas: MetricasReportes
+  moneda?: string
   userProfile?: UserProfileLetter | null
   alCerrar: () => void
 }
 
 export const ReporteImprimibleLetter: React.FC<ReporteImprimibleLetterProps> = memo(({
   metricas,
+  moneda = 'CLP',
   userProfile,
   alCerrar
 }) => {
@@ -69,7 +72,7 @@ export const ReporteImprimibleLetter: React.FC<ReporteImprimibleLetterProps> = m
               Recaudado Total
             </span>
             <span className="text-base font-black text-emerald-900">
-              ${metricas.totalRecaudado.toLocaleString('es-CL')} CLP
+              {formatearImporteDocumento(metricas.totalRecaudado, moneda)}
             </span>
           </div>
           <div>
@@ -85,7 +88,7 @@ export const ReporteImprimibleLetter: React.FC<ReporteImprimibleLetterProps> = m
               Ticket Promedio
             </span>
             <span className="text-base font-black text-purple-900">
-              ${metricas.ticketPromedio.toLocaleString('es-CL')} CLP
+              {formatearImporteDocumento(metricas.ticketPromedio, moneda)}
             </span>
           </div>
         </div>
@@ -108,7 +111,7 @@ export const ReporteImprimibleLetter: React.FC<ReporteImprimibleLetterProps> = m
                   <td className="p-2 border border-gray-200 font-semibold">{it.nombre}</td>
                   <td className="p-2 border border-gray-200 text-center">{it.cantidad}</td>
                   <td className="p-2 border border-gray-200 text-right font-bold">
-                    ${it.montoTotal.toLocaleString('es-CL')} CLP
+                    {formatearImporteDocumento(it.montoTotal, moneda)}
                   </td>
                 </tr>
               ))}

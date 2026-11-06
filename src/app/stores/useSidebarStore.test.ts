@@ -12,7 +12,6 @@ describe('useSidebarStore (Blueprint 02 §09)', () => {
       connectivityStatus: 'connected',
       lastSyncAt: null,
       activeDevices: 1,
-      preSurgicalMode: null,
       focusMode: false,
       mobileOpen: false,
     })
@@ -42,8 +41,8 @@ describe('useSidebarStore (Blueprint 02 §09)', () => {
   })
 
   it('permite cambiar tema y módulo activo', () => {
-    useSidebarStore.getState().setTheme('surgical')
-    expect(useSidebarStore.getState().theme).toBe('surgical')
+    useSidebarStore.getState().setTheme('dark')
+    expect(useSidebarStore.getState().theme).toBe('dark')
 
     useSidebarStore.getState().setActiveModule('Pacientes')
     expect(useSidebarStore.getState().activeModule).toBe('Pacientes')
@@ -79,14 +78,12 @@ describe('useSidebarStore (Blueprint 02 §09)', () => {
     expect(useSidebarStore.getState().activeDevices).toBe(3)
   })
 
-  it('mantiene compatibilidad con acciones previas (focusMode, mobileOpen, preSurgicalMode)', () => {
+  it('mantiene compatibilidad con acciones previas (focusMode, mobileOpen)', () => {
     useSidebarStore.getState().setMobileOpen(true)
     expect(useSidebarStore.getState().mobileOpen).toBe(true)
 
     useSidebarStore.getState().toggleFocusMode()
     expect(useSidebarStore.getState().focusMode).toBe(true)
 
-    useSidebarStore.getState().setPreSurgicalMode('expanded')
-    expect(useSidebarStore.getState().preSurgicalMode).toBe('expanded')
   })
 })

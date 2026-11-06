@@ -6,16 +6,16 @@ import type { ItemInventario } from '../services/inventarioStorageService'
 
 export interface TablaInventarioProps {
   items: ItemInventario[]
-  onAjustarCantidad: (idItem: string | number, cambio: number) => void
   onEditar: (item: ItemInventario) => void
   onEliminar: (idItem: string | number) => void | Promise<void>
+  canManage?: boolean
 }
 
 export const TablaInventario: React.FC<TablaInventarioProps> = memo(({
   items,
-  onAjustarCantidad,
   onEditar,
-  onEliminar
+  onEliminar,
+  canManage = true
 }) => {
   if (items.length === 0) {
     return (
@@ -29,14 +29,15 @@ export const TablaInventario: React.FC<TablaInventarioProps> = memo(({
     <div className="bg-surface border border-surface rounded-2xl overflow-hidden shadow-xs text-xs">
       <table className="w-full text-left border-collapse">
         <thead>
-          <tr className="bg-graphite-50 dark:bg-graphite-950 surgical:bg-graphite-200 border-b border-surface text-gray-700 dark:text-graphite-300 surgical:text-black font-bold uppercase text-[10px]">
-            <th className="p-3">Insumo / Producto</th>
+          <tr className="bg-graphite-50 dark:bg-graphite-950  border-b border-surface text-gray-700 dark:text-graphite-300  font-bold uppercase text-[10px]">
+            <th className="p-3">Artículo</th>
+            <th className="p-3">Tipo</th>
             <th className="p-3">Categoría</th>
             <th className="p-3 text-center">Stock Actual</th>
             <th className="p-3 text-center">Estado Stock</th>
             <th className="p-3">Vencimiento</th>
             <th className="p-3">Proveedor</th>
-            <th className="p-3 text-right print:hidden">Acciones</th>
+            {canManage && <th className="p-3 text-right print:hidden">Acciones</th>}
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100 dark:divide-graphite-800">
@@ -47,43 +48,26 @@ export const TablaInventario: React.FC<TablaInventarioProps> = memo(({
             return (
               <tr
                 key={item.id}
-                className="hover:bg-gray-50 dark:hover:bg-graphite-800 surgical:hover:bg-slate-200 transition-colors"
+                className="hover:bg-gray-50 dark:hover:bg-graphite-800  transition-colors"
               >
-                <td className="p-3 font-bold text-gray-900 dark:text-graphite-50 surgical:text-black">
+                <td className="p-3 font-bold text-gray-900 dark:text-graphite-50 ">
                   {item.nombre}
-                  <span className="block text-[10px] font-normal text-gray-500 dark:text-graphite-400 surgical:text-graphite-600 tabular-nums">
-                    Mínimo deseado: {item.minimoCritico} {item.unidad}
+                  <span className="block text-[10px] font-normal text-gray-500 dark:text-graphite-400  tabular-nums">
+                    {item.codigo || 'Sin código'} · mínimo: {item.minimoCritico} {item.unidad}
                   </span>
                 </td>
 
-                <td className="p-3 font-medium text-gray-600 dark:text-graphite-400 surgical:text-graphite-700">
+                <td className="p-3 text-gray-600 dark:text-graphite-400">
+                  {{ insumo_clinico: 'Insumo', instrumental: 'Instrumental', producto_venta: 'Venta', implante_protesis: 'Implante / prótesis', equipamiento: 'Equipamiento' }[item.tipoItem || 'insumo_clinico']}
+                  {item.tipoItem === 'instrumental' && item.estadoInstrumental && <span className="block text-[10px] text-gray-500 dark:text-graphite-400">{({ disponible: 'Disponible', en_esterilizacion: 'En esterilización', en_uso: 'En uso', mantencion: 'En mantención' } as Record<string, string>)[item.estadoInstrumental] || item.estadoInstrumental}</span>}
+                </td>
+
+                <td className="p-3 font-medium text-gray-600 dark:text-graphite-400 ">
                   {item.categoria}
                 </td>
 
                 <td className="p-3 text-center font-bold">
-                  <div className="inline-flex items-center gap-1.5 bg-graphite-50 dark:bg-graphite-950 surgical:bg-white px-2 py-1 rounded-xl border border-surface">
-                    <Button
-                      onClick={() => onAjustarCantidad(item.id, -1)}
-                      size="sm"
-                      variant="secondary"
-                      className="w-5 h-5 p-0 font-black text-xs"
-                      title="Disminuir stock"
-                    >
-                      -
-                    </Button>
-                    <span className="text-sm px-1 text-gray-900 dark:text-graphite-50 surgical:text-black tabular-nums">
-                      {item.cantidad}
-                    </span>
-                    <Button
-                      onClick={() => onAjustarCantidad(item.id, 1)}
-                      size="sm"
-                      variant="secondary"
-                      className="w-5 h-5 p-0 font-black text-xs"
-                      title="Aumentar stock"
-                    >
-                      +
-                    </Button>
-                  </div>
+                  <span className="text-sm text-gray-900 dark:text-graphite-50 tabular-nums">{item.cantidad} {item.unidad}</span>
                 </td>
 
                 <td className="p-3 text-center">
@@ -99,15 +83,15 @@ export const TablaInventario: React.FC<TablaInventarioProps> = memo(({
                     className={`font-semibold ${
                       estadoVenc.estado === 'vencido'
                         ? 'text-red-600 dark:text-red-400 font-bold'
-                        : estadoVenc.estado === 'por_vencer'
+                        : estadoVenc.estado === 'por_vencer' || estadoVenc.estado === 'por_vencer_90'
                           ? 'text-amber-600 dark:text-amber-400 font-bold'
-                          : 'text-gray-600 dark:text-graphite-400 surgical:text-graphite-700'
+                          : 'text-gray-600 dark:text-graphite-400 '
                     }`}
                   >
                     {item.fechaVencimiento || 'N/I'}
                   </span>
                   {estadoVenc.estado !== 'ok' && (
-                    <span className="block text-[9px] font-bold text-red-500">
+                    <span className={`block text-[9px] font-bold ${estadoVenc.estado === 'vencido' || estadoVenc.estado === 'por_vencer' ? 'text-red-500' : 'text-amber-600'}`}>
                       {estadoVenc.texto}
                     </span>
                   )}
@@ -117,7 +101,7 @@ export const TablaInventario: React.FC<TablaInventarioProps> = memo(({
                   {item.proveedor || 'N/I'}
                 </td>
 
-                <td className="p-3 text-right print:hidden space-x-1">
+                {canManage && <td className="p-3 text-right print:hidden space-x-1">
                   <Button
                     onClick={() => onEditar(item)}
                     size="sm"
@@ -136,7 +120,7 @@ export const TablaInventario: React.FC<TablaInventarioProps> = memo(({
                   >
                     <Trash2 size={12} />
                   </Button>
-                </td>
+                </td>}
               </tr>
             )
           })}
